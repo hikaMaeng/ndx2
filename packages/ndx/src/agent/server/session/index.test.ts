@@ -373,6 +373,128 @@ test("runSessionTurn appends user first, rebuilds history from sessiondata, call
   }
 });
 
+test("runSessionTurn rebuilds tool continuation from sessiondata before the next model request", async () => {
+  const projectPath = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-session-tool-turn-"));
+  await fs.mkdir(path.join(projectPath, ".ndx", "tools", "echo_value"), { recursive: true });
+  await fs.writeFile(
+    path.join(projectPath, ".ndx", "tools", "echo_value", "tool.json"),
+    JSON.stringify({
+      tool: { command: process.execPath, args: ["./index.mjs", "{value}"] },
+      schema: {
+        type: "function",
+        name: "echo_value",
+        parameters: {
+          type: "object",
+          properties: { value: { type: "string" } },
+          required: ["value"],
+          additionalProperties: false
+        }
+      }
+    }),
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(projectPath, ".ndx", "tools", "echo_value", "index.mjs"),
+    "process.stdout.write(JSON.stringify({ type: 'result', success: true, output: `tool:${process.argv[2]}` }) + '\\n');\n",
+    "utf8"
+  );
+
+  const modelInputs: unknown[] = [];
+  const modelServer = http.createServer((request, response) => {
+    let body = "";
+    request.on("data", (chunk) => {
+      body += String(chunk);
+    });
+    request.on("end", () => {
+      const payload = JSON.parse(body) as { input?: unknown };
+      modelInputs.push(payload.input);
+      response.writeHead(200, { "Content-Type": "application/json" });
+      if (modelInputs.length === 1) {
+        response.end(JSON.stringify({
+          output: [{ type: "function_call", call_id: "call_echo_1", name: "echo_value", arguments: JSON.stringify({ value: "abc" }) }]
+        }));
+        return;
+      }
+      response.end(JSON.stringify({ output: [{ type: "message", content: [{ type: "output_text", text: "최종 응답" }] }] }));
+    });
+  });
+
+  await new Promise<void>((resolve) => {
+    modelServer.listen(0, "127.0.0.1", () => resolve());
+  });
+  const address = modelServer.address();
+  assert(address && typeof address === "object");
+
+  const session: NDXSessionRow = {
+    sessionid: "018f0000-0000-7000-8000-000000000001",
+    userid: "ndev",
+    title: "",
+    mode: "none",
+    path: projectPath,
+    projectid: "project-1",
+    model: modelConfig("test-model"),
+    isrunning: false,
+    turnphase: "idle",
+    interruptrequested: false,
+    interruptrequestedat: null,
+    interruptcompletedat: null,
+    lastupdated: new Date("2026-05-12T00:00:00.000Z")
+  };
+  session.model.url = `http://127.0.0.1:${address.port}/v1`;
+  const rows: NDXSessionDataRow[] = [];
+  const database: NDXDatabase = {
+    async query(text, values) {
+      if (/SET\s+model = COALESCE/i.test(text)) {
+        session.isrunning = true;
+        return { rows: [session], rowCount: 1 } as never;
+      }
+      if (/SET\s+turnphase = \$2/i.test(text)) {
+        session.turnphase = String(values?.[1]);
+        return { rows: [session], rowCount: 1 } as never;
+      }
+      if (/FROM "session"/i.test(text) && /WHERE sessionid = \$1/i.test(text)) {
+        return { rows: [session], rowCount: 1 } as never;
+      }
+      if (/INSERT INTO sessiondata/i.test(text)) {
+        const row = {
+          dataid: String(rows.length + 1),
+          sessionid: String(values?.[0]),
+          type: String(values?.[1]),
+          contents: JSON.parse(String(values?.[2])),
+          createdat: new Date(`2026-05-12T00:00:${String(rows.length + 1).padStart(2, "0")}.000Z`)
+        };
+        rows.push(row);
+        return { rows: [row], rowCount: 1 } as never;
+      }
+      if (/FROM sessiondata/i.test(text)) {
+        return { rows: [...rows], rowCount: rows.length } as never;
+      }
+      if (/SET\s+isrunning = false/i.test(text)) {
+        session.isrunning = false;
+        return { rows: [session], rowCount: 1 } as never;
+      }
+      return { rows: [], rowCount: 0 } as never;
+    },
+    async close() {}
+  };
+
+  try {
+    await runSessionTurn(database, session, "도구를 써라");
+
+    assert.equal(modelInputs.length, 2);
+    assert.ok(rows.some((row) => row.contents && typeof row.contents === "object" && (row.contents as { kind?: unknown }).kind === "tool_call"));
+    assert.ok(rows.some((row) => row.contents && typeof row.contents === "object" && (row.contents as { kind?: unknown }).kind === "tool_result"));
+    assert.ok(Array.isArray(modelInputs[1]));
+    const secondInput = modelInputs[1] as Array<Record<string, unknown>>;
+    assert.ok(secondInput.some((item) => item.type === "function_call" && item.call_id === "call_echo_1"));
+    assert.ok(secondInput.some((item) => item.type === "function_call_output" && item.call_id === "call_echo_1" && item.output === "tool:abc"));
+  } finally {
+    modelServer.close();
+    await once(modelServer, "close");
+    await fs.rm(projectPath, { recursive: true, force: true });
+  }
+});
+
 test("response prepared hook can continue with a new request on the next tick", async () => {
   const projectPath = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-session-continue-"));
   const modelInputs: string[] = [];

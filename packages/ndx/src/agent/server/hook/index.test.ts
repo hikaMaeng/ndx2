@@ -7,6 +7,7 @@ import { once } from "node:events";
 import test from "node:test";
 import { NDX_TURN_EVENT } from "../../common/protocol/index.js";
 import { NDX_HOOK_EVENT_NAMES, createNDXHookRuntime, loadNDXHookPlan, registerNDXHook, runNDXHooks, type NDXHookContext, type NDXHookPlan } from "./index.js";
+import { runTurnContextPreparedHook, systemHooks as turnContextPreparedHooks } from "./turn.context.prepared/index.js";
 import { systemHooks as turnRequestReceivedHooks } from "./turn.request.received/index.js";
 import { runToolResultsCollectedHook, systemHooks as toolResultsCollectedHooks } from "./turn.tool.results.collected/index.js";
 import type { NDXDatabase, NDXSessionRow } from "../session/types.js";
@@ -226,6 +227,56 @@ test("request received system hook records selected skill contents before rewrit
   assert.equal(rows[0].type, "assistant");
   assert.match(JSON.stringify(rows[0].contents), /<name>demo<\/name>/);
   assert.match(JSON.stringify(rows[0].contents), /Use demo workflow\./);
+});
+
+test("context prepared system hook inlines current input images only on first iteration", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-hook-image-"));
+  const imagePath = path.join(root, "sample.png");
+  await fs.writeFile(imagePath, Buffer.from([1, 2, 3]));
+  const input = {
+    dataid: "input-1",
+    sessionid: session.sessionid,
+    type: "user",
+    createdat: new Date(0),
+    contents: {
+      kind: "user_message",
+      text: "이미지를 봐",
+      attachments: [{ kind: "image", path: imagePath, name: "sample.png", mimeType: "image/png", size: 3 }]
+    }
+  };
+  const messages = [
+    { role: "system", content: "developer" },
+    {
+      role: "user",
+      content: [
+        { type: "input_text", text: "이미지를 봐" },
+        { type: "input_image", file_path: imagePath, mime_type: "image/png" }
+      ]
+    }
+  ];
+
+  try {
+    const first = await runTurnContextPreparedHook(createNDXHookRuntime({ [NDX_TURN_EVENT.ContextPrepared]: turnContextPreparedHooks }, {}), {
+      ...baseContext,
+      input,
+      iteration: 1,
+      messages
+    });
+    const firstText = JSON.stringify(first.messages);
+    assert.match(firstText, /data:image\/png;base64,AQID/);
+    assert.doesNotMatch(firstText, /file_path/);
+    assert.doesNotMatch(firstText, new RegExp(imagePath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+
+    const second = await runTurnContextPreparedHook(createNDXHookRuntime({ [NDX_TURN_EVENT.ContextPrepared]: turnContextPreparedHooks }, {}), {
+      ...baseContext,
+      input,
+      iteration: 2,
+      messages
+    });
+    assert.deepEqual(second.messages, messages);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
 });
 
 test("tool results system loop detection is disabled when interval is non-positive", async () => {

@@ -1,5 +1,6 @@
 import type { NDXModelMessage, NDXSessionDataRow } from "./types.js";
 import type { NDXSessionAttachmentReference, NDXSessionDataContents, NDXToolResultContents } from "../../common/protocol/index.js";
+import type { ResponseInputItem } from "ndx/common/responseapi";
 
 export function userMessageContents(text: string, attachments: NDXSessionAttachmentReference[] = []): NDXSessionDataContents {
   return attachments.length > 0 ? { kind: "user_message", text, attachments } : { kind: "user_message", text };
@@ -100,24 +101,61 @@ function stringifyToolOutput(output: unknown): string {
   }
 }
 
-export function sessionDataRowsToModelMessages(rows: NDXSessionDataRow[]): NDXModelMessage[] {
+export function sessionDataRowsToModelMessages(rows: NDXSessionDataRow[]): ResponseInputItem[] {
+  const toolCallIterations = new Set<number>();
+  for (const row of rows) {
+    if (row.contents && typeof row.contents === "object" && (row.contents as { kind?: unknown }).kind === "tool_call") {
+      const iteration = (row.contents as { iteration?: unknown }).iteration;
+      if (typeof iteration === "number") {
+        toolCallIterations.add(iteration);
+      }
+    }
+  }
+
   return rows.flatMap((row) => {
-    if (row.type !== "user" && row.type !== "assistant") {
+    if (!row.contents || typeof row.contents !== "object") {
+      const text = sessionDataText(row);
+      return row.type === "user" && text ? [{ role: "user", content: text }] : row.type === "assistant" && text ? [{ role: "assistant", content: text }] : [];
+    }
+
+    const contents = row.contents as Partial<NDXSessionDataContents>;
+    if (row.type === "user") {
+      const content = userMessageModelContent(row.contents);
+      if (typeof content === "string" && !content.trim()) {
+        return [];
+      }
+      if (Array.isArray(content) && content.length === 0) {
+        return [];
+      }
+      return content === undefined ? [] : [{ role: "user", content }];
+    }
+
+    if (contents.kind === "tool_call" && Array.isArray(contents.toolCalls)) {
+      return contents.toolCalls.filter((toolCall): toolCall is ResponseInputItem => Boolean(toolCall && typeof toolCall === "object" && !Array.isArray(toolCall)));
+    }
+
+    if (contents.kind === "tool_result" && Array.isArray(contents.results)) {
+      return contents.results.map((result) => ({
+        type: "function_call_output",
+        call_id: result.toolCallId || "tool_call",
+        output: stringifyToolOutput(result.output)
+      }));
+    }
+
+    if (contents.kind === "assistant_delta" && typeof contents.iteration === "number" && toolCallIterations.has(contents.iteration)) {
       return [];
     }
 
-    const content = row.type === "user" ? userMessageModelContent(row.contents) : sessionDataText(row);
-    if (typeof content === "string" && !content.trim()) {
-      return [];
-    }
-    if (Array.isArray(content) && content.length === 0) {
-      return [];
-    }
-    if (content === undefined) {
+    if (contents.kind === "assistant_reasoning") {
       return [];
     }
 
-    return [{ role: row.type === "assistant" ? "assistant" : "user", content }];
+    if (row.type === "assistant") {
+      const content = sessionDataText(row);
+      return typeof content === "string" && content.trim().length > 0 ? [{ role: "assistant", content }] : [];
+    }
+
+    return [];
   });
 }
 

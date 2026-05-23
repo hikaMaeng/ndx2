@@ -1,8 +1,11 @@
+import { inlineInputImagesHook } from "./inlineInputImages.js";
 import { logNDXHookRunResult, runNDXHooks, type NDXHookCodeExecutor, type NDXHookContext, type NDXHookRunResult, type NDXHookRuntime } from "../index.js";
 import { NDX_TURN_EVENT } from "../../../common/protocol/index.js";
 import type { ResponseInputItem } from "ndx/common/responseapi";
 
-export const systemHooks: NDXHookCodeExecutor[] = [];
+export const systemHooks: NDXHookCodeExecutor[] = [
+  inlineInputImagesHook
+];
 
 export async function runTurnContextPreparedHook(
   runtime: NDXHookRuntime,

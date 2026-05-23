@@ -1,12 +1,14 @@
-import { assistantDeltaContents, assistantMessageContents, errorContents, toolCallContents, toolResultContents, userMessageContents } from "../session/content.js";
+import { assistantDeltaContents, assistantMessageContents, assistantReasoningContents, errorContents, toolCallContents, toolResultContents, userMessageContents } from "../session/content.js";
 import { assertModelSupportsAttachments, writeSessionAttachments } from "../session/attachments.js";
 import { appendSessionData } from "../session/appendSessionData.js";
+import { listSessionData } from "../session/listSessionData.js";
+import { sessionDataRowsToModelMessages } from "../session/sessionDataRowsToModelMessages.js";
 import { updateSessionEndTurn, updateSessionStartTurn } from "../session/updateSession.js";
 import { completeSessionInterrupt } from "../session/interruptSession.js";
 import { calculateDetailedContextUsage } from "../contextusage/index.js";
 import { createCotWorkTimingTracker } from "./cotWorkTiming.js";
-import { buildTurnMessageParts as buildTurnMessagePartsForRun } from "./messages.js";
-import { buildResponsesToolContinuationInput, requestModelResponse, responseToolCallId, type ModelResponse, type ResponseInputItem, type ResponseStreamInterrupt, type ResponseToolOutput } from "ndx/common/responseapi";
+import { buildTurnBaseMessageParts, buildTurnMessagesFromParts } from "./messages.js";
+import { requestModelResponse, responseToolCallId, type ResponseInputItem, type ResponseStreamInterrupt } from "ndx/common/responseapi";
 import { NDX_TURN_EVENT } from "../../common/protocol/index.js";
 import { createNDXAgentResourceResolver, DEFAULT_NDX_AGENT_LANGUAGE, NDX_AGENT_RESOURCE } from "../../common/resource/index.js";
 import { executeToolCalls, listAvailableTools, summarizeToolName, toolSchemas } from "../tool/index.js";
@@ -63,8 +65,13 @@ export async function runAgentTurn(
     void updatedSession;
     return;
   }
-  const messageParts = await buildTurnMessagePartsForRun(database, runningSession);
-  let messages: ResponseInputItem[] = [messageParts.developer, messageParts.user, ...messageParts.history].filter((message) => typeof message.content === "string" ? message.content.trim().length > 0 : message.content.length > 0);
+  const messageParts = await buildTurnBaseMessageParts(runningSession);
+  const buildCurrentMessageParts = async () => ({
+    ...messageParts,
+    history: sessionDataRowsToModelMessages(await listSessionData(database, runningSession.sessionid))
+  });
+  const buildCurrentMessages = async () => buildTurnMessagesFromParts(await buildCurrentMessageParts());
+  let messages: ResponseInputItem[] = await buildCurrentMessages();
   let availableTools = await listAvailableTools({ userHome, projectHome });
   let modelTools: Record<string, unknown>[] = toolSchemas(availableTools);
   const turnContextUsage = (extraContent = "", tools: unknown[] = modelTools, inputMessages: ResponseInputItem[] = messages) => calculateDetailedContextUsage(inputMessages, runningSession.model.contextsize, extraContent, tools);
@@ -112,12 +119,14 @@ export async function runAgentTurn(
     while (true) {
       activeIteration = iteration;
       await interrupt.checkpoint();
+      messages = await buildCurrentMessages();
       if (iteration > runtimeSettings.maxModelIterations) {
         const finalContextUsage = turnContextUsage("", []);
         await interrupt.setPhase("model_request");
         const contextPreparedHook = await runTurnContextPreparedHook(hookRuntime, {
           database,
           session: runningSession,
+          input,
           requestText: text,
           userHome,
           projectHome,
@@ -177,6 +186,7 @@ export async function runAgentTurn(
             },
             onReasoning: async (summary, content, stopModelResponse) => {
               await interrupt.checkpoint();
+              await appendSessionData(database, runningSession.sessionid, "assistant", assistantReasoningContents(iteration, summary));
               await processModelRespondingHook(iteration, {
                 type: "reasoning",
                 summary,
@@ -217,6 +227,7 @@ export async function runAgentTurn(
       const contextPreparedHook = await runTurnContextPreparedHook(hookRuntime, {
         database,
         session: runningSession,
+        input,
         requestText: text,
         userHome,
         projectHome,
@@ -271,6 +282,7 @@ export async function runAgentTurn(
           },
           onReasoning: async (summary, content, stopModelResponse) => {
             await interrupt.checkpoint();
+            await appendSessionData(database, runningSession.sessionid, "assistant", assistantReasoningContents(iteration, summary));
             await processModelRespondingHook(iteration, {
               type: "reasoning",
               summary,
@@ -368,7 +380,7 @@ export async function runAgentTurn(
           userHome,
           projectHome,
           sessionid: runningSession.sessionid,
-          turnContext: messageParts,
+          turnContext: await buildCurrentMessageParts(),
           signal: interrupt.signal,
           observer: {
             async onToolStarted(event) {
@@ -469,12 +481,10 @@ export async function runAgentTurn(
           successes: executedToolCalls.filter((toolCall) => toolCall.success).length
         });
         const toolResults: NDXToolResultContents[] = [];
-        const functionCallOutputs: ResponseToolOutput[] = [];
         for (const [index, toolCall] of toolCalls.entries()) {
           const toolCallId = responseToolCallId(toolCall) || "tool_call";
           const executed = executedToolCalls[index] ?? { tool: summarizeToolName(toolCall), success: false, output: "Tool call did not return a result." };
           toolResults.push({ toolCallId, tool: summarizeToolName(toolCall), success: executed.success, output: executed.output });
-          functionCallOutputs.push({ toolCall, output: executed.output });
         }
         const toolResult = await appendSessionData(database, runningSession.sessionid, "assistant", toolResultContents(iteration, toolResults));
         await events.onEvent?.({
@@ -492,12 +502,7 @@ export async function runAgentTurn(
           failures: executedToolCalls.filter((toolCall) => !toolCall.success).length
         });
         const previousMessageCount = messages.length;
-        const toolResponse: ModelResponse = {
-          ...response,
-          toolCalls,
-          outputItems: toolCalls === response.toolCalls ? response.outputItems : toolCalls
-        };
-        messages = buildResponsesToolContinuationInput(messages, toolResponse, functionCallOutputs);
+        messages = await buildCurrentMessages();
         const resumeContextUsage = turnContextUsage();
         database.logger?.info(NDX_TURN_EVENT.ModelResume, {
           sessionid: runningSession.sessionid,
@@ -507,9 +512,9 @@ export async function runAgentTurn(
           nextMessageCount: messages.length,
           toolCallCount: toolCalls.length,
           outputItemCount: response.outputItems.length,
-          functionCallOutputCount: functionCallOutputs.length,
+          functionCallOutputCount: toolResults.length,
           functionCallIds: toolCalls.map((toolCall) => responseToolCallId(toolCall) ?? "tool_call"),
-          functionCallOutputBytes: functionCallOutputs.reduce((total, output) => total + Buffer.byteLength(output.output), 0),
+          functionCallOutputBytes: toolResults.reduce((total, output) => total + Buffer.byteLength(String(output.output)), 0),
           contextTokens: resumeContextUsage.tokens,
           toolDefinitionTokens: resumeContextUsage.toolDefinitionTokens,
           contextsize: resumeContextUsage.contextsize

@@ -5,7 +5,7 @@ import { runToolProcess } from "../tool/execute/process.js";
 import { systemNDXHookPlan } from "./system.js";
 import { NDX_TURN_EVENT } from "../../common/protocol/index.js";
 import type { NDXContextUsage } from "../contextusage/index.js";
-import type { NDXDatabase, NDXSessionRow } from "../session/types.js";
+import type { NDXDatabase, NDXSessionDataRow, NDXSessionRow } from "../session/types.js";
 import type { NDXResolvedTool, NDXToolExecutionResult } from "../tool/types.js";
 import type { NDXAgentLanguage, NDXAgentResourceResolver } from "../../common/resource/index.js";
 import type { ResponseInputItem } from "ndx/common/responseapi";
@@ -27,6 +27,7 @@ export type NDXHookContext = {
   event: NDXHookEventName;
   database: NDXDatabase;
   session: NDXSessionRow;
+  input?: NDXSessionDataRow;
   requestText: string;
   userHome: string;
   projectHome: string;
