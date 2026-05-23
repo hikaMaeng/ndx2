@@ -1,0 +1,158 @@
+[
+  {
+    "target": {
+      "id": "home-and-project-agents",
+      "title": "Home and project AGENTS instructions are included in order",
+      "test": "buildContext must render user-home .ndx/AGENTS.md before the project root AGENTS.md.",
+      "steps": [
+        {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"user instructions include user and project AGENTS files in order\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes."
+        }
+      ],
+      "passCriteria": "Both AGENTS files are present as user context sections, and the user-home section precedes the project section."
+    },
+    "steps": [
+      {
+        "target": {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"user instructions include user and project AGENTS files in order\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes."
+        },
+        "result": true,
+        "descript": "Focused node:test 'user instructions include user and project AGENTS files in order' exited 0.",
+        "evidence": [
+          "cwd=/mnt/f/dev/ndx2/packages/ndx",
+          "command=yarn \"exec\" \"node\" \"--import\" \"tsx\" \"--test\" \"src/**/*.test.ts\" \"--test-name-pattern\" \"user instructions include user and project AGENTS files in order\"",
+          "  duration_ms: 0.716739\n  type: 'test'\n  ...\n1..20\n# tests 20\n# suites 0\n# pass 20\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 5128.653834"
+        ]
+      }
+    ],
+    "result": {
+      "result": true,
+      "descript": "The focused context test 'user instructions include user and project AGENTS files in order' passed.",
+      "evidence": [
+        "exitStatus=0",
+        "resultPath=/mnt/f/dev/ndx2/test/20260512/014021_run/submitted/home-and-project-agents.json"
+      ]
+    }
+  },
+  {
+    "target": {
+      "id": "project-to-cwd-cascade",
+      "title": "Project AGENTS cascade reaches cwd ancestors",
+      "test": "buildContext must apply AGENTS.md files from projectHome through cwd descendant directories in order, skipping missing files.",
+      "steps": [
+        {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"user instructions cascade from project root to cwd descendants\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes."
+        }
+      ],
+      "passCriteria": "home, project root, apps, and agent AGENTS contents appear in that order while a missing cwd AGENTS file is not rendered."
+    },
+    "steps": [
+      {
+        "target": {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"user instructions cascade from project root to cwd descendants\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes."
+        },
+        "result": true,
+        "descript": "Focused node:test 'user instructions cascade from project root to cwd descendants' exited 0.",
+        "evidence": [
+          "cwd=/mnt/f/dev/ndx2/packages/ndx",
+          "command=yarn \"exec\" \"node\" \"--import\" \"tsx\" \"--test\" \"src/**/*.test.ts\" \"--test-name-pattern\" \"user instructions cascade from project root to cwd descendants\"",
+          "  duration_ms: 0.612684\n  type: 'test'\n  ...\n1..20\n# tests 20\n# suites 0\n# pass 20\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 4953.155299"
+        ]
+      }
+    ],
+    "result": {
+      "result": true,
+      "descript": "The focused context test 'user instructions cascade from project root to cwd descendants' passed.",
+      "evidence": [
+        "exitStatus=0",
+        "resultPath=/mnt/f/dev/ndx2/test/20260512/014021_run/submitted/project-to-cwd-cascade.json"
+      ]
+    }
+  },
+  {
+    "target": {
+      "id": "project-cwd-no-duplicate",
+      "title": "Project AGENTS is not duplicated when cwd equals projectHome",
+      "test": "buildContext must render the project AGENTS file exactly once when the session cwd is the declared projectHome.",
+      "steps": [
+        {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"user instructions do not duplicate project AGENTS when cwd equals projectHome\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes."
+        }
+      ],
+      "passCriteria": "The project AGENTS content occurs once."
+    },
+    "steps": [
+      {
+        "target": {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"user instructions do not duplicate project AGENTS when cwd equals projectHome\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes."
+        },
+        "result": true,
+        "descript": "Focused node:test 'user instructions do not duplicate project AGENTS when cwd equals projectHome' exited 0.",
+        "evidence": [
+          "cwd=/mnt/f/dev/ndx2/packages/ndx",
+          "command=yarn \"exec\" \"node\" \"--import\" \"tsx\" \"--test\" \"src/**/*.test.ts\" \"--test-name-pattern\" \"user instructions do not duplicate project AGENTS when cwd equals projectHome\"",
+          "  duration_ms: 0.939635\n  type: 'test'\n  ...\n1..20\n# tests 20\n# suites 0\n# pass 20\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 4934.17242"
+        ]
+      }
+    ],
+    "result": {
+      "result": true,
+      "descript": "The focused context test 'user instructions do not duplicate project AGENTS when cwd equals projectHome' passed.",
+      "evidence": [
+        "exitStatus=0",
+        "resultPath=/mnt/f/dev/ndx2/test/20260512/014021_run/submitted/project-cwd-no-duplicate.json"
+      ]
+    }
+  },
+  {
+    "target": {
+      "id": "outside-cwd-agents-ignored",
+      "title": "cwd outside projectHome does not leak unrelated AGENTS",
+      "test": "buildContext must not read AGENTS.md from cwd when cwd is outside the session's declared projectHome, while environment_context still records the actual cwd.",
+      "steps": [
+        {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"user instructions ignore cwd AGENTS outside declared projectHome\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes."
+        }
+      ],
+      "passCriteria": "Home and project AGENTS contents appear, outside cwd AGENTS content is absent, and environment_context contains the outside cwd."
+    },
+    "steps": [
+      {
+        "target": {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"user instructions ignore cwd AGENTS outside declared projectHome\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes."
+        },
+        "result": true,
+        "descript": "Focused node:test 'user instructions ignore cwd AGENTS outside declared projectHome' exited 0.",
+        "evidence": [
+          "cwd=/mnt/f/dev/ndx2/packages/ndx",
+          "command=yarn \"exec\" \"node\" \"--import\" \"tsx\" \"--test\" \"src/**/*.test.ts\" \"--test-name-pattern\" \"user instructions ignore cwd AGENTS outside declared projectHome\"",
+          "  duration_ms: 0.623535\n  type: 'test'\n  ...\n1..20\n# tests 20\n# suites 0\n# pass 20\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 4491.680314"
+        ]
+      }
+    ],
+    "result": {
+      "result": true,
+      "descript": "The focused context test 'user instructions ignore cwd AGENTS outside declared projectHome' passed.",
+      "evidence": [
+        "exitStatus=0",
+        "resultPath=/mnt/f/dev/ndx2/test/20260512/014021_run/submitted/outside-cwd-agents-ignored.json"
+      ]
+    }
+  }
+]

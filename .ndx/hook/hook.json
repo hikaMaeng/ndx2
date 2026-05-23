@@ -1,0 +1,89 @@
+{
+  "turn.request.received": [
+    [
+      {
+        "name": "project-task-normalizer",
+        "tool": {
+          "command": "node",
+          "args": ["./task-normalizer/index.mjs"],
+          "stdin": "{context}",
+          "timeoutMs": 30000
+        }
+      }
+    ]
+  ],
+  "model.request.before": [
+    [
+      {
+        "name": "project-preflight-once",
+        "tool": {
+          "command": "node",
+          "args": ["./preflight-once/index.mjs"],
+          "stdin": "{context}",
+          "timeoutMs": 360000
+        }
+      },
+      {
+        "name": "project-model-request-guard",
+        "tool": {
+          "command": "node",
+          "args": ["./model-request-guard/index.mjs"],
+          "stdin": "{context}",
+          "timeoutMs": 30000
+        }
+      }
+    ]
+  ],
+  "model.response.after": [
+    [
+      {
+        "name": "project-model-response-health",
+        "tool": {
+          "command": "node",
+          "args": ["./model-response-health/index.mjs"],
+          "stdin": "{context}",
+          "timeoutMs": 30000
+        }
+      }
+    ]
+  ],
+  "tool.results.collected": [
+    [
+      {
+        "name": "project-tool-result-classifier",
+        "tool": {
+          "command": "node",
+          "args": ["./tool-result-classifier/index.mjs"],
+          "stdin": "{context}",
+          "timeoutMs": 30000
+        }
+      }
+    ]
+  ],
+  "model.resume.prepared": [
+    [
+      {
+        "name": "project-resume-diagnostics",
+        "tool": {
+          "command": "node",
+          "args": ["./resume-diagnostics/index.mjs"],
+          "stdin": "{context}",
+          "timeoutMs": 30000
+        }
+      }
+    ]
+  ],
+  "turn.failed": [
+    [
+      {
+        "name": "project-transport-failure-classifier",
+        "tool": {
+          "command": "node",
+          "args": ["./transport-failure/index.mjs"],
+          "stdin": "{context}",
+          "timeoutMs": 30000
+        }
+      }
+    ]
+  ]
+}

@@ -1,0 +1,91 @@
+{
+  "name": "ndx",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/common/index.js",
+  "module": "./dist/common/index.js",
+  "types": "./dist/common/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/common/index.d.ts",
+      "import": "./dist/common/index.js"
+    },
+    "./common": {
+      "types": "./dist/common/index.d.ts",
+      "import": "./dist/common/index.js"
+    },
+    "./common/log": {
+      "types": "./dist/common/log/index.d.ts",
+      "import": "./dist/common/log/index.js"
+    },
+    "./common/responseapi": {
+      "types": "./dist/common/responseapi/index.d.ts",
+      "import": "./dist/common/responseapi/index.js"
+    },
+    "./server/common": {
+      "types": "./dist/server/common/index.d.ts",
+      "import": "./dist/server/common/index.js"
+    },
+    "./admin/common": {
+      "types": "./dist/admin/common/index.d.ts",
+      "import": "./dist/admin/common/index.js"
+    },
+    "./admin/server": {
+      "types": "./dist/admin/server/index.d.ts",
+      "import": "./dist/admin/server/index.js"
+    },
+    "./admin/front": {
+      "types": "./dist/admin/front/index.d.ts",
+      "import": "./dist/admin/front/index.js"
+    },
+    "./agent/common": {
+      "types": "./dist/agent/common/index.d.ts",
+      "import": "./dist/agent/common/index.js"
+    },
+    "./agent/common/protocol": {
+      "types": "./dist/agent/common/protocol/index.d.ts",
+      "import": "./dist/agent/common/protocol/index.js"
+    },
+    "./agent/server": {
+      "types": "./dist/agent/server/index.d.ts",
+      "import": "./dist/agent/server/index.js"
+    },
+    "./agent/cli": {
+      "types": "./dist/agent/cli/index.d.ts",
+      "import": "./dist/agent/cli/index.js"
+    },
+    "./agent/web": {
+      "types": "./dist/agent/web/index.d.ts",
+      "import": "./dist/agent/web/index.js"
+    },
+    "./agent/web/client-state": {
+      "types": "./dist/agent/web/client-state/index.d.ts",
+      "import": "./dist/agent/web/client-state/index.js"
+    },
+    "./agent/web/protocol": {
+      "types": "./dist/agent/web/protocol/index.d.ts",
+      "import": "./dist/agent/web/protocol/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "docs"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "node --import tsx --test src/**/*.test.ts",
+    "lint": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "25.6.2",
+    "@types/pg": "8.15.6",
+    "tsx": "4.21.0",
+    "typescript": "5.9.3"
+  },
+  "dependencies": {
+    "pg": "8.16.3"
+  }
+}

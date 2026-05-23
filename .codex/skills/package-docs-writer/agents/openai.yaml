@@ -1,0 +1,4 @@
+interface:
+  display_name: "Package Docs Writer"
+  short_description: "Generate terse package README and docs structure."
+  default_prompt: "Use $package-docs-writer to create or compress this package documentation into the required repository shape."

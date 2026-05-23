@@ -1,0 +1,47 @@
+{
+  "@meta": {
+    "subagents": [],
+    "elapsed": 0,
+    "result": true,
+    "detail": "1 passed / 0 failed",
+    "started": "2026-05-10T19:56:31.000Z"
+  },
+  "scaffold": [
+    {
+      "id": "baseline-files",
+      "title": "Baseline files exist",
+      "test": "The web-service scaffold baseline was copied from bundled assets.",
+      "steps": [
+        {
+          "id": "root-files",
+          "instruction": "Check root package.json, turbo.json, docker-compose.yml, AGENTS.md, and .codex/skills.",
+          "expected": "All root scaffold contract files exist.",
+          "result": true,
+          "descript": "Root baseline files were generated from bundled assets and the scaffold lockfile template.",
+          "evidence": [
+            "/mnt/f/dev/ndx2/package.json",
+            "/mnt/f/dev/ndx2/yarn.lock",
+            "/mnt/f/dev/ndx2/turbo.json",
+            "/mnt/f/dev/ndx2/docker-compose.yml",
+            "/mnt/f/dev/ndx2/AGENTS.md",
+            "/mnt/f/dev/ndx2/.codex/skills/web-deploy-docker/SKILL.md"
+          ]
+        },
+        {
+          "id": "service-files",
+          "instruction": "Check apps/ndx server, front, docker, README, and docs files.",
+          "expected": "All service baseline files exist.",
+          "result": true,
+          "descript": "Service baseline files were generated from bundled assets.",
+          "evidence": [
+            "/mnt/f/dev/ndx2/apps/ndx/src/server/index.ts",
+            "/mnt/f/dev/ndx2/apps/ndx/src/front/main.tsx",
+            "/mnt/f/dev/ndx2/apps/ndx/docker/Dockerfile",
+            "/mnt/f/dev/ndx2/apps/ndx/README.md",
+            "/mnt/f/dev/ndx2/apps/ndx/docs"
+          ]
+        }
+      ]
+    }
+  ]
+}

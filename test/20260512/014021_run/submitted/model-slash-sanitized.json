@@ -1,0 +1,39 @@
+{
+  "target": {
+    "id": "model-slash-sanitized",
+    "title": "Model prompt filenames sanitize slash characters",
+    "test": "resolveModelInstruction must map slash-bearing model names to underscore filenames before reading prompt files.",
+    "steps": [
+      {
+        "id": "run-focused-node-test",
+        "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"model instruction sanitizes slash characters before reading model prompt files\".",
+        "expected": "The focused node:test invocation exits 0 and the named subtest passes."
+      }
+    ],
+    "passCriteria": "A model such as LOCAL/GPT resolves to local_gpt.md."
+  },
+  "steps": [
+    {
+      "target": {
+        "id": "run-focused-node-test",
+        "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"model instruction sanitizes slash characters before reading model prompt files\".",
+        "expected": "The focused node:test invocation exits 0 and the named subtest passes."
+      },
+      "result": true,
+      "descript": "Focused node:test 'model instruction sanitizes slash characters before reading model prompt files' exited 0.",
+      "evidence": [
+        "cwd=/mnt/f/dev/ndx2/packages/ndx",
+        "command=yarn \"exec\" \"node\" \"--import\" \"tsx\" \"--test\" \"src/**/*.test.ts\" \"--test-name-pattern\" \"model instruction sanitizes slash characters before reading model prompt files\"",
+        "  duration_ms: 0.759643\n  type: 'test'\n  ...\n1..20\n# tests 20\n# suites 0\n# pass 20\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 5263.61173"
+      ]
+    }
+  ],
+  "result": {
+    "result": true,
+    "descript": "The focused context test 'model instruction sanitizes slash characters before reading model prompt files' passed.",
+    "evidence": [
+      "exitStatus=0",
+      "resultPath=/mnt/f/dev/ndx2/test/20260512/014021_run/submitted/model-slash-sanitized.json"
+    ]
+  }
+}

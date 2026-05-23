@@ -1,0 +1,21 @@
+{
+  "tool": {
+    "command": "bash",
+    "args": ["./index.sh", "{file_path}"],
+    "stdin": "{content}"
+  },
+  "schema": {
+    "type": "function",
+    "name": "write_file",
+    "description": "Writes a complete file under the NDX virtual root, creating parent directories as needed.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "file_path": { "type": "string", "description": "Container absolute path under the NDX virtual root, or path relative to the project root." },
+        "content": { "type": "string", "description": "Complete file content to write." }
+      },
+      "required": ["file_path", "content"],
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "target": {
+    "id": "model-bundled-default",
+    "title": "Bundled default prompt is available before user init",
+    "test": "resolveModelInstruction must still return the bundled default prompt when the provided or default user home has no .ndx default prompt.",
+    "steps": [
+      {
+        "id": "run-focused-node-test",
+        "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"model instruction falls back to bundled default prompt when .ndx is absent\".",
+        "expected": "The focused node:test invocation exits 0 and the named subtest passes."
+      }
+    ],
+    "passCriteria": "The bundled default prompt containing the NDX identity is returned."
+  },
+  "steps": [
+    {
+      "target": {
+        "id": "run-focused-node-test",
+        "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"model instruction falls back to bundled default prompt when .ndx is absent\".",
+        "expected": "The focused node:test invocation exits 0 and the named subtest passes."
+      },
+      "result": true,
+      "descript": "Focused node:test 'model instruction falls back to bundled default prompt when .ndx is absent' exited 0.",
+      "evidence": [
+        "cwd=/mnt/f/dev/ndx2/packages/ndx",
+        "command=yarn \"exec\" \"node\" \"--import\" \"tsx\" \"--test\" \"src/**/*.test.ts\" \"--test-name-pattern\" \"model instruction falls back to bundled default prompt when .ndx is absent\"",
+        "  duration_ms: 0.710477\n  type: 'test'\n  ...\n1..20\n# tests 20\n# suites 0\n# pass 20\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 5405.415946"
+      ]
+    }
+  ],
+  "result": {
+    "result": true,
+    "descript": "The focused context test 'model instruction falls back to bundled default prompt when .ndx is absent' passed.",
+    "evidence": [
+      "exitStatus=0",
+      "resultPath=/mnt/f/dev/ndx2/test/20260512/014021_run/submitted/model-bundled-default.json"
+    ]
+  }
+}

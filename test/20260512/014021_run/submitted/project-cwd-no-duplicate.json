@@ -1,0 +1,39 @@
+{
+  "target": {
+    "id": "project-cwd-no-duplicate",
+    "title": "Project AGENTS is not duplicated when cwd equals projectHome",
+    "test": "buildContext must render the project AGENTS file exactly once when the session cwd is the declared projectHome.",
+    "steps": [
+      {
+        "id": "run-focused-node-test",
+        "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"user instructions do not duplicate project AGENTS when cwd equals projectHome\".",
+        "expected": "The focused node:test invocation exits 0 and the named subtest passes."
+      }
+    ],
+    "passCriteria": "The project AGENTS content occurs once."
+  },
+  "steps": [
+    {
+      "target": {
+        "id": "run-focused-node-test",
+        "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"user instructions do not duplicate project AGENTS when cwd equals projectHome\".",
+        "expected": "The focused node:test invocation exits 0 and the named subtest passes."
+      },
+      "result": true,
+      "descript": "Focused node:test 'user instructions do not duplicate project AGENTS when cwd equals projectHome' exited 0.",
+      "evidence": [
+        "cwd=/mnt/f/dev/ndx2/packages/ndx",
+        "command=yarn \"exec\" \"node\" \"--import\" \"tsx\" \"--test\" \"src/**/*.test.ts\" \"--test-name-pattern\" \"user instructions do not duplicate project AGENTS when cwd equals projectHome\"",
+        "  duration_ms: 0.939635\n  type: 'test'\n  ...\n1..20\n# tests 20\n# suites 0\n# pass 20\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 4934.17242"
+      ]
+    }
+  ],
+  "result": {
+    "result": true,
+    "descript": "The focused context test 'user instructions do not duplicate project AGENTS when cwd equals projectHome' passed.",
+    "evidence": [
+      "exitStatus=0",
+      "resultPath=/mnt/f/dev/ndx2/test/20260512/014021_run/submitted/project-cwd-no-duplicate.json"
+    ]
+  }
+}

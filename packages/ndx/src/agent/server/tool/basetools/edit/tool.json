@@ -1,0 +1,22 @@
+{
+  "tool": {
+    "command": "bash",
+    "args": ["./index.sh", "{file_path}", "{replace_all}", "{old_string}", "{new_string}"]
+  },
+  "schema": {
+    "type": "function",
+    "name": "edit",
+    "description": "Replaces text in a file under the NDX virtual root. The old_string must match exactly once unless replace_all is true.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "file_path": { "type": "string", "description": "Container absolute path under the NDX virtual root, or path relative to the project root." },
+        "old_string": { "type": "string", "description": "Exact literal text to replace. Empty string creates a new file." },
+        "new_string": { "type": "string", "description": "Replacement text." },
+        "replace_all": { "type": "boolean", "description": "Replace all occurrences instead of requiring a single match." }
+      },
+      "required": ["file_path", "old_string", "new_string"],
+      "additionalProperties": false
+    }
+  }
+}

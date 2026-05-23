@@ -1,0 +1,22 @@
+{
+  "tool": {
+    "command": "bash",
+    "args": ["./index.sh", "{name}", "$SKILL_LIST", "$LOADED_SKILL"]
+  },
+  "schema": {
+    "type": "function",
+    "name": "loadSkill",
+    "description": "Loads the full instructions for an available Codex skill by name, then returns them as a <skill> context block. Use after deciding a listed skill is relevant, then continue the task using the loaded instructions.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The skill name from the available skills list."
+        }
+      },
+      "required": ["name"],
+      "additionalProperties": false
+    }
+  }
+}

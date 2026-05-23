@@ -1,0 +1,39 @@
+{
+  "target": {
+    "id": "developer-system-prompt-absent",
+    "title": "Missing user-home system prompt is omitted",
+    "test": "buildContext must omit developer_instructions when .ndx/system-promt.md is absent, while retaining model instructions.",
+    "steps": [
+      {
+        "id": "run-focused-node-test",
+        "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"developer instructions are omitted when system prompt is absent\".",
+        "expected": "The focused node:test invocation exits 0 and the named subtest passes."
+      }
+    ],
+    "passCriteria": "No developer_instructions section is emitted and the model instruction section is still present."
+  },
+  "steps": [
+    {
+      "target": {
+        "id": "run-focused-node-test",
+        "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"developer instructions are omitted when system prompt is absent\".",
+        "expected": "The focused node:test invocation exits 0 and the named subtest passes."
+      },
+      "result": true,
+      "descript": "Focused node:test 'developer instructions are omitted when system prompt is absent' exited 0.",
+      "evidence": [
+        "cwd=/mnt/f/dev/ndx2/packages/ndx",
+        "command=yarn \"exec\" \"node\" \"--import\" \"tsx\" \"--test\" \"src/**/*.test.ts\" \"--test-name-pattern\" \"developer instructions are omitted when system prompt is absent\"",
+        "  duration_ms: 0.599279\n  type: 'test'\n  ...\n1..20\n# tests 20\n# suites 0\n# pass 20\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 4851.747599"
+      ]
+    }
+  ],
+  "result": {
+    "result": true,
+    "descript": "The focused context test 'developer instructions are omitted when system prompt is absent' passed.",
+    "evidence": [
+      "exitStatus=0",
+      "resultPath=/mnt/f/dev/ndx2/test/20260512/014021_run/submitted/developer-system-prompt-absent.json"
+    ]
+  }
+}

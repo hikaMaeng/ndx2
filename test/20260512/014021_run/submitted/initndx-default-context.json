@@ -1,0 +1,39 @@
+{
+  "target": {
+    "id": "initndx-default-context",
+    "title": "initNDX seeded default prompt enters buildContext",
+    "test": "After initNDX seeds the temporary user home, buildContext must include the seeded default model prompt in the developer context.",
+    "steps": [
+      {
+        "id": "run-focused-node-test",
+        "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"buildContext uses initNDX seeded default model prompt\".",
+        "expected": "The focused node:test invocation exits 0 and the named subtest passes."
+      }
+    ],
+    "passCriteria": "The developer context starts with a model_instruction section containing the seeded NDX default prompt."
+  },
+  "steps": [
+    {
+      "target": {
+        "id": "run-focused-node-test",
+        "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"buildContext uses initNDX seeded default model prompt\".",
+        "expected": "The focused node:test invocation exits 0 and the named subtest passes."
+      },
+      "result": true,
+      "descript": "Focused node:test 'buildContext uses initNDX seeded default model prompt' exited 0.",
+      "evidence": [
+        "cwd=/mnt/f/dev/ndx2/packages/ndx",
+        "command=yarn \"exec\" \"node\" \"--import\" \"tsx\" \"--test\" \"src/**/*.test.ts\" \"--test-name-pattern\" \"buildContext uses initNDX seeded default model prompt\"",
+        "  duration_ms: 0.623414\n  type: 'test'\n  ...\n1..20\n# tests 20\n# suites 0\n# pass 20\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 5210.19127"
+      ]
+    }
+  ],
+  "result": {
+    "result": true,
+    "descript": "The focused context test 'buildContext uses initNDX seeded default model prompt' passed.",
+    "evidence": [
+      "exitStatus=0",
+      "resultPath=/mnt/f/dev/ndx2/test/20260512/014021_run/submitted/initndx-default-context.json"
+    ]
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "target": {
+    "id": "outside-cwd-agents-ignored",
+    "title": "cwd outside projectHome does not leak unrelated AGENTS",
+    "test": "buildContext must not read AGENTS.md from cwd when cwd is outside the session's declared projectHome, while environment_context still records the actual cwd.",
+    "steps": [
+      {
+        "id": "run-focused-node-test",
+        "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"user instructions ignore cwd AGENTS outside declared projectHome\".",
+        "expected": "The focused node:test invocation exits 0 and the named subtest passes."
+      }
+    ],
+    "passCriteria": "Home and project AGENTS contents appear, outside cwd AGENTS content is absent, and environment_context contains the outside cwd."
+  },
+  "steps": [
+    {
+      "target": {
+        "id": "run-focused-node-test",
+        "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"user instructions ignore cwd AGENTS outside declared projectHome\".",
+        "expected": "The focused node:test invocation exits 0 and the named subtest passes."
+      },
+      "result": true,
+      "descript": "Focused node:test 'user instructions ignore cwd AGENTS outside declared projectHome' exited 0.",
+      "evidence": [
+        "cwd=/mnt/f/dev/ndx2/packages/ndx",
+        "command=yarn \"exec\" \"node\" \"--import\" \"tsx\" \"--test\" \"src/**/*.test.ts\" \"--test-name-pattern\" \"user instructions ignore cwd AGENTS outside declared projectHome\"",
+        "  duration_ms: 0.623535\n  type: 'test'\n  ...\n1..20\n# tests 20\n# suites 0\n# pass 20\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 4491.680314"
+      ]
+    }
+  ],
+  "result": {
+    "result": true,
+    "descript": "The focused context test 'user instructions ignore cwd AGENTS outside declared projectHome' passed.",
+    "evidence": [
+      "exitStatus=0",
+      "resultPath=/mnt/f/dev/ndx2/test/20260512/014021_run/submitted/outside-cwd-agents-ignored.json"
+    ]
+  }
+}

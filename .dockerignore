@@ -1,0 +1,8 @@
+.git
+.codex
+.turbo
+.yarn
+.pnp.*
+node_modules
+test
+*.log

@@ -1,0 +1,275 @@
+[
+  {
+    "target": {
+      "id": "model-exact-file",
+      "title": "Exact model prompt file is selected",
+      "test": "resolveModelInstruction must read .ndx/system/modelprompt/<model>.md when the session model exactly matches the prompt filename.",
+      "steps": [
+        {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"model instruction resolves exact model names from file-backed prompt\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes."
+        }
+      ],
+      "passCriteria": "The exact model prompt file content is returned without falling through to another prompt."
+    },
+    "steps": [
+      {
+        "target": {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"model instruction resolves exact model names from file-backed prompt\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes."
+        },
+        "result": true,
+        "descript": "Focused node:test 'model instruction resolves exact model names from file-backed prompt' exited 0.",
+        "evidence": [
+          "cwd=/mnt/f/dev/ndx2/packages/ndx",
+          "command=yarn \"exec\" \"node\" \"--import\" \"tsx\" \"--test\" \"src/**/*.test.ts\" \"--test-name-pattern\" \"model instruction resolves exact model names from file-backed prompt\"",
+          "  duration_ms: 0.713353\n  type: 'test'\n  ...\n1..20\n# tests 20\n# suites 0\n# pass 20\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 4511.440529"
+        ]
+      }
+    ],
+    "result": {
+      "result": true,
+      "descript": "The focused context test 'model instruction resolves exact model names from file-backed prompt' passed.",
+      "evidence": [
+        "exitStatus=0",
+        "resultPath=/mnt/f/dev/ndx2/test/20260512/014021_run/submitted/model-exact-file.json"
+      ]
+    }
+  },
+  {
+    "target": {
+      "id": "model-colon-fallback",
+      "title": "Colon-suffixed model names fall back rightward",
+      "test": "resolveModelInstruction must strip colon suffixes from the right until an existing model prompt filename is found.",
+      "steps": [
+        {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"model instruction strips colon suffixes from the right\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes."
+        }
+      ],
+      "passCriteria": "A model such as gpt-5-codex:lm-studio:local resolves to gpt-5-codex.md when present."
+    },
+    "steps": [
+      {
+        "target": {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"model instruction strips colon suffixes from the right\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes."
+        },
+        "result": true,
+        "descript": "Focused node:test 'model instruction strips colon suffixes from the right' exited 0.",
+        "evidence": [
+          "cwd=/mnt/f/dev/ndx2/packages/ndx",
+          "command=yarn \"exec\" \"node\" \"--import\" \"tsx\" \"--test\" \"src/**/*.test.ts\" \"--test-name-pattern\" \"model instruction strips colon suffixes from the right\"",
+          "  duration_ms: 0.548357\n  type: 'test'\n  ...\n1..20\n# tests 20\n# suites 0\n# pass 20\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 4981.098802"
+        ]
+      }
+    ],
+    "result": {
+      "result": true,
+      "descript": "The focused context test 'model instruction strips colon suffixes from the right' passed.",
+      "evidence": [
+        "exitStatus=0",
+        "resultPath=/mnt/f/dev/ndx2/test/20260512/014021_run/submitted/model-colon-fallback.json"
+      ]
+    }
+  },
+  {
+    "target": {
+      "id": "model-default-file",
+      "title": "Default user prompt is selected when model prompt is absent",
+      "test": "resolveModelInstruction must use .ndx/system/modelprompt/default.md when no model-specific prompt exists.",
+      "steps": [
+        {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"model instruction falls back to default prompt file\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes."
+        }
+      ],
+      "passCriteria": "The user-home default prompt file is returned."
+    },
+    "steps": [
+      {
+        "target": {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"model instruction falls back to default prompt file\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes."
+        },
+        "result": true,
+        "descript": "Focused node:test 'model instruction falls back to default prompt file' exited 0.",
+        "evidence": [
+          "cwd=/mnt/f/dev/ndx2/packages/ndx",
+          "command=yarn \"exec\" \"node\" \"--import\" \"tsx\" \"--test\" \"src/**/*.test.ts\" \"--test-name-pattern\" \"model instruction falls back to default prompt file\"",
+          "  duration_ms: 0.67525\n  type: 'test'\n  ...\n1..20\n# tests 20\n# suites 0\n# pass 20\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 6137.198005"
+        ]
+      }
+    ],
+    "result": {
+      "result": true,
+      "descript": "The focused context test 'model instruction falls back to default prompt file' passed.",
+      "evidence": [
+        "exitStatus=0",
+        "resultPath=/mnt/f/dev/ndx2/test/20260512/014021_run/submitted/model-default-file.json"
+      ]
+    }
+  },
+  {
+    "target": {
+      "id": "model-bundled-default",
+      "title": "Bundled default prompt is available before user init",
+      "test": "resolveModelInstruction must still return the bundled default prompt when the provided or default user home has no .ndx default prompt.",
+      "steps": [
+        {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"model instruction falls back to bundled default prompt when .ndx is absent\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes."
+        }
+      ],
+      "passCriteria": "The bundled default prompt containing the NDX identity is returned."
+    },
+    "steps": [
+      {
+        "target": {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"model instruction falls back to bundled default prompt when .ndx is absent\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes."
+        },
+        "result": true,
+        "descript": "Focused node:test 'model instruction falls back to bundled default prompt when .ndx is absent' exited 0.",
+        "evidence": [
+          "cwd=/mnt/f/dev/ndx2/packages/ndx",
+          "command=yarn \"exec\" \"node\" \"--import\" \"tsx\" \"--test\" \"src/**/*.test.ts\" \"--test-name-pattern\" \"model instruction falls back to bundled default prompt when .ndx is absent\"",
+          "  duration_ms: 0.710477\n  type: 'test'\n  ...\n1..20\n# tests 20\n# suites 0\n# pass 20\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 5405.415946"
+        ]
+      }
+    ],
+    "result": {
+      "result": true,
+      "descript": "The focused context test 'model instruction falls back to bundled default prompt when .ndx is absent' passed.",
+      "evidence": [
+        "exitStatus=0",
+        "resultPath=/mnt/f/dev/ndx2/test/20260512/014021_run/submitted/model-bundled-default.json"
+      ]
+    }
+  },
+  {
+    "target": {
+      "id": "initndx-default-context",
+      "title": "initNDX seeded default prompt enters buildContext",
+      "test": "After initNDX seeds the temporary user home, buildContext must include the seeded default model prompt in the developer context.",
+      "steps": [
+        {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"buildContext uses initNDX seeded default model prompt\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes."
+        }
+      ],
+      "passCriteria": "The developer context starts with a model_instruction section containing the seeded NDX default prompt."
+    },
+    "steps": [
+      {
+        "target": {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"buildContext uses initNDX seeded default model prompt\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes."
+        },
+        "result": true,
+        "descript": "Focused node:test 'buildContext uses initNDX seeded default model prompt' exited 0.",
+        "evidence": [
+          "cwd=/mnt/f/dev/ndx2/packages/ndx",
+          "command=yarn \"exec\" \"node\" \"--import\" \"tsx\" \"--test\" \"src/**/*.test.ts\" \"--test-name-pattern\" \"buildContext uses initNDX seeded default model prompt\"",
+          "  duration_ms: 0.623414\n  type: 'test'\n  ...\n1..20\n# tests 20\n# suites 0\n# pass 20\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 5210.19127"
+        ]
+      }
+    ],
+    "result": {
+      "result": true,
+      "descript": "The focused context test 'buildContext uses initNDX seeded default model prompt' passed.",
+      "evidence": [
+        "exitStatus=0",
+        "resultPath=/mnt/f/dev/ndx2/test/20260512/014021_run/submitted/initndx-default-context.json"
+      ]
+    }
+  },
+  {
+    "target": {
+      "id": "initndx-model-specific-context",
+      "title": "Model-specific prompt under initialized .ndx overrides default",
+      "test": "After initNDX, a deliberately added .ndx/system/modelprompt/<model>.md file must override the seeded default prompt in buildContext.",
+      "steps": [
+        {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"buildContext prefers model-specific prompt files under initialized .ndx\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes."
+        }
+      ],
+      "passCriteria": "The developer context contains only the model-specific prompt in the model_instruction section."
+    },
+    "steps": [
+      {
+        "target": {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"buildContext prefers model-specific prompt files under initialized .ndx\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes."
+        },
+        "result": true,
+        "descript": "Focused node:test 'buildContext prefers model-specific prompt files under initialized .ndx' exited 0.",
+        "evidence": [
+          "cwd=/mnt/f/dev/ndx2/packages/ndx",
+          "command=yarn \"exec\" \"node\" \"--import\" \"tsx\" \"--test\" \"src/**/*.test.ts\" \"--test-name-pattern\" \"buildContext prefers model-specific prompt files under initialized .ndx\"",
+          "  duration_ms: 0.555666\n  type: 'test'\n  ...\n1..20\n# tests 20\n# suites 0\n# pass 20\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 4747.356136"
+        ]
+      }
+    ],
+    "result": {
+      "result": true,
+      "descript": "The focused context test 'buildContext prefers model-specific prompt files under initialized .ndx' passed.",
+      "evidence": [
+        "exitStatus=0",
+        "resultPath=/mnt/f/dev/ndx2/test/20260512/014021_run/submitted/initndx-model-specific-context.json"
+      ]
+    }
+  },
+  {
+    "target": {
+      "id": "model-slash-sanitized",
+      "title": "Model prompt filenames sanitize slash characters",
+      "test": "resolveModelInstruction must map slash-bearing model names to underscore filenames before reading prompt files.",
+      "steps": [
+        {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"model instruction sanitizes slash characters before reading model prompt files\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes."
+        }
+      ],
+      "passCriteria": "A model such as LOCAL/GPT resolves to local_gpt.md."
+    },
+    "steps": [
+      {
+        "target": {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"model instruction sanitizes slash characters before reading model prompt files\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes."
+        },
+        "result": true,
+        "descript": "Focused node:test 'model instruction sanitizes slash characters before reading model prompt files' exited 0.",
+        "evidence": [
+          "cwd=/mnt/f/dev/ndx2/packages/ndx",
+          "command=yarn \"exec\" \"node\" \"--import\" \"tsx\" \"--test\" \"src/**/*.test.ts\" \"--test-name-pattern\" \"model instruction sanitizes slash characters before reading model prompt files\"",
+          "  duration_ms: 0.759643\n  type: 'test'\n  ...\n1..20\n# tests 20\n# suites 0\n# pass 20\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 5263.61173"
+        ]
+      }
+    ],
+    "result": {
+      "result": true,
+      "descript": "The focused context test 'model instruction sanitizes slash characters before reading model prompt files' passed.",
+      "evidence": [
+        "exitStatus=0",
+        "resultPath=/mnt/f/dev/ndx2/test/20260512/014021_run/submitted/model-slash-sanitized.json"
+      ]
+    }
+  }
+]

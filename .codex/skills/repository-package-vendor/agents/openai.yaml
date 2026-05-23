@@ -1,0 +1,4 @@
+interface:
+  display_name: "Repository Package Reuse"
+  short_description: "Search source repositories first and vendor reusable packages locally."
+  default_prompt: "Use $repository-package-vendor to search source repositories before implementing this feature and vendor any reusable package into the workspace."

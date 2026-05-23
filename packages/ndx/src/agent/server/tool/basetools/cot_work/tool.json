@@ -1,0 +1,43 @@
+{
+  "tool": {
+    "command": "sh",
+    "args": ["./index.sh"]
+  },
+  "schema": {
+    "type": "function",
+    "name": "cot_work",
+    "description": "Records and tracks a step-by-step plan for the current task. Call this before starting work to make your reasoning explicit, then update it as each step progresses.\n\nWhen to use:\n- The task requires 3 or more distinct actions\n- There are phases or dependencies where order matters\n- The user asked for more than one thing in a single message\n- You generate additional steps while working\n\nWhen NOT to use:\n- Single-step or trivial tasks\n- Purely conversational or informational responses\n\nStep management rules:\n- Call this first before doing any work — record the full plan upfront\n- Always send the complete list on every call, not just changed items\n- Exactly one step must be in_progress at any time\n- Never jump a step from pending to completed — always set in_progress first\n- Mark a step completed immediately when done; do not batch completions\n- If scope changes mid-task, update the plan before continuing and set reason\n- Do not end your turn until every step is completed",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "steps": {
+          "type": "array",
+          "description": "The complete current step list. Always include all steps, not just the ones that changed.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "task": {
+                "type": "string",
+                "description": "Imperative description of what this step does. e.g. 'Read the target file', 'Apply the patch', 'Run the tests'"
+              },
+              "status": {
+                "type": "string",
+                "enum": ["pending", "in_progress", "completed"],
+                "description": "Current status. Transition order: pending -> in_progress -> completed. At most one step may be in_progress at a time."
+              }
+            },
+            "required": ["task", "status"],
+            "additionalProperties": false
+          },
+          "minItems": 1
+        },
+        "reason": {
+          "type": "string",
+          "description": "Required only when updating an existing plan mid-task. Explain why the plan changed, e.g. discovered additional work, scope narrowed, earlier step revealed new requirements."
+        }
+      },
+      "required": ["steps"],
+      "additionalProperties": false
+    }
+  }
+}

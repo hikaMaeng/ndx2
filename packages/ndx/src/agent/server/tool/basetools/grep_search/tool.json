@@ -1,0 +1,22 @@
+{
+  "tool": {
+    "command": "bash",
+    "args": ["./index.sh", "{pattern}", "{path}", "{glob}", "{limit}"]
+  },
+  "schema": {
+    "type": "function",
+    "name": "grep_search",
+    "description": "Searches text files for a regular expression pattern under the NDX virtual root.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "pattern": { "type": "string", "description": "JavaScript regular expression pattern." },
+        "path": { "type": "string", "description": "File or directory to search. Defaults to project root; container absolute paths must stay under the NDX virtual root." },
+        "glob": { "type": "string", "description": "Optional glob filter such as *.ts or src/**/*.tsx." },
+        "limit": { "type": "number", "description": "Maximum number of matching lines. Defaults to 100." }
+      },
+      "required": ["pattern"],
+      "additionalProperties": false
+    }
+  }
+}

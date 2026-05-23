@@ -1,0 +1,20 @@
+{
+  "tool": {
+    "command": "node",
+    "args": ["./index.mjs"]
+  },
+  "schema": {
+    "type": "function",
+    "name": "web_fetch",
+    "description": "Fetches a public HTTP(S) URL directly and returns readable text content. Authenticated, private, local, and credentialed URLs are not supported.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "url": { "type": "string", "description": "Public HTTP(S) URL to fetch." },
+        "max_chars": { "type": "number", "description": "Maximum content characters to return. Defaults to 20000 and is capped at 100000." }
+      },
+      "required": ["url"],
+      "additionalProperties": false
+    }
+  }
+}

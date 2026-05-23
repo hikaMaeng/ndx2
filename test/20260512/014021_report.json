@@ -1,0 +1,294 @@
+{
+  "@meta": {
+    "subagents": [
+      {
+        "target": "model_prompt",
+        "elapsed": 46106
+      },
+      {
+        "target": "agents_cascade",
+        "elapsed": 24289
+      },
+      {
+        "target": "context_shape",
+        "elapsed": 18173
+      }
+    ],
+    "elapsed": 192948,
+    "result": true,
+    "detail": "14 passed / 0 failed",
+    "started": "2026-05-11T16:45:09.148Z"
+  },
+  "model_prompt": [
+    {
+      "id": "model-exact-file",
+      "title": "Exact model prompt file is selected",
+      "test": "resolveModelInstruction must read .ndx/system/modelprompt/<model>.md when the session model exactly matches the prompt filename.",
+      "steps": [
+        {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"model instruction resolves exact model names from file-backed prompt\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes.",
+          "result": true,
+          "descript": "Focused node:test 'model instruction resolves exact model names from file-backed prompt' exited 0.",
+          "evidence": [
+            "cwd=/mnt/f/dev/ndx2/packages/ndx",
+            "command=yarn \"exec\" \"node\" \"--import\" \"tsx\" \"--test\" \"src/**/*.test.ts\" \"--test-name-pattern\" \"model instruction resolves exact model names from file-backed prompt\"",
+            "  duration_ms: 0.713353\n  type: 'test'\n  ...\n1..20\n# tests 20\n# suites 0\n# pass 20\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 4511.440529"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "model-colon-fallback",
+      "title": "Colon-suffixed model names fall back rightward",
+      "test": "resolveModelInstruction must strip colon suffixes from the right until an existing model prompt filename is found.",
+      "steps": [
+        {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"model instruction strips colon suffixes from the right\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes.",
+          "result": true,
+          "descript": "Focused node:test 'model instruction strips colon suffixes from the right' exited 0.",
+          "evidence": [
+            "cwd=/mnt/f/dev/ndx2/packages/ndx",
+            "command=yarn \"exec\" \"node\" \"--import\" \"tsx\" \"--test\" \"src/**/*.test.ts\" \"--test-name-pattern\" \"model instruction strips colon suffixes from the right\"",
+            "  duration_ms: 0.548357\n  type: 'test'\n  ...\n1..20\n# tests 20\n# suites 0\n# pass 20\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 4981.098802"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "model-default-file",
+      "title": "Default user prompt is selected when model prompt is absent",
+      "test": "resolveModelInstruction must use .ndx/system/modelprompt/default.md when no model-specific prompt exists.",
+      "steps": [
+        {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"model instruction falls back to default prompt file\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes.",
+          "result": true,
+          "descript": "Focused node:test 'model instruction falls back to default prompt file' exited 0.",
+          "evidence": [
+            "cwd=/mnt/f/dev/ndx2/packages/ndx",
+            "command=yarn \"exec\" \"node\" \"--import\" \"tsx\" \"--test\" \"src/**/*.test.ts\" \"--test-name-pattern\" \"model instruction falls back to default prompt file\"",
+            "  duration_ms: 0.67525\n  type: 'test'\n  ...\n1..20\n# tests 20\n# suites 0\n# pass 20\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 6137.198005"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "model-bundled-default",
+      "title": "Bundled default prompt is available before user init",
+      "test": "resolveModelInstruction must still return the bundled default prompt when the provided or default user home has no .ndx default prompt.",
+      "steps": [
+        {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"model instruction falls back to bundled default prompt when .ndx is absent\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes.",
+          "result": true,
+          "descript": "Focused node:test 'model instruction falls back to bundled default prompt when .ndx is absent' exited 0.",
+          "evidence": [
+            "cwd=/mnt/f/dev/ndx2/packages/ndx",
+            "command=yarn \"exec\" \"node\" \"--import\" \"tsx\" \"--test\" \"src/**/*.test.ts\" \"--test-name-pattern\" \"model instruction falls back to bundled default prompt when .ndx is absent\"",
+            "  duration_ms: 0.710477\n  type: 'test'\n  ...\n1..20\n# tests 20\n# suites 0\n# pass 20\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 5405.415946"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "initndx-default-context",
+      "title": "initNDX seeded default prompt enters buildContext",
+      "test": "After initNDX seeds the temporary user home, buildContext must include the seeded default model prompt in the developer context.",
+      "steps": [
+        {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"buildContext uses initNDX seeded default model prompt\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes.",
+          "result": true,
+          "descript": "Focused node:test 'buildContext uses initNDX seeded default model prompt' exited 0.",
+          "evidence": [
+            "cwd=/mnt/f/dev/ndx2/packages/ndx",
+            "command=yarn \"exec\" \"node\" \"--import\" \"tsx\" \"--test\" \"src/**/*.test.ts\" \"--test-name-pattern\" \"buildContext uses initNDX seeded default model prompt\"",
+            "  duration_ms: 0.623414\n  type: 'test'\n  ...\n1..20\n# tests 20\n# suites 0\n# pass 20\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 5210.19127"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "initndx-model-specific-context",
+      "title": "Model-specific prompt under initialized .ndx overrides default",
+      "test": "After initNDX, a deliberately added .ndx/system/modelprompt/<model>.md file must override the seeded default prompt in buildContext.",
+      "steps": [
+        {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"buildContext prefers model-specific prompt files under initialized .ndx\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes.",
+          "result": true,
+          "descript": "Focused node:test 'buildContext prefers model-specific prompt files under initialized .ndx' exited 0.",
+          "evidence": [
+            "cwd=/mnt/f/dev/ndx2/packages/ndx",
+            "command=yarn \"exec\" \"node\" \"--import\" \"tsx\" \"--test\" \"src/**/*.test.ts\" \"--test-name-pattern\" \"buildContext prefers model-specific prompt files under initialized .ndx\"",
+            "  duration_ms: 0.555666\n  type: 'test'\n  ...\n1..20\n# tests 20\n# suites 0\n# pass 20\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 4747.356136"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "model-slash-sanitized",
+      "title": "Model prompt filenames sanitize slash characters",
+      "test": "resolveModelInstruction must map slash-bearing model names to underscore filenames before reading prompt files.",
+      "steps": [
+        {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"model instruction sanitizes slash characters before reading model prompt files\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes.",
+          "result": true,
+          "descript": "Focused node:test 'model instruction sanitizes slash characters before reading model prompt files' exited 0.",
+          "evidence": [
+            "cwd=/mnt/f/dev/ndx2/packages/ndx",
+            "command=yarn \"exec\" \"node\" \"--import\" \"tsx\" \"--test\" \"src/**/*.test.ts\" \"--test-name-pattern\" \"model instruction sanitizes slash characters before reading model prompt files\"",
+            "  duration_ms: 0.759643\n  type: 'test'\n  ...\n1..20\n# tests 20\n# suites 0\n# pass 20\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 5263.61173"
+          ]
+        }
+      ]
+    }
+  ],
+  "agents_cascade": [
+    {
+      "id": "home-and-project-agents",
+      "title": "Home and project AGENTS instructions are included in order",
+      "test": "buildContext must render user-home .ndx/AGENTS.md before the project root AGENTS.md.",
+      "steps": [
+        {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"user instructions include user and project AGENTS files in order\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes.",
+          "result": true,
+          "descript": "Focused node:test 'user instructions include user and project AGENTS files in order' exited 0.",
+          "evidence": [
+            "cwd=/mnt/f/dev/ndx2/packages/ndx",
+            "command=yarn \"exec\" \"node\" \"--import\" \"tsx\" \"--test\" \"src/**/*.test.ts\" \"--test-name-pattern\" \"user instructions include user and project AGENTS files in order\"",
+            "  duration_ms: 0.716739\n  type: 'test'\n  ...\n1..20\n# tests 20\n# suites 0\n# pass 20\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 5128.653834"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "project-to-cwd-cascade",
+      "title": "Project AGENTS cascade reaches cwd ancestors",
+      "test": "buildContext must apply AGENTS.md files from projectHome through cwd descendant directories in order, skipping missing files.",
+      "steps": [
+        {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"user instructions cascade from project root to cwd descendants\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes.",
+          "result": true,
+          "descript": "Focused node:test 'user instructions cascade from project root to cwd descendants' exited 0.",
+          "evidence": [
+            "cwd=/mnt/f/dev/ndx2/packages/ndx",
+            "command=yarn \"exec\" \"node\" \"--import\" \"tsx\" \"--test\" \"src/**/*.test.ts\" \"--test-name-pattern\" \"user instructions cascade from project root to cwd descendants\"",
+            "  duration_ms: 0.612684\n  type: 'test'\n  ...\n1..20\n# tests 20\n# suites 0\n# pass 20\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 4953.155299"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "project-cwd-no-duplicate",
+      "title": "Project AGENTS is not duplicated when cwd equals projectHome",
+      "test": "buildContext must render the project AGENTS file exactly once when the session cwd is the declared projectHome.",
+      "steps": [
+        {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"user instructions do not duplicate project AGENTS when cwd equals projectHome\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes.",
+          "result": true,
+          "descript": "Focused node:test 'user instructions do not duplicate project AGENTS when cwd equals projectHome' exited 0.",
+          "evidence": [
+            "cwd=/mnt/f/dev/ndx2/packages/ndx",
+            "command=yarn \"exec\" \"node\" \"--import\" \"tsx\" \"--test\" \"src/**/*.test.ts\" \"--test-name-pattern\" \"user instructions do not duplicate project AGENTS when cwd equals projectHome\"",
+            "  duration_ms: 0.939635\n  type: 'test'\n  ...\n1..20\n# tests 20\n# suites 0\n# pass 20\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 4934.17242"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "outside-cwd-agents-ignored",
+      "title": "cwd outside projectHome does not leak unrelated AGENTS",
+      "test": "buildContext must not read AGENTS.md from cwd when cwd is outside the session's declared projectHome, while environment_context still records the actual cwd.",
+      "steps": [
+        {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"user instructions ignore cwd AGENTS outside declared projectHome\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes.",
+          "result": true,
+          "descript": "Focused node:test 'user instructions ignore cwd AGENTS outside declared projectHome' exited 0.",
+          "evidence": [
+            "cwd=/mnt/f/dev/ndx2/packages/ndx",
+            "command=yarn \"exec\" \"node\" \"--import\" \"tsx\" \"--test\" \"src/**/*.test.ts\" \"--test-name-pattern\" \"user instructions ignore cwd AGENTS outside declared projectHome\"",
+            "  duration_ms: 0.623535\n  type: 'test'\n  ...\n1..20\n# tests 20\n# suites 0\n# pass 20\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 4491.680314"
+          ]
+        }
+      ]
+    }
+  ],
+  "context_shape": [
+    {
+      "id": "developer-system-prompt",
+      "title": "User-home system prompt is rendered as developer instructions",
+      "test": "buildContext must render .ndx/system-promt.md from the session user home inside the developer context when present.",
+      "steps": [
+        {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"developer instructions read user home .ndx system prompt when present\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes.",
+          "result": true,
+          "descript": "Focused node:test 'developer instructions read user home .ndx system prompt when present' exited 0.",
+          "evidence": [
+            "cwd=/mnt/f/dev/ndx2/packages/ndx",
+            "command=yarn \"exec\" \"node\" \"--import\" \"tsx\" \"--test\" \"src/**/*.test.ts\" \"--test-name-pattern\" \"developer instructions read user home .ndx system prompt when present\"",
+            "  duration_ms: 0.684238\n  type: 'test'\n  ...\n1..20\n# tests 20\n# suites 0\n# pass 20\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 4784.865826"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "developer-system-prompt-absent",
+      "title": "Missing user-home system prompt is omitted",
+      "test": "buildContext must omit developer_instructions when .ndx/system-promt.md is absent, while retaining model instructions.",
+      "steps": [
+        {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"developer instructions are omitted when system prompt is absent\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes.",
+          "result": true,
+          "descript": "Focused node:test 'developer instructions are omitted when system prompt is absent' exited 0.",
+          "evidence": [
+            "cwd=/mnt/f/dev/ndx2/packages/ndx",
+            "command=yarn \"exec\" \"node\" \"--import\" \"tsx\" \"--test\" \"src/**/*.test.ts\" \"--test-name-pattern\" \"developer instructions are omitted when system prompt is absent\"",
+            "  duration_ms: 0.599279\n  type: 'test'\n  ...\n1..20\n# tests 20\n# suites 0\n# pass 20\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 4851.747599"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "context-output-shape",
+      "title": "buildContext returns developer and user strings with environment metadata",
+      "test": "buildContext must return one developer string and one user string; user context must include cwd, shell, current date, and timezone from session metadata.",
+      "steps": [
+        {
+          "id": "run-focused-node-test",
+          "instruction": "Run yarn workspace ndx test -- --test-name-pattern \"buildContext returns one developer string and one user string\".",
+          "expected": "The focused node:test invocation exits 0 and the named subtest passes.",
+          "result": true,
+          "descript": "Focused node:test 'buildContext returns one developer string and one user string' exited 0.",
+          "evidence": [
+            "cwd=/mnt/f/dev/ndx2/packages/ndx",
+            "command=yarn \"exec\" \"node\" \"--import\" \"tsx\" \"--test\" \"src/**/*.test.ts\" \"--test-name-pattern\" \"buildContext returns one developer string and one user string\"",
+            "  duration_ms: 0.767123\n  type: 'test'\n  ...\n1..20\n# tests 20\n# suites 0\n# pass 20\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 4986.820038"
+          ]
+        }
+      ]
+    }
+  ]
+}
