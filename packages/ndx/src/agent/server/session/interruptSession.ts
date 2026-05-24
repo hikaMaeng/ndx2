@@ -6,7 +6,7 @@ export async function updateSessionTurnPhase(database: NDXDatabase, sessionid: s
 UPDATE "session"
 SET turnphase = $2
 WHERE sessionid = $1
-RETURNING sessionid, userid, title, lastupdated, mode, path, projectid, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat;
+RETURNING sessionid, userid, title, lastupdated, mode, path, projectid, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, runtimedata;
 `,
     [sessionid, phase]
   );
@@ -29,7 +29,7 @@ SET
   interruptcompletedat = NULL,
   turnphase = COALESCE($2, turnphase)
 WHERE sessionid = $1
-RETURNING sessionid, userid, title, lastupdated, mode, path, projectid, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat;
+RETURNING sessionid, userid, title, lastupdated, mode, path, projectid, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, runtimedata;
 `,
     [sessionid, phase ?? null]
   );
@@ -54,7 +54,7 @@ SET
   interruptcompletedat = now(),
   lastupdated = now()
 WHERE sessionid = $1
-RETURNING sessionid, userid, title, lastupdated, mode, path, projectid, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat;
+RETURNING sessionid, userid, title, lastupdated, mode, path, projectid, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, runtimedata;
 `,
     [sessionid]
   );

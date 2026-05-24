@@ -35,6 +35,7 @@ export type NDXHookContext = {
   resource?: NDXAgentResourceResolver;
   iteration?: number;
   messages?: ResponseInputItem[];
+  sessionDataRows?: NDXSessionDataRow[];
   availableTools?: NDXResolvedTool[];
   modelTools?: Record<string, unknown>[];
   contextUsage?: NDXContextUsage;

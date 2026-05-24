@@ -1,7 +1,9 @@
-import { assistantDeltaContents, assistantMessageContents, assistantReasoningContents, errorContents, toolCallContents, toolResultContents, userMessageContents } from "../session/content.js";
-import { assertModelSupportsAttachments, writeSessionAttachments } from "../session/attachments.js";
+import { promises as fs } from "node:fs";
+import path from "node:path";
+import { assistantDeltaContents, assistantMessageContents, assistantReasoningContents, errorContents, toolCallContents, toolGeneratedUserMessageContents, toolResultContents, userMessageContents } from "../session/content.js";
 import { appendSessionData } from "../session/appendSessionData.js";
 import { listSessionData } from "../session/listSessionData.js";
+import { addInlineAttachmentDataIds, listInlineAttachmentDataIds } from "../session/runtimeData.js";
 import { sessionDataRowsToModelMessages } from "../session/sessionDataRowsToModelMessages.js";
 import { updateSessionEndTurn, updateSessionStartTurn } from "../session/updateSession.js";
 import { completeSessionInterrupt } from "../session/interruptSession.js";
@@ -23,17 +25,25 @@ import { runToolCalledHook } from "../hook/turn.tool.called/index.js";
 import { runModelRespondingHook } from "../hook/turn.model.responding/index.js";
 import { runToolResultsCollectedHook } from "../hook/turn.tool.results.collected/index.js";
 import { readAgentRuntimeSettings } from "../runtime-settings/index.js";
-import type { NDXDatabase, NDXModelConfig, NDXSessionRow } from "../session/types.js";
+import type { NDXDatabase, NDXModelConfig, NDXSessionDataRow, NDXSessionRow } from "../session/types.js";
 import type { NDXToolResultContents } from "../session/index.js";
+import type { NDXSessionAttachmentReference } from "../../common/protocol/index.js";
 import { type NDXTurnLoopEvents } from "./types.js";
+import type { NDXToolExecutionResult, NDXToolResultEffect } from "../tool/index.js";
+
+export type NDXTurnInput = {
+  text: string;
+  attachments?: NDXSessionAttachmentReference[];
+};
 
 export async function runAgentTurn(
   database: NDXDatabase,
   session: NDXSessionRow,
-  requestText: string,
+  request: NDXTurnInput,
   model?: NDXModelConfig,
   events: NDXTurnLoopEvents = {}
 ): Promise<void> {
+  const requestText = request.text;
   const runningSession = await updateSessionStartTurn(database, session.sessionid, model);
   const language = events.language ?? DEFAULT_NDX_AGENT_LANGUAGE;
   const resource = events.resource ?? createNDXAgentResourceResolver();
@@ -51,9 +61,11 @@ export async function runAgentTurn(
     projectHome
   });
   const text = requestReceived.requestText;
-  assertModelSupportsAttachments(runningSession.model, events.attachments);
-  const attachments = await writeSessionAttachments(projectHome, runningSession.sessionid, events.attachments);
+  const attachments = request.attachments ?? [];
   let input = await appendSessionData(database, runningSession.sessionid, "user", userMessageContents(text, attachments));
+  if (attachments.some((attachment) => attachment.kind === "image")) {
+    await addInlineAttachmentDataIds(database, runningSession.sessionid, [input.dataid]);
+  }
   if (requestReceived.stopTurn) {
     const assistantText = requestReceived.finalAssistantText ?? t(NDX_AGENT_RESOURCE.TURN_HOOK_REQUEST_RECEIVED_STOPPED_MESSAGE);
     const assistant = await appendSessionData(database, runningSession.sessionid, "assistant", assistantMessageContents(assistantText));
@@ -66,10 +78,15 @@ export async function runAgentTurn(
     return;
   }
   const messageParts = await buildTurnBaseMessageParts(runningSession);
-  const buildCurrentMessageParts = async () => ({
-    ...messageParts,
-    history: sessionDataRowsToModelMessages(await listSessionData(database, runningSession.sessionid))
-  });
+  const buildCurrentMessageParts = async () => {
+    const historyRows = await listSessionData(database, runningSession.sessionid);
+    const inlineAttachmentDataIds = await listInlineAttachmentDataIds(database, runningSession.sessionid);
+    return {
+      ...messageParts,
+      historyRows,
+      history: sessionDataRowsToModelMessages(historyRows, { inlineAttachmentDataIds })
+    };
+  };
   const buildCurrentMessages = async () => buildTurnMessagesFromParts(await buildCurrentMessageParts());
   let messages: ResponseInputItem[] = await buildCurrentMessages();
   let availableTools = await listAvailableTools({ userHome, projectHome });
@@ -119,7 +136,8 @@ export async function runAgentTurn(
     while (true) {
       activeIteration = iteration;
       await interrupt.checkpoint();
-      messages = await buildCurrentMessages();
+      let currentMessageParts = await buildCurrentMessageParts();
+      messages = buildTurnMessagesFromParts(currentMessageParts);
       if (iteration > runtimeSettings.maxModelIterations) {
         const finalContextUsage = turnContextUsage("", []);
         await interrupt.setPhase("model_request");
@@ -134,6 +152,7 @@ export async function runAgentTurn(
           resource,
           iteration,
           messages,
+          sessionDataRows: currentMessageParts.historyRows,
           availableTools,
           modelTools,
           contextUsage: finalContextUsage
@@ -233,6 +252,7 @@ export async function runAgentTurn(
         projectHome,
         iteration,
         messages,
+        sessionDataRows: currentMessageParts.historyRows,
         availableTools,
         modelTools,
         contextUsage
@@ -501,6 +521,10 @@ export async function runAgentTurn(
           successes: executedToolCalls.filter((toolCall) => toolCall.success).length,
           failures: executedToolCalls.filter((toolCall) => !toolCall.success).length
         });
+        const generatedInput = await appendToolGeneratedUserMessage(database, runningSession.sessionid, iteration, executedToolCalls, { projectHome, userHome });
+        if (generatedInput?.inlineAttachments) {
+          await addInlineAttachmentDataIds(database, runningSession.sessionid, [generatedInput.row.dataid]);
+        }
         const previousMessageCount = messages.length;
         messages = await buildCurrentMessages();
         const resumeContextUsage = turnContextUsage();
@@ -559,7 +583,7 @@ export async function runAgentTurn(
       const updatedSession = await updateSessionEndTurn(database, runningSession.sessionid);
       const nextRequestText = responsePreparedHook.nextRequestText;
       setImmediate(() => {
-        void runAgentTurn(database, updatedSession, nextRequestText, model, events).catch((error: unknown) => {
+        void runAgentTurn(database, updatedSession, { text: nextRequestText }, model, events).catch((error: unknown) => {
           database.logger?.warn(NDX_TURN_EVENT.Failed, {
             sessionid: runningSession.sessionid,
             error: error instanceof Error ? error.message : String(error)
@@ -629,6 +653,79 @@ export { turnInterruptPolicy } from "./interruptPolicy.js";
 export type { NDXTurnMessageParts } from "./messages.js";
 export type { NDXTurnInterruptAction, NDXTurnPhase } from "./interruptPolicy.js";
 export type { NDXTurnLoopEvents, NDXTurnLoopEvent } from "./types.js";
+
+async function appendToolGeneratedUserMessage(
+  database: NDXDatabase,
+  sessionid: string,
+  iteration: number,
+  results: NDXToolExecutionResult[],
+  roots: { projectHome: string; userHome: string }
+): Promise<{ row: NDXSessionDataRow; inlineAttachments: boolean } | undefined> {
+  const appendEffects: Array<{ result: NDXToolExecutionResult; effect: Extract<NDXToolResultEffect, { type: "append_user_message" }> }> = [];
+  let inlineAttachments = false;
+  for (const result of results) {
+    for (const effect of result.effects ?? []) {
+      if (effect.type === "append_user_message") {
+        appendEffects.push({ result, effect });
+      }
+      if (effect.type === "inline_appended_user_message") {
+        inlineAttachments = true;
+      }
+    }
+  }
+  if (appendEffects.length === 0) {
+    return undefined;
+  }
+
+  const attachments: NDXSessionAttachmentReference[] = [];
+  const text: string[] = [];
+  const sources: Array<{ tool: string; toolCallId?: string; iteration?: number }> = [];
+  for (const { result, effect } of appendEffects) {
+    if (typeof effect.text === "string" && effect.text.trim().length > 0) {
+      text.push(effect.text.trim());
+    }
+    sources.push({ tool: result.tool, ...(result.callId ? { toolCallId: result.callId } : {}), iteration });
+    for (const attachment of effect.attachments ?? []) {
+      const normalized = await normalizeToolGeneratedAttachment(attachment, roots);
+      if (normalized) {
+        attachments.push(normalized);
+      }
+    }
+  }
+  const row = await appendSessionData(
+    database,
+    sessionid,
+    "assistant",
+    toolGeneratedUserMessageContents(text.join("\n\n") || "Tool-generated input was added.", attachments, sources)
+  );
+  return { row, inlineAttachments };
+}
+
+async function normalizeToolGeneratedAttachment(
+  attachment: NonNullable<Extract<NDXToolResultEffect, { type: "append_user_message" }>["attachments"]>[number],
+  roots: { projectHome: string; userHome: string }
+): Promise<NDXSessionAttachmentReference | undefined> {
+  if (!attachment || typeof attachment.path !== "string" || typeof attachment.mimeType !== "string") {
+    return undefined;
+  }
+  const realPath = await fs.realpath(attachment.path);
+  const allowedRoots = await Promise.all([roots.projectHome, roots.userHome].map((root) => fs.realpath(root).catch(() => root)));
+  if (!allowedRoots.some((root) => realPath === root || realPath.startsWith(`${root}${path.sep}`))) {
+    throw new Error(`tool-generated attachment escapes allowed roots: ${attachment.path}`);
+  }
+  const stat = await fs.stat(realPath);
+  if (!stat.isFile()) {
+    return undefined;
+  }
+  const mimeType = attachment.mimeType.trim() || "application/octet-stream";
+  return {
+    kind: attachment.kind === "image" || attachment.kind === "file" ? attachment.kind : mimeType.toLowerCase().startsWith("image/") ? "image" : "file",
+    path: realPath,
+    name: typeof attachment.name === "string" && attachment.name.trim() ? attachment.name.trim() : path.basename(realPath),
+    mimeType,
+    size: typeof attachment.size === "number" && Number.isFinite(attachment.size) && attachment.size > 0 ? attachment.size : stat.size
+  };
+}
 
 function sessionDataOutput(results: NDXToolResultContents[]): string {
   return results.map((result) => `${result.tool}(${result.toolCallId}) ${result.success ? "succeeded" : "failed"}:\n${String(result.output)}`).join("\n\n");

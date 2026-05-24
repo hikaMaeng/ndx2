@@ -51,7 +51,9 @@ test("session schema SQL defines the required metadata and history tables", () =
   assert.match(SESSION_TABLE_SQL, /jsonb_typeof\(model->'contextsize'\) = 'number'/);
   assert.match(SESSION_TABLE_SQL, /turnphase text NOT NULL DEFAULT 'idle'/);
   assert.match(SESSION_TABLE_SQL, /interruptrequested boolean NOT NULL DEFAULT false/);
+  assert.match(SESSION_TABLE_SQL, /runtimedata jsonb NOT NULL DEFAULT '\{\}'::jsonb/);
   assert.match(SESSION_TABLE_MIGRATION_SQL, /ADD COLUMN IF NOT EXISTS interruptrequested/);
+  assert.match(SESSION_TABLE_MIGRATION_SQL, /ADD COLUMN IF NOT EXISTS runtimedata jsonb NOT NULL DEFAULT '\{\}'::jsonb/);
   assert.match(SESSIONDATA_TABLE_SQL, /sessionid uuid NOT NULL REFERENCES "session" \(sessionid\) ON DELETE CASCADE/);
   assert.match(SESSIONDATA_TABLE_SQL, /contents jsonb NOT NULL/);
 });
@@ -196,6 +198,31 @@ test("appendSessionData stores structured contents as json and promotes first us
   assert.equal(queries[0].values[2], "{\"kind\":\"user_message\",\"text\":\"첫 질문\"}");
   assert.match(queries[1].text, /WHEN title = '' AND \$2 = 'user'/);
   assert.equal(queries[1].values[2], "첫 질문");
+});
+
+test("appendSessionData promotes only user message text to title when attachments exist", async () => {
+  const queries: { text: string; values: unknown[] }[] = [];
+  const database: NDXDatabase = {
+    async query(text, values) {
+      queries.push({ text, values: values ?? [] });
+      if (/UPDATE "session"/i.test(text)) {
+        return { rows: [], rowCount: 0 } as never;
+      }
+      return {
+        rows: [{ dataid: "1", sessionid: values?.[0], type: values?.[1], contents: JSON.parse(String(values?.[2])), createdat: new Date() }],
+        rowCount: 1
+      } as never;
+    },
+    async close() {}
+  };
+
+  await appendSessionData(database, "018f0000-0000-7000-8000-000000000000", "user", {
+    kind: "user_message",
+    text: "첨부 이미지 속 텍스트를 읽어줘.",
+    attachments: [{ kind: "image", path: "/ndx/workspace/test/.ndx/sessions/018f0000-0000-7000-8000-000000000000/sample.png", name: "sample.png", mimeType: "image/png", size: 3 }]
+  });
+
+  assert.equal(queries[1].values[2], "첨부 이미지 속 텍스트를 읽어줘.");
 });
 
 test("session attachments are stored under the project session directory and referenced by path", async () => {
@@ -358,7 +385,7 @@ test("runSessionTurn appends user first, rebuilds history from sessiondata, call
   };
 
   try {
-    await runSessionTurn(database, session, "새 질문");
+    await runSessionTurn(database, session, { text: "새 질문" });
 
     assert.deepEqual(insertedTypes, ["user", "assistant"]);
     assert.deepEqual(rows[2]?.contents, { kind: "user_message", text: "새 질문" });
@@ -442,6 +469,7 @@ test("runSessionTurn rebuilds tool continuation from sessiondata before the next
   };
   session.model.url = `http://127.0.0.1:${address.port}/v1`;
   const rows: NDXSessionDataRow[] = [];
+  let inlineAttachmentDataIds: string[] = [];
   const database: NDXDatabase = {
     async query(text, values) {
       if (/SET\s+model = COALESCE/i.test(text)) {
@@ -451,6 +479,18 @@ test("runSessionTurn rebuilds tool continuation from sessiondata before the next
       if (/SET\s+turnphase = \$2/i.test(text)) {
         session.turnphase = String(values?.[1]);
         return { rows: [session], rowCount: 1 } as never;
+      }
+      if (/jsonb_set/i.test(text) && /inlineAttachmentDataIds/i.test(String(values?.[2]))) {
+        inlineAttachmentDataIds = [...inlineAttachmentDataIds, ...(JSON.parse(String(values?.[3])) as string[])];
+        return { rows: [], rowCount: 1 } as never;
+      }
+      if (/SELECT COALESCE\(runtimedata->\$2/i.test(text)) {
+        return { rows: [{ ids: inlineAttachmentDataIds }], rowCount: 1 } as never;
+      }
+      if (/SET\s+runtimedata = COALESCE\(runtimedata/i.test(text)) {
+        const ids = inlineAttachmentDataIds;
+        inlineAttachmentDataIds = [];
+        return { rows: ids.length ? [{ ids }] : [], rowCount: ids.length ? 1 : 0 } as never;
       }
       if (/FROM "session"/i.test(text) && /WHERE sessionid = \$1/i.test(text)) {
         return { rows: [session], rowCount: 1 } as never;
@@ -479,7 +519,7 @@ test("runSessionTurn rebuilds tool continuation from sessiondata before the next
   };
 
   try {
-    await runSessionTurn(database, session, "도구를 써라");
+    await runSessionTurn(database, session, { text: "도구를 써라" });
 
     assert.equal(modelInputs.length, 2);
     assert.ok(rows.some((row) => row.contents && typeof row.contents === "object" && (row.contents as { kind?: unknown }).kind === "tool_call"));
@@ -488,6 +528,151 @@ test("runSessionTurn rebuilds tool continuation from sessiondata before the next
     const secondInput = modelInputs[1] as Array<Record<string, unknown>>;
     assert.ok(secondInput.some((item) => item.type === "function_call" && item.call_id === "call_echo_1"));
     assert.ok(secondInput.some((item) => item.type === "function_call_output" && item.call_id === "call_echo_1" && item.output === "tool:abc"));
+  } finally {
+    modelServer.close();
+    await once(modelServer, "close");
+    await fs.rm(projectPath, { recursive: true, force: true });
+  }
+});
+
+test("runSessionTurn appends tool-generated image input and inlines it on the next model request", async () => {
+  const projectPath = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-session-image-tool-turn-"));
+  const imagePath = path.join(projectPath, "sample.png");
+  await fs.mkdir(path.join(projectPath, ".ndx", "tools", "image_effect"), { recursive: true });
+  await fs.writeFile(imagePath, Buffer.from([1, 2, 3]));
+  await fs.writeFile(
+    path.join(projectPath, ".ndx", "tools", "image_effect", "tool.json"),
+    JSON.stringify({
+      tool: { command: process.execPath, args: ["./index.mjs", imagePath] },
+      schema: {
+        type: "function",
+        name: "image_effect",
+        parameters: {
+          type: "object",
+          properties: {},
+          additionalProperties: false
+        }
+      }
+    }),
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(projectPath, ".ndx", "tools", "image_effect", "index.mjs"),
+    [
+      "const imagePath = process.argv[2];",
+      "process.stdout.write(JSON.stringify({",
+      "  type: 'result',",
+      "  success: true,",
+      "  output: 'image queued',",
+      "  effects: [",
+      "    { type: 'append_user_message', text: 'Tool image input', attachments: [{ kind: 'image', path: imagePath, name: 'sample.png', mimeType: 'image/png', size: 3 }] },",
+      "    { type: 'inline_appended_user_message' }",
+      "  ]",
+      "}) + '\\n');"
+    ].join("\n"),
+    "utf8"
+  );
+
+  const modelInputs: unknown[] = [];
+  const modelServer = http.createServer((request, response) => {
+    let body = "";
+    request.on("data", (chunk) => {
+      body += String(chunk);
+    });
+    request.on("end", () => {
+      const payload = JSON.parse(body) as { input?: unknown };
+      modelInputs.push(payload.input);
+      response.writeHead(200, { "Content-Type": "application/json" });
+      if (modelInputs.length === 1) {
+        response.end(JSON.stringify({
+          output: [{ type: "function_call", call_id: "call_image_1", name: "image_effect", arguments: "{}" }]
+        }));
+        return;
+      }
+      response.end(JSON.stringify({ output: [{ type: "message", content: [{ type: "output_text", text: "이미지 확인" }] }] }));
+    });
+  });
+
+  await new Promise<void>((resolve) => {
+    modelServer.listen(0, "127.0.0.1", () => resolve());
+  });
+  const address = modelServer.address();
+  assert(address && typeof address === "object");
+
+  const session: NDXSessionRow = {
+    sessionid: "018f0000-0000-7000-8000-000000000001",
+    userid: "ndev",
+    title: "",
+    mode: "none",
+    path: projectPath,
+    projectid: "project-1",
+    model: { ...modelConfig("test-model"), modalities: ["text", "image"] },
+    isrunning: false,
+    turnphase: "idle",
+    interruptrequested: false,
+    interruptrequestedat: null,
+    interruptcompletedat: null,
+    lastupdated: new Date("2026-05-12T00:00:00.000Z")
+  };
+  session.model.url = `http://127.0.0.1:${address.port}/v1`;
+  const rows: NDXSessionDataRow[] = [];
+  let inlineAttachmentDataIds: string[] = [];
+  const database: NDXDatabase = {
+    async query(text, values) {
+      if (/SET\s+model = COALESCE/i.test(text)) {
+        session.isrunning = true;
+        return { rows: [session], rowCount: 1 } as never;
+      }
+      if (/SET\s+turnphase = \$2/i.test(text)) {
+        session.turnphase = String(values?.[1]);
+        return { rows: [session], rowCount: 1 } as never;
+      }
+      if (/jsonb_set/i.test(text) && /inlineAttachmentDataIds/i.test(String(values?.[2]))) {
+        inlineAttachmentDataIds = [...inlineAttachmentDataIds, ...(JSON.parse(String(values?.[3])) as string[])];
+        return { rows: [], rowCount: 1 } as never;
+      }
+      if (/SELECT COALESCE\(runtimedata->\$2/i.test(text)) {
+        return { rows: [{ ids: inlineAttachmentDataIds }], rowCount: 1 } as never;
+      }
+      if (/SET\s+runtimedata = COALESCE\(runtimedata/i.test(text)) {
+        const ids = inlineAttachmentDataIds;
+        inlineAttachmentDataIds = [];
+        return { rows: ids.length ? [{ ids }] : [], rowCount: ids.length ? 1 : 0 } as never;
+      }
+      if (/FROM "session"/i.test(text) && /WHERE sessionid = \$1/i.test(text)) {
+        return { rows: [session], rowCount: 1 } as never;
+      }
+      if (/INSERT INTO sessiondata/i.test(text)) {
+        const row = {
+          dataid: String(rows.length + 1),
+          sessionid: String(values?.[0]),
+          type: String(values?.[1]),
+          contents: JSON.parse(String(values?.[2])),
+          createdat: new Date(`2026-05-12T00:00:${String(rows.length + 1).padStart(2, "0")}.000Z`)
+        };
+        rows.push(row);
+        return { rows: [row], rowCount: 1 } as never;
+      }
+      if (/FROM sessiondata/i.test(text)) {
+        return { rows: [...rows], rowCount: rows.length } as never;
+      }
+      if (/SET\s+isrunning = false/i.test(text)) {
+        session.isrunning = false;
+        return { rows: [session], rowCount: 1 } as never;
+      }
+      return { rows: [], rowCount: 0 } as never;
+    },
+    async close() {}
+  };
+
+  try {
+    await runSessionTurn(database, session, { text: "이미지를 가져와" });
+
+    assert.equal(modelInputs.length, 2);
+    assert.ok(rows.some((row) => row.contents && typeof row.contents === "object" && (row.contents as { kind?: unknown }).kind === "tool_result"));
+    assert.ok(rows.some((row) => row.contents && typeof row.contents === "object" && (row.contents as { kind?: unknown }).kind === "tool_generated_user_message"));
+    assert.match(JSON.stringify(modelInputs[1]), /data:image\/png;base64,AQID/);
+    assert.doesNotMatch(JSON.stringify(modelInputs[1]), /file_path/);
   } finally {
     modelServer.close();
     await once(modelServer, "close");
@@ -583,7 +768,7 @@ test("response prepared hook can continue with a new request on the next tick", 
   }, {});
 
   try {
-    await runSessionTurn(database, session, "첫 요청", undefined, { hooks });
+    await runSessionTurn(database, session, { text: "첫 요청" }, undefined, { hooks });
     await waitFor(() => rows.length >= 3);
 
     assert.deepEqual(rows.map((row) => row.type), ["user", "user", "assistant"]);

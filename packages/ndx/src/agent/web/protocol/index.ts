@@ -17,6 +17,8 @@ export const NDX_AGENT_WEB_API = Object.freeze({
   webProjectActive: (projectid: string) => `/api/agent/web-projects/${encodeURIComponent(projectid)}/active`,
   projectSessions: (projectid: string) => `/api/agent/projects/${encodeURIComponent(projectid)}/sessions`,
   sessionData: (sessionid: string) => `/api/agent/sessions/${encodeURIComponent(sessionid)}/data`,
+  sessionAttachment: (sessionid: string, dataid: string, index: number) =>
+    `/api/agent/sessions/${encodeURIComponent(sessionid)}/attachments/${encodeURIComponent(dataid)}/${encodeURIComponent(String(index))}`,
   sessionMessages: (sessionid: string) => `/api/agent/sessions/${encodeURIComponent(sessionid)}/messages`,
   sessionInterrupt: (sessionid: string) => `/api/agent/sessions/${encodeURIComponent(sessionid)}/interrupt`,
   webClientState: "/api/agent/web-client-state"

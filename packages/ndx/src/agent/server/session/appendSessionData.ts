@@ -1,5 +1,5 @@
 import type { NDXDatabase, NDXSessionDataRow } from "./types.js";
-import { sessionDataText } from "./content.js";
+import { sessionDataTitleText } from "./content.js";
 
 export async function appendSessionData(database: NDXDatabase, sessionid: string, type: string, contents: unknown): Promise<NDXSessionDataRow> {
   database.logger?.info("agent.server.session_data.append.start", { sessionid, type });
@@ -23,7 +23,7 @@ SET
   lastupdated = now()
 WHERE sessionid = $1;
 `,
-    [sessionid, type, sessionDataText({ type, contents }) ?? ""]
+    [sessionid, type, sessionDataTitleText({ type, contents }) ?? ""]
   );
 
   database.logger?.info("agent.server.session_data.append.complete", {

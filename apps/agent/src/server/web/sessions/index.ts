@@ -1,3 +1,5 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import type express from "express";
 import {
   NDX_AGENT_RESOURCE,
@@ -138,7 +140,10 @@ WHERE web_project.projectid = $1::uuid
       const parts = await buildTurnMessageParts(database, session);
       const tools = toolSchemas(await listAvailableTools({ userHome: serverContainerUserHome(), projectHome: toServerProjectPath(session.path) }));
       const usage = calculateDetailedContextUsage(
-        [parts.developer, parts.user, ...parts.history].filter((message) => typeof message.content === "string" ? message.content.trim().length > 0 : message.content.length > 0),
+        [parts.developer, parts.user, ...parts.history].filter((message) => {
+          if (!("content" in message)) return true;
+          return typeof message.content === "string" ? message.content.trim().length > 0 : Array.isArray(message.content) ? message.content.length > 0 : true;
+        }),
         session.model.contextsize,
         "",
         tools
@@ -155,6 +160,85 @@ WHERE web_project.projectid = $1::uuid
         contextsize: body.contextUsage?.contextsize
       });
     } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/agent/sessions/:sessionid/attachments/:dataid/:index", async (request, response, next) => {
+    try {
+      const language = requestLanguage(request);
+      logger?.debug("web.session_attachment.get.start", { sessionid: request.params.sessionid, dataid: request.params.dataid, index: request.params.index });
+      if (!database) {
+        response.status(503).json({ error: resources(NDX_AGENT_RESOURCE.WEB_DATABASE_UNAVAILABLE_ERROR, { language }) });
+        return;
+      }
+
+      const session = await getSession(database, request.params.sessionid);
+      if (!session) {
+        response.status(404).json({ error: resources(NDX_AGENT_RESOURCE.WEB_SESSION_NOT_FOUND_ERROR, { language }) });
+        return;
+      }
+
+      const index = Number(request.params.index);
+      if (!Number.isInteger(index) || index < 0) {
+        response.status(404).end();
+        return;
+      }
+
+      const result = await database.query<NDXSessionDataRow>(
+        `
+SELECT dataid, sessionid, type, contents, createdat
+FROM sessiondata
+WHERE sessionid = $1
+  AND dataid::text = $2
+LIMIT 1;
+`,
+        [request.params.sessionid, request.params.dataid]
+      );
+      const contents = result.rows[0]?.contents;
+      const attachments = contents && typeof contents === "object" && Array.isArray((contents as { attachments?: unknown }).attachments)
+        ? (contents as { attachments: unknown[] }).attachments
+        : [];
+      const attachment = attachments[index];
+      if (!attachment || typeof attachment !== "object") {
+        response.status(404).end();
+        return;
+      }
+
+      const record = attachment as { kind?: unknown; path?: unknown; mimeType?: unknown; name?: unknown };
+      if (record.kind !== "image" || typeof record.path !== "string" || typeof record.mimeType !== "string" || !record.mimeType.toLowerCase().startsWith("image/")) {
+        response.status(404).end();
+        return;
+      }
+
+      const projectHome = toServerProjectPath(session.path);
+      const sessionAttachmentDirectory = path.posix.join(projectHome, ".ndx", "sessions", session.sessionid);
+      const attachmentPath = path.posix.normalize(record.path.replace(/\\/g, "/"));
+      const relative = path.posix.relative(sessionAttachmentDirectory, attachmentPath);
+      if (relative.startsWith("..") || path.posix.isAbsolute(relative)) {
+        response.status(404).end();
+        return;
+      }
+
+      const stat = await fs.stat(attachmentPath);
+      if (!stat.isFile()) {
+        response.status(404).end();
+        return;
+      }
+
+      response.type(record.mimeType);
+      response.setHeader("Cache-Control", "private, max-age=3600");
+      response.sendFile(attachmentPath, { dotfiles: "allow" }, (error) => {
+        if (error && !response.headersSent) {
+          next(error);
+        }
+      });
+      logger?.debug("web.session_attachment.get.complete", { sessionid: request.params.sessionid, dataid: request.params.dataid, index });
+    } catch (error) {
+      if (error && typeof error === "object" && "code" in error && (error as { code?: unknown }).code === "ENOENT") {
+        response.status(404).end();
+        return;
+      }
       next(error);
     }
   });

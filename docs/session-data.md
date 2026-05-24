@@ -62,6 +62,11 @@ exist; otherwise it reuses the existing row and project id.
 | `projectid` | Durable id from the `project` table. The canonical project key remains `target + path`. |
 | `model` | JSONB provider config. Current valid provider type is `openai`; model modality support is explicit metadata, not inferred from the provider API. |
 | `isrunning` | Agent-loop active/idle flag. |
+| `turnphase` | Current server-owned turn phase for interruption and resume coordination. |
+| `interruptrequested` | Durable interruption request flag shared across clients and the agent loop. |
+| `interruptrequestedat` | First interruption request timestamp for the current active turn. |
+| `interruptcompletedat` | Timestamp when the interruption path completed. |
+| `runtimedata` | JSONB runtime coordination data. `inlineAttachmentDataIds` stores sessiondata ids whose attachments must be inlined into the next model request. |
 
 `sessiondata` stores ordered conversation and execution history:
 
@@ -80,8 +85,10 @@ The SQL is maintained as explicit strings in
 
 User requests may include file or image attachments from the web chat composer.
 The browser sends attachment bytes with the socket request, but PostgreSQL never
-stores those bytes. Before the `user` row is inserted, the session server writes
-each attachment under the project root:
+stores those bytes. The session socket server writes each attachment under the
+project root before it starts the agent turn, then passes the complete user
+request text plus attachment references into the turn loop. The turn loop
+inserts one `user_message` row that binds the text and attachments together.
 
 `<project-home>/.ndx/sessions/<sessionid>/<uuid>`
 
@@ -92,6 +99,23 @@ reference contains `kind`, `path`, `name`, `mimeType`, and `size`.
 During context reconstruction, attachment references are expanded into Responses
 API input parts by reading the referenced file from disk for the model request.
 The durable database row remains path-only.
+
+Images are not inlined into every reconstructed model request.
+`session.runtimedata.inlineAttachmentDataIds` owns the sessiondata ids whose
+image attachments should be sent as base64 on the next model request. The
+initial user input row is added when it has image attachments. The context
+prepared hook consumes those ids from PostgreSQL and clears the key in the same
+operation, so each image payload is sent once while PostgreSQL remains the
+source of truth across clients.
+
+Tools may return optional structured effects in addition to their normal text
+result. A tool effect can request a tool-generated user input row with text and
+attachment references, and another effect can request that appended row's image
+attachments be inlined on the next model request. The turn loop records the
+ordinary `tool_result` first, then merges all tool-generated user input effects
+from the same tool batch into one `tool_generated_user_message` row. That row is
+durable session data, but it is reconstructed as user-role model input rather
+than as a new human turn boundary.
 
 ## Rendering Contract
 
@@ -133,6 +157,7 @@ Current payload kinds:
 | `kind` | Used for |
 | --- | --- |
 | `user_message` | User request text and optional attachment references, `{ kind, text, attachments? }`. |
+| `tool_generated_user_message` | Tool-generated user-role model input with optional attachment references, `{ kind, text, attachments?, sources? }`. |
 | `assistant_message` | Final assistant response text, `{ kind, text }`. |
 | `assistant_delta` | Streamed assistant content snapshot, `{ kind, iteration, delta, content }`. |
 | `tool_call` | Model tool-call request, `{ kind, iteration, toolCalls }`. |

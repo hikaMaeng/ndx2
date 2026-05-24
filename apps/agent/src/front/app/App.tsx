@@ -21,7 +21,7 @@ import { openSessionSocket, type SessionSocketClient } from "../session/socket/s
 import { applyTurnEvent, TurnFlow, type TurnBatchState, type TurnFlowState } from "../session/turn";
 import { loadTranslation, type Translation } from "./translation";
 import { cacheClientState, readCachedState, readOrCreateClientId } from "./storage";
-import { DEFAULT_MODEL, sessionDataContentsText, sessionDataToChatMessage, toModelConfig, type ChatMessage, type NDXAgentWebContextUsage, type ProviderBundle, type SocketState } from "./types";
+import { DEFAULT_MODEL, sessionDataContentsText, sessionDataToChatMessage, toModelConfig, type ChatMessage, type ChatMessageAttachment, type NDXAgentWebContextUsage, type ProviderBundle, type SocketState } from "./types";
 import { refreshProjectSessions, useAppInitialization } from "./init/useAppInitialization";
 import { RSC } from "./resource";
 
@@ -473,7 +473,7 @@ export function App() {
       setChatMessages((messages) => {
         const streamId = `stream:${message.sessionid}`;
         const next = messages.filter((item) => item.id !== "empty" && item.id !== streamId);
-        return [...next, { id: streamId, role: "assistant", text }];
+        return [...next, { id: streamId, role: "assistant", text, attachments: [] }];
       });
       return;
     }
@@ -1053,7 +1053,7 @@ export function App() {
                   {chatMessages.map((message) => (
                     <React.Fragment key={message.id}>
                       <li className={message.role === "user" ? "max-w-[85%] justify-self-end rounded-lg bg-zinc-100 px-4 py-3 text-sm leading-6 text-zinc-950" : "max-w-[92%] justify-self-start rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm leading-6 text-zinc-300"}>
-                        {message.role === "assistant" ? <div className="prose prose-invert max-w-none prose-p:my-2 prose-headings:my-3 prose-headings:text-zinc-100 prose-strong:text-zinc-100"><MarkdownMessage text={message.text} /></div> : message.text}
+                        {message.role === "assistant" ? <div className="prose prose-invert max-w-none prose-p:my-2 prose-headings:my-3 prose-headings:text-zinc-100 prose-strong:text-zinc-100"><MarkdownMessage text={message.text} /></div> : <UserChatMessage text={message.text} attachments={message.attachments} />}
                       </li>
                       {message.role === "user" ? turnFlows.filter((turn) => turn.inputDataId === message.id).map((turn) => (
                         <li key={turn.id} className="w-full">
@@ -1135,6 +1135,32 @@ export function App() {
             </div>
           </section>
         </div>
+      ) : null}
+    </div>
+  );
+}
+
+function UserChatMessage({ text, attachments }: { text: string; attachments: ChatMessageAttachment[] }) {
+  return (
+    <div className="grid gap-3" data-testid="user-chat-message">
+      {text ? <p className="whitespace-pre-wrap break-words">{text}</p> : null}
+      {attachments.length > 0 ? (
+        <ul className="flex flex-wrap gap-2" aria-label="첨부 이미지와 파일">
+          {attachments.map((attachment) => (
+            <li key={`${attachment.path}:${attachment.index}`} className="min-w-0" data-testid="user-message-attachment">
+              {attachment.kind === "image" && attachment.url ? (
+                <a href={attachment.url} target="_blank" rel="noreferrer" className="group block h-24 w-24 overflow-hidden rounded-md border border-zinc-300 bg-zinc-200" aria-label={`${attachment.name} 이미지 열기`}>
+                  <img src={attachment.url} alt={attachment.name} className="h-full w-full object-cover transition group-hover:scale-105" loading="lazy" />
+                </a>
+              ) : (
+                <div className="max-w-64 rounded-md border border-zinc-300 bg-zinc-50 px-2 py-1 text-xs text-zinc-700">
+                  <p className="truncate font-medium">{attachment.name}</p>
+                  <p className="truncate text-zinc-500">{attachment.mimeType}</p>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
       ) : null}
     </div>
   );

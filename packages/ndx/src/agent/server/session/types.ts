@@ -25,6 +25,7 @@ export type NDXSessionRow = {
   interruptrequested: boolean;
   interruptrequestedat: Date | null;
   interruptcompletedat: Date | null;
+  runtimedata?: Record<string, unknown>;
 };
 
 export type NDXSessionDataRow = {

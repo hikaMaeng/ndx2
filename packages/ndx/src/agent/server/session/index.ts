@@ -15,6 +15,7 @@ export {
   errorContents,
   interruptContents,
   sessionDataText,
+  sessionDataTitleText,
   toolCallContents,
   userMessageContents
 } from "./content.js";
@@ -26,6 +27,7 @@ export { completeSessionInterrupt, requestSessionInterrupt, updateSessionTurnPha
 export { listSession } from "./listSession.js";
 export { listSessionData } from "./listSessionData.js";
 export { pruneProjectPathMismatchedSession } from "./pruneProjectPathMismatchedSession.js";
+export { addInlineAttachmentDataIds, consumeInlineAttachmentDataIds, listInlineAttachmentDataIds } from "./runtimeData.js";
 export { runSessionTurn, sessionDataRowsToModelMessages } from "./runSessionTurn.js";
 export { sessionDataRowsToModelMessages as sessionRowsToModelMessages } from "./sessionDataRowsToModelMessages.js";
 export { updateSessionEndTurn, updateSessionStartTurn, updateSessionTitle } from "./updateSession.js";

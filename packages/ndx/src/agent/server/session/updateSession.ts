@@ -13,7 +13,7 @@ SET
   interruptrequestedat = NULL,
   interruptcompletedat = NULL
 WHERE sessionid = $1
-RETURNING sessionid, userid, title, lastupdated, mode, path, projectid, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat;
+RETURNING sessionid, userid, title, lastupdated, mode, path, projectid, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, runtimedata;
 `,
     [sessionid, model ? JSON.stringify(model) : null]
   );
@@ -37,7 +37,7 @@ SET
   turnphase = 'idle',
   lastupdated = now()
 WHERE sessionid = $1
-RETURNING sessionid, userid, title, lastupdated, mode, path, projectid, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat;
+RETURNING sessionid, userid, title, lastupdated, mode, path, projectid, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, runtimedata;
 `,
     [sessionid]
   );
@@ -60,7 +60,7 @@ SET
   title = $2,
   lastupdated = now()
 WHERE sessionid = $1
-RETURNING sessionid, userid, title, lastupdated, mode, path, projectid, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat;
+RETURNING sessionid, userid, title, lastupdated, mode, path, projectid, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, runtimedata;
 `,
     [sessionid, title]
   );

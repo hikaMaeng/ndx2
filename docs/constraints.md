@@ -5,7 +5,7 @@ Use Yarn Plug'n'Play, Turbo, service modules under `apps/*`, and framework-agnos
 Repository constraints:
 
 * Runtime implementation language is TypeScript.
-* Do not port Rust structure mechanically from upstream Codex.
+* Do not port another agent implementation mechanically.
 * Use React, shadcn/ui-style components, Tailwind CSS, and Radix UI primitives for frontend implementation.
 * Use Express for the server unless a future documented architecture decision replaces it.
 * Never import from `apps/*` into `packages/*`.

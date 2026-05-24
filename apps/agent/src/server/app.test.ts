@@ -284,3 +284,65 @@ test("GET /api/agent/projects/:projectid/sessions prunes same-path stale project
   assert.deepEqual(queries[1].values, ["ndev", "/ndx/workspace/test3", "project-current"]);
   assert.deepEqual(queries[4].values, ["ndev", "project-current"]);
 });
+
+test("GET /api/agent/sessions/:sessionid/attachments/:dataid/:index serves stored image attachments", async () => {
+  const projectHome = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-web-attachment-"));
+  const sessionid = "018f0000-0000-7000-8000-000000000000";
+  const dataid = "018f0000-0000-7000-8000-000000000001";
+  const attachmentDirectory = path.join(projectHome, ".ndx", "sessions", sessionid);
+  const attachmentPath = path.join(attachmentDirectory, "sample.png");
+  const imageBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+  await fs.mkdir(attachmentDirectory, { recursive: true });
+  await fs.writeFile(attachmentPath, imageBytes);
+
+  const database: NDXDatabase = {
+    async query(text, values) {
+      if (/FROM "session"/i.test(text)) {
+        return {
+          rows: [{
+            sessionid,
+            userid: "ndev",
+            title: "이미지 세션",
+            mode: "none",
+            path: projectHome,
+            projectid: "project-current",
+            model: { type: "openai", model: "gpt-test", url: "https://example.test", token: "", contextsize: 200000 },
+            isrunning: false,
+            turnphase: "idle",
+            interruptrequested: false,
+            interruptrequestedat: null,
+            interruptcompletedat: null,
+            runtimedata: {},
+            lastupdated: new Date("2026-05-12T00:00:00.000Z")
+          }],
+          rowCount: 1
+        } as never;
+      }
+      if (/FROM sessiondata/i.test(text)) {
+        return {
+          rows: [{
+            dataid,
+            sessionid: values?.[0],
+            type: "user",
+            contents: {
+              kind: "user_message",
+              text: "이미지를 봐줘.",
+              attachments: [{ kind: "image", path: attachmentPath, name: "sample.png", mimeType: "image/png", size: imageBytes.length }]
+            },
+            createdat: new Date("2026-05-12T00:00:01.000Z")
+          }],
+          rowCount: 1
+        } as never;
+      }
+      return { rows: [], rowCount: 0 } as never;
+    },
+    async close() {}
+  };
+
+  const response = await request(createApp({ database }))
+    .get(`/api/agent/sessions/${sessionid}/attachments/${dataid}/0`)
+    .expect(200);
+
+  assert.equal(response.headers["content-type"], "image/png");
+  assert.deepEqual(response.body, imageBytes);
+});

@@ -1,4 +1,6 @@
 import type { NDXAgentWebContextUsage, NDXAgentWebModel, NDXAgentWebProvider, NDXAgentWebSessionData } from "ndx/agent/web";
+import { NDX_AGENT_WEB_API } from "ndx/agent/web";
+import type { NDXSessionAttachmentReference } from "ndx/agent/common/protocol";
 
 export type SocketState = "idle" | "checking" | "ready" | "connecting" | "negotiating" | "connected" | "offline" | "error";
 
@@ -6,6 +8,12 @@ export type ChatMessage = {
   id: string;
   role: "user" | "assistant" | "system";
   text: string;
+  attachments: ChatMessageAttachment[];
+};
+
+export type ChatMessageAttachment = NDXSessionAttachmentReference & {
+  index: number;
+  url?: string;
 };
 
 export type ProviderBundle = {
@@ -57,7 +65,8 @@ export function sessionDataToChatMessage(data: NDXAgentWebSessionData): ChatMess
   return {
     id: data.dataid,
     role: data.type === "user" ? "user" : data.type === "assistant" ? "assistant" : "system",
-    text
+    text,
+    attachments: sessionDataContentsAttachments(data)
   };
 }
 
@@ -102,20 +111,8 @@ export function sessionDataContentsText(contents: unknown): string | undefined {
     phase?: unknown;
     attachments?: unknown;
   };
-  if ((payload.kind === "user_message" || payload.kind === "assistant_message") && typeof payload.text === "string") {
-    const attachments = Array.isArray(payload.attachments)
-      ? payload.attachments
-          .map((attachment) => {
-            if (!attachment || typeof attachment !== "object") return "";
-            const next = attachment as { name?: unknown; mimeType?: unknown; path?: unknown };
-            const name = typeof next.name === "string" ? next.name : "attachment";
-            const mimeType = typeof next.mimeType === "string" ? next.mimeType : "file";
-            const filePath = typeof next.path === "string" ? next.path : "";
-            return filePath ? `[${mimeType}] ${name}` : "";
-          })
-          .filter(Boolean)
-      : [];
-    return attachments.length > 0 ? [payload.text, ...attachments].filter(Boolean).join("\n") : payload.text;
+  if ((payload.kind === "user_message" || payload.kind === "tool_generated_user_message" || payload.kind === "assistant_message") && typeof payload.text === "string") {
+    return payload.text;
   }
   if (payload.kind === "assistant_delta" && typeof payload.content === "string") {
     return payload.content;
@@ -186,4 +183,36 @@ export function sessionDataContentsText(contents: unknown): string | undefined {
     return payload.message;
   }
   return undefined;
+}
+
+export function sessionDataContentsAttachments(data: NDXAgentWebSessionData): ChatMessageAttachment[] {
+  const contents = data.contents;
+  if (!contents || typeof contents !== "object") {
+    return [];
+  }
+  const payload = contents as { kind?: unknown; attachments?: unknown };
+  if (payload.kind !== "user_message" && payload.kind !== "tool_generated_user_message") {
+    return [];
+  }
+  if (!Array.isArray(payload.attachments)) {
+    return [];
+  }
+  return payload.attachments.flatMap((attachment, index) => {
+    if (!attachment || typeof attachment !== "object") {
+      return [];
+    }
+    const record = attachment as { kind?: unknown; path?: unknown; name?: unknown; mimeType?: unknown; size?: unknown };
+    if ((record.kind !== "image" && record.kind !== "file") || typeof record.path !== "string" || typeof record.name !== "string" || typeof record.mimeType !== "string" || typeof record.size !== "number") {
+      return [];
+    }
+    return [{
+      kind: record.kind,
+      path: record.path,
+      name: record.name,
+      mimeType: record.mimeType,
+      size: record.size,
+      index,
+      ...(record.kind === "image" ? { url: NDX_AGENT_WEB_API.sessionAttachment(data.sessionid, data.dataid, index) } : {})
+    }];
+  });
 }

@@ -2,7 +2,7 @@
 
 `ndx2` is a TypeScript Turbo monorepo for a web-service-centered coding agent.
 
-The product is inspired by OpenAI's open-source Codex agent, but it is not a Rust-to-TypeScript mechanical port. The runtime, package boundaries, deployment shape, and UI surfaces must fit this repository's TypeScript monorepo architecture.
+The product is not a mechanical port of another agent implementation. The runtime, package boundaries, deployment shape, and UI surfaces must fit this repository's TypeScript monorepo architecture.
 
 The server product has four durable responsibilities:
 

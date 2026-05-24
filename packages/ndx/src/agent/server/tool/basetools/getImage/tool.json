@@ -1,0 +1,19 @@
+{
+  "tool": {
+    "command": "bash",
+    "args": ["./index.sh", "{path}"]
+  },
+  "schema": {
+    "type": "function",
+    "name": "getImage",
+    "description": "Open a local image file only when the user gives a concrete file path or asks you to inspect an image file in the workspace. Do not use this for images that are already attached to the current message.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": { "type": "string", "description": "A concrete container absolute path under the NDX virtual root, or a path relative to the project root. Do not invent paths and do not pass a path for an already attached image." }
+      },
+      "required": ["path"],
+      "additionalProperties": false
+    }
+  }
+}

@@ -145,7 +145,7 @@ export async function runToolProcess(
     child.on("error", (error) => {
       clearTimeout(timeout);
       options.signal?.removeEventListener("abort", abort);
-      resolve(buildResult(tool.name, callId, startedAtDate, "spawn_error", false, error.message, undefined, events, stdoutText, stderrText, undefined, undefined, error.message));
+      resolve(buildResult(tool.name, callId, startedAtDate, "spawn_error", false, error.message, undefined, undefined, events, stdoutText, stderrText, undefined, undefined, error.message));
     });
     child.on("close", async (code, signal) => {
       exited = true;
@@ -217,7 +217,7 @@ async function collectStdoutLine(
 
 function normalizeToolProcessEvent(value: unknown): NDXToolProcessEvent | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
-  const record = value as { type?: unknown; message?: unknown; data?: unknown; percent?: unknown; success?: unknown; output?: unknown };
+  const record = value as { type?: unknown; message?: unknown; data?: unknown; percent?: unknown; success?: unknown; output?: unknown; effects?: unknown };
   if (record.type === "progress" && typeof record.message === "string") {
     return {
       type: "progress",
@@ -230,10 +230,10 @@ function normalizeToolProcessEvent(value: unknown): NDXToolProcessEvent | undefi
     return { type: "debug", message: record.message, ...(Object.hasOwn(record, "data") ? { data: record.data } : {}) };
   }
   if (record.type === "result" && record.success === true) {
-    return { type: "result", success: true, output: record.output };
+    return { type: "result", success: true, output: record.output, ...(Array.isArray(record.effects) ? { effects: record.effects as never } : {}) };
   }
   if (record.type === "error" && record.success === false && typeof record.message === "string") {
-    return { type: "error", success: false, message: record.message, ...(Object.hasOwn(record, "output") ? { output: record.output } : {}) };
+    return { type: "error", success: false, message: record.message, ...(Object.hasOwn(record, "output") ? { output: record.output } : {}), ...(Array.isArray(record.effects) ? { effects: record.effects as never } : {}) };
   }
   return undefined;
 }
@@ -253,19 +253,19 @@ function finalizeToolResult(input: {
   signal: NodeJS.Signals | null;
 }): NDXToolExecutionResult {
   if (input.terminatingStatus) {
-    return buildResult(input.tool, input.callId, input.startedAtDate, input.terminatingStatus, false, input.stderrText.trimEnd(), undefined, input.events, input.stdoutText, input.stderrText, input.exitCode, input.signal);
+    return buildResult(input.tool, input.callId, input.startedAtDate, input.terminatingStatus, false, input.stderrText.trimEnd(), undefined, undefined, input.events, input.stdoutText, input.stderrText, input.exitCode, input.signal);
   }
   if (input.invalidProtocolLines.length > 0 && (input.events.length > 0 || input.legacyStdoutLines.length === 0)) {
-    return buildResult(input.tool, input.callId, input.startedAtDate, "protocol_error", false, input.invalidProtocolLines.join("\n"), undefined, input.events, input.stdoutText, input.stderrText, input.exitCode, input.signal);
+    return buildResult(input.tool, input.callId, input.startedAtDate, "protocol_error", false, input.invalidProtocolLines.join("\n"), undefined, undefined, input.events, input.stdoutText, input.stderrText, input.exitCode, input.signal);
   }
   if (input.finalEvent?.type === "result") {
-    return buildResult(input.tool, input.callId, input.startedAtDate, "success", true, stringifyOutput(input.finalEvent.output), input.finalEvent.output, input.events, input.stdoutText, input.stderrText, input.exitCode, input.signal);
+    return buildResult(input.tool, input.callId, input.startedAtDate, "success", true, stringifyOutput(input.finalEvent.output), input.finalEvent.output, input.finalEvent.effects, input.events, input.stdoutText, input.stderrText, input.exitCode, input.signal);
   }
   if (input.finalEvent?.type === "error") {
-    return buildResult(input.tool, input.callId, input.startedAtDate, "failed", false, stringifyOutput(input.finalEvent.output ?? input.finalEvent.message), input.finalEvent.output, input.events, input.stdoutText, input.stderrText, input.exitCode, input.signal, input.finalEvent.message);
+    return buildResult(input.tool, input.callId, input.startedAtDate, "failed", false, stringifyOutput(input.finalEvent.output ?? input.finalEvent.message), input.finalEvent.output, input.finalEvent.effects, input.events, input.stdoutText, input.stderrText, input.exitCode, input.signal, input.finalEvent.message);
   }
   const legacyOutput = [input.legacyStdoutLines.join("\n").trimEnd(), input.stderrText.trimEnd()].filter(Boolean).join("\n");
-  return buildResult(input.tool, input.callId, input.startedAtDate, input.exitCode === 0 ? "success" : "failed", input.exitCode === 0, legacyOutput, legacyOutput, input.events, input.stdoutText, input.stderrText, input.exitCode, input.signal);
+  return buildResult(input.tool, input.callId, input.startedAtDate, input.exitCode === 0 ? "success" : "failed", input.exitCode === 0, legacyOutput, legacyOutput, undefined, input.events, input.stdoutText, input.stderrText, input.exitCode, input.signal);
 }
 
 function buildResult(
@@ -276,6 +276,7 @@ function buildResult(
   success: boolean,
   output: string,
   outputValue: unknown,
+  effects: NDXToolExecutionResult["effects"],
   events: NDXToolProcessEvent[],
   stdoutText: string,
   stderrText: string,
@@ -291,6 +292,7 @@ function buildResult(
     success,
     output,
     outputValue,
+    ...(effects && effects.length > 0 ? { effects } : {}),
     events,
     stdoutText,
     stderrText,
@@ -310,7 +312,7 @@ export function failedWithoutProcess(
   status: NDXToolExecutionStatus = "failed",
   startedAtDate = new Date()
 ): NDXToolExecutionResult {
-  return buildResult(tool, callId, startedAtDate, status, false, output, undefined, [], "", "", undefined, undefined, output);
+  return buildResult(tool, callId, startedAtDate, status, false, output, undefined, undefined, [], "", "", undefined, undefined, output);
 }
 
 function stringifyOutput(value: unknown): string {

@@ -1,7 +1,6 @@
 import type { NDXContextUsage } from "../contextusage/index.js";
 import type { NDXHookRuntime } from "../hook/index.js";
 import type { NDXSessionDataRow, NDXSessionRow } from "../session/types.js";
-import type { NDXSessionInputAttachmentData } from "../session/attachments.js";
 import type { NDXToolExecutionResult, NDXToolProcessEvent } from "../tool/types.js";
 import type { NDXCotWorkContents, NDX_TURN_EVENT } from "../../common/protocol/index.js";
 import type { NDXAgentLanguage, NDXAgentResourceResolver } from "../../common/resource/index.js";
@@ -32,5 +31,4 @@ export type NDXTurnLoopEvents = {
   hooks?: NDXHookRuntime;
   language?: NDXAgentLanguage;
   resource?: NDXAgentResourceResolver;
-  attachments?: NDXSessionInputAttachmentData[];
 };

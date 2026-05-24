@@ -55,9 +55,23 @@ export type NDXToolExecutionOptions = NDXToolRegistryOptions & {
 
 export type NDXToolProcessEvent =
   | { type: "progress"; message: string; data?: unknown; percent?: number }
-  | { type: "result"; success: true; output: unknown }
-  | { type: "error"; success: false; message: string; output?: unknown }
+  | { type: "result"; success: true; output: unknown; effects?: NDXToolResultEffect[] }
+  | { type: "error"; success: false; message: string; output?: unknown; effects?: NDXToolResultEffect[] }
   | { type: "debug"; message: string; data?: unknown };
+
+export type NDXToolResultEffect =
+  | {
+      type: "append_user_message";
+      text?: string;
+      attachments?: Array<{
+        kind?: "image" | "file";
+        path: string;
+        name?: string;
+        mimeType: string;
+        size?: number;
+      }>;
+    }
+  | { type: "inline_appended_user_message" };
 
 export type NDXToolExecutionStatus = "success" | "failed" | "cancelled" | "timeout" | "spawn_error" | "protocol_error";
 
@@ -75,6 +89,7 @@ export type NDXToolExecutionResult = {
   success: boolean;
   output: string;
   outputValue?: unknown;
+  effects?: NDXToolResultEffect[];
   events: NDXToolProcessEvent[];
   stdoutText: string;
   stderrText: string;

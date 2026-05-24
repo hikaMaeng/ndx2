@@ -38,7 +38,9 @@ import {
   completeSessionInterrupt,
   requestRuntimeTurnInterrupt,
   requestSessionInterrupt,
+  assertModelSupportsAttachments,
   updateSessionTitle,
+  writeSessionAttachments,
   type NDXDatabase,
   type NDXModelConfig,
   type NDXSessionRow,
@@ -152,10 +154,13 @@ async function handleSessionMessage(
       return;
     }
 
-    await runAgentTurn(database, session, message.text.trim(), message.model, {
+    const turnModel = message.model ?? session.model;
+    assertModelSupportsAttachments(turnModel, message.attachments);
+    const attachments = await writeSessionAttachments(toServerProjectPath(session.path), session.sessionid, message.attachments);
+
+    await runAgentTurn(database, session, { text: message.text.trim(), attachments }, message.model, {
       language,
       resource,
-      attachments: message.attachments,
       async onEvent(event) {
         if (event.type === NDX_TURN_EVENT.InputRecorded) {
           await sendJson(client, {

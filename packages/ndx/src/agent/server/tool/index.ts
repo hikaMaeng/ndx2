@@ -8,5 +8,6 @@ export type {
   NDXToolExecutionResult,
   NDXToolExecutionStatus,
   NDXToolProcessEvent,
+  NDXToolResultEffect,
   NDXToolRegistryOptions
 } from "./types.js";

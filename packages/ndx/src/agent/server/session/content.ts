@@ -6,6 +6,19 @@ export function userMessageContents(text: string, attachments: NDXSessionAttachm
   return attachments.length > 0 ? { kind: "user_message", text, attachments } : { kind: "user_message", text };
 }
 
+export function toolGeneratedUserMessageContents(
+  text: string,
+  attachments: NDXSessionAttachmentReference[] = [],
+  sources: Array<{ tool: string; toolCallId?: string; iteration?: number }> = []
+): NDXSessionDataContents {
+  return {
+    kind: "tool_generated_user_message",
+    text,
+    ...(attachments.length > 0 ? { attachments } : {}),
+    ...(sources.length > 0 ? { sources } : {})
+  };
+}
+
 export function assistantMessageContents(text: string): NDXSessionDataContents {
   return { kind: "assistant_message", text };
 }
@@ -43,7 +56,7 @@ export function sessionDataText(row: Pick<NDXSessionDataRow, "type" | "contents"
   }
 
   const contents = row.contents as Partial<NDXSessionDataContents> & { text?: unknown; message?: unknown; content?: unknown; attachments?: unknown };
-  if ((contents.kind === "user_message" || contents.kind === "assistant_message") && typeof contents.text === "string") {
+  if ((contents.kind === "user_message" || contents.kind === "tool_generated_user_message" || contents.kind === "assistant_message") && typeof contents.text === "string") {
     const attachments = Array.isArray(contents.attachments)
       ? contents.attachments
           .map((attachment) => {
@@ -91,6 +104,24 @@ export function sessionDataText(row: Pick<NDXSessionDataRow, "type" | "contents"
   return undefined;
 }
 
+export function sessionDataTitleText(row: Pick<NDXSessionDataRow, "type" | "contents">): string | undefined {
+  if (typeof row.contents === "string") {
+    return row.contents;
+  }
+  if (!row.contents || typeof row.contents !== "object") {
+    return undefined;
+  }
+
+  const contents = row.contents as Partial<NDXSessionDataContents> & { text?: unknown; message?: unknown };
+  if ((contents.kind === "user_message" || contents.kind === "tool_generated_user_message" || contents.kind === "assistant_message") && typeof contents.text === "string") {
+    return contents.text;
+  }
+  if (contents.kind === "error" && typeof contents.message === "string") {
+    return contents.message;
+  }
+  return sessionDataText(row);
+}
+
 function stringifyToolOutput(output: unknown): string {
   if (typeof output === "string") return output;
   if (output === null || typeof output === "undefined") return "tool result unavailable";
@@ -101,7 +132,8 @@ function stringifyToolOutput(output: unknown): string {
   }
 }
 
-export function sessionDataRowsToModelMessages(rows: NDXSessionDataRow[]): ResponseInputItem[] {
+export function sessionDataRowsToModelMessages(rows: NDXSessionDataRow[], options: { inlineAttachmentDataIds?: Iterable<string> } = {}): ResponseInputItem[] {
+  const inlineAttachmentDataIds = new Set([...options.inlineAttachmentDataIds ?? []].map(String));
   const toolCallIterations = new Set<number>();
   for (const row of rows) {
     if (row.contents && typeof row.contents === "object" && (row.contents as { kind?: unknown }).kind === "tool_call") {
@@ -119,8 +151,8 @@ export function sessionDataRowsToModelMessages(rows: NDXSessionDataRow[]): Respo
     }
 
     const contents = row.contents as Partial<NDXSessionDataContents>;
-    if (row.type === "user") {
-      const content = userMessageModelContent(row.contents);
+    if (row.type === "user" || contents.kind === "tool_generated_user_message") {
+      const content = userMessageModelContent(row, inlineAttachmentDataIds);
       if (typeof content === "string" && !content.trim()) {
         return [];
       }
@@ -159,12 +191,16 @@ export function sessionDataRowsToModelMessages(rows: NDXSessionDataRow[]): Respo
   });
 }
 
-function userMessageModelContent(contents: unknown): string | Array<Record<string, unknown>> | undefined {
+function userMessageModelContent(row: Pick<NDXSessionDataRow, "type" | "contents" | "dataid">, inlineAttachmentDataIds: Set<string>): string | Array<Record<string, unknown>> | undefined {
+  const contents = row.contents;
   if (!contents || typeof contents !== "object") {
     return sessionDataText({ type: "user", contents });
   }
   const payload = contents as { kind?: unknown; text?: unknown; attachments?: unknown };
-  if (payload.kind !== "user_message" || !Array.isArray(payload.attachments)) {
+  if ((payload.kind !== "user_message" && payload.kind !== "tool_generated_user_message") || !Array.isArray(payload.attachments)) {
+    return sessionDataText({ type: "user", contents });
+  }
+  if (!inlineAttachmentDataIds.has(String(row.dataid))) {
     return sessionDataText({ type: "user", contents });
   }
   const parts: Record<string, unknown>[] = [];
@@ -177,9 +213,9 @@ function userMessageModelContent(contents: unknown): string | Array<Record<strin
     }
     const next = attachment as NDXSessionAttachmentReference;
     if (next.kind === "image") {
-      parts.push({ type: "input_image", file_path: next.path, mime_type: next.mimeType });
+      parts.push({ type: "input_image", file_path: next.path, mime_type: next.mimeType, ndx_dataid: String(row.dataid) });
     } else {
-      parts.push({ type: "input_file", filename: next.name, file_path: next.path, mime_type: next.mimeType });
+      parts.push({ type: "input_file", filename: next.name, file_path: next.path, mime_type: next.mimeType, ndx_dataid: String(row.dataid) });
     }
   }
   return parts.length > 0 ? parts : sessionDataText({ type: "user", contents });

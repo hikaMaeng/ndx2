@@ -4,7 +4,7 @@ export async function listSession(database: NDXDatabase, userid: string, project
   database.logger?.debug("agent.server.session.list.start", { userid, projectid });
   const result = await database.query<NDXSessionRow>(
     `
-SELECT sessionid, userid, title, lastupdated, mode, path, projectid, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat
+SELECT sessionid, userid, title, lastupdated, mode, path, projectid, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, runtimedata
 FROM "session"
 WHERE userid = $1
   AND projectid = $2

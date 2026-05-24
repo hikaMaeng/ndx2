@@ -191,7 +191,7 @@ test("all builtin tool arg templates resolve against their own schema properties
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-tools-"));
   const tools = await listAvailableTools({ userHome: path.join(root, "user"), projectHome: path.join(root, "project") });
 
-  assert.deepEqual(tools.map((tool) => tool.name), ["bash", "cot_work", "edit", "glob", "grep_search", "loadSkill", "read_file", "web_fetch", "web_search", "write_file"]);
+  assert.deepEqual(tools.map((tool) => tool.name), ["bash", "cot_work", "edit", "getImage", "glob", "grep_search", "loadSkill", "read_file", "web_fetch", "web_search", "write_file"]);
   assert.ok(tools.every((tool) => tool.source === "builtin"));
 });
 
@@ -344,6 +344,7 @@ test("builtin file tools read, search, edit, write, and run bash within the NDX 
   await fs.mkdir(path.join(projectHome, "src"), { recursive: true });
   await fs.mkdir(path.join(userHome, ".ndx", "skills", "demo", "references"), { recursive: true });
   await fs.writeFile(path.join(projectHome, "src", "a.ts"), "alpha\nneedle\nomega\n", "utf8");
+  await fs.writeFile(path.join(projectHome, "src", "sample.png"), Buffer.from([1, 2, 3]));
   await fs.writeFile(path.join(userHome, ".ndx", "skills", "demo", "references", "checklist.md"), "global skill reference\n", "utf8");
 
   const read = await executeToolCall({ name: "read_file", arguments: JSON.stringify({ path: "src/a.ts", offset: 1, limit: 1 }) }, { userHome, projectHome });
@@ -395,6 +396,14 @@ test("builtin file tools read, search, edit, write, and run bash within the NDX 
   assert.equal(bash.success, true);
   assert.equal(bash.events.at(-1)?.type, "result");
   assert.match(bash.output, /bash-ok/);
+
+  const image = await executeToolCall({ name: "getImage", arguments: JSON.stringify({ path: "src/sample.png" }) }, { userHome, projectHome });
+  assert.equal(image.success, true);
+  assert.equal(image.effects?.some((effect) => effect.type === "append_user_message"), true);
+  assert.equal(image.effects?.some((effect) => effect.type === "inline_appended_user_message"), true);
+  const appendEffect = image.effects?.find((effect): effect is Extract<NonNullable<typeof image.effects>[number], { type: "append_user_message" }> => effect.type === "append_user_message");
+  assert.equal(appendEffect?.attachments?.[0]?.path, path.join(projectHome, "src", "sample.png"));
+  assert.equal(appendEffect?.attachments?.[0]?.mimeType, "image/png");
 
   const globalBash = await executeToolCall(
     { name: "bash", arguments: JSON.stringify({ command: "pwd", workdir: path.join(userHome, ".ndx", "skills", "demo") }) },

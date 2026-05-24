@@ -229,7 +229,7 @@ test("request received system hook records selected skill contents before rewrit
   assert.match(JSON.stringify(rows[0].contents), /Use demo workflow\./);
 });
 
-test("context prepared system hook inlines current input images only on first iteration", async () => {
+test("context prepared system hook inlines image attachments for selected session data ids", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-hook-image-"));
   const imagePath = path.join(root, "sample.png");
   await fs.writeFile(imagePath, Buffer.from([1, 2, 3]));
@@ -254,12 +254,25 @@ test("context prepared system hook inlines current input images only on first it
       ]
     }
   ];
+  let consumeCount = 0;
+  const runtimeDatabase: NDXDatabase = {
+    async query(text) {
+      if (/runtimedata/.test(text)) {
+        consumeCount += 1;
+        return { rows: [{ ids: consumeCount === 1 ? ["input-1"] : [] }], rowCount: 1, command: "", oid: 0, fields: [] } as never;
+      }
+      return { rows: [], rowCount: 0, command: "", oid: 0, fields: [] } as never;
+    },
+    async close() {}
+  };
 
   try {
     const first = await runTurnContextPreparedHook(createNDXHookRuntime({ [NDX_TURN_EVENT.ContextPrepared]: turnContextPreparedHooks }, {}), {
       ...baseContext,
+      database: runtimeDatabase,
       input,
       iteration: 1,
+      sessionDataRows: [input],
       messages
     });
     const firstText = JSON.stringify(first.messages);
@@ -269,8 +282,10 @@ test("context prepared system hook inlines current input images only on first it
 
     const second = await runTurnContextPreparedHook(createNDXHookRuntime({ [NDX_TURN_EVENT.ContextPrepared]: turnContextPreparedHooks }, {}), {
       ...baseContext,
+      database: runtimeDatabase,
       input,
       iteration: 2,
+      sessionDataRows: [input],
       messages
     });
     assert.deepEqual(second.messages, messages);

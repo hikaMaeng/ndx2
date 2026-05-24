@@ -1,5 +1,6 @@
 import { promises as fs } from "node:fs";
 import type { ResponseInputItem } from "ndx/common/responseapi";
+import { consumeInlineAttachmentDataIds } from "../../session/runtimeData.js";
 import type { NDXHookCodeExecutor, NDXHookEffect } from "../index.js";
 
 export const inlineInputImagesHook: NDXHookCodeExecutor = {
@@ -7,56 +8,46 @@ export const inlineInputImagesHook: NDXHookCodeExecutor = {
   name: "system.turn.context.prepared.inline_input_images",
   source: "system",
   async run(context): Promise<NDXHookEffect> {
-    if (context.iteration !== 1 || !context.input?.contents || typeof context.input.contents !== "object") {
+    const inlineAttachmentDataIds = await consumeInlineAttachmentDataIds(context.database, context.session.sessionid);
+    if (!inlineAttachmentDataIds.size) {
       return { type: "noeffect" };
     }
 
-    const contents = context.input.contents as { kind?: unknown; attachments?: unknown };
-    if (contents.kind !== "user_message" || !Array.isArray(contents.attachments)) {
-      return { type: "noeffect" };
-    }
-
-    const imageAttachments = contents.attachments
-      .filter((attachment): attachment is { kind: "image"; path: string; mimeType: string } => {
-        if (!attachment || typeof attachment !== "object") {
-          return false;
-        }
-        const next = attachment as { kind?: unknown; path?: unknown; mimeType?: unknown };
-        return next.kind === "image" && typeof next.path === "string" && typeof next.mimeType === "string";
-      });
-    if (imageAttachments.length === 0) {
-      return { type: "noeffect" };
-    }
-
-    const imageUrls = new Map<string, string>();
-    for (const attachment of imageAttachments) {
-      const data = await fs.readFile(attachment.path);
-      imageUrls.set(attachment.path, `data:${attachment.mimeType};base64,${data.toString("base64")}`);
-    }
-
-    let replaced = 0;
-    const messages = (context.messages ?? []).map((message) => {
-      if (!isResponseModelMessage(message) || !Array.isArray(message.content)) {
-        return message;
+    const imagePaths = new Set<string>();
+    for (const row of context.sessionDataRows!) {
+      if (!inlineAttachmentDataIds.has(String(row.dataid)) || !row.contents || typeof row.contents !== "object") {
+        continue;
       }
-
-      let messageReplaced = false;
-      const content = message.content.map((part) => {
-        if (part.type !== "input_image" || typeof part.file_path !== "string") {
-          return part;
+      const contents = row.contents as { kind?: unknown; attachments?: unknown };
+      if ((contents.kind !== "user_message" && contents.kind !== "tool_generated_user_message") || !Array.isArray(contents.attachments)) {
+        continue;
+      }
+      for (const attachment of contents.attachments) {
+        if (!attachment || typeof attachment !== "object") {
+          continue;
         }
-        const imageUrl = imageUrls.get(part.file_path);
-        if (!imageUrl) {
-          return part;
+        const next = attachment as { kind?: unknown; path?: unknown };
+        if (next.kind === "image" && typeof next.path === "string") {
+          imagePaths.add(next.path);
         }
-        replaced += 1;
-        messageReplaced = true;
-        return { type: "input_image", image_url: imageUrl };
-      });
-      return messageReplaced ? { ...message, content } : message;
-    });
-
-    return replaced > 0 ? { type: "noeffect", replaceMessages: messages } : { type: "noeffect" };
+      }
+    }
+    const target = context.messages!
+      .filter(isResponseModelMessage)
+      .filter((message): message is { role: string; content: Array<Record<string, unknown>> } => Array.isArray(message.content))
+      .flatMap((message) => message.content)
+      .filter((part): part is Record<string, unknown> & { type: "input_image"; file_path?: string; mime_type?: string } =>
+        part.type === "input_image" && typeof part.file_path === "string" && imagePaths.has(part.file_path)
+      );
+    await Promise.all(target.map(async (part) => {
+      const filePath = part.file_path!;
+      const data = await fs.readFile(filePath);
+      const mimeType = typeof part.mime_type === "string" && part.mime_type.trim() ? part.mime_type : "application/octet-stream";
+      part.image_url = `data:${mimeType};base64,${data.toString("base64")}`;
+      delete part.file_path;
+      delete part.mime_type;
+    }));
+    return { type: "noeffect" };
   }
 };
 

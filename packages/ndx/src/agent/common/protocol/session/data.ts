@@ -17,6 +17,7 @@ export type NDXSessionAttachmentReference = {
 
 export type NDXSessionDataContents =
   | { kind: "user_message"; text: string; attachments?: NDXSessionAttachmentReference[] }
+  | { kind: "tool_generated_user_message"; text: string; attachments?: NDXSessionAttachmentReference[]; sources?: Array<{ tool: string; toolCallId?: string; iteration?: number }> }
   | { kind: "assistant_message"; text: string }
   | { kind: "assistant_delta"; iteration: number; delta: string; content: string }
   | { kind: "assistant_reasoning"; iteration: number; summary: string }

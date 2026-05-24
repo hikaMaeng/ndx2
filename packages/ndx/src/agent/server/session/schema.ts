@@ -18,7 +18,8 @@ CREATE TABLE IF NOT EXISTS "session" (
   turnphase text NOT NULL DEFAULT 'idle',
   interruptrequested boolean NOT NULL DEFAULT false,
   interruptrequestedat timestamptz,
-  interruptcompletedat timestamptz
+  interruptcompletedat timestamptz,
+  runtimedata jsonb NOT NULL DEFAULT '{}'::jsonb
 );
 `;
 
@@ -27,6 +28,7 @@ ALTER TABLE "session" ADD COLUMN IF NOT EXISTS turnphase text NOT NULL DEFAULT '
 ALTER TABLE "session" ADD COLUMN IF NOT EXISTS interruptrequested boolean NOT NULL DEFAULT false;
 ALTER TABLE "session" ADD COLUMN IF NOT EXISTS interruptrequestedat timestamptz;
 ALTER TABLE "session" ADD COLUMN IF NOT EXISTS interruptcompletedat timestamptz;
+ALTER TABLE "session" ADD COLUMN IF NOT EXISTS runtimedata jsonb NOT NULL DEFAULT '{}'::jsonb;
 `;
 
 export const SESSION_TABLE_INDEX_SQL = `

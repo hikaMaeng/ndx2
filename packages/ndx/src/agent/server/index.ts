@@ -49,15 +49,19 @@ export {
   SESSION_TABLE_SQL,
   SESSIONDATA_TABLE_INDEX_SQL,
   SESSIONDATA_TABLE_SQL,
+  addInlineAttachmentDataIds,
   appendSessionData,
+  assertModelSupportsAttachments,
   assistantDeltaContents,
   assistantMessageContents,
   createSession,
+  consumeInlineAttachmentDataIds,
   deleteSession,
   errorContents,
   getSession,
   initSessionDatabase,
   interruptContents,
+  listInlineAttachmentDataIds,
   listSession,
   listSessionData,
   pruneProjectPathMismatchedSession,
@@ -70,11 +74,12 @@ export {
   userMessageContents,
   updateSessionEndTurn,
   updateSessionStartTurn,
-  updateSessionTitle
+  updateSessionTitle,
+  writeSessionAttachments
 } from "./session/index.js";
-export type { NDXSessionDataContents } from "./session/index.js";
+export type { NDXSessionDataContents, NDXSessionInputAttachmentData } from "./session/index.js";
 export { buildTurnMessages, buildTurnMessageParts, getRuntimeTurnPhase, requestRuntimeTurnInterrupt, runAgentTurn, turnInterruptPolicy } from "./turnloop/index.js";
-export type { NDXTurnMessageParts } from "./turnloop/index.js";
+export type { NDXTurnInput, NDXTurnMessageParts } from "./turnloop/index.js";
 export type { NDXTurnInterruptAction, NDXTurnPhase } from "./turnloop/index.js";
 export { DEFAULT_NDX_MAX_MODEL_ITERATIONS, readAgentRuntimeSettings } from "./runtime-settings/index.js";
 export type { NDXAgentRuntimeSettings } from "./runtime-settings/index.js";
