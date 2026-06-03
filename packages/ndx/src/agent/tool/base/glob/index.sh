@@ -60,4 +60,15 @@ payload="$(
   if [ "$count" -gt "${limit:-100}" ]; then printf 'true'; else printf 'false'; fi
   printf '}'
 )"
+sidebar_body="$(printf '%s · %s개 파일' "$root" "$count")"
+sidebar_item="$(
+  printf '{"group":{"id":"file-searches","title":"파일 검색"},"key":'
+  printf '%s' "glob:$pattern:$root:${NDX_TOOL_CALL_ID:-}" | json_quote
+  printf ',"title":'
+  printf '%s' "$pattern" | json_quote
+  printf ',"body":'
+  printf '%s' "$sidebar_body" | json_quote
+  printf ',"kind":"glob"}'
+)"
+emit_sidebar_item_json "$sidebar_item"
 emit_result_json "$payload"

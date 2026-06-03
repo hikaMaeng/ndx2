@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { turnInterruptPolicy } from "./interruptPolicy.js";
+import { turnInterruptPolicy } from "./index.js";
 
 test("turn interrupt policy separates model, tool, and checkpoint-only phases", () => {
   assert.deepEqual(turnInterruptPolicy("model_request"), {

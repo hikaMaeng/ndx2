@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createCotWorkTimingTracker } from "./cotWorkTiming.js";
+import { createCotWorkTimingTracker } from "./timing.js";
 
 test("cot work timing assigns the update interval to every newly completed step", () => {
   const originalNow = Date.now;

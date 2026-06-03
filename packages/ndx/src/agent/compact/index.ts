@@ -37,7 +37,6 @@ export type NDXTurnContextUsageStats = {
 
 export type NDXCompactSessionHistoryOptions = {
   contextRows?: NDXSessionDataRow[];
-  slidewindow?: number;
 };
 
 export async function initCompactDatabase(database: NDXDatabase): Promise<void> {
@@ -87,8 +86,8 @@ LIMIT 1;
     : { turncount: 0, tokens: 0, avgtokens: 0 };
 }
 
-export async function listSessionDataForModelContext(database: NDXDatabase, sessionid: string, slidewindow = 0): Promise<NDXSessionDataRow[]> {
-  return sessionDataRowsForModelContext(await listSessionData(database, sessionid), slidewindow);
+export async function listSessionDataForModelContext(database: NDXDatabase, sessionid: string): Promise<NDXSessionDataRow[]> {
+  return sessionDataRowsForModelContext(await listSessionData(database, sessionid));
 }
 
 export function sessionDataRowsFromLatestCompact(rows: NDXSessionDataRow[]): NDXSessionDataRow[] {
@@ -96,25 +95,8 @@ export function sessionDataRowsFromLatestCompact(rows: NDXSessionDataRow[]): NDX
   return index >= 0 ? rows.slice(index) : rows;
 }
 
-export function sessionDataRowsForModelContext(rows: NDXSessionDataRow[], slidewindow = 0): NDXSessionDataRow[] {
-  const compactIndex = findLastCompactIndex(rows);
-  const boundaryIndex = compactIndex >= 0 ? compactIndex : 0;
-  const boundedRows = compactIndex >= 0 ? rows.slice(compactIndex) : rows;
-  if (!Number.isInteger(slidewindow) || slidewindow <= 0) {
-    return boundedRows;
-  }
-
-  const requestIndices: number[] = [];
-  for (let index = compactIndex + 1; index < rows.length; index += 1) {
-    if (isUserRequestRow(rows[index])) {
-      requestIndices.push(index);
-    }
-  }
-  if (requestIndices.length < slidewindow) {
-    return rows.slice(boundaryIndex);
-  }
-  const windowRows = rows.slice(requestIndices[requestIndices.length - slidewindow]);
-  return compactIndex >= 0 ? [rows[compactIndex], ...windowRows] : windowRows;
+export function sessionDataRowsForModelContext(rows: NDXSessionDataRow[]): NDXSessionDataRow[] {
+  return sessionDataRowsFromLatestCompact(rows);
 }
 
 export function compactContents(input: Omit<NDXCompactContents, "kind">): NDXCompactContents {
@@ -131,7 +113,7 @@ export async function compactSessionHistory(
   const rows = await listSessionData(database, session.sessionid);
   const lastCompactIndex = findLastCompactIndex(rows);
   const previousCompact = lastCompactIndex >= 0 ? rows[lastCompactIndex] : undefined;
-  const contextRows = options.contextRows ?? sessionDataRowsForModelContext(rows, options.slidewindow ?? 0);
+  const contextRows = options.contextRows ?? sessionDataRowsForModelContext(rows);
   const previousCompactDataId = previousCompact ? String(previousCompact.dataid) : undefined;
   const sourceRows = previousCompactDataId
     ? contextRows.filter((row) => String(row.dataid) !== previousCompactDataId)
@@ -180,13 +162,6 @@ function findLastCompactIndex(rows: NDXSessionDataRow[]): number {
     }
   }
   return -1;
-}
-
-function isUserRequestRow(row: NDXSessionDataRow | undefined): boolean {
-  if (!row || row.type !== "user" || !row.contents || typeof row.contents !== "object") {
-    return false;
-  }
-  return (row.contents as { kind?: unknown }).kind === "user_message";
 }
 
 async function summarizeCompactHistory(model: NDXModelConfig, previousCompact: NDXSessionDataRow | undefined, sourceRows: NDXSessionDataRow[]): Promise<string> {

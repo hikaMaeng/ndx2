@@ -4,9 +4,10 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { NDX_COT_WORK_CONTENT_KIND, NDX_SIDEBAR_ITEM } from "../../common/protocol/index.js";
+import { NDX_COT_WORK_CONTENT_KIND } from "../../common/protocol/index.js";
 import { executeToolCalls, listAvailableTools, toolSchemas } from "./index.js";
 import { createCotWorkAgentCallHandler } from "./base/cot_work/agentCall.js";
+import { NDX_SIDEBAR_ITEM_AGENTCALL_NAME } from "./execute/agentcall/index.js";
 import type { NDXToolExecutionOptions, NDXToolExecutionResult } from "./index.js";
 
 test("listAvailableTools merges external tools before builtin tools with builtin names protected", async () => {
@@ -441,23 +442,70 @@ test("tool process agent calls are routed separately from model-visible output",
   assert.deepEqual(messages, [{ kind: "cot_work", steps: [{ task: "Plan", status: "in_progress" }] }]);
 });
 
+test("tool process sidebar agent calls are routed through the executor handler", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-sidebar-agentcall-tools-"));
+  const userHome = path.join(root, "user");
+  const projectHome = path.join(root, "project");
+  await fs.mkdir(path.join(userHome, ".ndx", "tools", "sidebar"), { recursive: true });
+  await fs.writeFile(
+    path.join(userHome, ".ndx", "tools", "sidebar", "tool.json"),
+    JSON.stringify({
+      tool: { command: "node", args: ["./index.mjs"] },
+      schema: { type: "function", name: "sidebar", parameters: { type: "object", properties: {} } }
+    }),
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(userHome, ".ndx", "tools", "sidebar", "index.mjs"),
+    "console.log(`[[ndx-agentcall:${JSON.stringify({ type: 'ndx.agentcall', name: 'session.sidebar_item', input: { group: { id: 'skills', title: '스킬' }, key: 'skill:demo', title: 'demo', kind: 'skill' } })}]]`); console.log(JSON.stringify({ type: 'result', success: true, output: 'done' }));\n",
+    "utf8"
+  );
+  const sidebarItems: unknown[] = [];
+
+  const result = await executeToolCall(
+    { name: "sidebar", arguments: "{}" },
+    {
+      userHome,
+      projectHome,
+      agentCallHandlers: {
+        [NDX_SIDEBAR_ITEM_AGENTCALL_NAME]: (input) => {
+          sidebarItems.push(input);
+        }
+      }
+    }
+  );
+
+  assert.equal(result.status, "success");
+  assert.equal(result.output, "done");
+  assert.equal(result.events.some((event) => event.type === "progress"), false);
+  assert.deepEqual(sidebarItems, [{
+    group: { id: "skills", title: "스킬" },
+    key: "skill:demo",
+    title: "demo",
+    kind: "skill"
+  }]);
+});
+
 test("loadSkill loads an available project skill by name", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-skill-tools-"));
   const userHome = path.join(root, "user");
   const projectHome = path.join(root, "project");
   const skillPath = await writeSkill(path.join(projectHome, ".ndx", "skills", "demo"), "demo", "demo skill", "Use the demo workflow.");
+  const sidebarItems: unknown[] = [];
 
   const result = await executeToolCall(
     { call_id: "skill_1", name: "loadSkill", arguments: JSON.stringify({ name: "demo" }) },
-    { userHome, projectHome, turnContext: skillTurnContext("demo", "demo skill", skillPath) }
+    {
+      userHome,
+      projectHome,
+      turnContext: skillTurnContext("demo", "demo skill", skillPath),
+      agentCallHandlers: { [NDX_SIDEBAR_ITEM_AGENTCALL_NAME]: (input) => { sidebarItems.push(input); } }
+    }
   );
 
   assert.equal(result.success, true);
   assert.equal(result.status, "success");
-  assert.equal(result.events.some((event) => event.type === "progress" && event.message.startsWith(NDX_SIDEBAR_ITEM)), true);
-  const sidebarProgress = result.events.find((event) => event.type === "progress" && event.message.startsWith(NDX_SIDEBAR_ITEM));
-  assert.equal(sidebarProgress?.type, "progress");
-  assert.equal((sidebarProgress.data as { sidebarItem?: { group?: { title?: string } } }).sidebarItem?.group?.title, "스킬");
+  assert.equal((sidebarItems[0] as { group?: { title?: string } }).group?.title, "스킬");
   assert.match(result.output, /<skill>\n<name>demo<\/name>/);
   assert.match(result.output, /<path>.*\/project\/\.ndx\/skills\/demo\/SKILL\.md<\/path>/);
   assert.match(result.output, /Use the demo workflow\./);
@@ -468,6 +516,7 @@ test("loadSkill returns already loaded when hidden session context includes the 
   const userHome = path.join(root, "user");
   const projectHome = path.join(root, "project");
   const skillPath = await writeSkill(path.join(projectHome, ".ndx", "skills", "demo"), "demo", "demo skill", "Use the demo workflow.");
+  const sidebarItems: unknown[] = [];
 
   const result = await executeToolCall(
     { call_id: "skill_4", name: "loadSkill", arguments: JSON.stringify({ name: "demo" }) },
@@ -477,11 +526,13 @@ test("loadSkill returns already loaded when hidden session context includes the 
       turnContext: {
         ...skillTurnContext("demo", "demo skill", skillPath),
         history: [{ role: "assistant", content: `<skill>\n<name>demo</name>\n<path>${skillPath}</path>\n</skill>` }]
-      }
+      },
+      agentCallHandlers: { [NDX_SIDEBAR_ITEM_AGENTCALL_NAME]: (input) => { sidebarItems.push(input); } }
     }
   );
 
   assert.equal(result.success, true);
+  assert.equal((sidebarItems[0] as { group?: { title?: string } }).group?.title, "스킬");
   assert.match(result.output, /Skill already loaded in the current session context: demo/);
   assert.doesNotMatch(result.output, /Use the demo workflow\./);
 });
@@ -635,39 +686,39 @@ test("builtin file tools read, search, edit, write, and run bash within the NDX 
   await fs.writeFile(path.join(projectHome, "src", "a.ts"), "alpha\nneedle\nomega\n", "utf8");
   await fs.writeFile(path.join(projectHome, "src", "sample.png"), Buffer.from([1, 2, 3]));
   await fs.writeFile(path.join(userHome, ".ndx", "skills", "demo", "references", "checklist.md"), "global skill reference\n", "utf8");
+  const sidebarItems: unknown[] = [];
+  const options = { userHome, projectHome, agentCallHandlers: { [NDX_SIDEBAR_ITEM_AGENTCALL_NAME]: (input: unknown) => { sidebarItems.push(input); } } };
 
-  const read = await executeToolCall({ name: "read_file", arguments: JSON.stringify({ path: "src/a.ts", offset: 1, limit: 1 }) }, { userHome, projectHome });
+  const read = await executeToolCall({ name: "read_file", arguments: JSON.stringify({ path: "src/a.ts", offset: 1, limit: 1 }) }, options);
   assert.equal(read.success, true);
   assert.equal(read.status, "success");
   assert.ok(read.events.some((event) => event.type === "progress"));
-  assert.equal(read.events.some((event) => event.type === "progress" && event.message.startsWith(NDX_SIDEBAR_ITEM)), true);
-  const readSidebarProgress = read.events.find((event): event is Extract<typeof event, { type: "progress" }> => event.type === "progress" && event.message.startsWith(NDX_SIDEBAR_ITEM));
-  assert.equal((readSidebarProgress?.data as { sidebarItem?: { group?: { id?: string; title?: string }; kind?: string } }).sidebarItem?.group?.id, "file-references");
-  assert.equal((readSidebarProgress?.data as { sidebarItem?: { group?: { id?: string; title?: string }; kind?: string } }).sidebarItem?.group?.title, "파일참조");
-  assert.equal((readSidebarProgress?.data as { sidebarItem?: { group?: { id?: string; title?: string }; kind?: string } }).sidebarItem?.kind, "file_reference");
+  assert.equal((sidebarItems.at(-1) as { group?: { id?: string; title?: string }; kind?: string }).group?.id, "file-references");
+  assert.equal((sidebarItems.at(-1) as { group?: { id?: string; title?: string }; kind?: string }).group?.title, "파일참조");
+  assert.equal((sidebarItems.at(-1) as { group?: { id?: string; title?: string }; kind?: string }).kind, "file_reference");
   assert.equal(read.events.at(-1)?.type, "result");
   assert.equal(JSON.parse(read.output).content, "needle");
 
   const globalRead = await executeToolCall(
     { name: "read_file", arguments: JSON.stringify({ path: path.join(userHome, ".ndx", "skills", "demo", "references", "checklist.md") }) },
-    { userHome, projectHome }
+    options
   );
   assert.equal(globalRead.success, true);
   assert.equal(JSON.parse(globalRead.output).content, "global skill reference");
 
-  const glob = await executeToolCall({ name: "glob", arguments: JSON.stringify({ pattern: "src/*.ts" }) }, { userHome, projectHome });
+  const glob = await executeToolCall({ name: "glob", arguments: JSON.stringify({ pattern: "src/*.ts" }) }, options);
   assert.equal(glob.success, true);
   assert.equal(glob.events.at(-1)?.type, "result");
   assert.deepEqual(JSON.parse(glob.output).files, [path.join(projectHome, "src", "a.ts")]);
 
-  const grep = await executeToolCall({ name: "grep_search", arguments: JSON.stringify({ pattern: "needle", path: "src", glob: "*.ts" }) }, { userHome, projectHome });
+  const grep = await executeToolCall({ name: "grep_search", arguments: JSON.stringify({ pattern: "needle", path: "src", glob: "*.ts" }) }, options);
   assert.equal(grep.success, true);
   assert.equal(grep.events.at(-1)?.type, "result");
   assert.equal(JSON.parse(grep.output).matches[0].line, 2);
 
   const edit = await executeToolCall(
     { name: "edit", arguments: JSON.stringify({ file_path: "src/a.ts", old_string: "needle", new_string: "thread" }) },
-    { userHome, projectHome }
+    options
   );
   assert.equal(edit.success, true);
   assert.equal(edit.events.at(-1)?.type, "result");
@@ -675,18 +726,18 @@ test("builtin file tools read, search, edit, write, and run bash within the NDX 
 
   const write = await executeToolCall(
     { name: "write_file", arguments: JSON.stringify({ file_path: "src/b.txt", content: "written" }) },
-    { userHome, projectHome }
+    options
   );
   assert.equal(write.success, true);
   assert.equal(write.events.at(-1)?.type, "result");
   assert.equal(await fs.readFile(path.join(projectHome, "src", "b.txt"), "utf8"), "written");
 
-  const bash = await executeToolCall({ name: "bash", arguments: JSON.stringify({ command: "printf bash-ok", workdir: "." }) }, { userHome, projectHome });
+  const bash = await executeToolCall({ name: "bash", arguments: JSON.stringify({ command: "printf bash-ok", workdir: "." }) }, options);
   assert.equal(bash.success, true);
   assert.equal(bash.events.at(-1)?.type, "result");
   assert.match(bash.output, /bash-ok/);
 
-  const image = await executeToolCall({ name: "getImage", arguments: JSON.stringify({ path: "src/sample.png" }) }, { userHome, projectHome });
+  const image = await executeToolCall({ name: "getImage", arguments: JSON.stringify({ path: "src/sample.png" }) }, options);
   assert.equal(image.success, true);
   assert.equal(image.effects?.some((effect) => effect.type === "append_user_message"), true);
   assert.equal(image.effects?.some((effect) => effect.type === "inline_appended_user_message"), true);
@@ -696,7 +747,7 @@ test("builtin file tools read, search, edit, write, and run bash within the NDX 
 
   const globalBash = await executeToolCall(
     { name: "bash", arguments: JSON.stringify({ command: "pwd", workdir: path.join(userHome, ".ndx", "skills", "demo") }) },
-    { userHome, projectHome }
+    options
   );
   assert.equal(globalBash.success, true);
   assert.equal(globalBash.output.includes(path.join(userHome, ".ndx", "skills", "demo")), true);
@@ -1050,7 +1101,13 @@ async function writeTool(directory: string, name: string, description: string) {
 }
 
 async function executeToolCall(toolCall: unknown, options: NDXToolExecutionOptions = {}): Promise<NDXToolExecutionResult> {
-  const [result] = await executeToolCalls([toolCall], options);
+  const [result] = await executeToolCalls([toolCall], {
+    ...options,
+    agentCallHandlers: {
+      [NDX_SIDEBAR_ITEM_AGENTCALL_NAME]: () => undefined,
+      ...options.agentCallHandlers
+    }
+  });
   assert.ok(result);
   return result;
 }

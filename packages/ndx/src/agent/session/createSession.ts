@@ -14,7 +14,7 @@ export async function createSession(database: NDXDatabase, input: NDXSessionCrea
     `
 INSERT INTO "session" (sessionid, userid, title, mode, projectname, model)
 VALUES ($1, $2, $3, $4, $5, $6::jsonb)
-RETURNING sessionid, userid, title, lastupdated, mode, projectname, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, slidewindow, runtimedata;
+RETURNING sessionid, userid, title, lastupdated, mode, projectname, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, runtimedata;
 `,
     [
       input.sessionid ?? uuid7(),

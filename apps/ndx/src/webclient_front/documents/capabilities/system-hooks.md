@@ -30,6 +30,10 @@ Reminder는 다음 내용을 포함한다.
 
 `turn.context.prepared`의 inline image hook은 `session.runtimedata.inlineAttachmentDataIds`에 있는 sessiondata row의 image attachment를 다음 request에 한 번만 base64 image payload로 붙인다. 처리 후 runtime data에서 id를 제거해 다음 request의 prefix를 안정화한다.
 
+## stream guard
+
+`turn.model.responding`의 StreamGuard hook은 assistant output text가 나오기 전에 reasoning summary가 너무 길어지면 active model response를 interrupt한다. 제한값은 `/ndx/.ndx/settings.json`의 `hooks.StreamGuard.MAX_REASONING_LENGTH`를 우선 사용하고, 값이 없거나 잘못되면 `240000` characters를 fallback으로 쓴다.
+
 ## loop detection
 
 `turn.tool.results.collected`의 loop detection hook은 `runtime.loopDetectionInterval`마다 실행된다. 최근 iteration window의 sessiondata와 현재 tool calls/results를 모델에게 judge payload로 보내고, `{ shouldStop, reason, finalAssistantText }` JSON을 받는다. `shouldStop`이 true면 hook이 `stopturn` effect를 반환해 turn을 사용자-facing message로 끝낸다.

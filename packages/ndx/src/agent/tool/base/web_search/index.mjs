@@ -5,6 +5,7 @@ import {
   emitError,
   emitProgress,
   emitResult,
+  emitSidebarItem,
   providerApiKey,
   providerBaseUrl,
   readToolArguments,
@@ -301,6 +302,13 @@ try {
 
   emitProgress(`searching with ${provider}`);
   const output = await searchers[provider](input, settings, limit);
+  emitSidebarItem({
+    group: { id: "web-searches", title: "웹 검색" },
+    key: `web-search:${query}:${output.provider}:${process.env.NDX_TOOL_CALL_ID || ""}`,
+    title: query,
+    body: compactText([output.provider, `${output.results.length}개 결과`, output.durationSeconds ? `${output.durationSeconds}s` : "", output.results.slice(0, 3).map((item) => item.source).filter(Boolean).join(", ")].filter(Boolean).join(" · "), 180),
+    kind: "web_search"
+  });
   emitResult({
     query,
     provider: output.provider,

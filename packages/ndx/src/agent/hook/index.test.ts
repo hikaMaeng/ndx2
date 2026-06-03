@@ -9,6 +9,7 @@ import { NDX_TURN_EVENT } from "../../common/protocol/index.js";
 import { NDX_HOOK_EVENT_NAMES, createNDXHookRuntime, loadNDXHookPlan, registerNDXHook, runNDXHooks, type NDXHookContext, type NDXHookPlan } from "./index.js";
 import { runTurnContextPreparedHook, systemHooks as turnContextPreparedHooks } from "./turn.context.prepared/index.js";
 import { runTurnEndHook, systemHooks as turnEndHooks } from "./turn.end/index.js";
+import { runModelRespondingHook, systemHooks as modelRespondingHooks } from "./turn.model.responding/index.js";
 import { runTurnRequestReceivedHook, systemHooks as turnRequestReceivedHooks } from "./turn.request.received/index.js";
 import { runToolResultsCollectedHook, systemHooks as toolResultsCollectedHooks } from "./turn.tool.results.collected/index.js";
 import type { NDXDatabase, NDXSessionRow } from "../session/types.js";
@@ -636,6 +637,49 @@ test("tool results system loop detection is disabled when interval is non-positi
   }
 });
 
+test("model responding stream guard allows extended local-model reasoning before output", async () => {
+  const result = await runModelRespondingHook(createNDXHookRuntime({ [NDX_TURN_EVENT.ModelResponding]: modelRespondingHooks }, {}), {
+    ...baseContext,
+    iteration: 1,
+    modelResponse: {
+      type: "reasoning",
+      summary: "r".repeat(30_000),
+      content: "",
+      elapsedMs: 1_000,
+      sequence: 1
+    }
+  });
+
+  assert.equal(result.interruptModelResponse, false);
+});
+
+test("model responding stream guard uses configured max reasoning length before fallback", async () => {
+  const userHome = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-hook-stream-guard-configured-"));
+  const settingsPath = path.join(userHome, ".ndx", "settings.json");
+  await fs.mkdir(path.dirname(settingsPath), { recursive: true });
+  await fs.writeFile(settingsPath, JSON.stringify({ hooks: { StreamGuard: { MAX_REASONING_LENGTH: 10 } } }), "utf8");
+
+  try {
+    const result = await runModelRespondingHook(createNDXHookRuntime({ [NDX_TURN_EVENT.ModelResponding]: modelRespondingHooks }, {}), {
+      ...baseContext,
+      userHome,
+      iteration: 101,
+      modelResponse: {
+        type: "reasoning",
+        summary: "r".repeat(11),
+        content: "",
+        elapsedMs: 1_000,
+        sequence: 1
+      }
+    });
+
+    assert.equal(result.interruptModelResponse, true);
+    assert.match(result.interruptReason ?? "", /exceeded 10 characters/);
+  } finally {
+    await fs.rm(userHome, { recursive: true, force: true });
+  }
+});
+
 test("tool results system loop detection stops the turn from model judgment on configured interval", async () => {
   const userHome = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-hook-loop-stop-"));
   const projectHome = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-hook-loop-project-"));
@@ -684,8 +728,10 @@ test("tool results system loop detection stops the turn from model judgment on c
     });
     request.on("end", () => {
       modelRequestCount += 1;
-      const requestBody = JSON.parse(body) as { input?: Array<{ role: string; content: Array<{ text?: string }> }> };
-      const userContent = requestBody.input?.find((message) => message.role === "user")?.content.map((part) => part.text ?? "").join("") ?? "{}";
+      const requestBody = JSON.parse(body) as { input?: string | Array<{ role: string; content: Array<{ text?: string }> }> };
+      const userContent = typeof requestBody.input === "string"
+        ? requestBody.input.split("\n\nuser:\n").at(-1) ?? "{}"
+        : requestBody.input?.find((message) => message.role === "user")?.content.map((part) => part.text ?? "").join("") ?? "{}";
       loopDetectionPayload = JSON.parse(userContent) as typeof loopDetectionPayload;
       response.writeHead(200, { "Content-Type": "application/json" });
       response.end(JSON.stringify({

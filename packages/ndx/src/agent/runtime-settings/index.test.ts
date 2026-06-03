@@ -71,6 +71,37 @@ test("runtime settings read prompt rewrite model from tool settings", async () =
   });
 });
 
+test("runtime settings read stream guard max reasoning length from hook settings", async () => {
+  const userHome = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-runtime-settings-stream-guard-"));
+  const settingsPath = path.join(userHome, ".ndx", "settings.json");
+  await fs.mkdir(path.dirname(settingsPath), { recursive: true });
+  await fs.writeFile(settingsPath, JSON.stringify({ hooks: { StreamGuard: { MAX_REASONING_LENGTH: 12345 } } }), "utf8");
+
+  assert.deepEqual(await readAgentRuntimeSettings(userHome), {
+    maxModelIterations: DEFAULT_NDX_MAX_MODEL_ITERATIONS,
+    loopDetectionInterval: DEFAULT_NDX_LOOP_DETECTION_INTERVAL,
+    tools: {},
+    hooks: {
+      StreamGuard: {
+        MAX_REASONING_LENGTH: 12345
+      }
+    }
+  });
+});
+
+test("runtime settings ignore invalid stream guard max reasoning length", async () => {
+  const userHome = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-runtime-settings-stream-guard-invalid-"));
+  const settingsPath = path.join(userHome, ".ndx", "settings.json");
+  await fs.mkdir(path.dirname(settingsPath), { recursive: true });
+  await fs.writeFile(settingsPath, JSON.stringify({ hooks: { StreamGuard: { MAX_REASONING_LENGTH: 0 } } }), "utf8");
+
+  assert.deepEqual(await readAgentRuntimeSettings(userHome), {
+    maxModelIterations: DEFAULT_NDX_MAX_MODEL_ITERATIONS,
+    loopDetectionInterval: DEFAULT_NDX_LOOP_DETECTION_INTERVAL,
+    tools: {}
+  });
+});
+
 test("runtime settings read embedding provider settings", async () => {
   const userHome = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-runtime-settings-embeddings-"));
   const settingsPath = path.join(userHome, ".ndx", "settings.json");

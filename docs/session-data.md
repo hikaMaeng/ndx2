@@ -64,7 +64,6 @@ root as `/ndx/workspace/<projectName>`.
 | `interruptrequested` | Durable interruption request flag shared across clients and the agent loop. |
 | `interruptrequestedat` | First interruption request timestamp for the current active turn. |
 | `interruptcompletedat` | Timestamp when the interruption path completed. |
-| `slidewindow` | Integer `0..30`, default `0`. `0` disables manual history windowing. A positive value limits model context to recent user requests after the latest compact boundary. |
 | `runtimedata` | JSONB runtime coordination data. `inlineAttachmentDataIds` stores sessiondata ids whose attachments must be inlined into the next model request. |
 
 `sessiondata` stores ordered conversation and execution history:
@@ -89,21 +88,11 @@ row instead of replaying the whole session. Browser history may still display
 older rows, but model prompts use only the compact row and later append-only
 rows.
 
-`session.slidewindow` applies after the latest compact boundary. When the value
-is positive, reconstruction counts only durable user request rows
-(`type = 'user'` and `kind = 'user_message'`) after the latest compact. If the
-window is `3`, model history starts at the third most recent user request and
-includes every later row. If a compact row exists, that compact row is also
-included before the selected window. Tool-generated user messages remain
-model-visible when inside the selected range, but they do not count as user
-requests for the window size. If fewer than `slidewindow` requests exist after
-the latest compact, reconstruction starts at the compact row itself. The window
-never crosses the latest compact row, and `slidewindow = 0` keeps the normal
-compact-only boundary.
-
-The turn loop reads `session.slidewindow` from PostgreSQL when it marks the turn
-running. That value is fixed for the whole turn. A client may update the session
-row while a turn is running, but the new value affects only later turns.
+There is no manual history window control. Context reconstruction after a
+compact always includes the latest compact row and every later sessiondata row
+in append order. This keeps model request prefixes stable for provider KV-cache
+reuse; trimming decisions belong to durable compaction, not client-side session
+settings.
 
 Compaction can happen before the current user input is recorded. In that case
 only previous history is compacted, then the user input is appended normally so

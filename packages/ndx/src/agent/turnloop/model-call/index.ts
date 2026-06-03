@@ -3,7 +3,6 @@ import { appendSessionData } from "../../session/appendSessionData.js";
 import { runTurnModelRequestHook } from "../../hook/turn.model.request/index.js";
 import { runModelRespondingHook } from "../../hook/turn.model.responding/index.js";
 import { requestModelResponse, type ModelResponse, type ResponseStreamInterrupt } from "ndx/common/responseapi";
-import { cloneModelRequestMessages } from "../base/prefix/index.js";
 import { NDX_TURN_EVENT } from "../../../common/protocol/index.js";
 import { NDX_AGENT_RESOURCE } from "../../../common/resource/index.js";
 import { summarizeToolName } from "../../tool/index.js";
@@ -57,7 +56,7 @@ export async function callTurnModel(
         contextUsage
       });
     }
-    state.lastModelRequestMessages = cloneModelRequestMessages(modelRequestMessages);
+    state.lastModelRequestMessages = JSON.parse(JSON.stringify(modelRequestMessages)) as typeof modelRequestMessages;
     await state.events.onEvent?.({ type: NDX_TURN_EVENT.ModelRequest, iteration, messages: modelRequestMessages, contextUsage });
     if (options.finalizingAfterIterationLimit) {
       state.database.logger?.warn(NDX_TURN_EVENT.ModelRequest, {

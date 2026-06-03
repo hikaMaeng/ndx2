@@ -1,4 +1,4 @@
-import { getRuntimeTurnPhase, requestRuntimeTurnInterrupt } from "../turnloop/interrupt.js";
+import { getRuntimeTurnPhase, requestRuntimeTurnInterrupt } from "../turnloop/base/interrupt/index.js";
 import { completeSessionInterrupt, requestSessionInterrupt } from "./interruptSession.js";
 import type { NDXDatabase, NDXSessionRow } from "./types.js";
 import { withSessionProjectPath } from "./types.js";
@@ -59,7 +59,7 @@ DELETE FROM "session" WHERE sessionid = $1;
 async function selectSessionForDelete(database: NDXDatabase, sessionid: string): Promise<NDXSessionRow | undefined> {
   const result = await database.query<NDXSessionRow>(
     `
-SELECT sessionid, userid, title, lastupdated, mode, projectname, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, slidewindow, runtimedata
+SELECT sessionid, userid, title, lastupdated, mode, projectname, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, runtimedata
 FROM "session"
 WHERE sessionid = $1;
 `,

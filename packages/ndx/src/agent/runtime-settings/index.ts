@@ -18,15 +18,21 @@ export type NDXAgentRuntimeSettings = {
       model?: string;
     };
   };
+  hooks?: {
+    StreamGuard?: {
+      MAX_REASONING_LENGTH: number;
+    };
+  };
 };
 
 export async function readAgentRuntimeSettings(userHome: string): Promise<NDXAgentRuntimeSettings> {
   try {
     const parsed = JSON.parse(await fs.readFile(path.join(userHome, ".ndx", "settings.json"), "utf8")) as unknown;
     if (!parsed || typeof parsed !== "object") return defaultAgentRuntimeSettings();
-    const settings = parsed as { runtime?: unknown; embeddings?: unknown; providers?: unknown; tools?: unknown };
+    const settings = parsed as { runtime?: unknown; embeddings?: unknown; providers?: unknown; tools?: unknown; hooks?: unknown };
     const runtime = settings.runtime;
     const embeddings = parseEmbeddingSettings(settings.embeddings, settings.providers);
+    const hooks = parseHookSettings(settings.hooks);
     const tools = settings.tools;
     const promptRewrite = tools && typeof tools === "object" && !Array.isArray(tools)
       ? (tools as { prompt_rewrite?: unknown }).prompt_rewrite
@@ -38,6 +44,7 @@ export async function readAgentRuntimeSettings(userHome: string): Promise<NDXAge
       return {
         ...defaultAgentRuntimeSettings(),
         ...(embeddings ? { embeddings } : {}),
+        ...(hooks ? { hooks } : {}),
         tools: {
           ...(typeof promptRewriteModel === "string" && promptRewriteModel.trim() ? { prompt_rewrite: { model: promptRewriteModel.trim() } } : {})
         }
@@ -53,6 +60,7 @@ export async function readAgentRuntimeSettings(userHome: string): Promise<NDXAge
         ? loopDetectionInterval
         : DEFAULT_NDX_LOOP_DETECTION_INTERVAL,
       ...(embeddings ? { embeddings } : {}),
+      ...(hooks ? { hooks } : {}),
       tools: {
         ...(typeof promptRewriteModel === "string" && promptRewriteModel.trim() ? { prompt_rewrite: { model: promptRewriteModel.trim() } } : {})
       }
@@ -107,5 +115,24 @@ function parseEmbeddingSettings(value: unknown, providers?: unknown): NDXAgentRu
     model: record.model.trim(),
     ...(url ? { url } : {}),
     ...(token ? { token } : {})
+  };
+}
+
+function parseHookSettings(value: unknown): NDXAgentRuntimeSettings["hooks"] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+  const streamGuard = (value as { StreamGuard?: unknown }).StreamGuard;
+  if (!streamGuard || typeof streamGuard !== "object" || Array.isArray(streamGuard)) {
+    return undefined;
+  }
+  const maxReasoningLength = (streamGuard as { MAX_REASONING_LENGTH?: unknown }).MAX_REASONING_LENGTH;
+  if (typeof maxReasoningLength !== "number" || !Number.isInteger(maxReasoningLength) || maxReasoningLength <= 0) {
+    return undefined;
+  }
+  return {
+    StreamGuard: {
+      MAX_REASONING_LENGTH: maxReasoningLength
+    }
   };
 }

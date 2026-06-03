@@ -1,4 +1,4 @@
-import { turnEndAssistantSessionSearchHook, turnEndInputSessionSearchHook } from "../base/sessionSearch/index.js";
+import { turnEndAssistantSessionSearchHook, turnEndInputSessionSearchHook } from "../../tool/base/session_history/sessionSearchHook.js";
 import { turnEndContextUsageHook } from "../base/turnContextUsage/index.js";
 import { logNDXHookRunResult, runNDXHooks, type NDXHookCodeExecutor, type NDXHookContext, type NDXHookRunResult, type NDXHookRuntime } from "../index.js";
 import { NDX_TURN_EVENT } from "../../../common/protocol/index.js";

@@ -48,16 +48,14 @@ workspace project folder, and session ownership, then returns
 `session.attached` with a runtime `connectionToken`.
 
 `session.input` and `session.interrupt` messages are accepted only with a valid
-`connectionToken` issued on the same physical socket. Accepted messages are
+`connectionToken` issued on the same physical socket. Durable turn events are
 written to PostgreSQL `sessiondata` and acknowledged with `session.event`.
+Ephemeral right-sidebar items use the separate `session.sidebar.item` socket
+message and are not reconstructed from turn or iteration events.
 Project session-list actions also use the socket: `session.rename` updates the
 session title and replies with `session.renamed`, while `session.delete` removes
 the session and replies with `session.deleted`. Both actions broadcast
 `session.list.changed` to clients owned by the same account.
-`session.slidewindow.update` updates the session row's `slidewindow` integer
-with the active connection token and replies with
-`session.slidewindow.updated`; running turns keep the value they read at turn
-start, so the update affects later turns.
 
 `GET /api/agent/sessions/:sessionid/data` remains an HTTP inspection endpoint
 for durable `sessiondata` rows. Browser session rendering restores history over
@@ -67,14 +65,19 @@ returns iteration card summaries for one turn; `session.iteration.detail`
 returns renderable events for one completed iteration. The client feeds both
 live stream events and staged detail events through the same turn reducer.
 
-Tool progress events may carry client-renderable right-sidebar items without
-changing the `session.event` message type. The progress `message` starts with
-`${SIDEBAR_ITEM}`, and `contents.event.data.sidebarItem` contains one item with
-a flat `group` card selector, `title`, and optional `body`. The web client
-creates a card for a missing group and appends or replaces items inside an
-existing group by item key. Built-in `read_file` emits `파일참조`, `loadSkill`
-emits `스킬`, and changed write/edit results emit `변경 파일`; legacy artifact
-turn-card markers still parse as `파일` sidebar items for compatibility.
+Right-sidebar items are delivered through the executor agent-call envelope
+`session.sidebar_item`; the session server converts the resulting internal event
+to a dedicated `session.sidebar.item` socket message. The item shape is
+`{ group: { id, title }, subgroup?, key?, title, body?, kind? }`, where
+`subgroup` is `{ id, title }` when the item should render under a second-level
+heading inside its section. Blank or omitted subgroup data renders at the
+section top level. The web client groups items by `group.id` and appends or
+replaces identical explicit item keys inside a section, so repeated changed-file
+items remain visible once. Built-in tools use this for file references, loaded
+skills, changed files with folder subgroups, command runs, search results,
+images, plans, web references, question prompts, prompt rewrites, and
+session-history references. Legacy `${SIDEBAR_ITEM}` and `${TURNCARD_*}`
+progress parsers remain only for compatibility.
 
 The socket server sends WebSocket ping frames every 20 seconds. Ten consecutive missed pongs terminates the client connection.
 

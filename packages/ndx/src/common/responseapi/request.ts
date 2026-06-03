@@ -1,9 +1,12 @@
-import { parseResponsesPayload, readResponsesStream, responseToolCallId, type ModelResponse, type ResponseInputItem, type ResponseOutputEvent, type ResponseModelConfig, type ResponseModelMessage, type ResponseStreamInterrupt } from "./responses.js";
+import { parseResponsesPayload, readResponsesStream, responseToolCallId, type ModelResponse, type ResponseInputItem, type ResponseOutputEvent, type ResponseModelConfig, type ResponseModelMessage, type ResponsePreparedRequest, type ResponseStreamInterrupt } from "./responses.js";
+import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { Agent } from "undici";
 
 const MAX_TRANSIENT_ATTEMPTS = 2;
 export const DEFAULT_MODEL_REQUEST_TIMEOUT_MS = 60 * 60 * 1000;
+type ResponsesInputMode = "text" | "array";
+const rejectedProviderInputModes = new Map<string, Set<ResponsesInputMode>>();
 
 export async function requestModelResponse(
   model: ResponseModelConfig,
@@ -28,6 +31,7 @@ export async function requestModelResponse(
   timeout.unref?.();
   const requestSignal = combinedAbortSignal(onEvent.signal, timeoutController.signal);
   const requestEvents: ResponseOutputEvent = { ...onEvent, signal: requestSignal };
+  const compatibilityKey = providerInputCompatibilityKey(responseEndpoint, model.model);
   const textRequestBody = {
     model: model.model,
     input: await toResponsesTextInput(messages),
@@ -42,13 +46,31 @@ export async function requestModelResponse(
     ...modelInferenceBody(model),
     ...(tools.length > 0 ? { tools } : {})
   };
-  const requestBodies: Array<{ model: string; input: unknown; stream: true; tools?: Record<string, unknown>[]; temperature?: number; top_p?: number; top_k?: number; min_p?: number }> =
-    hasAttachmentPayload(messages) ? [arrayRequestBody, textRequestBody] : [textRequestBody, arrayRequestBody];
+  const preferredBodies: Array<{ inputMode: ResponsesInputMode; body: { model: string; input: unknown; stream: true; tools?: Record<string, unknown>[]; temperature?: number; top_p?: number; top_k?: number; min_p?: number } }> =
+    hasAttachmentPayload(messages)
+      ? [{ inputMode: "array", body: arrayRequestBody }, { inputMode: "text", body: textRequestBody }]
+      : [{ inputMode: "text", body: textRequestBody }, { inputMode: "array", body: arrayRequestBody }];
+  const rejectedModes = rejectedProviderInputModes.get(compatibilityKey);
+  const requestBodies = preferredBodies.filter((entry) => !rejectedModes?.has(entry.inputMode));
+  if (requestBodies.length === 0) {
+    requestBodies.push(preferredBodies[0]);
+  }
+  for (const skipped of preferredBodies.filter((entry) => rejectedModes?.has(entry.inputMode))) {
+    await requestEvents.onDebug?.("responseapi.request.input_mode_suppressed", {
+      endpoint: responseEndpoint.toString(),
+      model: model.model,
+      inputMode: skipped.inputMode,
+      reason: "provider previously rejected this Responses input serialization",
+      prefixCacheRiskAvoided: true,
+      ...inputDebugContext("input", skipped.body.input)
+    });
+  }
 
   let lastError: unknown;
   let shouldTryAlternativeInput = false;
   try {
-    for (const [bodyIndex, requestBody] of requestBodies.entries()) {
+    for (const [bodyIndex, requestEntry] of requestBodies.entries()) {
+      const requestBody = requestEntry.body;
       if (bodyIndex > 0 && !shouldTryAlternativeInput) {
         break;
       }
@@ -57,15 +79,31 @@ export async function requestModelResponse(
           throw requestEvents.signal.reason instanceof Error ? requestEvents.signal.reason : new Error("model request aborted.");
         }
         try {
-          await requestEvents.onDebug?.("responseapi.request.start", {
+          const preparedRequest = preparedRequestContext({
             endpoint: responseEndpoint.toString(),
             model: model.model,
-            inputType: typeof requestBody.input,
-            inputItemCount: Array.isArray(requestBody.input) ? requestBody.input.length : undefined,
-            inputTextLength: typeof requestBody.input === "string" ? requestBody.input.length : undefined,
+            inputMode: requestEntry.inputMode,
+            input: requestBody.input,
             toolCount: tools.length,
             stream: requestBody.stream,
             attempt,
+            inputBodyIndex: bodyIndex,
+            maxAttempts: MAX_TRANSIENT_ATTEMPTS,
+            requestTimeoutMs
+          });
+          await requestEvents.onRequestPrepared?.(preparedRequest);
+          await requestEvents.onDebug?.("responseapi.request.start", {
+            endpoint: responseEndpoint.toString(),
+            model: model.model,
+            inputMode: requestEntry.inputMode,
+            inputType: typeof requestBody.input,
+            inputItemCount: Array.isArray(requestBody.input) ? requestBody.input.length : undefined,
+            inputTextLength: typeof requestBody.input === "string" ? requestBody.input.length : undefined,
+            ...inputDebugContext("input", requestBody.input),
+            toolCount: tools.length,
+            stream: requestBody.stream,
+            attempt,
+            inputBodyIndex: bodyIndex,
             maxAttempts: MAX_TRANSIENT_ATTEMPTS,
             requestTimeoutMs
           });
@@ -102,6 +140,22 @@ export async function requestModelResponse(
             lastError = new Error(`model request failed: ${response.status}${errorText ? ` ${errorText}` : ""}`);
             if (response.status === 400 && errorText.includes("Invalid type for 'input'")) {
               shouldTryAlternativeInput = true;
+              rememberRejectedProviderInputMode(compatibilityKey, requestEntry.inputMode);
+              const nextBody = requestBodies[bodyIndex + 1];
+              await requestEvents.onDebug?.("responseapi.request.input_fallback", {
+                endpoint: responseEndpoint.toString(),
+                status: response.status,
+                reason: "provider rejected input type",
+                bodyPreview: errorText.slice(0, 500),
+                fromInputMode: requestEntry.inputMode,
+                toInputMode: nextBody?.inputMode,
+                fromInputBodyIndex: bodyIndex,
+                toInputBodyIndex: nextBody ? bodyIndex + 1 : undefined,
+                ...inputDebugContext("fromInput", requestBody.input),
+                ...(nextBody ? inputDebugContext("toInput", nextBody.body.input) : {}),
+                prefixCacheRisk: true,
+                message: "Provider rejected the first Responses input serialization, so ndx will retry with a different input serialization. This can invalidate provider prefix-cache reuse for the current turn."
+              });
               break;
             }
             if (isRetryableStatus(response.status) && attempt < MAX_TRANSIENT_ATTEMPTS) {
@@ -205,6 +259,63 @@ export async function requestModelResponse(
     throw lastError;
   }
   throw new Error("model request failed.");
+}
+
+export function clearResponseInputCompatibilityCache(): void {
+  rejectedProviderInputModes.clear();
+}
+
+function inputDebugContext(prefix: string, input: unknown): Record<string, unknown> {
+  const serialized = typeof input === "string" ? input : JSON.stringify(input) ?? "undefined";
+  return {
+    [`${prefix}Type`]: Array.isArray(input) ? "array" : typeof input,
+    [`${prefix}ItemCount`]: Array.isArray(input) ? input.length : undefined,
+    [`${prefix}TextLength`]: typeof input === "string" ? input.length : undefined,
+    [`${prefix}SerializedLength`]: serialized.length,
+    [`${prefix}Sha256`]: createHash("sha256").update(serialized).digest("hex")
+  };
+}
+
+function preparedRequestContext(input: {
+  endpoint: string;
+  model: string;
+  inputMode: ResponsesInputMode;
+  input: unknown;
+  toolCount: number;
+  stream: true;
+  attempt: number;
+  inputBodyIndex: number;
+  maxAttempts: number;
+  requestTimeoutMs: number;
+}): ResponsePreparedRequest {
+  const serialized = typeof input.input === "string" ? input.input : JSON.stringify(input.input) ?? "undefined";
+  return {
+    endpoint: input.endpoint,
+    model: input.model,
+    inputMode: input.inputMode,
+    inputType: Array.isArray(input.input) ? "array" : typeof input.input,
+    inputItemCount: Array.isArray(input.input) ? input.input.length : undefined,
+    inputTextLength: typeof input.input === "string" ? input.input.length : undefined,
+    inputSerializedLength: serialized.length,
+    inputSha256: createHash("sha256").update(serialized).digest("hex"),
+    inputPreview: serialized.length > 500 ? `${serialized.slice(0, 500)}...` : serialized,
+    toolCount: input.toolCount,
+    stream: input.stream,
+    attempt: input.attempt,
+    inputBodyIndex: input.inputBodyIndex,
+    maxAttempts: input.maxAttempts,
+    requestTimeoutMs: input.requestTimeoutMs
+  };
+}
+
+function providerInputCompatibilityKey(endpoint: URL, model: string): string {
+  return `${endpoint.origin}${endpoint.pathname}#${model}`;
+}
+
+function rememberRejectedProviderInputMode(key: string, mode: ResponsesInputMode): void {
+  const current = rejectedProviderInputModes.get(key) ?? new Set<ResponsesInputMode>();
+  current.add(mode);
+  rejectedProviderInputModes.set(key, current);
 }
 
 const responsePayloadInterrupt: ResponseStreamInterrupt = async (reason) => {

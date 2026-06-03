@@ -1,4 +1,4 @@
-import type { NDXTurnMessageParts } from "../turnloop/messages.js";
+import type { NDXTurnMessageParts } from "../turnloop/base/context/index.js";
 import type { NDXToolAgentCallHandlers } from "./execute/agentcall/index.js";
 import type { NDXAskUserQuestionRequest, NDXAskUserQuestionResponse } from "../../common/protocol/index.js";
 import type { NDXDatabase, NDXModelConfig, NDXSessionRow } from "../session/types.js";

@@ -1,8 +1,8 @@
 import { contextPreparedContextLimitHook } from "../base/contextLimit/index.js";
-import { cotWorkReminderHook } from "../base/cotWorkReminder/index.js";
+import { cotWorkReminderHook } from "../../tool/base/cot_work/reminderHook.js";
 import { inlineInputImagesHook } from "../base/inlineInputImages/index.js";
 import { logNDXHookRunResult, runNDXHooks, type NDXHookCodeExecutor, type NDXHookContext, type NDXHookRunResult, type NDXHookRuntime } from "../index.js";
-import { cloneModelRequestMessages, inspectContextPreparedMessagesPrefix } from "../../turnloop/base/prefix/index.js";
+import { cloneModelRequestMessages, inspectContextPreparedMessagesPrefix } from "../base/prefixDrift/index.js";
 import { NDX_TURN_EVENT } from "../../../common/protocol/index.js";
 import type { ResponseInputItem } from "ndx/common/responseapi";
 

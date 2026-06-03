@@ -1,9 +1,11 @@
 import type { NDXSessionDataContents, NDXSessionEventContextUsage, NDXSessionEventName } from "./data.js";
 import type { NDXAgentLanguage } from "../../resource/index.js";
+import type { NDXSidebarItem } from "../turn/index.js";
 
 export const NDX_SESSION_INPUT = "session.input";
 export const NDX_SESSION_INTERRUPT = "session.interrupt";
 export const NDX_SESSION_EVENT = "session.event";
+export const NDX_SESSION_SIDEBAR_ITEM = "session.sidebar.item";
 export const NDX_SESSION_CREATE = "session.create";
 export const NDX_SESSION_CREATED = "session.created";
 export const NDX_SESSION_ATTACH = "session.attach";
@@ -12,8 +14,6 @@ export const NDX_SESSION_DELETE = "session.delete";
 export const NDX_SESSION_DELETED = "session.deleted";
 export const NDX_SESSION_RENAME = "session.rename";
 export const NDX_SESSION_RENAMED = "session.renamed";
-export const NDX_SESSION_SLIDEWINDOW_UPDATE = "session.slidewindow.update";
-export const NDX_SESSION_SLIDEWINDOW_UPDATED = "session.slidewindow.updated";
 export const NDX_SESSION_LIST_CHANGED = "session.list.changed";
 export const NDX_SESSION_HISTORY_SUMMARY = "session.history.summary";
 export const NDX_SESSION_HISTORY_SUMMARY_RESULT = "session.history.summary.result";
@@ -62,7 +62,6 @@ export type NDXSessionCreatedMessage = {
   path: string;
   model: NDXSessionModelConfig;
   isrunning: boolean;
-  slidewindow: number;
 };
 
 export type NDXSessionAttachMessage = {
@@ -117,23 +116,6 @@ export type NDXSessionRenamedMessage = {
   path: string;
   model: NDXSessionModelConfig;
   isrunning: boolean;
-  slidewindow: number;
-};
-
-export type NDXSessionSlideWindowUpdateMessage = {
-  type: typeof NDX_SESSION_SLIDEWINDOW_UPDATE;
-  connectionToken: string;
-  slidewindow: number;
-  language?: NDXAgentLanguage;
-};
-
-export type NDXSessionSlideWindowUpdatedMessage = {
-  type: typeof NDX_SESSION_SLIDEWINDOW_UPDATED;
-  sessionid: string;
-  userid: string;
-  projectname: string;
-  lastupdated: string;
-  slidewindow: number;
 };
 
 export type NDXSessionListChangedMessage = {
@@ -172,6 +154,7 @@ export type NDXSessionSkillListMessage = {
 
 export type NDXSessionSkillListResultMessage = {
   type: typeof NDX_SESSION_SKILL_LIST_RESULT;
+  projectName: string;
   skills: NDXSessionSkillSummary[];
 };
 
@@ -189,6 +172,15 @@ export type NDXSessionEventMessage = {
   contents: NDXSessionDataContents | Record<string, unknown> | string;
   createdat: string;
   contextUsage?: NDXSessionEventContextUsage;
+};
+
+export type NDXSessionSidebarItemMessage = {
+  type: typeof NDX_SESSION_SIDEBAR_ITEM;
+  sessionid: string;
+  item: NDXSidebarItem;
+  tool: string;
+  callId?: string;
+  createdat: string;
 };
 
 export type NDXAskUserQuestionOption = {
@@ -493,24 +485,6 @@ export function isNDXSessionRenameMessage(value: unknown): value is NDXSessionRe
     typeof message.sessionid === "string" &&
     message.sessionid.trim().length > 0 &&
     typeof message.title === "string"
-  );
-}
-
-export function isNDXSessionSlideWindowUpdateMessage(value: unknown): value is NDXSessionSlideWindowUpdateMessage {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-
-  const message = value as { type?: unknown; connectionToken?: unknown; slidewindow?: unknown; language?: unknown };
-  return (
-    message.type === NDX_SESSION_SLIDEWINDOW_UPDATE &&
-    typeof message.connectionToken === "string" &&
-    message.connectionToken.trim().length > 0 &&
-    typeof message.slidewindow === "number" &&
-    Number.isInteger(message.slidewindow) &&
-    message.slidewindow >= 0 &&
-    message.slidewindow <= 30 &&
-    (message.language === undefined || message.language === "en" || message.language === "ko")
   );
 }
 

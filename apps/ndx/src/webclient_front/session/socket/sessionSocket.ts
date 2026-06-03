@@ -11,8 +11,8 @@ import {
   NDX_SESSION_CLIENT_REQUEST,
   NDX_SESSION_CLIENT_REQUEST_CLOSED,
   NDX_SESSION_ATTACHED,
-  NDX_SESSION_SLIDEWINDOW_UPDATED,
   NDX_SESSION_SKILL_LIST_RESULT,
+  NDX_SESSION_SIDEBAR_ITEM,
   NDX_SESSION_TURN_DETAIL_RESULT,
   NDX_SESSION_READY,
   type NDXAccountSelectionRequiredMessage,
@@ -28,12 +28,12 @@ import {
   type NDXSessionClientResponseMessage,
   type NDXSessionModelConfig,
   type NDXSessionSkillListResultMessage,
-  type NDXSessionSlideWindowUpdatedMessage,
+  type NDXSessionSidebarItemMessage,
   type NDXSessionReadyMessage,
   type NDXSessionTurnDetailResultMessage
 } from "ndx/common/protocol";
 import { type NDXAgentWebMetadataResponse, type NDXWebClientProject, type NDXWebClientStateDocument } from "ndx/webclient/common";
-import { selectSocketUserid, sessionAccountSelectMessage, sessionAttachMessage, sessionClientResponseMessage, sessionCreateMessage, sessionHistorySummaryMessage, sessionInputMessage, sessionInterruptMessage, sessionIterationDetailMessage, sessionProjectConfigureMessage, sessionSkillListMessage, sessionSlideWindowUpdateMessage, sessionSocketUrl, sessionTurnDetailMessage, stateAfterSessionReady, type SocketState } from "ndx/webclient/front";
+import { selectSocketUserid, sessionAccountSelectMessage, sessionAttachMessage, sessionClientResponseMessage, sessionCreateMessage, sessionHistorySummaryMessage, sessionInputMessage, sessionInterruptMessage, sessionIterationDetailMessage, sessionProjectConfigureMessage, sessionSkillListMessage, sessionSocketUrl, sessionTurnDetailMessage, stateAfterSessionReady, type SocketState } from "ndx/webclient/front";
 import { RSC } from "../resource";
 
 export type SessionSocketClient = {
@@ -44,7 +44,6 @@ export type SessionSocketClient = {
   sendInput: (connectionToken: string, text: string, model: NDXSessionModelConfig, attachments?: Array<{ name: string; mimeType: string; size: number; data: string }>) => boolean;
   sendInterrupt: (connectionToken: string) => boolean;
   requestSkillList: (connectionToken?: string) => boolean;
-  updateSlideWindow: (connectionToken: string, slidewindow: number) => boolean;
   requestHistorySummary: (connectionToken: string) => boolean;
   requestTurnDetail: (connectionToken: string, inputDataId: string) => boolean;
   requestIterationDetail: (connectionToken: string, inputDataId: string, iteration: number) => boolean;
@@ -66,7 +65,7 @@ export type SessionSocketOptions = {
   onSessionEvent: (message: NDXSessionEventMessage) => void;
   onHistorySummary: (message: NDXSessionHistorySummaryResultMessage) => void;
   onSkillList: (message: NDXSessionSkillListResultMessage) => void;
-  onSlideWindowUpdated: (message: NDXSessionSlideWindowUpdatedMessage) => void;
+  onSidebarItem: (message: NDXSessionSidebarItemMessage) => void;
   onTurnDetail: (message: NDXSessionTurnDetailResultMessage) => void;
   onIterationDetail: (message: NDXSessionIterationDetailResultMessage) => void;
   onClientRequest: (message: NDXSessionClientRequestMessage) => void;
@@ -170,8 +169,8 @@ export function openSessionSocket(options: SessionSocketOptions): SessionSocketC
       return;
     }
 
-    if (message.type === NDX_SESSION_SLIDEWINDOW_UPDATED) {
-      options.onSlideWindowUpdated(message as NDXSessionSlideWindowUpdatedMessage);
+    if (message.type === NDX_SESSION_SIDEBAR_ITEM) {
+      options.onSidebarItem(message as NDXSessionSidebarItemMessage);
       return;
     }
 
@@ -258,13 +257,6 @@ export function openSessionSocket(options: SessionSocketOptions): SessionSocketC
         return false;
       }
       socket.send(JSON.stringify(sessionSkillListMessage(connectionToken, options.getState().locale)));
-      return true;
-    },
-    updateSlideWindow: (connectionToken, slidewindow) => {
-      if (socket.readyState !== WebSocket.OPEN) {
-        return false;
-      }
-      socket.send(JSON.stringify(sessionSlideWindowUpdateMessage(connectionToken, slidewindow, options.getState().locale)));
       return true;
     },
     requestHistorySummary: (connectionToken) => {

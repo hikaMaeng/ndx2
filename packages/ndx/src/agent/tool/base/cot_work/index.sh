@@ -39,5 +39,16 @@ my $output = { steps => \@normalized_steps };
 $output->{reason} = $input->{reason} if exists($input->{reason});
 
 print "[[ndx-agentcall:" . $json->encode({ type => "ndx.agentcall", name => "session.cot_work", input => $output }) . "]]\n";
+print "[[ndx-agentcall:" . $json->encode({
+  type => "ndx.agentcall",
+  name => "session.sidebar_item",
+  input => {
+    group => { id => "plans", title => "작업 계획" },
+    key => "cot-work:" . ($ENV{NDX_TOOL_CALL_ID} || "cot_work"),
+    title => "작업 계획 기록",
+    body => scalar(@normalized_steps) . "개 단계",
+    kind => "cot_work"
+  }
+}) . "]]\n";
 print $json->encode({ type => "result", success => JSON::PP::true, output => { recorded => JSON::PP::true, steps => scalar(@normalized_steps) } }) . "\n";
 PERL

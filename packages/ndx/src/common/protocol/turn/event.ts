@@ -18,6 +18,7 @@ export const NDX_TURN_EVENT = {
   ToolCallRecorded: "turn.tool.call",
   ToolBatchStarted: "turn.tool.batch",
   ToolProgress: "turn.tool.progress",
+  SidebarItem: "turn.sidebar.item",
   CotWork: "turn.cot_work",
   ToolResultsCollected: "turn.tool.results.collected",
   ToolResultRecorded: "turn.tool.result",

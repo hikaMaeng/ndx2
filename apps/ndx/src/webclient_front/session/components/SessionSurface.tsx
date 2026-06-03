@@ -5,9 +5,9 @@ import type { NDXAgentWebSession, NDXWebClientProject } from "ndx/webclient/comm
 import type { NDXAgentWebContextUsage, SessionAttachmentDraft, SessionUiState, TurnFlowState } from "ndx/webclient/front";
 import { RightSidebar } from "../rightsidebar/components/RightSidebar";
 import { RSC } from "../../app/resource";
+import { CotWorkOverlay } from "../cotWork";
 import { AssistantChatMessage } from "./AssistantChatMessage";
 import { ChatComposer } from "./ChatComposer";
-import { CotWorkOverlay } from "./CotWorkOverlay";
 import { UserChatMessage } from "./UserChatMessage";
 import { TurnFlow } from "../turn";
 
@@ -62,7 +62,6 @@ type SessionSurfaceProps = {
   onRemoveAttachment: (id: string) => void;
   onModelClick: () => void;
   onSkillListRefresh: () => void;
-  onSlideWindowChange: (value: number) => void;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
   onRightSidebarWidthChange: (width: number) => void;
   onRightSidebarScroll: (scrollTop: number) => void;
@@ -92,7 +91,6 @@ export function SessionSurface({
   onRemoveAttachment,
   onModelClick,
   onSkillListRefresh,
-  onSlideWindowChange,
   onSubmit,
   onRightSidebarWidthChange,
   onRightSidebarScroll,
@@ -106,6 +104,7 @@ export function SessionSurface({
   const surfaceContextUsage: NDXAgentWebContextUsage | undefined = session ? ui.reportedContextUsage : undefined;
   const suffix = surfaceKey.replace(/[^a-z0-9_-]/giu, "-");
   const attachments = ui.chatAttachments.map(({ id, name, mimeType, size, previewUrl }: SessionAttachmentDraft) => ({ id, name, mimeType, size, previewUrl }));
+  const surfaceTitle = session ? (session.title || session.sessionid) : surfaceKey.startsWith("draft:") ? t[RSC.SESSION_PAGE_NEW_DRAFT_TITLE_TEXT] : surfaceKey;
   const chatScrollRef = React.useRef<HTMLElement | null>(null);
   const rightSidebarScrollRef = React.useRef<HTMLDivElement | null>(null);
 
@@ -139,8 +138,8 @@ export function SessionSurface({
           {surfaceHasChat ? <div className="pointer-events-none sticky right-0 top-0 z-10 ml-auto w-fit rounded-sm bg-zinc-950/80 px-1.5 py-0.5 text-[10px] text-zinc-500">{ui.autoScrollEnabled ? "autoscroll" : "manual scroll"}</div> : null}
           {surfaceHasChat ? (
             <section className="mx-auto flex min-h-full w-full max-w-4xl min-w-0 flex-col justify-end gap-5" aria-labelledby={`session-page-title-${suffix}`}>
-              <div className="grid gap-2 text-center">
-                <h1 id={`session-page-title-${suffix}`} className="text-2xl font-semibold leading-8 text-zinc-50">{session ? (session.title || session.sessionid) : surfaceKey.startsWith("draft:") ? t[RSC.SESSION_PAGE_NEW_DRAFT_TITLE_TEXT] : surfaceKey}</h1>
+              <div className="grid min-w-0 gap-1 text-center">
+                <h1 id={`session-page-title-${suffix}`} className="mx-auto w-full min-w-0 truncate text-base font-semibold leading-6 text-zinc-50" title={surfaceTitle}>{surfaceTitle}</h1>
                 <p className="text-xs text-zinc-500">{project?.name ?? t[RSC.SESSION_PAGE_PROJECT_FALLBACK_LABEL]}</p>
               </div>
               {!session ? <p className="text-center text-sm text-zinc-500">{t[RSC.SESSION_PAGE_NEW_DRAFT_DESCRIPTION_TEXT]}</p> : null}
@@ -168,9 +167,9 @@ export function SessionSurface({
           </section>
         ) : null}
         {surfaceHasChat && ui.cotWork ? <CotWorkOverlay agentRunning={surfaceAgentRunning} work={ui.cotWork} /> : null}
-        {surfaceHasChat ? <ChatComposer idSuffix={suffix} agentRunning={surfaceAgentRunning} compactRunning={surfaceCompactRunning} interruptPending={interruptPending} requestPending={submitPending} contextUsage={surfaceContextUsage} input={ui.chatInput} attachments={attachments} skills={ui.availableSkills} modelLabel={surfaceModelLabel} modelModalities={ui.selectedModel.modalities} notice={notice} slideWindow={session?.slidewindow ?? 0} slideWindowPending={ui.pendingSlideWindow} t={t} onInputChange={onInputChange} onAddAttachments={onAddAttachments} onAttachmentRejected={onAttachmentRejected} onRemoveAttachment={onRemoveAttachment} onModelClick={onModelClick} onSkillListRefresh={onSkillListRefresh} onSlideWindowChange={session ? onSlideWindowChange : undefined} onSubmit={onSubmit} /> : null}
+        {surfaceHasChat ? <ChatComposer idSuffix={suffix} agentRunning={surfaceAgentRunning} compactRunning={surfaceCompactRunning} interruptPending={interruptPending} requestPending={submitPending} contextUsage={surfaceContextUsage} input={ui.chatInput} attachments={attachments} skills={ui.availableSkills} modelLabel={surfaceModelLabel} modelModalities={ui.selectedModel.modalities} notice={notice} t={t} onInputChange={onInputChange} onAddAttachments={onAddAttachments} onAttachmentRejected={onAttachmentRejected} onRemoveAttachment={onRemoveAttachment} onModelClick={onModelClick} onSkillListRefresh={onSkillListRefresh} onSubmit={onSubmit} /> : null}
       </div>
-      {ui.rightSidebarOpen ? <><RightSidebarResizeHandle width={ui.rightSidebarWidth} onWidthChange={onRightSidebarWidthChange} /><RightSidebar id={`session-right-sidebar-${suffix}`} label={t[RSC.SIDEBAR_RIGHT_LABEL]} scrollRef={(node) => { rightSidebarScrollRef.current = node; }} onScroll={onRightSidebarScroll} turn={ui.turnFlows.at(-1)} width={ui.rightSidebarWidth} /></> : null}
+      {ui.rightSidebarOpen ? <><RightSidebarResizeHandle width={ui.rightSidebarWidth} onWidthChange={onRightSidebarWidthChange} /><RightSidebar id={`session-right-sidebar-${suffix}`} label={t[RSC.SIDEBAR_RIGHT_LABEL]} scrollRef={(node) => { rightSidebarScrollRef.current = node; }} onScroll={onRightSidebarScroll} items={ui.rightSidebarItems} width={ui.rightSidebarWidth} /></> : null}
     </div>
   );
 }

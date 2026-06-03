@@ -10,6 +10,7 @@ import { initWebClientStateDatabase } from "../../webclient/server/client-state/
 import { initChatDatabase } from "../chat/index.js";
 import { initCompactDatabase } from "../compact/index.js";
 import { copyDirectoryRecursively } from "../../common/file/index.js";
+import { NDX_SYSTEM_SKILL_ASSETS, type NDXSystemSkillAsset } from "../tool/base/systemSkills.js";
 import type { NDXDatabase } from "./database.js";
 
 const DEFAULT_NDX_DATABASE_URL = "postgresql://ndev:ndev@127.0.0.1:5432/ndev";
@@ -33,21 +34,9 @@ export async function initServer(options: InitServerOptions): Promise<Initialize
     hasDatabaseUrl: Boolean(options.databaseUrl)
   });
   const userHome = options.userHome;
-  const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
-  const primaryAssetsPath = path.join(moduleDirectory, "assets");
-  const fallbackAssetsPath = path.join(moduleDirectory, "..", "..", "..", "..", "src", "agent", "init", "assets");
-  let assetsRoot = fallbackAssetsPath;
+  await seedServerAssets(userHome);
 
-  try {
-    fs.accessSync(primaryAssetsPath);
-    assetsRoot = primaryAssetsPath;
-  } catch {
-    assetsRoot = fallbackAssetsPath;
-  }
-
-  await copyDirectoryRecursively(assetsRoot, path.join(userHome, ".ndx"));
-
-    const database = createNDXDatabase(options.databaseUrl, options.logger);
+  const database = createNDXDatabase(options.databaseUrl, options.logger);
   try {
     await initAccountDatabase(database);
     await initSessionDatabase(database);
@@ -69,6 +58,32 @@ export async function initServer(options: InitServerOptions): Promise<Initialize
     await database.close();
     throw error;
   }
+}
+
+export async function seedServerAssets(userHome: string): Promise<void> {
+  const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
+  const primaryAssetsPath = path.join(moduleDirectory, "assets");
+  const fallbackAssetsPath = path.join(moduleDirectory, "..", "..", "..", "..", "src", "agent", "init", "assets");
+  const assetsRoot = fs.existsSync(primaryAssetsPath) ? primaryAssetsPath : fallbackAssetsPath;
+
+  await copyDirectoryRecursively(assetsRoot, path.join(userHome, ".ndx"));
+
+  for (const systemSkillAsset of NDX_SYSTEM_SKILL_ASSETS) {
+    await copySystemSkillAsset(userHome, systemSkillAsset);
+  }
+}
+
+async function copySystemSkillAsset(userHome: string, asset: NDXSystemSkillAsset): Promise<void> {
+  const sourceDirectory = asset.sourceDirectories.find((candidate) => fs.existsSync(candidate));
+  if (!sourceDirectory) {
+    throw new Error(`Registered system skill asset is missing: ${asset.skillDirectoryName}`);
+  }
+
+  await copyDirectoryRecursively(
+    sourceDirectory,
+    path.join(userHome, ".ndx", "system", "skills", asset.skillDirectoryName),
+    { overwriteExisting: true }
+  );
 }
 
 function createNDXDatabase(

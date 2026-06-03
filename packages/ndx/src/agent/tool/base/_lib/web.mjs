@@ -5,6 +5,14 @@ export function emitProgress(message) {
   process.stdout.write(`${JSON.stringify({ type: "progress", message })}\n`);
 }
 
+export function emitAgentCall(name, input) {
+  process.stdout.write(`[[ndx-agentcall:${JSON.stringify({ type: "ndx.agentcall", name, input })}]]\n`);
+}
+
+export function emitSidebarItem(input) {
+  emitAgentCall("session.sidebar_item", input);
+}
+
 export function emitResult(output) {
   process.stdout.write(`${JSON.stringify({ type: "result", success: true, output })}\n`);
 }

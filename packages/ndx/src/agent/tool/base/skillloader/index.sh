@@ -51,6 +51,21 @@ perl -MJSON::PP -Mutf8 -e '
     return $prev[length($right)];
   }
 
+  sub emit_sidebar_item {
+    my ($skill) = @_;
+    print "[[ndx-agentcall:" . $json->encode({
+      type => "ndx.agentcall",
+      name => "session.sidebar_item",
+      input => {
+        group => { id => "skills", title => "스킬" },
+        key => "skill:" . $skill->{name} . ":" . $skill->{path},
+        title => $skill->{name},
+        body => $skill->{path},
+        kind => "skill"
+      }
+    }) . "]]\n";
+  }
+
   my $skill;
   for my $candidate (@$skills) {
     if (($candidate->{name} // "") eq $requested) {
@@ -95,6 +110,7 @@ perl -MJSON::PP -Mutf8 -e '
   my %loaded_names = map { (normalize($_), 1) } @$loaded_name_values;
   my %loaded_paths = map { ($_, 1) } @$loaded_path_values;
   if ($loaded_names{normalize($skill->{name})} || $loaded_paths{$skill->{path}}) {
+    emit_sidebar_item($skill);
     print $json->encode({ type => "result", success => JSON::PP::true, output => "Skill already loaded in the current session context: $skill->{name} ($skill->{path})" }) . "\n";
     exit 0;
   }
@@ -103,19 +119,7 @@ perl -MJSON::PP -Mutf8 -e '
     print $json->encode({ type => "error", success => JSON::PP::false, message => "Skill file cannot be read: $skill->{path}" }) . "\n";
     exit 1;
   };
-  print $json->encode({
-    type => "progress",
-    message => "\${SIDEBAR_ITEM} " . $skill->{name},
-    data => {
-      sidebarItem => {
-        group => { id => "skills", title => "스킬" },
-        key => "skill:" . $skill->{name} . ":" . $skill->{path},
-        title => $skill->{name},
-        body => $skill->{path},
-        kind => "skill"
-      }
-    }
-  }) . "\n";
+  emit_sidebar_item($skill);
   local $/;
   my $body = <$fh>;
   close $fh;

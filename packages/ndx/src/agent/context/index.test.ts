@@ -5,10 +5,6 @@ import path from "node:path";
 import test from "node:test";
 import { buildContext, resolveModelInstruction } from "./index.js";
 import { buildAvailableSkillsInstructions } from "./availableSkillsInstructions/index.js";
-import {
-  buildMemoryToolDeveloperInstructions,
-  truncateTextByTokens,
-} from "./memoryToolInstructions/index.js";
 
 async function withTempDir(run: (dir: string) => Promise<void>) {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-context-"));
@@ -165,6 +161,11 @@ test("buildContext composes implemented sections from initialized arbitrary root
     assert.doesNotMatch(context.developer, /You are NDX/);
     assert.doesNotMatch(context.developer, /<permissions instructions>/);
     assert.doesNotMatch(context.developer, /<memory_tool_instructions>/);
+    assert.doesNotMatch(context.developer, /<realtime_update>/);
+    assert.doesNotMatch(context.developer, /<personality_spec_instructions>/);
+    assert.doesNotMatch(context.developer, /<apps_instructions>/);
+    assert.doesNotMatch(context.developer, /<collaboration_mode>/);
+    assert.doesNotMatch(context.developer, /<commit_attribution_instruction>/);
     assert.match(context.developer, /<available_skills_instructions>/);
     assert.match(context.developer, /- cot-solve:/);
 
@@ -225,70 +226,6 @@ test("developer instructions are omitted when system prompt is absent", async ()
     assert.doesNotMatch(context.developer, /system-promt/);
     assert.match(context.developer, /You are NDX/);
     assert.doesNotMatch(context.developer, /<permissions instructions>/);
-  });
-});
-
-test("memory tool developer instructions render the summary when present", async () => {
-  await withTempDir(async (dir) => {
-    const userHome = path.join(dir, "home");
-    const memoriesDirectory = path.join(userHome, ".ndx", "memories");
-    await fs.mkdir(memoriesDirectory, { recursive: true });
-    await fs.writeFile(path.join(memoriesDirectory, "memory_summary.md"), "alpha beta gamma\n", "utf8");
-
-    const prompt = await buildMemoryToolDeveloperInstructions({ userHome });
-
-    assert.ok(prompt);
-    assert.match(prompt, /## Memory/);
-    assert.match(prompt, new RegExp(escapeRegExp(path.join(userHome, ".ndx", "memories"))));
-    assert.match(prompt, /alpha beta gamma/);
-    assert.match(prompt, /========= MEMORY_SUMMARY BEGINS =========/);
-  });
-});
-
-test("memory tool developer instructions omit missing or blank summaries", async () => {
-  await withTempDir(async (dir) => {
-    const userHome = path.join(dir, "home");
-    const memoriesDirectory = path.join(userHome, ".ndx", "memories");
-    assert.equal(await buildMemoryToolDeveloperInstructions({ userHome }), undefined);
-
-    await fs.mkdir(memoriesDirectory, { recursive: true });
-    await fs.writeFile(path.join(memoriesDirectory, "memory_summary.md"), " \n\t", "utf8");
-
-    assert.equal(await buildMemoryToolDeveloperInstructions({ userHome }), undefined);
-  });
-});
-
-test("memory tool developer instructions truncate summary by token-like words", async () => {
-  await withTempDir(async (dir) => {
-    const userHome = path.join(dir, "home");
-    const memoriesDirectory = path.join(userHome, ".ndx", "memories");
-    await fs.mkdir(memoriesDirectory, { recursive: true });
-    await fs.writeFile(path.join(memoriesDirectory, "memory_summary.md"), "one two\nthree four", "utf8");
-
-    const prompt = await buildMemoryToolDeveloperInstructions({ userHome, tokenLimit: 3 });
-
-    assert.ok(prompt);
-    assert.match(prompt, /one two\nthree/);
-    assert.doesNotMatch(prompt, /four/);
-  });
-});
-
-test("memory tool context section remains disabled for now", async () => {
-  await withTempDir(async (dir) => {
-    const userHome = path.join(dir, "home");
-    const projectHome = path.join(dir, "project");
-    await fs.mkdir(path.join(userHome, ".ndx", "memories"), { recursive: true });
-    await fs.writeFile(path.join(userHome, ".ndx", "memories", "memory_summary.md"), "persisted memory", "utf8");
-
-    const context = await buildContext({
-      model: modelConfig("unknown-local-model"),
-      cwd: projectHome,
-      userHome,
-      projectHome,
-    });
-
-    assert.doesNotMatch(context.developer, /<memory_tool_instructions>/);
-    assert.doesNotMatch(context.developer, /persisted memory/);
   });
 });
 
@@ -432,11 +369,6 @@ test("available skills respect the two percent context window budget", async () 
     assert.match(skills, /Exceeded skills context budget of 2%/);
     assert.doesNotMatch(skills, /a{20}|b{20}/);
   });
-});
-
-test("truncateTextByTokens preserves whitespace between retained tokens", () => {
-  assert.equal(truncateTextByTokens("one  two\nthree", 2), "one  two\n");
-  assert.equal(truncateTextByTokens("one two", 0), "");
 });
 
 test("user instructions include user and project AGENTS files in order", async () => {

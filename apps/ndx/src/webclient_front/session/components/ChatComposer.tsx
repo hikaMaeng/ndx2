@@ -19,8 +19,6 @@ export function ChatComposer({
   modelModalities,
   notice,
   attachments,
-  slideWindow,
-  slideWindowPending,
   t,
   onInputChange,
   onAddAttachments,
@@ -28,7 +26,6 @@ export function ChatComposer({
   onRemoveAttachment,
   onModelClick,
   onSkillListRefresh,
-  onSlideWindowChange,
   onSubmit
 }: {
   agentRunning: boolean;
@@ -43,8 +40,6 @@ export function ChatComposer({
   modelModalities: Array<"text" | "image" | "file">;
   notice: string;
   attachments: Array<{ id: string; name: string; size: number; mimeType: string; previewUrl?: string }>;
-  slideWindow: number;
-  slideWindowPending?: number;
   t: Record<string, string>;
   onInputChange: (value: string) => void;
   onAddAttachments: (files: File[]) => void;
@@ -52,7 +47,6 @@ export function ChatComposer({
   onRemoveAttachment: (id: string) => void;
   onModelClick: () => void;
   onSkillListRefresh: () => void;
-  onSlideWindowChange?: (value: number) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   const [previewAttachmentId, setPreviewAttachmentId] = useState<string>();
@@ -69,7 +63,6 @@ export function ChatComposer({
   const statusText = interruptPending
     ? t[RSC.SESSION_COMPOSER_INTERRUPT_PENDING_STATUS]
     : notice || (requestPending ? t[RSC.SESSION_COMPOSER_REQUEST_PENDING_STATUS] : agentRunning ? t[RSC.SESSION_COMPOSER_RUNNING_STATUS] : t[RSC.SESSION_COMPOSER_IDLE_STATUS]);
-  const displayedSlideWindow = slideWindowPending ?? slideWindow;
   const supportsImageAttachments = modelModalities.includes("image");
   const supportsFileAttachments = modelModalities.includes("file");
   const supportsAttachments = supportsImageAttachments || supportsFileAttachments;
@@ -115,27 +108,6 @@ export function ChatComposer({
         }}
       >
         <div className="mx-auto grid w-full max-w-4xl gap-2">
-          <div className="grid grid-cols-[auto_minmax(0,1fr)_2ch] items-center gap-2 text-[10px] leading-none text-zinc-500">
-            <span className="relative inline-flex items-center gap-0.5">
-              window
-              <InfoTooltip text="0이면 전체 세션 히스토리를 사용합니다. 1~30은 마지막 compact 이후 최근 사용자 요청 N개부터 모델 요청에 포함합니다." />
-            </span>
-            <input
-              type="range"
-              min={0}
-              max={30}
-              step={1}
-              value={displayedSlideWindow}
-              disabled={!onSlideWindowChange || compactRunning}
-              className="h-5 w-full accent-zinc-100 disabled:opacity-40"
-              aria-label="슬라이드 윈도우"
-              aria-valuemin={0}
-              aria-valuemax={30}
-              aria-valuenow={displayedSlideWindow}
-              onChange={(event) => onSlideWindowChange?.(Number(event.currentTarget.value))}
-            />
-            <span className={slideWindowPending === undefined ? "tabular-nums text-zinc-500" : "tabular-nums text-zinc-200"}>{displayedSlideWindow}</span>
-          </div>
           <label className="sr-only" htmlFor={inputId}>
             {t[RSC.SESSION_COMPOSER_INPUT_LABEL]}
           </label>
@@ -167,6 +139,11 @@ export function ChatComposer({
                 onSkillListRefresh();
               }
             }}
+            onFocus={() => {
+              if (!compactRunning) {
+                onSkillListRefresh();
+              }
+            }}
             onKeyDown={(event) => {
               if (compactRunning) {
                 event.preventDefault();
@@ -184,7 +161,12 @@ export function ChatComposer({
           >
             <Mention
               trigger="$"
-              data={skillSuggestions}
+              data={(query) => {
+                const normalizedQuery = query.toLocaleLowerCase();
+                return normalizedQuery
+                  ? skillSuggestions.filter((skill) => skill.display.toLocaleLowerCase().includes(normalizedQuery))
+                  : skillSuggestions;
+              }}
               markup="[[NDX_SKILL___id__]]"
               displayTransform={(_id, display) => `$${display ?? ""}`}
               className="inline rounded-sm bg-cyan-500/20 !text-cyan-100 ring-1 ring-inset ring-cyan-400/35"
@@ -287,31 +269,6 @@ export function ChatComposer({
         </div>
       ) : null}
     </>
-  );
-}
-
-function InfoTooltip({ text }: { text: string }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <span className="relative inline-flex">
-      <button
-        type="button"
-        className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-[10px] text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-500"
-        aria-label="슬라이드 윈도우 설명"
-        aria-expanded={open}
-        onBlur={() => setOpen(false)}
-        onFocus={() => setOpen(true)}
-        onMouseEnter={() => setOpen(true)}
-        onMouseLeave={() => setOpen(false)}
-      >
-        ⓘ
-      </button>
-      {open ? (
-        <span className="absolute bottom-full left-1/2 z-30 mb-2 w-64 -translate-x-1/2 rounded-md border border-zinc-700 bg-zinc-950 px-2.5 py-2 text-left text-xs leading-5 text-zinc-200 shadow-xl">
-          {text}
-        </span>
-      ) : null}
-    </span>
   );
 }
 

@@ -1,5 +1,5 @@
 import type { NDXSessionEventMessage } from "ndx/common/protocol";
-import { NDX_TURN_EVENT, parseNDXSidebarItem } from "ndx/common/protocol";
+import { NDX_TURN_EVENT } from "ndx/common/protocol";
 import { eventContentText, toolCallIdFromCall, toolNameFromCall, toolProgressText } from "./eventText.js";
 import type { TurnBatchState, TurnFlowState, TurnToolState } from "./types.js";
 
@@ -23,7 +23,6 @@ function newTurn(message: NDXSessionEventMessage, now: string): TurnFlowState {
     collapsed: false,
     createdAt: now,
     updatedAt: now,
-    sidebarItems: [],
     batches: []
   };
 }
@@ -43,6 +42,13 @@ function reduceTurn(turn: TurnFlowState, message: NDXSessionEventMessage, now: s
     return updateIteration(turn, eventIteration(message), (batch) => ({
       ...batch,
       modelEvents: batch.modelEvents.includes(modelEventText(message)) ? batch.modelEvents : [...batch.modelEvents, modelEventText(message)]
+    }));
+  }
+  if (message.event === NDX_TURN_EVENT.PrefixDrift) {
+    const text = prefixDriftEventText(message);
+    return updateIteration(turn, eventIteration(message), (batch) => ({
+      ...batch,
+      modelEvents: batch.modelEvents.includes(text) ? batch.modelEvents : [...batch.modelEvents, text]
     }));
   }
   if (message.event === NDX_TURN_EVENT.ModelProgress) {
@@ -76,16 +82,6 @@ function reduceTurn(turn: TurnFlowState, message: NDXSessionEventMessage, now: s
   }
   if (message.event === NDX_TURN_EVENT.ToolProgress && (message.contents as { kind?: unknown }).kind === "tool_progress") {
     const event = (message.contents as { event?: unknown }).event;
-    const sidebarItem = event && typeof event === "object"
-      ? parseNDXSidebarItem(
-        typeof (event as { message?: unknown }).message === "string" ? (event as { message: string }).message : "",
-        (event as { data?: unknown }).data
-      )
-      : undefined;
-    const turnWithSidebar = sidebarItem ? upsertSidebarItem(turn, sidebarItem) : turn;
-    if (sidebarItem) {
-      return updateTool(turnWithSidebar, message, (tool) => ({ ...tool, progress: tool.progress }));
-    }
     return updateTool(turn, message, (tool) => ({
       ...tool,
       progress: [...tool.progress, { id: message.dataid, text: toolProgressText(event), receivedAt: String((message.contents as { receivedAt?: unknown }).receivedAt ?? "") }]
@@ -100,9 +96,7 @@ function reduceTurn(turn: TurnFlowState, message: NDXSessionEventMessage, now: s
   }
   if (message.event === NDX_TURN_EVENT.ToolProgress && (message.contents as { kind?: unknown }).kind === "tool_finished") {
     const result = (message.contents as { result?: unknown }).result;
-    const args = toolArgsForResult(turn, result);
-    const nextTurn = updateTool(turn, message, (tool) => ({ ...tool, ...finishedTool(result), result }));
-    return upsertSidebarItemsFromResult(upsertChangedFileFromResult(nextTurn, result), result, args);
+    return updateTool(turn, message, (tool) => ({ ...tool, ...finishedTool(result), result }));
   }
   if (message.event === NDX_TURN_EVENT.ToolResultRecorded) {
     const contents = message.contents as { results?: unknown };
@@ -143,6 +137,11 @@ function modelProgressEventText(message: NDXSessionEventMessage): string {
   }
   const seconds = typeof contents.elapsedMs === "number" ? Math.max(1, Math.round(contents.elapsedMs / 1000)) : undefined;
   return seconds ? `Model request still running (${seconds}s elapsed). Interrupt the session if you do not want to keep waiting.` : "Model request still running. Interrupt the session if you do not want to keep waiting.";
+}
+
+function prefixDriftEventText(message: NDXSessionEventMessage): string {
+  const text = eventContentText(message.contents);
+  return text.trim() ? `Prefix drift warning: ${text}` : "Prefix drift warning";
 }
 
 function compactEventText(message: NDXSessionEventMessage): string {
@@ -254,12 +253,10 @@ function updateToolFromResult(turn: TurnFlowState, result: unknown, iteration: n
   const record = result as { toolCallId?: unknown; tool?: unknown; success?: unknown };
   const callId = typeof record.toolCallId === "string" ? record.toolCallId : undefined;
   const toolName = typeof record.tool === "string" ? record.tool : undefined;
-  const args = toolArgsForResult(turn, result);
-  const nextTurn = updateIteration(turn, iteration, (batch) => ({
+  return updateIteration(turn, iteration, (batch) => ({
     ...batch,
     tools: batch.tools.map((tool) => (callId ? tool.callId === callId : tool.tool === toolName) ? { ...tool, status: record.success === false ? "failed" : "succeeded", result } : tool)
   }));
-  return upsertSidebarItemsFromResult(upsertChangedFileFromResult(nextTurn, result), result, args);
 }
 
 function completeOpenTools(turn: TurnFlowState): TurnFlowState {
@@ -284,248 +281,6 @@ function mergeBatchTools(currentTools: TurnToolState[], nextTools: TurnToolState
   return nextTools.reduce((tools, nextTool) => upsertTool({ key: "batch", iteration: 0, collapsed: false, assistantText: "", reasoningText: "", modelEvents: [], tools }, nextTool).tools, currentTools);
 }
 
-function upsertSidebarItem(turn: TurnFlowState, item: TurnFlowState["sidebarItems"][number]): TurnFlowState {
-  const key = item.key ?? `${item.group.id}:${item.kind ?? "item"}:${item.title}:${item.body ?? ""}`;
-  const items = turn.sidebarItems.filter((current) => {
-    const currentKey = current.key ?? `${current.group.id}:${current.kind ?? "item"}:${current.title}:${current.body ?? ""}`;
-    return currentKey !== key;
-  });
-  return { ...turn, sidebarItems: [...items, { ...item, key }] };
-}
-
-function upsertChangedFileFromResult(turn: TurnFlowState, result: unknown): TurnFlowState {
-  const changedFile = changedFileSidebarItem(result);
-  return changedFile ? upsertSidebarItem(turn, changedFile) : turn;
-}
-
-function upsertSidebarItemsFromResult(turn: TurnFlowState, result: unknown, args?: Record<string, unknown>): TurnFlowState {
-  const sidebarItems = sidebarItemsFromToolResult(result, args);
-  return sidebarItems.reduce(upsertSidebarItem, turn);
-}
-
-function sidebarItemsFromToolResult(result: unknown, args?: Record<string, unknown>): TurnFlowState["sidebarItems"] {
-  if (!result || typeof result !== "object") return [];
-  const record = result as { tool?: unknown; success?: unknown; output?: unknown; outputValue?: unknown; toolCallId?: unknown; callId?: unknown };
-  if (record.success === false || typeof record.tool !== "string") return [];
-  const outputText = typeof record.output === "string" ? record.output : stringifyToolOutput(record.output);
-  const outputValue = record.outputValue && typeof record.outputValue === "object" ? record.outputValue : parseJsonObject(outputText);
-  const callId = typeof record.callId === "string" ? record.callId : typeof record.toolCallId === "string" ? record.toolCallId : record.tool;
-
-  if (record.tool === "read_file") {
-    const path = outputValue && typeof outputValue === "object" && typeof (outputValue as { path?: unknown }).path === "string" ? (outputValue as { path: string }).path : undefined;
-    if (!path || path.trim().length === 0) return [];
-    return [
-      {
-        group: { id: "file-references", title: "파일참조" },
-        key: `file-reference:${path}`,
-        title: path.split(/[\\/]/).pop() || path,
-        body: path,
-        kind: "file_reference"
-      }
-    ];
-  }
-
-  if (record.tool === "loadSkill") {
-    const name = outputText.match(/<skill>\s*<name>([^<]+)<\/name>/)?.[1]?.trim();
-    const path = outputText.match(/<path>([^<]+)<\/path>/)?.[1]?.trim();
-    if (!name) return [];
-    return [
-      {
-        group: { id: "skills", title: "스킬" },
-        key: `skill:${name}:${path ?? ""}`,
-        title: name,
-        ...(path ? { body: path } : {}),
-        kind: "skill"
-      }
-    ];
-  }
-
-  if (record.tool === "web_fetch") {
-    const item = webFetchSidebarItem(outputValue, callId);
-    return item ? [item] : [];
-  }
-
-  if (record.tool === "web_search") {
-    const item = webSearchSidebarItem(outputValue, callId);
-    return item ? [item] : [];
-  }
-
-  if (record.tool === "askUserQuestion") {
-    const item = askUserQuestionSidebarItem(outputValue, args, callId);
-    return item ? [item] : [];
-  }
-
-  if (record.tool === "prompt_rewrite") {
-    const item = promptRewriteSidebarItem(outputValue, callId);
-    return item ? [item] : [];
-  }
-
-  if (record.tool === "session_history") {
-    const item = sessionHistorySidebarItem(outputValue, callId);
-    return item ? [item] : [];
-  }
-
-  return [];
-}
-
-function webFetchSidebarItem(outputValue: unknown, callId: string): TurnFlowState["sidebarItems"][number] | undefined {
-  if (!outputValue || typeof outputValue !== "object") return undefined;
-  const payload = outputValue as { url?: unknown; finalUrl?: unknown; redirectUrl?: unknown; status?: unknown; contentType?: unknown; bytes?: unknown; truncated?: unknown };
-  const url = typeof payload.url === "string" && payload.url.trim() ? payload.url.trim() : undefined;
-  const finalUrl = typeof payload.finalUrl === "string" && payload.finalUrl.trim() ? payload.finalUrl.trim() : undefined;
-  const redirectUrl = typeof payload.redirectUrl === "string" && payload.redirectUrl.trim() ? payload.redirectUrl.trim() : undefined;
-  const displayUrl = finalUrl ?? redirectUrl ?? url;
-  if (!displayUrl) return undefined;
-  const status = typeof payload.status === "number" ? String(payload.status) : "";
-  const contentType = typeof payload.contentType === "string" && payload.contentType.trim() ? payload.contentType.split(";")[0]?.trim() ?? "" : "";
-  const bytes = typeof payload.bytes === "number" && Number.isFinite(payload.bytes) ? formatBytes(payload.bytes) : "";
-  const flags = [status, contentType, bytes, payload.truncated === true ? "일부만 표시" : ""].filter(Boolean);
-  return {
-    group: { id: "web-references", title: "웹 참조" },
-    key: `web-fetch:${displayUrl}`,
-    title: hostname(displayUrl) || displayUrl,
-    body: compactText([flags.join(" · "), displayUrl].filter(Boolean).join(" · "), 180),
-    kind: "web_fetch"
-  };
-}
-
-function webSearchSidebarItem(outputValue: unknown, callId: string): TurnFlowState["sidebarItems"][number] | undefined {
-  if (!outputValue || typeof outputValue !== "object") return undefined;
-  const payload = outputValue as { query?: unknown; provider?: unknown; durationSeconds?: unknown; results?: unknown };
-  const query = typeof payload.query === "string" && payload.query.trim() ? payload.query.trim() : undefined;
-  if (!query) return undefined;
-  const provider = typeof payload.provider === "string" && payload.provider.trim() ? payload.provider.trim() : "web";
-  const results = Array.isArray(payload.results) ? payload.results : [];
-  const hosts = uniqueStrings(results.map((result) => {
-    if (!result || typeof result !== "object") return "";
-    const source = (result as { source?: unknown }).source;
-    if (typeof source === "string" && source.trim()) return source.trim();
-    const url = (result as { url?: unknown }).url;
-    return typeof url === "string" ? hostname(url) : "";
-  })).slice(0, 3);
-  const duration = typeof payload.durationSeconds === "number" && Number.isFinite(payload.durationSeconds) ? `${payload.durationSeconds}s` : "";
-  return {
-    group: { id: "web-searches", title: "웹 검색" },
-    key: `web-search:${query}:${provider}:${callId}`,
-    title: query,
-    body: compactText([provider, `${results.length}개 결과`, duration, hosts.join(", ")].filter(Boolean).join(" · "), 180),
-    kind: "web_search"
-  };
-}
-
-function askUserQuestionSidebarItem(outputValue: unknown, args: Record<string, unknown> | undefined, callId: string): TurnFlowState["sidebarItems"][number] | undefined {
-  if (!outputValue || typeof outputValue !== "object") return undefined;
-  const answers = (outputValue as { answers?: unknown }).answers;
-  if (!answers || typeof answers !== "object" || Array.isArray(answers)) return undefined;
-  const questions = Array.isArray(args?.questions) ? args.questions : [];
-  const summaries: string[] = [];
-  for (const question of questions) {
-    if (!question || typeof question !== "object" || Array.isArray(question)) continue;
-    const next = question as { id?: unknown; header?: unknown; question?: unknown; inputType?: unknown; isSecret?: unknown };
-    if (typeof next.id !== "string" || !next.id.trim()) continue;
-    const answer = (answers as Record<string, unknown>)[next.id];
-    const answerRecord = answer && typeof answer === "object" && !Array.isArray(answer) ? answer as { answers?: unknown; attachments?: unknown } : undefined;
-    const answerTexts = Array.isArray(answerRecord?.answers) ? answerRecord.answers.map((item) => String(item).trim()).filter(Boolean) : [];
-    const attachmentCount = Array.isArray(answerRecord?.attachments) ? answerRecord.attachments.length : 0;
-    const label = typeof next.header === "string" && next.header.trim()
-      ? next.header.trim()
-      : typeof next.question === "string" && next.question.trim()
-        ? next.question.trim()
-        : next.id;
-    const secret = next.isSecret === true || next.inputType === "secret";
-    const answerText = secret ? "비밀 응답 완료" : answerTexts.length > 0 ? answerTexts.join(", ") : "응답 완료";
-    summaries.push(`${label}: ${answerText}${attachmentCount > 0 ? `, 첨부 ${attachmentCount}개` : ""}`);
-  }
-  const fallbackCount = Object.keys(answers).length;
-  return {
-    group: { id: "questions", title: "사용자 문답" },
-    key: `ask-user-question:${callId}`,
-    title: "문답 완료",
-    body: compactText(summaries.length > 0 ? summaries.join(" · ") : `${fallbackCount}개 답변`, 220),
-    kind: "ask_user_question"
-  };
-}
-
-function promptRewriteSidebarItem(outputValue: unknown, callId: string): TurnFlowState["sidebarItems"][number] | undefined {
-  if (!outputValue || typeof outputValue !== "object") return undefined;
-  const payload = outputValue as { rewritten_prompt?: unknown; report?: unknown; should_ask_user?: unknown; pass_through?: unknown };
-  const rewrittenPrompt = typeof payload.rewritten_prompt === "string" && payload.rewritten_prompt.trim() ? payload.rewritten_prompt.trim() : undefined;
-  const report = typeof payload.report === "string" && payload.report.trim() ? payload.report.trim() : undefined;
-  if (!rewrittenPrompt && !report) return undefined;
-  return {
-    group: { id: "prompt-rewrites", title: "프롬프트 재작성" },
-    key: `prompt-rewrite:${callId}`,
-    title: payload.pass_through === true ? "프롬프트 유지" : "프롬프트 재작성 완료",
-    body: compactText([payload.should_ask_user === true ? "사용자 확인 권장" : "", rewrittenPrompt ?? report].filter(Boolean).join(" · "), 220),
-    kind: "prompt_rewrite"
-  };
-}
-
-function sessionHistorySidebarItem(outputValue: unknown, callId: string): TurnFlowState["sidebarItems"][number] | undefined {
-  if (!outputValue || typeof outputValue !== "object") return undefined;
-  const payload = outputValue as { mode?: unknown; scope?: unknown; query?: unknown; results?: unknown };
-  const results = Array.isArray(payload.results) ? payload.results : [];
-  const query = typeof payload.query === "string" && payload.query.trim() ? payload.query.trim() : undefined;
-  const mode = typeof payload.mode === "string" && payload.mode.trim() ? payload.mode.trim() : "history";
-  const scope = sessionHistoryScopeText(payload.scope);
-  const titles = uniqueStrings(results.map((result) => {
-    if (!result || typeof result !== "object") return "";
-    const title = (result as { title?: unknown }).title;
-    if (typeof title === "string" && title.trim()) return title.trim();
-    const path = (result as { path?: unknown }).path;
-    if (typeof path === "string" && path.trim()) return path.trim().split(/[\\/]/).pop() || path.trim();
-    const sessionid = (result as { sessionid?: unknown }).sessionid;
-    return typeof sessionid === "string" ? sessionid : "";
-  })).slice(0, 3);
-  return {
-    group: { id: "session-references", title: "세션 참조" },
-    key: `session-history:${scope}:${query ?? "recent"}:${callId}`,
-    title: query ? `세션 검색: ${query}` : "최근 세션 참조",
-    body: compactText([scope, mode, `${results.length}개 결과`, titles.join(", ")].filter(Boolean).join(" · "), 220),
-    kind: "session_history"
-  };
-}
-
-function changedFileSidebarItem(result: unknown): TurnFlowState["sidebarItems"][number] | undefined {
-  if (!result || typeof result !== "object") return undefined;
-  const record = result as { tool?: unknown; success?: unknown; output?: unknown; outputValue?: unknown };
-  if (record.success === false || (record.tool !== "write_file" && record.tool !== "edit")) {
-    return undefined;
-  }
-  const outputValue = record.outputValue && typeof record.outputValue === "object" ? record.outputValue as { path?: unknown } : undefined;
-  let path = typeof outputValue?.path === "string" ? outputValue.path : undefined;
-  if (!path && typeof record.output === "string") {
-    try {
-      const parsed = JSON.parse(record.output) as unknown;
-      if (parsed && typeof parsed === "object" && typeof (parsed as { path?: unknown }).path === "string") {
-        path = (parsed as { path: string }).path;
-      }
-    } catch {
-      path = undefined;
-    }
-  }
-  if (!path || path.trim().length === 0) return undefined;
-  return {
-    group: { id: "changed-files", title: "변경 파일" },
-    key: `changed-file:${path}`,
-    title: path.split(/[\\/]/).pop() || path,
-    body: path,
-    kind: typeof record.tool === "string" ? record.tool : "file"
-  };
-}
-
-function toolArgsForResult(turn: TurnFlowState, result: unknown): Record<string, unknown> | undefined {
-  if (!result || typeof result !== "object") return undefined;
-  const record = result as { callId?: unknown; toolCallId?: unknown; tool?: unknown };
-  const callId = typeof record.callId === "string" ? record.callId : typeof record.toolCallId === "string" ? record.toolCallId : undefined;
-  const toolName = typeof record.tool === "string" ? record.tool : undefined;
-  for (const batch of turn.batches) {
-    const tool = batch.tools.find((candidate) => callId ? candidate.callId === callId : candidate.tool === toolName);
-    if (tool?.args) return tool.args;
-  }
-  return undefined;
-}
-
 function toolArgumentsFromCall(toolCall: unknown): Record<string, unknown> | undefined {
   if (!toolCall || typeof toolCall !== "object") return undefined;
   const record = toolCall as { arguments?: unknown; input?: unknown; function?: unknown };
@@ -544,54 +299,4 @@ function parseJsonObject(text: string): unknown {
   } catch {
     return undefined;
   }
-}
-
-function stringifyToolOutput(output: unknown): string {
-  if (typeof output === "string") return output;
-  if (output === null || typeof output === "undefined") return "";
-  try {
-    return JSON.stringify(output);
-  } catch {
-    return String(output);
-  }
-}
-
-function compactText(value: string, maxLength: number): string {
-  const text = value.replace(/\s+/g, " ").trim();
-  return text.length > maxLength ? `${text.slice(0, Math.max(0, maxLength - 1))}...` : text;
-}
-
-function hostname(value: string): string {
-  try {
-    return new URL(value).hostname;
-  } catch {
-    return "";
-  }
-}
-
-function formatBytes(value: number): string {
-  if (value < 1024) return `${value}B`;
-  if (value < 1024 * 1024) return `${Math.round(value / 102.4) / 10}KB`;
-  return `${Math.round(value / 1024 / 102.4) / 10}MB`;
-}
-
-function uniqueStrings(values: string[]): string[] {
-  const seen = new Set<string>();
-  const output: string[] = [];
-  for (const value of values) {
-    const text = value.trim();
-    if (!text || seen.has(text)) continue;
-    seen.add(text);
-    output.push(text);
-  }
-  return output;
-}
-
-function sessionHistoryScopeText(scope: unknown): string {
-  if (!scope || typeof scope !== "object" || Array.isArray(scope)) return "scope";
-  const record = scope as { type?: unknown; projectname?: unknown; sessionid?: unknown };
-  if (record.type === "project") return typeof record.projectname === "string" ? `project:${record.projectname}` : "project";
-  if (record.type === "session") return typeof record.sessionid === "string" ? `session:${record.sessionid}` : "session";
-  if (record.type === "all") return "all";
-  return "scope";
 }

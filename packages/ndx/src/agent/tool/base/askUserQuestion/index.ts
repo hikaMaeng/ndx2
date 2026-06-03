@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { failedWithoutProcess } from "../../execute/process.js";
 import type { NDXAskUserQuestionQuestion, NDXAskUserQuestionResponse } from "../../../../common/protocol/index.js";
+import { NDX_SIDEBAR_ITEM_AGENTCALL_NAME } from "../../execute/agentcall/index.js";
 import type { NDXToolExecutionOptions, NDXToolExecutionResult, NDXToolResultEffect } from "../../types.js";
 
 export const NDX_ASK_USER_QUESTION_TOOL_NAME = "askUserQuestion";
@@ -153,6 +154,13 @@ export async function executeAskUserQuestionTool(
     effects.push({ type: "inline_appended_user_message" });
   }
   const outputValue = { answers: outputAnswers };
+  await options.agentCallHandlers?.[NDX_SIDEBAR_ITEM_AGENTCALL_NAME]?.({
+    group: { id: "questions", title: "사용자 문답" },
+    key: `ask-user-question:${callId ?? NDX_ASK_USER_QUESTION_TOOL_NAME}`,
+    title: "문답 완료",
+    body: `${Object.keys(outputAnswers).length}개 답변`,
+    kind: "ask_user_question"
+  }, { tool: NDX_ASK_USER_QUESTION_TOOL_NAME, callId, sessionid: options.sessionid });
   const output = JSON.stringify(outputValue);
   return {
     tool: NDX_ASK_USER_QUESTION_TOOL_NAME,

@@ -56,6 +56,12 @@ the shorter default Node fetch/undici timeout so slow local models can finish
 prompt processing before their first streamed event. User interrupts still abort
 the active provider request immediately.
 
+The system `turn.model.responding` StreamGuard hook interrupts a model response
+when reasoning summary text exceeds the configured limit before any output text
+is produced. Configure the limit in `/ndx/.ndx/settings.json` under
+`hooks.StreamGuard.MAX_REASONING_LENGTH`. If the hook setting is absent or
+invalid, the fallback remains `240000` characters.
+
 Loop detection during tool-heavy turns is configured under
 `runtime.loopDetectionInterval`. The default is `50`. After tool results are
 collected on iterations divisible by that interval, the system
@@ -78,6 +84,15 @@ An interjection is a mid-turn user message inserted into the active task turn.
 If a tool is currently running, the server lets the active tool handling point finish according to tool policy. Then it records the interjection and resumes the agent loop with context that includes the new message and an instruction to reconsider the next step.
 
 Interjection must preserve event ordering so every connected client can render the same history.
+
+## Tool-Owned Progress Policy
+
+Tool-specific live progress rules belong to the base tool folder. For example,
+`cot_work` owns plan validation, elapsed-time calculation, and the model-facing
+active-plan reminder hook policy under
+`packages/ndx/src/agent/tool/base/cot_work`. The turn loop may call that policy
+when it records assistant sessiondata, emits `turn.cot_work`, or runs the
+registered context-prepared hook, but it must not own the policy itself.
 
 ## Interactive Client Requests
 
@@ -102,20 +117,58 @@ The session server exposes only these turn-loop hook events:
 
 * `turn.request.received`: runs immediately after a user request is accepted and before the user row is appended. It may rewrite `requestText`, create side-effect sessiondata rows, or stop the turn with `finalAssistantText`.
 * `turn.context.prepared`: runs after messages, tools, and sessiondata-derived context are ready and immediately before a model request. It may replace or append model messages, replace model tools, or stop the turn with `finalAssistantText`.
+* `turn.model.request`: runs at the model-provider request boundary according
+  to its documented meaning. If the hook is used to protect provider prefix
+  cache, it must see the provider-visible request shape that will be sent, not
+  an earlier pre-serialization approximation.
+* `turn.model.responding`: runs while model output is streaming or otherwise
+  being received. It may interrupt the active model response according to its
+  documented policy.
 * `turn.tool.called`: runs after the model asks for tools and before tool execution. It may replace `toolCalls` or stop the turn with `finalAssistantText`.
 * `turn.tool.results.collected`: runs after all requested tools finish and before tool results are recorded and sent back to the model. It may replace `toolResults` or stop the turn with `finalAssistantText`.
-* `turn.response.prepared`: runs after the iteration ends and before the final assistant row is appended. It may replace the final assistant text, stop the turn with `finalAssistantText`, or return `nextRequestText` to end the current turn without writing that final assistant row and start a new turn from the generated request on the next Node tick.
+* `turn.end`: runs after turn completion data is available and before the turn
+  is treated as fully complete by runtime bookkeeping.
 
 Hook events are not added for turn-loop internals such as failure logging,
 context-usage accounting, model-response receipt, resume preparation, or
 post-write completion.
 
+The hook surface is a user-approved product contract, not an implementation
+convenience. Do not add a hook event, hook folder, built-in system hook array,
+hook runner, `runXxxHook` helper, hook-like callback, or hidden hook execution
+path unless the user directly instructs it or explicitly approves it. This ban
+also applies when a feature appears easy to implement as a new interception
+point.
+
+If an existing hook name no longer matches where it runs, fix the placement or
+rename/update the documented meaning after approval; do not add another hook.
+For example, a hook named `turn.model.request` must run at the model-provider
+request boundary if its documented purpose is "immediately before sending to
+the model". A pre-serialization messages hook is a different meaning and must
+not silently share that name.
+
+Feature work should reuse existing hooks only when the documented hook meaning
+already matches the interception point. Otherwise, implement the behavior in
+the owning module:
+
+* provider request serialization and compatibility: response API/provider
+  adapter;
+* context reconstruction and model-visible ordering: context assembly/session
+  data modules;
+* tool-specific policy: the base tool folder;
+* UI rendering of turn events: webclient front reducers;
+* socket fan-out: app server socket wiring.
+
+Turn-loop code should not contain feature-specific hook substitutes. If a
+change does not alter the essential turn lifecycle, the turn loop may pass
+typed data to an existing boundary, but the policy must live outside the turn
+loop.
+
 `runAgentTurn` and `runSessionTurn` are side-effect procedures. After entry,
 they write sessiondata, update session state, and emit socket-facing events;
 callers do not receive a turn result object.
 
-At turn start, `updateSessionStartTurn` returns the current durable
-`session.slidewindow` value from PostgreSQL. The turn loop uses that fixed value
-for every context reconstruction inside the turn. Mid-turn
-`session.slidewindow.update` socket messages update the session row for later
-turns only.
+At turn start, `updateSessionStartTurn` returns durable session metadata. The
+turn loop reconstructs context from the latest compact row and later append-only
+sessiondata rows. Clients cannot change the model-visible history window for a
+later turn; compaction is the only supported history-shortening mechanism.

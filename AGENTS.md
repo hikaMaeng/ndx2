@@ -66,6 +66,42 @@ Any change to agent context reconstruction, model request assembly, hooks,
 tool-call continuation, or fallback text serialization must check this contract
 and add/update a regression test when it could affect prompt ordering.
 
+### Turn Loop And Hook Governance
+
+The turn loop is an orchestration boundary, not a feature catch-all. Do not add
+feature policy, provider compatibility policy, UI display policy, logging
+interpretation policy, retry policy, or diagnostic classification directly to
+`packages/ndx/src/agent/turnloop` unless the feature changes the essential turn
+lifecycle itself: accepting input, reconstructing context, calling the model,
+executing tools, recording results, handling interruption, compaction, or
+finalizing the assistant response.
+
+When a feature is adjacent to turn execution but does not change that lifecycle,
+place the behavior at the owning boundary:
+
+* provider request serialization, fallback, retry, and compatibility behavior:
+  `packages/ndx/src/common/responseapi` or provider-specific adapters;
+* hook policy and hook effects: `packages/ndx/src/agent/hook`;
+* tool-specific behavior: `packages/ndx/src/agent/tool/base/<tool>`;
+* webclient display and turn-event UI state: `packages/ndx/src/webclient/front`
+  or `apps/ndx/src/webclient_front` only for React composition;
+* transport fan-out: `apps/ndx/src/server/agent`.
+
+Hook surface area is strictly frozen unless the user explicitly approves a new
+hook. Do not add a new hook event, hook folder, system hook array, hook runner,
+implicit `runXxxHook` helper, hook-like callback, or hidden hook execution path
+without direct user instruction or explicit approval. Reuse an existing hook
+only when its documented meaning matches the interception point. If the meaning
+does not match, move the existing hook call to the correct boundary or implement
+the feature in the owning non-hook module; do not invent another hook to bypass
+the mismatch.
+
+Before touching turn-loop or hook code, update `docs/runtime-control.md` and
+`docs/code-placement.md` when the intended placement or hook meaning is not
+already documented. Tests must prove both the behavior and the non-intrusion
+boundary: the turn loop should see only lifecycle callbacks or typed effects,
+not feature-specific branching.
+
 ### PostgreSQL (`pgvector`) 운영 계약
 
 The agent Docker image must include PostgreSQL/pgvector runtime support using:

@@ -72,7 +72,6 @@ No server-only initialization or database API is exported from this runtime-neut
 | `updateSessionStartTurn(database, sessionid, model?)` | Marks a user-request turn running; updates model only when the next request supplies it. |
 | `updateSessionEndTurn(database, sessionid)` | Marks the turn idle and refreshes `lastupdated`. |
 | `updateSessionTitle(database, sessionid, title)` | Applies direct user title changes without changing turn lifecycle state. |
-| `updateSessionSlideWindow(database, sessionid, slidewindow)` | Persists the bounded `0..30` model-context request window for later turns. |
 | `appendSessionData(database, sessionid, type, contents)` | Appends JSONB history and refreshes the session; first string `user` item becomes title when title is empty. |
 | `listSessionData(database, sessionid)` | Returns ordered session history. |
 | `readAgentRuntimeSettings(userHome)` | Reads runtime loop settings and tool-specific settings such as `tools.prompt_rewrite.model`. |

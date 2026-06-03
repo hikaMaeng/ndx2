@@ -34,9 +34,13 @@ export { encodeAttachments, modelAttachmentInputAccept, modelSupportsAttachmentM
 export type { EncodedAttachment } from "./session/attachment.js";
 export { createSessionUiState } from "./session/uiState.js";
 export type { PendingRequest, SessionAttachmentDraft, SessionUiState } from "./session/uiState.js";
+export { groupRightSidebarItems, upsertRightSidebarItem } from "./session/rightSidebar.js";
+export type { RightSidebarGroup } from "./session/rightSidebar.js";
 export { interruptWasAccepted } from "./session/event.js";
+export { PROTOCOL_EVENT_UI_REDUCERS, applyProtocolEventToSessionUiState } from "./session/protocolEventReducer.js";
+export type { ProtocolEventUiText } from "./session/protocolEventReducer.js";
 export { applyIterationDetail, chatMessageFromSessionEvent, mergeRestoredChatMessages, mergeRestoredTurnFlows, mergeTurnSummary, turnFlowFromSummary } from "./session/history.js";
-export { selectSocketUserid, sessionAccountSelectMessage, sessionAttachMessage, sessionClientResponseMessage, sessionCreateMessage, sessionHistorySummaryMessage, sessionInputMessage, sessionInterruptMessage, sessionIterationDetailMessage, sessionProjectConfigureMessage, sessionSkillListMessage, sessionSlideWindowUpdateMessage, sessionSocketUrl, sessionTurnDetailMessage, stateAfterSessionReady } from "./session/socketProtocol.js";
+export { selectSocketUserid, sessionAccountSelectMessage, sessionAttachMessage, sessionClientResponseMessage, sessionCreateMessage, sessionHistorySummaryMessage, sessionInputMessage, sessionInterruptMessage, sessionIterationDetailMessage, sessionProjectConfigureMessage, sessionSkillListMessage, sessionSocketUrl, sessionTurnDetailMessage, stateAfterSessionReady } from "./session/socketProtocol.js";
 export { applyTurnEvent, eventContentText, toolCallIdFromCall, toolNameFromCall, toolProgressText } from "./session/turn/index.js";
 export type { TurnBatchState, TurnEventMessage, TurnFlowState, TurnToolState } from "./session/turn/index.js";
 export { projectNameForVSCode } from "./project/path.js";

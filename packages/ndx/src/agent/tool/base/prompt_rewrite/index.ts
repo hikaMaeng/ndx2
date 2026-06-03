@@ -4,6 +4,7 @@ import { sessionDataText } from "../../../session/content.js";
 import { listAvailableTools, toolSchemas } from "../../registry.js";
 import { summarizeToolName } from "../../toolCall.js";
 import { failedWithoutProcess, runToolProcess } from "../../execute/process.js";
+import { NDX_SIDEBAR_ITEM_AGENTCALL_NAME } from "../../execute/agentcall/index.js";
 import { NDX_SESSION_HISTORY_TOOL_NAME, executeSessionHistoryTool } from "../session_history/index.js";
 import type { NDXModelConfig, NDXSessionDataRow } from "../../../session/types.js";
 import type { NDXResolvedTool, NDXToolExecutionOptions, NDXToolExecutionResult } from "../../types.js";
@@ -102,11 +103,15 @@ export async function executePromptRewriteTool(
       for (const toolCall of response.toolCalls) {
         const toolName = summarizeToolName(toolCall);
         const tool = availableTools.find((item) => item.name === toolName);
+        const nestedOptions = {
+          ...options,
+          agentCallHandlers: { [NDX_SIDEBAR_ITEM_AGENTCALL_NAME]: () => undefined }
+        };
         const result = tool
           ? tool.name === NDX_SESSION_HISTORY_TOOL_NAME && tool.runtime === "function"
-            ? await executeSessionHistoryTool(toolArguments(toolCall), responseToolCallId(toolCall), options)
+            ? await executeSessionHistoryTool(toolArguments(toolCall), responseToolCallId(toolCall), nestedOptions)
             : await runToolProcess(tool, toolArguments(toolCall), responseToolCallId(toolCall), {
-              ...options,
+              ...nestedOptions,
               allowedToolNames: PROMPT_REWRITE_TOOL_ALLOWLIST,
               denyToolResultEffects: true,
               timeoutMs: Math.min(options.timeoutMs ?? 60_000, 30_000)
@@ -152,6 +157,13 @@ export async function executePromptRewriteTool(
       should_ask_user: parsed.should_ask_user === true,
       pass_through: parsed.pass_through === true
     };
+    await options.agentCallHandlers?.[NDX_SIDEBAR_ITEM_AGENTCALL_NAME]?.({
+      group: { id: "prompt-rewrites", title: "프롬프트 재작성" },
+      key: `prompt-rewrite:${callId ?? NDX_PROMPT_REWRITE_TOOL_NAME}`,
+      title: outputValue.pass_through ? "프롬프트 유지" : "프롬프트 재작성 완료",
+      body: [outputValue.should_ask_user ? "사용자 확인 권장" : "", outputValue.rewritten_prompt].filter(Boolean).join(" · ").slice(0, 220),
+      kind: "prompt_rewrite"
+    }, { tool: NDX_PROMPT_REWRITE_TOOL_NAME, callId, sessionid: options.sessionid });
     const endedAtDate = new Date();
     return {
       tool: NDX_PROMPT_REWRITE_TOOL_NAME,

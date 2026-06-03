@@ -23,7 +23,7 @@ export async function compactTurnContext(
   const report = compactEffect.report;
   await state.events.onEvent?.({ type: NDX_TURN_EVENT.CompactStarted, report, contextUsage });
   const compact = await compactSessionHistory(state.database, state.runningSession, report, state.model ?? state.runningSession.model, { contextRows });
-  const compactRows = await listSessionDataForModelContext(state.database, state.runningSession.sessionid, state.runningSession.slidewindow);
+  const compactRows = await listSessionDataForModelContext(state.database, state.runningSession.sessionid);
   const compactMessages = buildTurnMessagesFromParts({
     ...state.messageParts,
     historyRows: compactRows,

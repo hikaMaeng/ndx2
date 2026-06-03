@@ -19,12 +19,12 @@ import {
   listSessionData,
   listSession,
   requestSessionInterrupt,
+  recordSessionSearchFromSessionData,
   runSessionTurn,
   searchSessionHistory,
   sessionSearchText,
   sessionDataRowsToModelMessages,
   updateSessionEndTurn,
-  updateSessionSlideWindow,
   updateSessionStartTurn,
   updateSessionTitle
 } from "./index.js";
@@ -59,11 +59,11 @@ test("session schema SQL defines the required metadata and history tables", () =
   assert.match(SESSION_TABLE_SQL, /jsonb_typeof\(model->'contextsize'\) = 'number'/);
   assert.match(SESSION_TABLE_SQL, /turnphase text NOT NULL DEFAULT 'idle'/);
   assert.match(SESSION_TABLE_SQL, /interruptrequested boolean NOT NULL DEFAULT false/);
-  assert.match(SESSION_TABLE_SQL, /slidewindow integer NOT NULL DEFAULT 0 CHECK \(slidewindow >= 0 AND slidewindow <= 30\)/);
+  assert.doesNotMatch(SESSION_TABLE_SQL, /slidewindow/);
   assert.match(SESSION_TABLE_SQL, /runtimedata jsonb NOT NULL DEFAULT '\{\}'::jsonb/);
   assert.match(SESSION_TABLE_MIGRATION_SQL, /ADD COLUMN IF NOT EXISTS interruptrequested/);
-  assert.match(SESSION_TABLE_MIGRATION_SQL, /ADD COLUMN IF NOT EXISTS slidewindow integer NOT NULL DEFAULT 0/);
-  assert.match(SESSION_TABLE_MIGRATION_SQL, /session_slidewindow_range_check/);
+  assert.match(SESSION_TABLE_MIGRATION_SQL, /DROP CONSTRAINT IF EXISTS session_slidewindow_range_check/);
+  assert.match(SESSION_TABLE_MIGRATION_SQL, /DROP COLUMN IF EXISTS slidewindow/);
   assert.match(SESSION_TABLE_MIGRATION_SQL, /ADD COLUMN IF NOT EXISTS runtimedata jsonb NOT NULL DEFAULT '\{\}'::jsonb/);
   assert.match(SESSIONDATA_TABLE_SQL, /sessionid uuid NOT NULL REFERENCES "session" \(sessionid\) ON DELETE CASCADE/);
   assert.match(SESSIONDATA_TABLE_SQL, /contents jsonb NOT NULL/);
@@ -128,45 +128,6 @@ test("createSession inserts uuid7-shaped ids and default title and mode", async 
   assert.equal(session.title, "");
   assert.equal(session.mode, "none");
   assert.equal(valuesSeen[0][1], "ndev");
-});
-
-test("updateSessionSlideWindow persists a bounded session window", async () => {
-  const queries: { text: string; values: unknown[] }[] = [];
-  const database: NDXDatabase = {
-    async query(text, values) {
-      queries.push({ text, values: values ?? [] });
-      return {
-        rows: [
-          {
-            sessionid: values?.[0],
-            userid: "ndev",
-            title: "",
-            mode: "none",
-            path: "/ndx/workspace",
-            projectname: "project-1",
-            model: modelConfig(),
-            isrunning: false,
-            turnphase: "idle",
-            interruptrequested: false,
-            interruptrequestedat: null,
-            interruptcompletedat: null,
-            slidewindow: values?.[1],
-            runtimedata: {},
-            lastupdated: new Date()
-          }
-        ],
-        rowCount: 1
-      } as never;
-    },
-    async close() {}
-  };
-
-  const session = await updateSessionSlideWindow(database, "018f0000-0000-7000-8000-000000000000", 12);
-
-  assert.equal(session.slidewindow, 12);
-  assert.equal(queries[0].values[1], 12);
-  assert.match(queries[0].text, /slidewindow = \$2/);
-  await assert.rejects(() => updateSessionSlideWindow(database, "018f0000-0000-7000-8000-000000000000", 31), /Invalid slidewindow/);
 });
 
 test("listSession selects sessions by owner and project newest first", async () => {
@@ -257,6 +218,55 @@ test("sessionSearchText indexes only user requests and final assistant messages"
   assert.equal(sessionSearchText({ type: "assistant", contents: { kind: "assistant_message", text: "최종 답변" } }), "최종 답변");
   assert.equal(sessionSearchText({ type: "assistant", contents: { kind: "assistant_delta", content: "중간" } }), undefined);
   assert.equal(sessionSearchText({ type: "assistant", contents: { kind: "tool_result", results: [] } }), undefined);
+});
+
+test("recordSessionSearchFromSessionData updates embeddings through the active database", async () => {
+  const userHome = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-sessionsearch-embedding-"));
+  await fs.mkdir(path.join(userHome, ".ndx"), { recursive: true });
+  await fs.writeFile(path.join(userHome, ".ndx", "settings.json"), JSON.stringify({
+    embeddings: {
+      provider: "local",
+      model: "embed-test",
+      url: "http://127.0.0.1:9999/v1"
+    }
+  }));
+  const originalFetch = globalThis.fetch;
+  let requestedUrl = "";
+  globalThis.fetch = (async (input: Parameters<typeof fetch>[0]) => {
+    requestedUrl = String(input);
+    return {
+      ok: true,
+      json: async () => ({ data: [{ embedding: Array.from({ length: 300 }, (_value, index) => index + 1) }] })
+    };
+  }) as unknown as typeof fetch;
+  const queries: { text: string; values: unknown[] }[] = [];
+  const database: NDXDatabase = {
+    async query(text, values) {
+      queries.push({ text, values: values ?? [] });
+      return { rows: [], rowCount: 1 } as never;
+    },
+    async close() {}
+  };
+
+  try {
+    await recordSessionSearchFromSessionData(database, {
+      dataid: "12",
+      sessionid: "018f0000-0000-7000-8000-000000000000",
+      type: "user",
+      contents: { kind: "user_message", text: "검색할 사용자 요청" },
+      createdat: new Date("2026-05-31T00:00:00.000Z")
+    }, userHome);
+    await waitFor(() => queries.some((query) => /UPDATE sessionsearch/.test(query.text)));
+
+    const update = queries.find((query) => /UPDATE sessionsearch/.test(query.text));
+    assert.equal(requestedUrl, "http://127.0.0.1:9999/v1/embeddings");
+    assert.equal(update?.values[0], "12");
+    assert.equal(String(update?.values[1]).replace(/^\[|\]$/g, "").split(",").length, 4096);
+    assert.equal(String(update?.values[2]).replace(/^\[|\]$/g, "").split(",").length, 256);
+  } finally {
+    globalThis.fetch = originalFetch;
+    await fs.rm(userHome, { recursive: true, force: true });
+  }
 });
 
 test("searchSessionHistory narrows by project before FTS ranking when embeddings are not configured", async () => {
@@ -675,7 +685,7 @@ test("session data model reconstruction exposes compact summaries as user histor
   ]);
 });
 
-test("session model context rows apply slidewindow without crossing the latest compact", () => {
+test("session model context rows start at latest compact without manual trimming", () => {
   const rows: NDXSessionDataRow[] = [
     { dataid: "1", sessionid: "018f0000-0000-7000-8000-000000000010", type: "user", contents: { kind: "user_message", text: "old request" }, createdat: new Date("2026-05-12T00:00:01.000Z") },
     { dataid: "2", sessionid: "018f0000-0000-7000-8000-000000000010", type: "assistant", contents: { kind: "assistant_message", text: "old answer" }, createdat: new Date("2026-05-12T00:00:02.000Z") },
@@ -687,9 +697,7 @@ test("session model context rows apply slidewindow without crossing the latest c
     { dataid: "20", sessionid: "018f0000-0000-7000-8000-000000000010", type: "user", contents: { kind: "user_message", text: "request 3" }, createdat: new Date("2026-05-12T00:00:20.000Z") }
   ];
 
-  assert.deepEqual(sessionDataRowsForModelContext(rows, 0).map((row) => row.dataid), ["3", "4", "5", "6", "10", "20"]);
-  assert.deepEqual(sessionDataRowsForModelContext(rows, 2).map((row) => row.dataid), ["3", "10", "20"]);
-  assert.deepEqual(sessionDataRowsForModelContext(rows, 4).map((row) => row.dataid), ["3", "4", "5", "6", "10", "20"]);
+  assert.deepEqual(sessionDataRowsForModelContext(rows).map((row) => row.dataid), ["3", "4", "5", "6", "10", "20"]);
 });
 
 test("session data model reconstruction preserves interrupted assistant text after tool iterations", () => {
@@ -865,10 +873,10 @@ test("runSessionTurn rebuilds tool continuation from sessiondata before the next
     assert.equal(modelInputs.length, 2);
     assert.ok(rows.some((row) => row.contents && typeof row.contents === "object" && (row.contents as { kind?: unknown }).kind === "tool_call"));
     assert.ok(rows.some((row) => row.contents && typeof row.contents === "object" && (row.contents as { kind?: unknown }).kind === "tool_result"));
-    assert.ok(Array.isArray(modelInputs[1]));
-    const secondInput = modelInputs[1] as Array<Record<string, unknown>>;
-    assert.ok(secondInput.some((item) => item.type === "function_call" && item.call_id === "call_echo_1"));
-    assert.ok(secondInput.some((item) => item.type === "function_call_output" && item.call_id === "call_echo_1" && item.output === "tool:abc"));
+    const secondInput = JSON.stringify(modelInputs[1]);
+    assert.match(secondInput, /assistant function_call echo_value \(call_echo_1\)/);
+    assert.match(secondInput, /tool result \(call_echo_1\)/);
+    assert.match(secondInput, /tool:abc/);
   } finally {
     if (previousWorkspace === undefined) delete process.env.NDX_CONTAINER_WORKSPACE;
     else process.env.NDX_CONTAINER_WORKSPACE = previousWorkspace;

@@ -1,4 +1,4 @@
-import { compactText, emitError, emitProgress, emitResult, readToolArguments, validateHttpUrl } from "../_lib/web.mjs";
+import { compactText, emitError, emitProgress, emitResult, emitSidebarItem, readToolArguments, safeHostname, validateHttpUrl } from "../_lib/web.mjs";
 
 const MAX_RESPONSE_BYTES = 10 * 1024 * 1024;
 const MAX_REDIRECTS = 10;
@@ -86,6 +86,13 @@ try {
   const start = performance.now();
   const fetched = await fetchWithPermittedRedirects(url);
   if (fetched.redirected) {
+    emitSidebarItem({
+      group: { id: "web-references", title: "웹 참조" },
+      key: `web-fetch:${fetched.redirectUrl}`,
+      title: safeHostname(fetched.redirectUrl) || fetched.redirectUrl,
+      body: `${fetched.status} · redirect · ${fetched.redirectUrl}`,
+      kind: "web_fetch"
+    });
     emitResult({
       url,
       status: fetched.status,
@@ -112,6 +119,13 @@ try {
   const readable = contentType.includes("text/html") ? normalizeHtml(raw) : raw;
   const truncated = readable.length > maxChars;
 
+  emitSidebarItem({
+    group: { id: "web-references", title: "웹 참조" },
+    key: `web-fetch:${response.url || url}`,
+    title: safeHostname(response.url || url) || response.url || url,
+    body: compactText([String(response.status), contentType.split(";")[0], `${buffer.length}B`, truncated ? "일부만 표시" : "", response.url || url].filter(Boolean).join(" · "), 180),
+    kind: "web_fetch"
+  });
   emitResult({
     url,
     finalUrl: response.url || url,

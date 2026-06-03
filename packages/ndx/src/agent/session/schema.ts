@@ -18,7 +18,6 @@ CREATE TABLE IF NOT EXISTS "session" (
   interruptrequested boolean NOT NULL DEFAULT false,
   interruptrequestedat timestamptz,
   interruptcompletedat timestamptz,
-  slidewindow integer NOT NULL DEFAULT 0 CHECK (slidewindow >= 0 AND slidewindow <= 30),
   runtimedata jsonb NOT NULL DEFAULT '{}'::jsonb
 );
 `;
@@ -28,7 +27,6 @@ ALTER TABLE "session" ADD COLUMN IF NOT EXISTS turnphase text NOT NULL DEFAULT '
 ALTER TABLE "session" ADD COLUMN IF NOT EXISTS interruptrequested boolean NOT NULL DEFAULT false;
 ALTER TABLE "session" ADD COLUMN IF NOT EXISTS interruptrequestedat timestamptz;
 	ALTER TABLE "session" ADD COLUMN IF NOT EXISTS interruptcompletedat timestamptz;
-	ALTER TABLE "session" ADD COLUMN IF NOT EXISTS slidewindow integer NOT NULL DEFAULT 0;
 	ALTER TABLE "session" ADD COLUMN IF NOT EXISTS runtimedata jsonb NOT NULL DEFAULT '{}'::jsonb;
 	ALTER TABLE "session" ADD COLUMN IF NOT EXISTS projectname text;
 	DO $$
@@ -69,17 +67,6 @@ ALTER TABLE "session" ADD COLUMN IF NOT EXISTS interruptrequestedat timestamptz;
 	ALTER TABLE "session" ALTER COLUMN projectname SET NOT NULL;
 	DO $$
 	BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_constraint
-    WHERE conname = 'session_slidewindow_range_check'
-      AND conrelid = '"session"'::regclass
-  ) THEN
-	    ALTER TABLE "session" ADD CONSTRAINT session_slidewindow_range_check CHECK (slidewindow >= 0 AND slidewindow <= 30);
-	  END IF;
-	END $$;
-	DO $$
-	BEGIN
 	  IF NOT EXISTS (
 	    SELECT 1
 	    FROM pg_constraint
@@ -96,6 +83,8 @@ ALTER TABLE "session" ADD COLUMN IF NOT EXISTS interruptrequestedat timestamptz;
 	  END IF;
 	END $$;
 	DROP INDEX IF EXISTS session_projectid_lastupdated_idx;
+	ALTER TABLE "session" DROP CONSTRAINT IF EXISTS session_slidewindow_range_check;
+	ALTER TABLE "session" DROP COLUMN IF EXISTS slidewindow;
 	ALTER TABLE "session" DROP COLUMN IF EXISTS path;
 	ALTER TABLE "session" DROP COLUMN IF EXISTS projectid;
 	`;

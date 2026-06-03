@@ -75,4 +75,15 @@ payload="$(
   if [ "$total_count" -gt "$match_count" ]; then printf 'true'; else printf 'false'; fi
   printf '}'
 )"
+sidebar_body="$(printf '%s개 매치' "$match_count")"
+sidebar_item="$(
+  printf '{"group":{"id":"text-searches","title":"텍스트 검색"},"key":'
+  printf '%s' "grep-search:$pattern:${NDX_TOOL_CALL_ID:-}" | json_quote
+  printf ',"title":'
+  printf '%s' "$pattern" | json_quote
+  printf ',"body":'
+  printf '%s' "$sidebar_body" | json_quote
+  printf ',"kind":"grep_search"}'
+)"
+emit_sidebar_item_json "$sidebar_item"
 emit_result_json "$payload"

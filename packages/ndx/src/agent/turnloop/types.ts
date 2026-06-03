@@ -1,16 +1,15 @@
 import type { NDXContextUsage } from "../contextusage/index.js";
 import type { NDXCompactReport } from "../compact/index.js";
-import type { NDXHookCompactEffect, NDXHookRuntime } from "../hook/index.js";
+import type { NDXHookCompactEffect, NDXHookRuntime, NDXModelRequestPrefixDrift } from "../hook/index.js";
 import type { NDXAgentRuntimeSettings } from "../runtime-settings/index.js";
 import type { NDXModelConfig, NDXSessionDataRow, NDXSessionRow } from "../session/types.js";
 import type { NDXResolvedTool, NDXToolExecutionResult, NDXToolProcessEvent } from "../tool/types.js";
 import type { NDXSessionClientBridge } from "../tool/types.js";
-import type { NDXCotWorkContents, NDXSessionAttachmentReference, NDX_TURN_EVENT } from "../../common/protocol/index.js";
+import type { NDXCotWorkContents, NDXSessionAttachmentReference, NDXSidebarItem, NDX_TURN_EVENT } from "../../common/protocol/index.js";
 import type { NDXAgentLanguage, NDXAgentResourceResolver } from "../../common/resource/index.js";
 import type { ModelResponse, ResponseInputItem } from "ndx/common/responseapi";
-import type { NDXModelRequestPrefixDrift } from "./base/prefix/index.js";
 import type { NDXTurnMessageParts } from "./base/context/index.js";
-import type { NDXCotWorkTimingTracker } from "./base/cot-work/index.js";
+import type { NDXCotWorkTimingTracker } from "../tool/base/cot_work/timing.js";
 import type { NDXTurnInterruptScope } from "./base/interrupt/index.js";
 
 export type NDXTurnInput = {
@@ -34,6 +33,7 @@ export type NDXTurnLoopEvent =
   | { type: typeof NDX_TURN_EVENT.ToolBatchStarted; iteration: number; toolCalls: unknown[]; contextUsage: NDXContextUsage }
   | { type: typeof NDX_TURN_EVENT.ToolProgress; status: "started"; iteration: number; tool: string; callId?: string; args: Record<string, unknown>; startedAt: string; contextUsage: NDXContextUsage }
   | { type: typeof NDX_TURN_EVENT.ToolProgress; status: "progress"; iteration: number; tool: string; callId?: string; event: NDXToolProcessEvent; receivedAt: string; contextUsage: NDXContextUsage }
+  | { type: typeof NDX_TURN_EVENT.SidebarItem; iteration: number; tool: string; callId?: string; item: NDXSidebarItem; contextUsage: NDXContextUsage }
   | { type: typeof NDX_TURN_EVENT.CotWork; iteration: number; tool: string; callId?: string; contents: NDXCotWorkContents; contextUsage: NDXContextUsage }
   | { type: typeof NDX_TURN_EVENT.ToolProgress; status: "cancelled" | "timeout"; iteration: number; tool: string; callId?: string; phase: string; signal?: NodeJS.Signals | null; receivedAt: string; contextUsage: NDXContextUsage }
   | { type: typeof NDX_TURN_EVENT.ToolProgress; status: "finished"; iteration: number; result: NDXToolExecutionResult; contextUsage: NDXContextUsage }

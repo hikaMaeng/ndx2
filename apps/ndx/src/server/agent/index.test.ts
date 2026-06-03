@@ -9,8 +9,10 @@ import express from "express";
 import request from "supertest";
 import WebSocket from "ws";
 import { acquireAgentServerInstanceLock, attachSessionRoutes, attachSessionSocketServer } from "./index.js";
+import { sessionSidebarItemSocketMessage } from "./connection.js";
 import { sendJson } from "./sendJson.js";
 import type { NDXDatabase } from "ndx/agent";
+import { NDX_SESSION_SIDEBAR_ITEM, NDX_TURN_EVENT } from "ndx/common";
 
 process.env.NDX_CONTAINER_ROOT = os.tmpdir();
 process.env.NDX_ROOT = os.tmpdir();
@@ -51,7 +53,6 @@ function createDatabaseWithSessionInsert(): NDXDatabase {
               projectname: values?.[4],
               model: JSON.parse(String(values?.[5])),
               isrunning: false,
-              slidewindow: 0,
               lastupdated: new Date("2026-05-12T00:00:00.000Z")
             }
           ],
@@ -84,7 +85,6 @@ function createDatabaseWithSessionInsert(): NDXDatabase {
 
 function createDatabaseWithExistingSession(input: { projectName: string; sessionid: string }): NDXDatabase {
   const tokens = new Map<string, { sessionid: string; createdat: Date }>();
-  let slidewindow = 0;
   return {
     async query(text, values) {
       if (/FROM users/i.test(text)) {
@@ -105,7 +105,6 @@ function createDatabaseWithExistingSession(input: { projectName: string; session
               projectname: input.projectName,
               model: { type: "openai", model: "qwen3.6-35b.mm", url: "", token: "", contextsize: 100_000 },
               isrunning: false,
-              slidewindow,
               lastupdated: new Date("2026-05-12T00:00:00.000Z")
             }
           ],
@@ -144,31 +143,6 @@ function createDatabaseWithExistingSession(input: { projectName: string; session
             }]
             : [],
           rowCount: token ? 1 : 0
-        } as never;
-      }
-
-      if (/UPDATE "session"/i.test(text) && /slidewindow = \$2/i.test(text)) {
-        slidewindow = Number(values?.[1]);
-        return {
-          rows: [
-            {
-              sessionid: values?.[0],
-              userid: "ndev",
-              title: "기존 세션",
-              mode: "none",
-              projectname: input.projectName,
-              model: { type: "openai", model: "qwen3.6-35b.mm", url: "", token: "", contextsize: 100_000 },
-              isrunning: false,
-              turnphase: "idle",
-              interruptrequested: false,
-              interruptrequestedat: null,
-              interruptcompletedat: null,
-              slidewindow,
-              runtimedata: {},
-              lastupdated: new Date("2026-05-12T00:00:01.000Z")
-            }
-          ],
-          rowCount: 1
         } as never;
       }
 
@@ -484,8 +458,9 @@ test("session websocket lists skills for the negotiated project", async () => {
     socket.send(JSON.stringify({ type: "session.skill.list" }));
     await waitForMessages(messages, 6);
 
-    const result = JSON.parse(messages[5].toString()) as { type: string; skills: Array<{ name: string; description: string; scope: string }> };
+    const result = JSON.parse(messages[5].toString()) as { type: string; projectName: string; skills: Array<{ name: string; description: string; scope: string }> };
     assert.equal(result.type, "session.skill.list.result");
+    assert.equal(result.projectName, projectName);
     assert.deepEqual(result.skills, [{ name: "demo", description: "demo skill", scope: "repo" }]);
 
     socket.terminate();
@@ -494,6 +469,32 @@ test("session websocket lists skills for the negotiated project", async () => {
     await closeServer(server);
     await fs.rm(projectPath, { recursive: true, force: true });
   }
+});
+
+test("session sidebar turn events map to dedicated socket messages", () => {
+  const message = sessionSidebarItemSocketMessage(
+    { sessionid: "session-1" },
+    {
+      type: NDX_TURN_EVENT.SidebarItem,
+      iteration: 2,
+      tool: "loadSkill",
+      callId: "call-1",
+      item: {
+        group: { id: "skills", title: "스킬" },
+        key: "skill:demo:/project/.ndx/skills/demo/SKILL.md",
+        title: "demo",
+        body: "/project/.ndx/skills/demo/SKILL.md",
+        kind: "skill"
+      },
+      contextUsage: { tokens: 0, messageTokens: 0, toolDefinitionTokens: 0, percent: 0, contextsize: 0 }
+    }
+  );
+
+  assert.equal(message.type, NDX_SESSION_SIDEBAR_ITEM);
+  assert.equal(message.sessionid, "session-1");
+  assert.equal(message.tool, "loadSkill");
+  assert.equal(message.callId, "call-1");
+  assert.deepEqual(message.item.group, { id: "skills", title: "스킬" });
 });
 
 test("session websocket creates a new session for the explicit project in the create message", async () => {
@@ -625,15 +626,6 @@ test("session websocket attaches an existing session and issues a connection tok
     assert.equal(attached.userid, "ndev");
     assert.equal(attached.projectName, projectName);
 
-    socket.send(JSON.stringify({ type: "session.slidewindow.update", connectionToken: attached.connectionToken, slidewindow: 12 }));
-    await waitForMessages(messages, 4);
-    const updated = JSON.parse(messages[2].toString()) as { type: string; sessionid: string; slidewindow: number };
-    const changed = JSON.parse(messages[3].toString()) as { type: string; projectname: string };
-    assert.equal(updated.type, "session.slidewindow.updated");
-    assert.equal(updated.sessionid, sessionid);
-    assert.equal(updated.slidewindow, 12);
-    assert.equal(changed.type, "session.list.changed");
-    assert.equal(changed.projectname, projectName);
     await assertNoProjectIdFile(projectPath);
 
     socket.terminate();

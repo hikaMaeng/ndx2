@@ -23,15 +23,16 @@ fi
 
 emit_progress "reading file"
 file_title="$(basename "$file_path")"
-printf '{"type":"progress","message":'
-printf '%s' "\${SIDEBAR_ITEM} $file_title" | json_quote
-printf ',"data":{"sidebarItem":{"group":{"id":"file-references","title":"파일참조"},"key":'
-printf '%s' "file-reference:$file_path" | json_quote
-printf ',"title":'
-printf '%s' "$file_title" | json_quote
-printf ',"body":'
-printf '%s' "$file_path" | json_quote
-printf ',"kind":"file_reference"}}}\n'
+sidebar_item="$(
+  printf '{"group":{"id":"file-references","title":"파일참조"},"key":'
+  printf '%s' "file-reference:$file_path" | json_quote
+  printf ',"title":'
+  printf '%s' "$file_title" | json_quote
+  printf ',"body":'
+  printf '%s' "$file_path" | json_quote
+  printf ',"kind":"file_reference"}'
+)"
+emit_sidebar_item_json "$sidebar_item"
 line_count="$(awk 'END { print NR + 0 }' "$file_path")"
 content_file="$(mktemp)"
 trap 'rm -f "$content_file"' EXIT

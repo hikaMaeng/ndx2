@@ -28,7 +28,6 @@ export function turnFlowFromSummary(summary: NDXSessionTurnSummary): TurnFlowSta
     collapsed: true,
     createdAt: summary.createdat,
     updatedAt: summary.updatedat,
-    sidebarItems: [],
     batches: summary.iterations.map((iteration) => emptyBatch(summary, iteration, true))
   };
 }
@@ -48,7 +47,7 @@ export function mergeRestoredTurnFlows(current: TurnFlowState[], summaries: NDXS
     return {
       ...existing,
       title: next.title || existing.title,
-      status: restoredIsNewer ? next.status : existing.status,
+      status: restoredIsNewer ? mergeTurnStatus(existing.status, next.status) : existing.status,
       createdAt: next.createdAt,
       updatedAt: restoredIsNewer ? next.updatedAt : existing.updatedAt,
       batches: next.batches.length > 0
@@ -68,7 +67,7 @@ export function mergeTurnSummary(turns: TurnFlowState[], summary: NDXSessionTurn
   const nextTurn = existing ? {
     ...existing,
     title: summary.title,
-    status: summary.status,
+    status: mergeTurnStatus(existing.status, summary.status),
     updatedAt: summary.updatedat,
     batches: summary.iterations.map((iteration) => {
       const current = existing.batches.find((batch) => batch.iteration === iteration.iteration);
@@ -78,6 +77,13 @@ export function mergeTurnSummary(turns: TurnFlowState[], summary: NDXSessionTurn
   return turns.some((turn) => turn.inputDataId === summary.inputDataId)
     ? turns.map((turn) => turn.inputDataId === summary.inputDataId ? nextTurn : turn)
     : [...turns, nextTurn];
+}
+
+function mergeTurnStatus(current: TurnFlowState["status"], incoming: TurnFlowState["status"]): TurnFlowState["status"] {
+  if (current !== "running" && incoming === "running") {
+    return current;
+  }
+  return incoming;
 }
 
 export function applyIterationDetail(turns: TurnFlowState[], detail: NDXSessionIterationDetailResultMessage): TurnFlowState[] {

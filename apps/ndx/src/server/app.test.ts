@@ -13,7 +13,7 @@ test("GET /health returns agent health", async () => {
   assert.deepEqual(response.body, {
     status: "ok",
     service: "ndx",
-    version: "0.2.1",
+    version: "0.2.2",
     packageName: "ndx",
     surface: "agent"
   });
@@ -25,7 +25,7 @@ test("GET /api/health returns agent health", async () => {
   assert.deepEqual(response.body, {
     status: "ok",
     service: "ndx",
-    version: "0.2.1",
+    version: "0.2.2",
     packageName: "ndx",
     surface: "agent"
   });
@@ -68,7 +68,7 @@ test("GET /api/agent returns agent metadata for the web client", async () => {
 
   assert.deepEqual(response.body, {
     service: "agent",
-    version: "0.2.1",
+    version: "0.2.2",
     surface: "agent",
     session: {
       path: "/session",

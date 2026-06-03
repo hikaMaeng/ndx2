@@ -14,6 +14,16 @@ emit_debug() {
   printf '}\n'
 }
 
+emit_agentcall() {
+  printf '[[ndx-agentcall:%s]]\n' "$1"
+}
+
+emit_sidebar_item_json() {
+  local payload
+  payload="$(printf '{"type":"ndx.agentcall","name":"session.sidebar_item","input":%s}' "$1")"
+  emit_agentcall "$payload"
+}
+
 emit_result_json() {
   printf '{"type":"result","success":true,"output":%s}\n' "$1"
 }

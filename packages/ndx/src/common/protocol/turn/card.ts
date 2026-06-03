@@ -7,6 +7,10 @@ export type NDXSidebarItem = {
     id: string;
     title: string;
   };
+  subgroup?: {
+    id: string;
+    title: string;
+  };
   key?: string;
   title: string;
   body?: string;
@@ -93,6 +97,7 @@ function parseSidebarItemPayload(data: unknown): NDXSidebarItem | undefined {
 
   const item = payload.sidebarItem as {
     group?: unknown;
+    subgroup?: unknown;
     groupId?: unknown;
     groupTitle?: unknown;
     category?: unknown;
@@ -104,6 +109,9 @@ function parseSidebarItemPayload(data: unknown): NDXSidebarItem | undefined {
   };
   const group = item.group && typeof item.group === "object" && !Array.isArray(item.group)
     ? item.group as { id?: unknown; title?: unknown }
+    : undefined;
+  const subgroup = item.subgroup && typeof item.subgroup === "object" && !Array.isArray(item.subgroup)
+    ? item.subgroup as { id?: unknown; title?: unknown }
     : undefined;
   const groupId = typeof group?.id === "string" && group.id.trim().length > 0
     ? group.id
@@ -125,6 +133,9 @@ function parseSidebarItemPayload(data: unknown): NDXSidebarItem | undefined {
       : groupId;
   return {
     group: { id: groupId, title: groupTitle },
+    ...(typeof subgroup?.id === "string" && subgroup.id.trim().length > 0 && typeof subgroup.title === "string" && subgroup.title.trim().length > 0
+      ? { subgroup: { id: subgroup.id.trim(), title: subgroup.title.trim() } }
+      : {}),
     ...(typeof item.key === "string" && item.key.trim().length > 0 ? { key: item.key } : {}),
     title,
     ...(typeof item.body === "string" && item.body.trim().length > 0 ? { body: item.body } : {}),

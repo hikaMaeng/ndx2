@@ -11,7 +11,6 @@ import {
   NDX_SESSION_CLIENT_REQUEST_CLOSED,
   NDX_SESSION_CLIENT_RESPONSE,
   NDX_SESSION_RENAME,
-  NDX_SESSION_SLIDEWINDOW_UPDATE,
   NDX_SESSION_TURN_DETAIL,
   NDX_SIDEBAR_ITEM,
   NDX_TURNCARD_ARTIFACT,
@@ -28,7 +27,6 @@ import {
   isNDXSessionIterationDetailMessage,
   isNDXSessionClientResponseMessage,
   isNDXSessionRenameMessage,
-  isNDXSessionSlideWindowUpdateMessage,
   isNDXSessionTurnDetailMessage,
   parseNDXSidebarItem,
   parseNDXTurnCardItem
@@ -225,33 +223,6 @@ test("session rename requires session ownership fields and accepts an empty titl
   );
 });
 
-test("session slidewindow update requires a connection token and a 0-30 integer", () => {
-  assert.equal(
-    isNDXSessionSlideWindowUpdateMessage({
-      type: NDX_SESSION_SLIDEWINDOW_UPDATE,
-      connectionToken: "token-1",
-      slidewindow: 30
-    }),
-    true
-  );
-  assert.equal(
-    isNDXSessionSlideWindowUpdateMessage({
-      type: NDX_SESSION_SLIDEWINDOW_UPDATE,
-      connectionToken: "token-1",
-      slidewindow: 31
-    }),
-    false
-  );
-  assert.equal(
-    isNDXSessionSlideWindowUpdateMessage({
-      type: NDX_SESSION_SLIDEWINDOW_UPDATE,
-      connectionToken: "",
-      slidewindow: 0
-    }),
-    false
-  );
-});
-
 test("session staged history requests require connection token and target ids", () => {
   assert.equal(isNDXSessionHistorySummaryMessage({ type: NDX_SESSION_HISTORY_SUMMARY, connectionToken: "token-1" }), true);
   assert.equal(isNDXSessionHistorySummaryMessage({ type: NDX_SESSION_HISTORY_SUMMARY, connectionToken: "" }), false);
@@ -292,6 +263,7 @@ test("sidebar item parser accepts one-level grouped sidebar payloads", () => {
     parseNDXSidebarItem(`${NDX_SIDEBAR_ITEM} changed file`, {
       sidebarItem: {
         group: { id: "changed-files", title: "변경 파일" },
+        subgroup: { id: "folder:/project/src", title: "src" },
         key: "changed-file:/project/src/a.ts",
         title: "a.ts",
         body: "/project/src/a.ts",
@@ -300,6 +272,7 @@ test("sidebar item parser accepts one-level grouped sidebar payloads", () => {
     }),
     {
       group: { id: "changed-files", title: "변경 파일" },
+      subgroup: { id: "folder:/project/src", title: "src" },
       key: "changed-file:/project/src/a.ts",
       title: "a.ts",
       body: "/project/src/a.ts",

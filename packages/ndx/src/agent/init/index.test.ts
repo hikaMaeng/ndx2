@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
+import { promises as fs } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 import { DEFAULT_NDX_USERID, DEFAULT_USER_RECORD_SQL, USERS_TABLE_SQL, initAccountDatabase } from "../account/index.js";
 import { SESSION_TABLE_SQL, initSessionDatabase } from "../session/index.js";
 import { initSessionTokenDatabase } from "../session-token/index.js";
 import { initWebClientStateDatabase } from "../../webclient/server/client-state/index.js";
-import type { NDXDatabase } from "./index.js";
+import { seedServerAssets, type NDXDatabase } from "./index.js";
 
 test("server database initialization creates the default account before session storage", async () => {
   const queries: { text: string; values: unknown[] }[] = [];
@@ -25,4 +28,23 @@ test("server database initialization creates the default account before session 
   assert.equal(queries[1].text, DEFAULT_USER_RECORD_SQL);
   assert.deepEqual(queries[1].values, [DEFAULT_NDX_USERID]);
   assert.equal(queries[2].text, SESSION_TABLE_SQL);
+});
+
+test("server asset seeding copies registered system skills from base tool owners", async () => {
+  const userHome = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-init-assets-"));
+  await fs.mkdir(path.join(userHome, ".ndx", "system", "skills", "cot_solve"), { recursive: true });
+  await fs.writeFile(path.join(userHome, ".ndx", "system", "skills", "cot_solve", "SKILL.md"), "stale prompt\n", "utf8");
+
+  await seedServerAssets(userHome);
+
+  const cotSkill = await fs.readFile(path.join(userHome, ".ndx", "system", "skills", "cot_solve", "SKILL.md"), "utf8");
+  const askUserSkill = await fs.readFile(path.join(userHome, ".ndx", "system", "skills", "ask_user_question", "SKILL.md"), "utf8");
+  const promptRewriteSkill = await fs.readFile(path.join(userHome, ".ndx", "system", "skills", "prompt_rewrite", "SKILL.md"), "utf8");
+  const sessionHistorySkill = await fs.readFile(path.join(userHome, ".ndx", "system", "skills", "session_history", "SKILL.md"), "utf8");
+
+  assert.match(cotSkill, /name: cot-solve/);
+  assert.doesNotMatch(cotSkill, /stale prompt/);
+  assert.match(askUserSkill, /name: ask-user-question/);
+  assert.match(promptRewriteSkill, /name: prompt_rewrite/);
+  assert.match(sessionHistorySkill, /name: session-history/);
 });

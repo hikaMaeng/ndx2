@@ -1,12 +1,12 @@
 # 컨텍스트 조립
 
-NDX의 컨텍스트 조립은 `packages/ndx/src/agent/context`와 `packages/ndx/src/agent/turnloop/messages.ts`가 함께 담당한다. 목표는 모든 model request가 같은 stable prelude에서 시작하고, PostgreSQL history가 append-only 순서로 붙도록 만드는 것이다.
+NDX의 컨텍스트 조립은 `packages/ndx/src/agent/context`와 `packages/ndx/src/agent/turnloop/base/context/index.ts`가 함께 담당한다. 목표는 모든 model request가 같은 stable prelude에서 시작하고, PostgreSQL history가 append-only 순서로 붙도록 만드는 것이다.
 
 ## context parts
 
 | part | 코드 | 모델 역할 |
 | --- | --- | --- |
-| developer | `buildContextParts().developer` | model instruction, permission, developer instruction, skills/plugins/apps, personality, collaboration mode. |
+| developer | `buildContextParts().developer` | model instruction, developer instruction, skills/plugins. |
 | userInstructions | `buildUserInstructions` | AGENTS.md, project/user instruction, repository-local guidance. |
 | environment | `buildEnvironmentContext` | `cwd`, shell, date/timezone 같은 stable environment context. |
 | history | `sessionDataRowsToModelMessages` | PostgreSQL `sessiondata`에서 온 ordered history. |
@@ -21,9 +21,7 @@ NDX의 컨텍스트 조립은 `packages/ndx/src/agent/context`와 `packages/ndx/
 | source | 설명 |
 | --- | --- |
 | model instruction | 모델별 instruction resolver가 만든 기본 지침. |
-| permission instruction | 도구/파일/권한 관련 runtime policy. |
 | developer instruction | NDX agent personality와 작업 방식. |
-| memory tool instruction | memory tool이 있을 때의 사용 규칙. |
 | available skills | 현재 user/project/runtime에서 발견된 skill 요약. |
 | available plugins | 사용 가능한 plugin 안내. |
 | user instructions | AGENTS.md와 사용자/프로젝트 지침. |
@@ -39,7 +37,7 @@ NDX의 컨텍스트 조립은 `packages/ndx/src/agent/context`와 `packages/ndx/
 | 파일 | 위험 |
 | --- | --- |
 | `packages/ndx/src/agent/context/index.ts` | developer/user/environment prelude 순서 변경. |
-| `packages/ndx/src/agent/turnloop/messages.ts` | model request message order 변경. |
+| `packages/ndx/src/agent/turnloop/base/context/index.ts` | model request message order 변경. |
 | `packages/ndx/src/agent/session/sessionDataRowsToModelMessages.ts` | durable history serialization 변경. |
 | `packages/ndx/src/agent/hook/turn.context.prepared/*` | inline attachment와 reminder append 위치 변경. |
 

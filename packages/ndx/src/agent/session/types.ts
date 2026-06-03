@@ -27,7 +27,6 @@ export type NDXSessionRow = {
   interruptrequested: boolean;
   interruptrequestedat: Date | null;
   interruptcompletedat: Date | null;
-  slidewindow?: number;
   runtimedata?: Record<string, unknown>;
 };
 

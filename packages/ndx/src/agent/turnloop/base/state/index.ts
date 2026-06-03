@@ -30,7 +30,7 @@ export function requireActiveTurnState(state: NDXTurnPipelineState): asserts sta
 }
 
 export async function refreshCurrentMessageParts(state: NDXActiveTurnPipelineState) {
-  const historyRows = await listSessionDataForModelContext(state.database, state.runningSession.sessionid, state.runningSession.slidewindow);
+  const historyRows = await listSessionDataForModelContext(state.database, state.runningSession.sessionid);
   const inlineAttachmentDataIds = await listInlineAttachmentDataIds(state.database, state.runningSession.sessionid);
   state.currentMessageParts = {
     ...state.messageParts,

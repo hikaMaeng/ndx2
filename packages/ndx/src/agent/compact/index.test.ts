@@ -16,7 +16,7 @@ test("sessionDataRowsFromLatestCompact keeps only the latest compact row and fol
   assert.deepEqual(sessionDataRowsFromLatestCompact(rows).map((item) => item.dataid), ["4", "5"]);
 });
 
-test("sessionDataRowsForModelContext keeps compact summary when slide window trims later turns", () => {
+test("sessionDataRowsForModelContext keeps compact summary and following rows", () => {
   const rows: NDXSessionDataRow[] = [
     row("1", "compact", { kind: "compact", text: "summary", sourceRowCount: 4, createdReason: "limit" }),
     row("2", "user", { kind: "user_message", text: "one" }),
@@ -24,7 +24,7 @@ test("sessionDataRowsForModelContext keeps compact summary when slide window tri
     row("4", "user", { kind: "user_message", text: "two" })
   ];
 
-  assert.deepEqual(sessionDataRowsForModelContext(rows, 1).map((item) => item.dataid), ["1", "4"]);
+  assert.deepEqual(sessionDataRowsForModelContext(rows).map((item) => item.dataid), ["1", "2", "3", "4"]);
 });
 
 test("sessionDataRowsForModelContext drops skill context before latest compact", () => {
@@ -67,14 +67,14 @@ test("compactSessionHistory uses supplied model context rows as compact source r
   ];
   const database = memorySessionDataDatabase(rows);
   const compact = await compactSessionHistory(database, session(), compactReport(), modelWithoutProvider(), {
-    contextRows: sessionDataRowsForModelContext(rows, 1)
+    contextRows: sessionDataRowsForModelContext(rows)
   });
 
   assert.equal(compact.previousCompact?.dataid, "1");
-  assert.deepEqual(compact.sourceRows.map((item) => item.dataid), ["4"]);
-  assert.equal((compact.row.contents as { sourceStartDataId?: string }).sourceStartDataId, "4");
+  assert.deepEqual(compact.sourceRows.map((item) => item.dataid), ["2", "3", "4"]);
+  assert.equal((compact.row.contents as { sourceStartDataId?: string }).sourceStartDataId, "2");
   assert.equal((compact.row.contents as { sourceEndDataId?: string }).sourceEndDataId, "4");
-  assert.equal((compact.row.contents as { sourceRowCount?: number }).sourceRowCount, 1);
+  assert.equal((compact.row.contents as { sourceRowCount?: number }).sourceRowCount, 3);
 });
 
 test("compactSessionHistory default source rows still start after latest compact", async () => {
@@ -113,8 +113,7 @@ function session(): NDXSessionRow {
     turnphase: "idle",
     interruptrequested: false,
     interruptrequestedat: null,
-    interruptcompletedat: null,
-    slidewindow: 0
+    interruptcompletedat: null
   };
 }
 

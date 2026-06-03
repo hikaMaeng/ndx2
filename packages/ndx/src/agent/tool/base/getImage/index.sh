@@ -29,6 +29,16 @@ case "${image_name,,}" in
 esac
 
 image_size="$(stat -c '%s' "$image_path")"
+sidebar_item="$(
+  printf '{"group":{"id":"images","title":"이미지"},"key":'
+  printf '%s' "image:$image_path" | json_quote
+  printf ',"title":'
+  printf '%s' "$image_name" | json_quote
+  printf ',"body":'
+  printf '%s' "$image_path" | json_quote
+  printf ',"kind":"get_image"}'
+)"
+emit_sidebar_item_json "$sidebar_item"
 
 printf '{"type":"result","success":true,"output":'
 printf 'Image loaded and queued as tool-generated user input: %s' "$image_name" | json_quote

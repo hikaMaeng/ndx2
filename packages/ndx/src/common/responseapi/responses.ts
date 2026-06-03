@@ -1,9 +1,28 @@
 export type ResponseOutputEvent = {
   signal?: AbortSignal;
+  onRequestPrepared?: (request: ResponsePreparedRequest) => Promise<void>;
   onText?: (delta: string, content: string, interrupt: ResponseStreamInterrupt) => Promise<void>;
   onReasoning?: (summary: string, content: string, interrupt: ResponseStreamInterrupt) => Promise<void>;
   onToolCall?: (toolCall: unknown, interrupt: ResponseStreamInterrupt) => Promise<void>;
   onDebug?: (event: string, context: Record<string, unknown>) => Promise<void>;
+};
+
+export type ResponsePreparedRequest = {
+  endpoint: string;
+  model: string;
+  inputMode: "text" | "array";
+  inputType: "string" | "array" | string;
+  inputItemCount?: number;
+  inputTextLength?: number;
+  inputSerializedLength: number;
+  inputSha256: string;
+  inputPreview: string;
+  toolCount: number;
+  stream: true;
+  attempt: number;
+  inputBodyIndex: number;
+  maxAttempts: number;
+  requestTimeoutMs: number;
 };
 
 export type ResponseStreamInterrupt = (reason?: string | Error) => Promise<never>;

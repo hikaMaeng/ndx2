@@ -15,7 +15,7 @@ import { NDX_TURN_EVENT } from "../../../common/protocol/index.js";
 import { beginTurnInterruptScope } from "../base/interrupt/index.js";
 import { buildTurnBaseMessageParts, buildTurnMessagesFromParts } from "../base/context/index.js";
 import { compactTurnContext } from "../base/compact/index.js";
-import { createCotWorkTimingTracker } from "../base/cot-work/index.js";
+import { createCotWorkTimingTracker } from "../../tool/base/cot_work/timing.js";
 import { attachContextUsageMeasurement, runTurnEndForState } from "../base/state/index.js";
 import { handleTurnFailure } from "../base/failure/index.js";
 import { prepareBeforeLoop } from "../before-loop/index.js";
@@ -74,7 +74,7 @@ export async function handleUserRequest(
     state.availableTools = await listAvailableTools({ userHome: state.userHome, projectHome: state.projectHome });
     state.modelTools = toolSchemas(state.availableTools);
 
-    const preInputRows = await listSessionDataForModelContext(database, state.runningSession.sessionid, state.runningSession.slidewindow);
+    const preInputRows = await listSessionDataForModelContext(database, state.runningSession.sessionid);
     const preInputMessages = buildTurnMessagesFromParts({
       ...state.messageParts,
       historyRows: preInputRows,

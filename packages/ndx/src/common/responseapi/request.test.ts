@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { Agent } from "undici";
-import { DEFAULT_MODEL_REQUEST_TIMEOUT_MS, requestModelResponse } from "./request.js";
+import { clearResponseInputCompatibilityCache, DEFAULT_MODEL_REQUEST_TIMEOUT_MS, requestModelResponse } from "./request.js";
 import type { ResponseInputItem } from "./responses.js";
 
 test("requestModelResponse sends text input first for tool continuation payloads", async () => {
@@ -100,10 +100,12 @@ test("requestModelResponse sends attachment paths as base64 data URLs", async ()
 });
 
 test("requestModelResponse keeps attachments encoded when falling back to text input", async () => {
+  clearResponseInputCompatibilityCache();
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-response-fallback-"));
   const imagePath = path.join(directory, "sample.png");
   await fs.writeFile(imagePath, Buffer.from([1, 2, 3]));
   const requests: unknown[] = [];
+  const debugEvents: Array<{ event: string; context: Record<string, unknown> }> = [];
   const server = http.createServer((request, response) => {
     let body = "";
     request.on("data", (chunk) => {
@@ -132,7 +134,13 @@ test("requestModelResponse keeps attachments encoded when falling back to text i
   try {
     const response = await requestModelResponse(
       { model: "test-model", url: `http://127.0.0.1:${address.port}/v1`, token: "" },
-      [{ role: "user", content: [{ type: "input_text", text: "이미지를 봐" }, { type: "input_image", file_path: imagePath, mime_type: "image/png" }] }]
+      [{ role: "user", content: [{ type: "input_text", text: "이미지를 봐" }, { type: "input_image", file_path: imagePath, mime_type: "image/png" }] }],
+      [],
+      {
+        async onDebug(event, context) {
+          debugEvents.push({ event, context });
+        }
+      }
     );
 
     assert.equal(response.content, "fallback image ok");
@@ -142,6 +150,27 @@ test("requestModelResponse keeps attachments encoded when falling back to text i
     assert.match(String(fallbackInput), /data:image\/png;base64,AQID/);
     assert.doesNotMatch(String(fallbackInput), /file_path/);
     assert.doesNotMatch(String(fallbackInput), new RegExp(imagePath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    const fallbackEvent = debugEvents.find((entry) => entry.event === "responseapi.request.input_fallback");
+    assert.equal(fallbackEvent?.context.prefixCacheRisk, true);
+    assert.equal(fallbackEvent?.context.fromInputType, "array");
+    assert.equal(fallbackEvent?.context.toInputType, "string");
+    assert.equal(typeof fallbackEvent?.context.fromInputSha256, "string");
+    assert.equal(typeof fallbackEvent?.context.toInputSha256, "string");
+    await requestModelResponse(
+      { model: "test-model", url: `http://127.0.0.1:${address.port}/v1`, token: "" },
+      [{ role: "user", content: [{ type: "input_text", text: "이미지를 다시 봐" }, { type: "input_image", file_path: imagePath, mime_type: "image/png" }] }],
+      [],
+      {
+        async onDebug(event, context) {
+          debugEvents.push({ event, context });
+        }
+      }
+    );
+    assert.equal(requests.length, 3);
+    assert.equal(typeof (requests[2] as { input?: unknown }).input, "string");
+    const suppressedEvent = debugEvents.find((entry) => entry.event === "responseapi.request.input_mode_suppressed");
+    assert.equal(suppressedEvent?.context.inputMode, "array");
+    assert.equal(suppressedEvent?.context.prefixCacheRiskAvoided, true);
   } finally {
     server.close();
     await once(server, "close");

@@ -21,7 +21,7 @@ export async function buildTurnMessages(database: NDXDatabase, runningSession: N
 
 export async function buildTurnMessageParts(database: NDXDatabase, runningSession: NDXSessionRow): Promise<NDXTurnMessageParts> {
   const parts = await buildTurnBaseMessageParts(runningSession);
-  const historyRows = await listSessionDataForModelContext(database, runningSession.sessionid, runningSession.slidewindow);
+  const historyRows = await listSessionDataForModelContext(database, runningSession.sessionid);
   const inlineAttachmentDataIds = await listInlineAttachmentDataIds(database, runningSession.sessionid);
   return {
     ...parts,

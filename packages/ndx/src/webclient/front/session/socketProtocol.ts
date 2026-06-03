@@ -10,7 +10,6 @@ import {
   NDX_SESSION_ITERATION_DETAIL,
   NDX_SESSION_CLIENT_RESPONSE,
   NDX_SESSION_SKILL_LIST,
-  NDX_SESSION_SLIDEWINDOW_UPDATE,
   NDX_SESSION_TURN_DETAIL,
   type NDXAccountSelectMessage,
   type NDXAccountSelectionRequiredMessage,
@@ -25,7 +24,6 @@ import {
   type NDXSessionModelConfig,
   type NDXSessionReadyMessage,
   type NDXSessionSkillListMessage,
-  type NDXSessionSlideWindowUpdateMessage,
   type NDXSessionTurnDetailMessage
 } from "ndx/common/protocol";
 import type { NDXWebClientProject, NDXWebClientStateDocument } from "ndx/webclient/common";
@@ -85,10 +83,6 @@ export function sessionInterruptMessage(connectionToken: string, language: NDXWe
 
 export function sessionSkillListMessage(connectionToken: string | undefined, language: NDXWebClientStateDocument["locale"]): NDXSessionSkillListMessage {
   return { type: NDX_SESSION_SKILL_LIST, ...(connectionToken ? { connectionToken } : {}), language };
-}
-
-export function sessionSlideWindowUpdateMessage(connectionToken: string, slidewindow: number, language: NDXWebClientStateDocument["locale"]): NDXSessionSlideWindowUpdateMessage {
-  return { type: NDX_SESSION_SLIDEWINDOW_UPDATE, connectionToken, slidewindow, language };
 }
 
 export function sessionHistorySummaryMessage(connectionToken: string, language: NDXWebClientStateDocument["locale"]): NDXSessionHistorySummaryMessage {

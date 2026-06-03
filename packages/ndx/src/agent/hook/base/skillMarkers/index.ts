@@ -2,6 +2,7 @@ import { NDX_TURN_EVENT } from "../../../../common/protocol/index.js";
 import { appendSessionData } from "../../../session/appendSessionData.js";
 import { skillContextContents } from "../../../session/content.js";
 import { executeToolCalls } from "../../../tool/index.js";
+import { NDX_SIDEBAR_ITEM_AGENTCALL_NAME } from "../../../tool/execute/agentcall/index.js";
 import type { NDXHookCodeExecutor, NDXHookEffect } from "../../index.js";
 import type { NDXModelMessage } from "../../../session/types.js";
 import type { NDXToolRuntimeTurnContext } from "../../../tool/types.js";
@@ -38,6 +39,7 @@ export const skillMarkerHook: NDXHookCodeExecutor = {
         sessionid: context.session.sessionid,
         allowedToolNames: ["loadSkill"],
         denyToolResultEffects: true,
+        agentCallHandlers: { [NDX_SIDEBAR_ITEM_AGENTCALL_NAME]: () => undefined },
         turnContext: turnContextFromMessages(context.messages ?? [])
       });
       if (!result?.success) {

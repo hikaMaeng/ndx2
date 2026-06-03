@@ -27,4 +27,27 @@ payload="$(
   printf '%s' "$file_path" | json_quote
   printf ',"bytes":%s}' "$bytes"
 )"
+file_dir="$(dirname "$file_path")"
+if [ "$file_dir" = "$project_home" ]; then
+  subgroup_title="."
+elif [[ "$file_dir" == "$project_home/"* ]]; then
+  subgroup_title="${file_dir#"$project_home/"}"
+else
+  subgroup_title="$file_dir"
+fi
+sidebar_item="$(
+  printf '{"group":{"id":"changed-files","title":"변경 파일"},"key":'
+  printf '%s' "changed-file:$file_path" | json_quote
+  printf ',"subgroup":{"id":'
+  printf '%s' "folder:$file_dir" | json_quote
+  printf ',"title":'
+  printf '%s' "$subgroup_title" | json_quote
+  printf '}'
+  printf ',"title":'
+  printf '%s' "$(basename "$file_path")" | json_quote
+  printf ',"body":'
+  printf '%s' "$file_path" | json_quote
+  printf ',"kind":"write_file"}'
+)"
+emit_sidebar_item_json "$sidebar_item"
 emit_result_json "$payload"

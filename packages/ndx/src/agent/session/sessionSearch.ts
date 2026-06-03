@@ -1,4 +1,3 @@
-import { spawn } from "node:child_process";
 import { readAgentRuntimeSettings, type NDXAgentRuntimeSettings } from "../runtime-settings/index.js";
 import { serverContainerUserHome, serverWorkspaceProjectPath } from "../../common/server-path/index.js";
 import type { NDXDatabase, NDXSessionDataRow } from "./types.js";
@@ -79,7 +78,12 @@ SET
     [row.dataid, row.sessionid, row.type, row.createdat, text]
   );
 
-  void launchSessionSearchEmbedding(database, row.dataid, text, userHome);
+  void launchSessionSearchEmbedding(database, row.dataid, text, userHome).catch((error: unknown) => {
+    database.logger?.warn("agent.server.session_search.embedding.failed", {
+      dataid: String(row.dataid),
+      error: error instanceof Error ? error.message : String(error)
+    });
+  });
 }
 
 export function sessionSearchText(row: Pick<NDXSessionDataRow, "type" | "contents">): string | undefined {
@@ -145,26 +149,15 @@ async function launchSessionSearchEmbedding(database: NDXDatabase, dataid: strin
   if (!settings.embeddings) {
     return;
   }
-  const databaseUrl = process.env.NDX_DATABASE_URL;
-  if (!databaseUrl) {
-    database.logger?.debug("agent.server.session_search.embedding.skipped", {
-      dataid: String(dataid),
-      reason: "NDX_DATABASE_URL is not set"
-    });
-    return;
-  }
-  const child = spawn(process.execPath, ["-e", SESSION_SEARCH_EMBEDDING_WORKER], {
-    stdio: "ignore",
-    detached: true,
-    env: {
-      ...process.env,
-      NDX_DATABASE_URL: databaseUrl,
-      NDX_SESSIONSEARCH_DATAID: String(dataid),
-      NDX_SESSIONSEARCH_TEXT: text,
-      NDX_SESSIONSEARCH_EMBEDDINGS: JSON.stringify(settings.embeddings)
-    }
-  });
-  child.unref();
+  const vector = await embedSessionSearchText(settings.embeddings, text);
+  await database.query(
+    `
+UPDATE sessionsearch
+SET embedding = $2::vector(4096), hnsw = $3::vector(256)
+WHERE dataid = $1;
+`,
+    [dataid, embeddingVectorLiteral(vector), hnswVectorLiteral(vector)]
+  );
 }
 
 async function selectSessionHistoryRows(
@@ -335,35 +328,6 @@ function hnswVectorLiteral(vector: number[]): string {
   return `[${padHnswVector(vector).map((value) => Number.isFinite(value) ? String(value) : "0").join(",")}]`;
 }
 
-const SESSION_SEARCH_EMBEDDING_WORKER = `
-const { Client } = await import("pg");
-const dataid = process.env.NDX_SESSIONSEARCH_DATAID;
-const text = process.env.NDX_SESSIONSEARCH_TEXT || "";
-const settings = JSON.parse(process.env.NDX_SESSIONSEARCH_EMBEDDINGS || "{}");
-const endpoint = (() => {
-  const base = settings.url || process.env.NDX_EMBEDDINGS_URL || (settings.provider === "openai" ? "https://api.openai.com/v1" : "http://127.0.0.1:11434/v1");
-  const url = new URL(base);
-  const pathname = url.pathname.replace(/\\/$/, "");
-  url.pathname = pathname.endsWith("/embeddings") ? pathname : pathname + "/embeddings";
-  return url.toString();
-})();
-const response = await fetch(endpoint, {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    ...(settings.token ? { Authorization: "Bearer " + settings.token } : {})
-  },
-  body: JSON.stringify({ model: settings.model, input: text })
-});
-if (!response.ok) process.exit(0);
-const payload = await response.json();
-const raw = Array.isArray(payload.data) ? payload.data[0]?.embedding : payload.embedding;
-if (!Array.isArray(raw)) process.exit(0);
-const vector = raw.slice(0, 4096).map((value) => Number.isFinite(value) ? Number(value) : 0);
-while (vector.length < 4096) vector.push(0);
-const hnsw = vector.slice(0, 256);
-const client = new Client({ connectionString: process.env.NDX_DATABASE_URL });
-await client.connect();
-await client.query("UPDATE sessionsearch SET embedding = $2::vector(4096), hnsw = $3::vector(256) WHERE dataid = $1", [dataid, "[" + vector.join(",") + "]", "[" + hnsw.join(",") + "]"]);
-await client.end();
-`;
+function embeddingVectorLiteral(vector: number[]): string {
+  return `[${padEmbeddingVector(vector).map((value) => Number.isFinite(value) ? String(value) : "0").join(",")}]`;
+}

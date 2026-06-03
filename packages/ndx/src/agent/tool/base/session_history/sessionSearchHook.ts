@@ -1,7 +1,7 @@
 import { NDX_TURN_EVENT } from "../../../../common/protocol/index.js";
 import { recordSessionSearchFromSessionData } from "../../../session/sessionSearch.js";
 import type { NDXSessionDataRow } from "../../../session/types.js";
-import type { NDXHookCodeExecutor, NDXHookContext, NDXHookEffect } from "../../index.js";
+import type { NDXHookCodeExecutor, NDXHookContext, NDXHookEffect } from "../../../hook/index.js";
 
 export type NDXSessionSearchHookInsertionEvent = typeof NDX_TURN_EVENT.TurnEnd;
 

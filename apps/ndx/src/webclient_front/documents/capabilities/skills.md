@@ -8,7 +8,7 @@
 | --- | --- |
 | repository-local | `.codex/skills/<skill>/SKILL.md` |
 | scaffolded assets | `packages/ndx/src/agent/init/assets/skills` |
-| system assets | `packages/ndx/src/agent/init/assets/system/skills` |
+| tool-coupled system assets | `packages/ndx/src/agent/tool/base/<tool>/systemSkill` |
 | project runtime | `<projectHome>/.ndx/skills` |
 | user runtime | `<userHome>/.ndx/skills` |
 

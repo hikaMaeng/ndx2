@@ -1,5 +1,5 @@
 import { createSessionUiState, type SessionUiState, type TurnFlowState } from "ndx/webclient/front";
-import type { NDXSessionIterationSummary } from "ndx/common/protocol";
+import type { NDXSessionIterationSummary, NDXSessionSkillSummary } from "ndx/common/protocol";
 import type { NDXAgentWebSession, NDXWebClientProject, NDXWebClientStateDocument } from "ndx/webclient/common";
 import { SessionSurface } from "./SessionSurface";
 
@@ -21,13 +21,13 @@ type SessionSurfacesProps = {
   onRightSidebarScroll: (key: string, scrollTop: number) => void;
   onRightSidebarWidthChange: (key: string, width: number) => void;
   onSkillListRefresh: () => void;
-  onSlideWindowChange: (key: string, value: number) => void;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
   onToggleRightSidebar: (key: string) => void;
   onTurnToggle: (turn: TurnFlowState, open: boolean) => void;
   sessionError: string;
   sessionsByProject: Record<string, NDXAgentWebSession[]>;
   sessionUiByKey: Record<string, SessionUiState>;
+  skillsByProject: Record<string, NDXSessionSkillSummary[]>;
   surfaceKeys: string[];
   t: Record<string, string>;
 };
@@ -50,13 +50,13 @@ export function SessionSurfaces({
   onRightSidebarScroll,
   onRightSidebarWidthChange,
   onSkillListRefresh,
-  onSlideWindowChange,
   onSubmit,
   onToggleRightSidebar,
   onTurnToggle,
   sessionError,
   sessionsByProject,
   sessionUiByKey,
+  skillsByProject,
   surfaceKeys,
   t
 }: SessionSurfacesProps) {
@@ -72,7 +72,7 @@ export function SessionSurfaces({
       <SessionSurface
         key={key}
         surfaceKey={key}
-        ui={ui}
+        ui={project && ui.availableSkills.length === 0 && skillsByProject[project.projectName] ? { ...ui, availableSkills: skillsByProject[project.projectName] } : ui}
         session={session}
         project={project}
         isActive={key === activeUiKey}
@@ -92,7 +92,6 @@ export function SessionSurfaces({
         onRemoveAttachment={onRemoveAttachment}
         onModelClick={() => onModelClick(key)}
         onSkillListRefresh={onSkillListRefresh}
-        onSlideWindowChange={(value) => onSlideWindowChange(key, value)}
         onSubmit={onSubmit}
         onRightSidebarWidthChange={(width) => onRightSidebarWidthChange(key, width)}
         onRightSidebarScroll={(scrollTop) => onRightSidebarScroll(key, scrollTop)}

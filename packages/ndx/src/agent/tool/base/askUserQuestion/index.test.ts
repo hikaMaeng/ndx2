@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { executeToolCalls, listAvailableTools } from "./index.js";
+import { executeToolCalls, listAvailableTools } from "../../index.js";
 
 test("askUserQuestion is exposed as a builtin function tool", async () => {
   const tools = await listAvailableTools();

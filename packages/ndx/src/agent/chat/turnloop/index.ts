@@ -5,8 +5,9 @@ import { calculateDetailedContextUsage } from "../../contextusage/index.js";
 import { assistantDeltaContents, assistantMessageContents, assistantReasoningContents, errorContents, toolCallContents, toolResultContents, userMessageContents } from "../../session/content.js";
 import type { NDXToolResultContents } from "../../session/index.js";
 import { createCotWorkAgentCallHandler, NDX_COT_WORK_AGENTCALL_NAME } from "../../tool/base/cot_work/agentCall.js";
+import { createSidebarItemAgentCallHandler, NDX_SIDEBAR_ITEM_AGENTCALL_NAME } from "../../tool/execute/agentcall/index.js";
 import { executeToolCalls, listAvailableTools, summarizeToolName, toolSchemas } from "../../tool/index.js";
-import { createCotWorkTimingTracker } from "../../turnloop/cotWorkTiming.js";
+import { createCotWorkTimingTracker } from "../../tool/base/cot_work/timing.js";
 import type { NDXTurnInput, NDXTurnLoopEvents } from "../../turnloop/index.js";
 import { NDX_CHAT_ALLOWED_TOOL_NAMES } from "../tool/policy.js";
 import { buildChatTurnBaseMessageParts, buildChatTurnMessagesFromParts, chatSessionDataRowsToModelMessages, chatSessionDataRowsToSessionDataRows } from "../context/index.js";
@@ -117,6 +118,16 @@ export async function runChatSessionTurn(
           }
         },
         agentCallHandlers: {
+          [NDX_SIDEBAR_ITEM_AGENTCALL_NAME]: createSidebarItemAgentCallHandler(async (item, context) => {
+            await events.onEvent?.({
+              type: NDX_TURN_EVENT.SidebarItem,
+              iteration,
+              tool: context.tool,
+              callId: context.callId,
+              item,
+              contextUsage: turnContextUsage()
+            });
+          }),
           [NDX_COT_WORK_AGENTCALL_NAME]: createCotWorkAgentCallHandler(async (contents, context) => {
             const timedContents = cotWorkTiming.update(contents);
             await appendChatSessionData(database, runningSession.chatsessionid, "assistant", timedContents);

@@ -40,6 +40,7 @@
 | `apps/ndx/src/webclient_front/session/area` | main session surface selection. |
 | `apps/ndx/src/webclient_front/session/askUserQuestion` | interactive browser request dialog and protocol conversion. |
 | `apps/ndx/src/webclient_front/session/components` | session message, composer, landing, status, context UI. |
+| `apps/ndx/src/webclient_front/session/cotWork` | cot work overlay composition. |
 | `apps/ndx/src/webclient_front/session/hooks` | session UI/request/socket controllers. |
 | `apps/ndx/src/webclient_front/session/modals` | model and session title dialogs. |
 | `apps/ndx/src/webclient_front/session/rightsidebar` | session right sidebar resources. |
@@ -64,18 +65,11 @@
 | `packages/ndx/src/agent/chat/turnloop` | chat turn loop. |
 | `packages/ndx/src/agent/compact` | durable context compaction and model-window row selection. |
 | `packages/ndx/src/agent/context` | developer/user/environment prompt prelude assembly. |
-| `packages/ndx/src/agent/context/appsInstructions` | apps instruction text. |
 | `packages/ndx/src/agent/context/availablePluginsInstructions` | plugin instruction rendering. |
 | `packages/ndx/src/agent/context/availableSkillsInstructions` | skill discovery and context budget rendering. |
-| `packages/ndx/src/agent/context/collaborationModeInstructions` | collaboration mode instruction text. |
-| `packages/ndx/src/agent/context/commitAttributionInstruction` | commit attribution instruction text. |
 | `packages/ndx/src/agent/context/developerInstructions` | stable developer instruction builder. |
 | `packages/ndx/src/agent/context/environmentContext` | stable environment context prelude. |
-| `packages/ndx/src/agent/context/memoryToolInstructions` | memory tool instruction text. |
 | `packages/ndx/src/agent/context/modelInstrcution` | model-specific instruction resolver. |
-| `packages/ndx/src/agent/context/permission` | permission instruction text. |
-| `packages/ndx/src/agent/context/personalitySpecInstructions` | personality instruction text. |
-| `packages/ndx/src/agent/context/realtimeUpdate` | realtime update instruction text. |
 | `packages/ndx/src/agent/context/userInstructions` | project/user instruction collection. |
 | `packages/ndx/src/agent/contextusage` | context window accounting. |
 | `packages/ndx/src/agent/hook` | hook runtime and system hook plan. |
@@ -84,6 +78,7 @@
 | `packages/ndx/src/agent/hook/turn.model.responding` | streaming model response hooks. |
 | `packages/ndx/src/agent/hook/turn.request.received` | request-received hooks. |
 | `packages/ndx/src/agent/hook/turn.end` | final turn post-processing hooks. |
+| `packages/ndx/src/agent/hook/turn.model.request` | pre-model request diagnostics and effects. |
 | `packages/ndx/src/agent/hook/turn.tool.called` | pre-tool execution hook. |
 | `packages/ndx/src/agent/hook/turn.tool.results.collected` | tool-result hook and loop detection. |
 | `packages/ndx/src/agent/init` | runtime initialization and bundled assets. |

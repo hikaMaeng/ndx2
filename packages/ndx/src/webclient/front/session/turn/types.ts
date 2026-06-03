@@ -1,5 +1,4 @@
 import type { NDXSessionEventMessage } from "ndx/common/protocol";
-import type { NDXSidebarItem } from "ndx/common/protocol";
 
 export type TurnToolState = {
   key: string;
@@ -33,7 +32,6 @@ export type TurnFlowState = {
   collapsed: boolean;
   createdAt: string;
   updatedAt: string;
-  sidebarItems: NDXSidebarItem[];
   batches: TurnBatchState[];
 };
 

@@ -7,6 +7,7 @@ import {
   NDX_SESSION_EVENT,
   NDX_SESSION_LIST_CHANGED,
   NDX_SESSION_RENAMED,
+  NDX_SESSION_SIDEBAR_ITEM,
   NDX_TURN_EVENT,
   NDX_AGENT_RESOURCE,
   createNDXAgentResourceResolver,
@@ -21,14 +22,12 @@ import {
   isNDXSessionInterruptMessage,
   isNDXSessionClientResponseMessage,
   isNDXSessionRenameMessage,
-  isNDXSessionSlideWindowUpdateMessage,
   isNDXSessionSkillListMessage,
   isNDXSessionTurnDetailMessage,
   NDX_SESSION_CLIENT_REQUEST,
-  NDX_SESSION_CLIENT_REQUEST_CLOSED,
-  NDX_SESSION_SLIDEWINDOW_UPDATED
+  NDX_SESSION_CLIENT_REQUEST_CLOSED
 } from "ndx/common";
-import type { NDXAskUserQuestionRequest, NDXAskUserQuestionResponse, NDXSessionAttachMessage, NDXSessionCreateMessage, NDXSessionDeleteMessage, NDXSessionRenameMessage, NDXSessionSkillListMessage, NDXSessionSlideWindowUpdateMessage } from "ndx/common/protocol";
+import type { NDXAskUserQuestionRequest, NDXAskUserQuestionResponse, NDXSessionAttachMessage, NDXSessionCreateMessage, NDXSessionDeleteMessage, NDXSessionRenameMessage, NDXSessionSidebarItemMessage, NDXSessionSkillListMessage } from "ndx/common/protocol";
 import {
 	  appendSessionData,
 	  createSession,
@@ -43,12 +42,12 @@ import {
   requestRuntimeTurnInterrupt,
   requestSessionInterrupt,
   assertModelSupportsAttachments,
-  updateSessionSlideWindow,
   updateSessionTitle,
   writeSessionAttachments,
   type NDXDatabase,
   type NDXModelConfig,
   type NDXSessionRow,
+  type NDXTurnLoopEvent,
   runAgentTurn
 } from "ndx/agent";
 import type { NDXLogger } from "ndx/common";
@@ -147,11 +146,6 @@ async function handleSessionMessage(
       return;
     }
     pending.finish(message.response, hasAskUserQuestionAnswers(message.response) ? "answered" : "cancelled");
-    return;
-  }
-
-  if (isNDXSessionSlideWindowUpdateMessage(message)) {
-    await updateSessionSlideWindowFromSocket(client, message, connectedClients, database, logger, resource);
     return;
   }
 
@@ -333,6 +327,9 @@ async function handleSessionMessage(
             createdat: new Date().toISOString(),
             contextUsage: event.contextUsage
           });
+        }
+        if (event.type === NDX_TURN_EVENT.SidebarItem) {
+          await sendJson(client, sessionSidebarItemSocketMessage(session, event));
         }
         if (event.type === NDX_TURN_EVENT.CotWork) {
           await sendJson(client, {
@@ -591,6 +588,20 @@ async function handleSessionMessage(
   await sendJson(client, { type: NDX_PROTOCOL_ERROR, error: resource(NDX_AGENT_RESOURCE.PROTOCOL_UNSUPPORTED_SESSION_MESSAGE_ERROR, { language }) });
 }
 
+export function sessionSidebarItemSocketMessage(
+  session: Pick<NDXSessionRow, "sessionid">,
+  event: Extract<NDXTurnLoopEvent, { type: typeof NDX_TURN_EVENT.SidebarItem }>
+): NDXSessionSidebarItemMessage {
+  return {
+    type: NDX_SESSION_SIDEBAR_ITEM,
+    sessionid: session.sessionid,
+    item: event.item,
+    tool: event.tool,
+    callId: event.callId,
+    createdat: new Date().toISOString()
+  };
+}
+
 async function requestSessionClientQuestion(
   connectedClients: Map<string, SessionClientState>,
   sessionid: string,
@@ -723,6 +734,7 @@ async function sendSkillListFromSocket(
   const skills = await loadSkills({ userHome: serverContainerUserHome(), projectHome, cwd: projectHome });
   await sendJson(client, {
     type: "session.skill.list.result",
+    projectName,
     skills: skills.map((skill) => ({
       name: skill.name,
       description: skill.description,
@@ -764,46 +776,6 @@ async function renameSessionFromSocket(
   } catch (error) {
     logger?.warn("agent.socket.protocol.session_rename.failed", { clientid: client.clientid, sessionid: message.sessionid, error });
     await sendJson(client, { type: NDX_PROTOCOL_ERROR, error: error instanceof Error ? error.message : resource(NDX_AGENT_RESOURCE.PROTOCOL_SESSION_RENAME_FAILED_ERROR, { language: client.language }) });
-  }
-}
-
-async function updateSessionSlideWindowFromSocket(
-  client: SessionClientState,
-  message: NDXSessionSlideWindowUpdateMessage,
-  connectedClients: Map<string, SessionClientState>,
-  database: NDXDatabase,
-  logger?: NDXLogger,
-  resource: NDXAgentResourceResolver = createNDXAgentResourceResolver()
-) {
-  logger?.info("agent.socket.protocol.session_slidewindow.update.start", {
-    clientid: client.clientid,
-    connectionToken: message.connectionToken,
-    slidewindow: message.slidewindow
-  });
-  const grant = await requireConnectionTokenGrant(client, message.connectionToken, database, logger, resource);
-  if (!grant) {
-    return;
-  }
-
-  try {
-    const updated = await updateSessionSlideWindow(database, grant.sessionid, message.slidewindow);
-    await sendJson(client, {
-      type: NDX_SESSION_SLIDEWINDOW_UPDATED,
-      sessionid: updated.sessionid,
-      userid: updated.userid,
-      projectname: updated.projectname,
-      lastupdated: updated.lastupdated.toISOString(),
-      slidewindow: updated.slidewindow
-    });
-    await broadcastSessionListChanged(connectedClients, updated.userid, updated.projectname, logger);
-    logger?.info("agent.socket.protocol.session_slidewindow.update.complete", {
-      clientid: client.clientid,
-      sessionid: updated.sessionid,
-      slidewindow: updated.slidewindow
-    });
-  } catch (error) {
-    logger?.warn("agent.socket.protocol.session_slidewindow.update.failed", { clientid: client.clientid, sessionid: grant.sessionid, error });
-    await sendJson(client, { type: NDX_PROTOCOL_ERROR, error: error instanceof Error ? error.message : resource(NDX_AGENT_RESOURCE.PROTOCOL_UNSUPPORTED_SESSION_MESSAGE_ERROR, { language: client.language }) });
   }
 }
 
@@ -953,7 +925,6 @@ function defaultModelConfig(): NDXModelConfig {
 function toSocketSession(session: NDXSessionRow) {
   return {
     ...session,
-    slidewindow: session.slidewindow ?? 0,
     lastupdated: session.lastupdated.toISOString(),
     interruptrequestedat: session.interruptrequestedat?.toISOString() ?? null,
     interruptcompletedat: session.interruptcompletedat?.toISOString() ?? null

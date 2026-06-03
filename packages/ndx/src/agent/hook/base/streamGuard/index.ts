@@ -1,13 +1,14 @@
 import { NDX_TURN_EVENT } from "../../../../common/protocol/index.js";
+import { readAgentRuntimeSettings } from "../../../runtime-settings/index.js";
 import type { NDXHookCodeExecutor, NDXHookEffect } from "../../index.js";
 
 export type NDXStreamGuardHookInsertionEvent = typeof NDX_TURN_EVENT.ModelResponding;
 
-const MAX_REASONING_CHARS = 24_000;
+const MAX_REASONING_CHARS = 240_000;
 
 type StreamGuardState = {
-  textChars: number;
-  maxReasoningChars: number;
+  maxReasoningObservedChars: number;
+  maxReasoningAllowedChars: number;
 };
 
 const streamGuardState = new Map<string, StreamGuardState>();
@@ -16,38 +17,45 @@ export const modelResponseStreamGuardHook: NDXHookCodeExecutor = {
   kind: "code",
   name: "system.turn.model.responding.stream_guard",
   source: "system",
-  run(context): NDXHookEffect {
+  async run(context): Promise<NDXHookEffect> {
     if (!context.modelResponse || typeof context.iteration !== "number") {
       return { type: "noeffect" };
     }
 
     const key = `${context.session.sessionid}:${context.iteration}`;
-    const state = streamGuardState.get(key) ?? { textChars: 0, maxReasoningChars: 0 };
     if (context.modelResponse.type === "tool_call") {
       streamGuardState.delete(key);
       return { type: "noeffect" };
     }
     if (context.modelResponse.type === "text") {
-      state.textChars = Math.max(state.textChars, context.modelResponse.content.length);
-    }
-    if (context.modelResponse.type === "reasoning") {
-      state.textChars = Math.max(state.textChars, context.modelResponse.content.length);
-      state.maxReasoningChars = Math.max(state.maxReasoningChars, context.modelResponse.summary.length);
-    }
-
-    if (context.modelResponse.type !== "reasoning" || state.textChars > 0) {
       streamGuardState.delete(key);
       return { type: "noeffect" };
     }
+
+    if (context.modelResponse.content.length > 0) {
+      streamGuardState.delete(key);
+      return { type: "noeffect" };
+    }
+    const existingState = streamGuardState.get(key);
+    const state = existingState ?? {
+      maxReasoningObservedChars: 0,
+      maxReasoningAllowedChars: await readMaxReasoningAllowedChars(context.userHome)
+    };
+    state.maxReasoningObservedChars = Math.max(state.maxReasoningObservedChars, context.modelResponse.summary.length);
     streamGuardState.set(key, state);
 
-    if (state.maxReasoningChars > MAX_REASONING_CHARS) {
+    if (state.maxReasoningObservedChars > state.maxReasoningAllowedChars) {
       streamGuardState.delete(key);
-      return interruptEffect(`model response reasoning exceeded ${MAX_REASONING_CHARS} characters before producing output.`);
+      return interruptEffect(`model response reasoning exceeded ${state.maxReasoningAllowedChars} characters before producing output.`);
     }
     return { type: "noeffect" };
   }
 };
+
+async function readMaxReasoningAllowedChars(userHome: string): Promise<number> {
+  const settings = await readAgentRuntimeSettings(userHome);
+  return settings.hooks?.StreamGuard?.MAX_REASONING_LENGTH ?? MAX_REASONING_CHARS;
+}
 
 function interruptEffect(reason: string): NDXHookEffect {
   return {

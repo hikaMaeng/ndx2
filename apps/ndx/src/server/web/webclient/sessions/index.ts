@@ -257,8 +257,7 @@ function requestLanguage(request: express.Request) {
 function toWebSession(session: NDXSessionRow): NDXAgentWebSession {
   return {
     ...session,
-    lastupdated: session.lastupdated.toISOString(),
-    slidewindow: session.slidewindow ?? 0
+    lastupdated: session.lastupdated.toISOString()
   };
 }
 

@@ -1,5 +1,6 @@
 import { searchSessionHistory } from "../../../session/sessionSearch.js";
 import { failedWithoutProcess } from "../../execute/process.js";
+import { NDX_SIDEBAR_ITEM_AGENTCALL_NAME } from "../../execute/agentcall/index.js";
 import type { NDXToolExecutionOptions, NDXToolExecutionResult } from "../../types.js";
 import type { NDXSessionHistoryScope } from "../../../session/index.js";
 
@@ -64,6 +65,13 @@ export async function executeSessionHistoryTool(
     limit: typeof args.limit === "number" && Number.isInteger(args.limit) ? args.limit : undefined,
     userHome: options.userHome
   });
+  await options.agentCallHandlers?.[NDX_SIDEBAR_ITEM_AGENTCALL_NAME]?.({
+    group: { id: "session-references", title: "세션 참조" },
+    key: `session-history:${typeof args.query === "string" && args.query.trim() ? args.query.trim() : "recent"}:${callId ?? NDX_SESSION_HISTORY_TOOL_NAME}`,
+    title: typeof args.query === "string" && args.query.trim() ? `세션 검색: ${args.query.trim()}` : "최근 세션 참조",
+    body: `${Array.isArray(result.results) ? result.results.length : 0}개 결과`,
+    kind: "session_history"
+  }, { tool: NDX_SESSION_HISTORY_TOOL_NAME, callId, sessionid: options.sessionid });
   const output = JSON.stringify(result);
   return {
     tool: NDX_SESSION_HISTORY_TOOL_NAME,

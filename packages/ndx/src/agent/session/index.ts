@@ -34,7 +34,7 @@ export { listSessionData } from "./listSessionData.js";
 export { addInlineAttachmentDataIds, consumeInlineAttachmentDataIds, listInlineAttachmentDataIds } from "./runtimeData.js";
 export { runSessionTurn, sessionDataRowsToModelMessages } from "./runSessionTurn.js";
 export { sessionDataRowsToModelMessages as sessionRowsToModelMessages } from "./sessionDataRowsToModelMessages.js";
-export { updateSessionEndTurn, updateSessionSlideWindow, updateSessionStartTurn, updateSessionTitle } from "./updateSession.js";
+export { updateSessionEndTurn, updateSessionStartTurn, updateSessionTitle } from "./updateSession.js";
 export {
   NDX_SESSION_SEARCH_EMBEDDING_DIMENSIONS,
   NDX_SESSION_SEARCH_HNSW_DIMENSIONS,

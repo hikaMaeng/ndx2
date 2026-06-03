@@ -185,7 +185,6 @@ export type NDXAgentWebSession = {
   path: string;
   model: NDXAgentWebModelConfig;
   isrunning: boolean;
-  slidewindow: number;
 };
 
 export type NDXAgentWebSessionsResponse = {

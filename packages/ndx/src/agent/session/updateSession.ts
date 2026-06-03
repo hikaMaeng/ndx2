@@ -14,7 +14,7 @@ SET
   interruptrequestedat = NULL,
   interruptcompletedat = NULL
 WHERE sessionid = $1
-RETURNING sessionid, userid, title, lastupdated, mode, projectname, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, slidewindow, runtimedata;
+RETURNING sessionid, userid, title, lastupdated, mode, projectname, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, runtimedata;
 `,
     [sessionid, model ? JSON.stringify(model) : null]
   );
@@ -38,7 +38,7 @@ SET
   turnphase = 'idle',
   lastupdated = now()
 WHERE sessionid = $1
-RETURNING sessionid, userid, title, lastupdated, mode, projectname, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, slidewindow, runtimedata;
+RETURNING sessionid, userid, title, lastupdated, mode, projectname, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, runtimedata;
 `,
     [sessionid]
   );
@@ -61,7 +61,7 @@ SET
   title = $2,
   lastupdated = now()
 WHERE sessionid = $1
-RETURNING sessionid, userid, title, lastupdated, mode, projectname, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, slidewindow, runtimedata;
+RETURNING sessionid, userid, title, lastupdated, mode, projectname, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, runtimedata;
 `,
     [sessionid, title]
   );
@@ -72,32 +72,5 @@ RETURNING sessionid, userid, title, lastupdated, mode, projectname, model, isrun
   }
 
   database.logger?.info("agent.server.session.title.update_complete", { sessionid });
-  return withSessionProjectPath(result.rows[0]);
-}
-
-export async function updateSessionSlideWindow(database: NDXDatabase, sessionid: string, slidewindow: number): Promise<NDXSessionRow> {
-  if (!Number.isInteger(slidewindow) || slidewindow < 0 || slidewindow > 30) {
-    throw new Error(`Invalid slidewindow: ${slidewindow}`);
-  }
-
-  database.logger?.info("agent.server.session.slidewindow.update", { sessionid, slidewindow });
-  const result = await database.query<NDXSessionRow>(
-    `
-UPDATE "session"
-SET
-  slidewindow = $2,
-  lastupdated = now()
-WHERE sessionid = $1
-RETURNING sessionid, userid, title, lastupdated, mode, projectname, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, slidewindow, runtimedata;
-`,
-    [sessionid, slidewindow]
-  );
-
-  if (!result.rows[0]) {
-    database.logger?.warn("agent.server.session.slidewindow.update_missing", { sessionid });
-    throw new Error(`Session not found: ${sessionid}`);
-  }
-
-  database.logger?.info("agent.server.session.slidewindow.update_complete", { sessionid, slidewindow });
   return withSessionProjectPath(result.rows[0]);
 }

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildTurnMessagesFromParts } from "./messages.js";
+import { buildTurnMessagesFromParts } from "./index.js";
 import type { ResponseInputItem } from "ndx/common/responseapi";
 
 test("turn message assembly keeps prior request as the next request prefix for append-only history", () => {

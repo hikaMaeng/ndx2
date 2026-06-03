@@ -9,8 +9,8 @@ import type { NDXContextUsage } from "../contextusage/index.js";
 import type { NDXDatabase, NDXSessionDataRow, NDXSessionRow } from "../session/types.js";
 import type { NDXResolvedTool, NDXToolExecutionResult } from "../tool/types.js";
 import type { NDXAgentLanguage, NDXAgentResourceResolver } from "../../common/resource/index.js";
-import type { NDXModelRequestPrefixDrift } from "../turnloop/base/prefix/index.js";
-import type { ResponseInputItem } from "ndx/common/responseapi";
+import type { NDXModelRequestPrefixDrift } from "./base/prefixDrift/index.js";
+import type { ResponseInputItem, ResponsePreparedRequest } from "ndx/common/responseapi";
 
 export const NDX_HOOK_EVENT_NAMES = [
   NDX_TURN_EVENT.RequestReceived,
@@ -45,6 +45,8 @@ export type NDXHookContext = {
   iteration?: number;
   messages?: ResponseInputItem[];
   previousModelRequestMessages?: ResponseInputItem[];
+  modelRequest?: ResponsePreparedRequest;
+  previousModelRequest?: ResponsePreparedRequest;
   sessionDataRows?: NDXSessionDataRow[];
   availableTools?: NDXResolvedTool[];
   modelTools?: Record<string, unknown>[];
@@ -104,6 +106,8 @@ export type NDXHookPlan = Partial<Record<NDXHookEventName, NDXHookExecutor[]>>;
 export type NDXHookRuntime = {
   plan: NDXHookPlan;
 };
+
+export type { NDXModelRequestPrefixDrift } from "./base/prefixDrift/index.js";
 
 export type NDXModelRespondingContext =
   | {
@@ -387,6 +391,8 @@ function hookProcessArguments(context: NDXHookContext): Record<string, unknown> 
       iteration: context.iteration,
       messages: context.messages,
       previousModelRequestMessages: context.previousModelRequestMessages,
+      modelRequest: context.modelRequest,
+      previousModelRequest: context.previousModelRequest,
       availableTools: context.availableTools,
       modelTools: context.modelTools,
       contextUsage: context.contextUsage,

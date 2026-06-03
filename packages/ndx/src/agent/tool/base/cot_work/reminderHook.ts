@@ -2,7 +2,7 @@ import { isNDXCotWorkContents, NDX_TURN_EVENT, type NDXCotWorkContents } from ".
 import { appendSessionData } from "../../../session/appendSessionData.js";
 import { cotWorkReminderContents } from "../../../session/content.js";
 import type { NDXSessionDataRow } from "../../../session/types.js";
-import type { NDXHookCodeExecutor, NDXHookEffect } from "../../index.js";
+import type { NDXHookCodeExecutor, NDXHookEffect } from "../../../hook/index.js";
 
 export type NDXCotWorkReminderHookInsertionEvent = typeof NDX_TURN_EVENT.ContextPrepared;
 

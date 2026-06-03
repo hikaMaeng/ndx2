@@ -1,4 +1,4 @@
-import type { NDXCotWorkContents, NDXSessionSkillSummary } from "ndx/common/protocol";
+import type { NDXCotWorkContents, NDXSessionSkillSummary, NDXSidebarItem } from "ndx/common/protocol";
 import { DEFAULT_MODEL, toModelConfig } from "../model/config.js";
 import type { EncodedAttachment } from "./attachment.js";
 import type { ChatMessage, NDXAgentWebContextUsage } from "./chat.js";
@@ -34,10 +34,10 @@ export type SessionUiState = {
   notice: string;
   sessionError: string;
   rightSidebarOpen: boolean;
+  rightSidebarItems: NDXSidebarItem[];
   rightSidebarWidth: number;
   chatScrollTop: number;
   rightSidebarScrollTop: number;
-  pendingSlideWindow?: number;
   pendingInitialRequest?: PendingRequest;
   pendingAttachRequest?: PendingRequest & { sessionid: string };
 };
@@ -57,6 +57,7 @@ export function createSessionUiState(): SessionUiState {
     notice: "",
     sessionError: "",
     rightSidebarOpen: false,
+    rightSidebarItems: [],
     rightSidebarWidth: 288,
     chatScrollTop: 0,
     rightSidebarScrollTop: 0

@@ -45,7 +45,7 @@
 | agent loop | `packages/ndx/src/agent/turnloop` |
 | tool execution | `packages/ndx/src/agent/tool` |
 | inference request | `packages/ndx/src/common/responseapi`를 거친 agent turn loop |
-| context reconstruction | `packages/ndx/src/agent/session`와 `turnloop/messages.ts` |
+| context reconstruction | `packages/ndx/src/agent/session`와 `turnloop/base/context/index.ts` |
 | authoritative live session state | PostgreSQL |
 
 ## 세션 복구
