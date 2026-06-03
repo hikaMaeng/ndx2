@@ -1,0 +1,54 @@
+{
+  "version": "0.1.41",
+  "model": "qwencoder",
+  "providers": {
+    "local": {
+      "type": "openai",
+      "key": "",
+      "url": "http://192.168.65.254:12345/v1"
+    }
+  },
+  "models": {
+    "qwencoder": {
+      "name": "qwen3-coder-next:tr",
+      "provider": "local",
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "maxContext": 262000,
+      "temperature": 1,
+      "topP": 0.95,
+      "topK": 40,
+      "MinP": 0
+    },
+    "qwen3.6-35b-mm": {
+      "name": "qwen3.6-35b:mm",
+      "provider": "local",
+      "maxContext": 262000,
+      "modalities": [
+        "text",
+        "image"
+      ]
+    },
+    "qwen3.6-35b-mp": {
+      "name": "qwen3.6-35b:mp",
+      "provider": "local",
+      "maxContext": 262000,
+      "modalities": [
+        "text",
+        "image"
+      ]
+    }
+  },
+  "permissions": {
+    "defaultMode": "danger-full-access"
+  },
+  "runtime": {
+    "maxModelIterations": 500
+  },
+  "websearch": {
+    "provider": "tavily",
+    "apiKey": "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"
+  }
+}

@@ -1,6 +1,6 @@
 {
   "name": "ndx",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "main": "./dist/common/index.js",
@@ -23,9 +23,13 @@
       "types": "./dist/common/responseapi/index.d.ts",
       "import": "./dist/common/responseapi/index.js"
     },
-    "./server/common": {
-      "types": "./dist/server/common/index.d.ts",
-      "import": "./dist/server/common/index.js"
+    "./common/protocol": {
+      "types": "./dist/common/protocol/index.d.ts",
+      "import": "./dist/common/protocol/index.js"
+    },
+    "./common/server-path": {
+      "types": "./dist/common/server-path/index.d.ts",
+      "import": "./dist/common/server-path/index.js"
     },
     "./admin/common": {
       "types": "./dist/admin/common/index.d.ts",
@@ -39,33 +43,29 @@
       "types": "./dist/admin/front/index.d.ts",
       "import": "./dist/admin/front/index.js"
     },
-    "./agent/common": {
-      "types": "./dist/agent/common/index.d.ts",
-      "import": "./dist/agent/common/index.js"
+    "./agent": {
+      "types": "./dist/agent/index.d.ts",
+      "import": "./dist/agent/index.js"
     },
-    "./agent/common/protocol": {
-      "types": "./dist/agent/common/protocol/index.d.ts",
-      "import": "./dist/agent/common/protocol/index.js"
+    "./webclient/common": {
+      "types": "./dist/webclient/common/index.d.ts",
+      "import": "./dist/webclient/common/index.js"
     },
-    "./agent/server": {
-      "types": "./dist/agent/server/index.d.ts",
-      "import": "./dist/agent/server/index.js"
+    "./webclient/common/protocol": {
+      "types": "./dist/webclient/common/protocol/index.d.ts",
+      "import": "./dist/webclient/common/protocol/index.js"
     },
-    "./agent/cli": {
-      "types": "./dist/agent/cli/index.d.ts",
-      "import": "./dist/agent/cli/index.js"
+    "./webclient/server": {
+      "types": "./dist/webclient/server/index.d.ts",
+      "import": "./dist/webclient/server/index.js"
     },
-    "./agent/web": {
-      "types": "./dist/agent/web/index.d.ts",
-      "import": "./dist/agent/web/index.js"
+    "./webclient/server/client-state": {
+      "types": "./dist/webclient/server/client-state/index.d.ts",
+      "import": "./dist/webclient/server/client-state/index.js"
     },
-    "./agent/web/client-state": {
-      "types": "./dist/agent/web/client-state/index.d.ts",
-      "import": "./dist/agent/web/client-state/index.js"
-    },
-    "./agent/web/protocol": {
-      "types": "./dist/agent/web/protocol/index.d.ts",
-      "import": "./dist/agent/web/protocol/index.js"
+    "./webclient/front": {
+      "types": "./dist/webclient/front/index.d.ts",
+      "import": "./dist/webclient/front/index.js"
     },
     "./package.json": "./package.json"
   },
@@ -76,7 +76,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "node --import tsx --test src/**/*.test.ts",
+    "test": "node --import tsx --test $(find src -name '*.test.ts' -not -path 'src/agent/init/assets/*')",
     "lint": "tsc --noEmit -p tsconfig.json"
   },
   "devDependencies": {
@@ -86,6 +86,7 @@
     "typescript": "5.9.3"
   },
   "dependencies": {
-    "pg": "8.16.3"
+    "pg": "8.16.3",
+    "undici": "6.25.0"
   }
 }

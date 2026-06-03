@@ -1,0 +1,4 @@
+{
+  "name": "web-service-scaffold",
+  "description": "Use only when explicitly invoked as $web-service-scaffold to run the bundled web-service scaffold script."
+}

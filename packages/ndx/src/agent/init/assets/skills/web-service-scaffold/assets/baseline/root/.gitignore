@@ -1,0 +1,14 @@
+.pnp.*
+.yarn/*
+!.yarn/releases
+!.yarn/plugins
+!.yarn/sdks
+!.yarn/versions
+dist/
+.turbo/
+.docker/
+coverage/
+*.log
+node_modules/
+.env
+!apps/*/docker/.env

@@ -1,0 +1,31 @@
+{
+  "status": "passed",
+  "mode": "smoke",
+  "startedAt": "2026-05-30T06:10:32.752Z",
+  "testedUrl": "http://localhost:18082/",
+  "finalUrl": "http://localhost:18082/",
+  "title": "NDX vibe",
+  "mainPresent": true,
+  "documentStatus": 200,
+  "consoleErrors": [],
+  "pageErrors": [],
+  "screenshots": [
+    "/work/test/20260530/061032_headless-browser-test/screenshots/smoke.png"
+  ],
+  "trace": "/work/test/20260530/061032_headless-browser-test/trace.zip",
+  "steps": [
+    {
+      "action": "goto",
+      "status": "passed"
+    },
+    {
+      "action": "assertRole",
+      "status": "passed"
+    },
+    {
+      "action": "screenshot",
+      "status": "passed"
+    }
+  ],
+  "finishedAt": "2026-05-30T06:11:29.109Z"
+}

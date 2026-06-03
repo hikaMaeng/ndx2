@@ -1,4 +1,0 @@
-interface:
-  display_name: "Headless Browser Markup"
-  short_description: "Define frontend markup contracts for resilient browser tests."
-  default_prompt: "Use $headless-browser-markup to design or review frontend markup so headless browser tests can rely on roles, labels, names, landmarks, and stable explicit test hooks."

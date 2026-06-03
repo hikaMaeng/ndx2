@@ -1,0 +1,22 @@
+{
+  "name": "@neurondev/ndx2",
+  "version": "0.2.1",
+  "description": "Docker-backed installer and launcher for ndx2.",
+  "license": "UNLICENSED",
+  "type": "module",
+  "bin": {
+    "ndx2": "./bin/ndx2.js"
+  },
+  "files": [
+    "bin",
+    "docs",
+    "templates",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "check": "node ./bin/ndx2.js --help"
+  }
+}

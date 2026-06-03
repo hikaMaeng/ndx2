@@ -1,13 +1,11 @@
 # Usage
 
-Use `npm run deploy -- apps/admin`, `npm run deploy -- apps/agent`, or
-`npm run deploy -- --all` for the baseline deployment path. The deploy script
+Use `npm run deploy -- apps/ndx` or `npm run deploy -- --all` for the baseline deployment path. The deploy script
 runs the required Yarn install check, builds the target service, and refreshes
 Docker Compose.
 
-App deployment builds and recreates only the requested app services. Compose
-dependencies such as `pgvector` are started with `--no-build` and are not rebuilt
-as part of `apps/admin` or `apps/agent` deployment.
+App deployment builds and recreates only the requested app service. PostgreSQL
+runs inside the agent container from the prebuilt pgvector base image.
 
 Current local commands:
 
@@ -17,9 +15,36 @@ Current local commands:
 | `yarn build` | Run Turbo build tasks |
 | `yarn test` | Run Turbo test tasks |
 | `yarn lint` | Run TypeScript lint checks |
-| `npm run deploy -- apps/admin` | Deploy the admin service through Docker Compose |
-| `npm run deploy -- apps/agent` | Deploy the agent service through Docker Compose |
-| `npm run deploy -- --all` | Deploy all app services through Docker Compose |
+| `npm run deploy -- apps/ndx` | Deploy the agent service through Docker Compose |
+| `npm run deploy -- --all` | Deploy the compose-owned app services |
+
+## npm Docker Launcher
+
+End-user npm installation is separate from the clone-and-build repository flow.
+The npm package lives under `npm/` and installs the `ndx2` command:
+
+```sh
+npm install @neurondev/ndx2
+npx ndx2
+```
+
+or, for direct shell access:
+
+```sh
+npm install -g @neurondev/ndx2
+ndx2
+```
+
+The first run checks Docker availability, asks for the ndx root volume path,
+writes `~/.ndx2/docker-compose.yml`, records `~/.ndx2/npm-install.json`, starts
+the public GHCR agent image, and prints the Agent URL. Later runs reuse the saved
+state and only refresh/start the compose stack.
+
+Use `ndx2 uninstall` to remove the npm initialization flag and generated compose
+stack. The selected ndx root directory is intentionally left on disk.
+
+The npm release process and GHCR image contract are documented in
+`npm-release.md`.
 
 Default local service URLs:
 
@@ -30,14 +55,14 @@ Default local service URLs:
 | Agent session socket | `ws://127.0.0.1:18082/session` |
 
 Agent runtime logs are JSON Lines written to both console and files under
-`/ndx/log` in the agent container. Docker mounts the repository `volume/`
+`/ndx/.ndx/log` in the agent container. Docker mounts the repository `volume/`
 directory at `/ndx` for application containers.
 
 | Surface | File Path |
 | --- | --- |
-| Web client backend API | `log/web/YYYY/MM/DD.log` |
-| Session-specific agent events | `log/session/<sessionid>/YYYYMMDD.log` |
-| Agent process events without a session id | `log/agent/YYYY/MM/DD.log` |
+| Web client backend API | `.ndx/log/web/YYYY/MM/DD.log` |
+| Session-specific agent events | `.ndx/log/session/<sessionid>/YYYYMMDD.log` |
+| Agent process events without a session id | `.ndx/log/agent/YYYY/MM/DD.log` |
 
 ## Agent Runtime Volume
 
@@ -45,17 +70,15 @@ Application containers use one host-owned bind mount:
 
 | Host Path | Container Path | Purpose |
 | --- | --- | --- |
-| `F:/dev/ndx2/volume` | `/ndx` | Runtime root for logs, app data, global `.ndx`, and workspace files. |
+| `F:/dev/ndx2/volume` | `/ndx` | Runtime root for global `.ndx`, workspace files, and the local PostgreSQL host data directory. |
 
 Runtime paths under `/ndx` are fixed:
 
 | Container Path | Purpose |
 | --- | --- |
-| `/ndx/assets` | Runtime web assets, including web-client i18n JSON. |
-| `/ndx/log` | Agent and web backend JSONL logs. |
-| `/ndx/data` | App-owned local data and database files. |
-| `/ndx/.ndx` | Global NDX home data, prompts, skills, plugins, memories, and tools. |
+| `/ndx/.ndx` | Global NDX home data, prompts, skills, plugins, memories, tools, runtime i18n overrides, and logs. |
 | `/ndx/workspace` | Project workspace root browsed by the web client and used by session tool execution. |
+| `/ndx/pgvector` | Local PostgreSQL/pgvector data directory. |
 
 Multimodal chat attachments are stored below the selected project root, not in
 PostgreSQL:
@@ -67,16 +90,63 @@ Set model `modalities` in the web model picker or in
 text-only models, add `"image"` for image input, and add `"file"` for file
 input. Provider model-list APIs are not authoritative for this flag.
 
-The only matching agent environment variable is:
+`prompt_rewrite` normally uses the active session model for its internal scope
+and rewrite calls. To dedicate a different local model to rewriting, set:
+
+```json
+{
+  "tools": {
+    "prompt_rewrite": {
+      "model": "qwen3.6-35b-mp"
+    }
+  }
+}
+```
+
+Only the model name is overridden. Provider URL, token, and inference endpoint
+come from the active session model configuration.
+
+`session_history` uses `sessionsearch` in PostgreSQL/pgvector. To enable vector
+ranking, configure an OpenAI-compatible embeddings endpoint in
+`F:/dev/ndx2/volume/.ndx/settings.json`:
+
+```json
+{
+  "embeddings": {
+    "provider": "local",
+    "model": "text-embedding-3-small",
+    "url": "http://127.0.0.1:11434/v1"
+  }
+}
+```
+
+Without this block, new `sessionsearch` rows keep a zero vector and
+`session_history` falls back to Korean full-text ranking. The setting affects
+only search indexing/query embedding; model inference settings remain separate.
+
+The matching agent environment variables are:
 
 | Variable | Value | Contract |
 | --- | --- | --- |
-| `NDX_ROOT` | `F:/dev/ndx2/volume` | Host path that maps to fixed container path `/ndx`. |
+| `NDX_ROOT` | `/ndx` | Fixed container runtime root. |
+| `NDX_HOST_ROOT` | `F:/dev/ndx2/volume` | Physical host path that maps to fixed container path `/ndx` and is sent to the web client for VS Code links. |
+
+`NDX_ROOT` is the container-side root used by the server, tools, PostgreSQL, and
+workspace browsing. `NDX_HOST_ROOT` is the host-side name for the same directory;
+it is used for metadata, VS Code open requests, and Windows/WSL path validation.
+It is not a database location setting.
+
+When bootstrapping a fresh Windows-backed PostgreSQL directory, run Compose from
+the Windows path context so Docker mounts `F:\dev\ndx2\volume` to `/ndx`.
+`/ndx/pgvector/pgdata` then appears as
+`F:\dev\ndx2\volume\pgvector\pgdata` and receives PostgreSQL-compatible
+ownership metadata.
 
 Do not configure separate host workspace, user home, container workspace, or log
-environment variables. The web client receives `/ndx/workspace` through metadata
-and sends relative project paths under that root. The session server maps
-Windows, WSL, and container paths under `NDX_ROOT` before resolving project
+environment variables. The web client receives `NDX_HOST_ROOT/workspace` and
+`/ndx/workspace` through metadata and sends relative project paths under that
+root. The session server maps Windows, WSL, and container paths under
+`NDX_HOST_ROOT` before resolving project
 identity in PostgreSQL and before tool execution.
 
 The complete runtime-volume contract is maintained in `runtime-volume.md`.
@@ -93,25 +163,25 @@ Implementation work must keep these assumptions visible in API docs, tests, and 
 
 ## Local Data Store (PostgreSQL/pgvector)
 
-This repository runs PostgreSQL in Compose as a `pgvector` service for session data.
+This repository runs PostgreSQL inside the `agent` container for session data.
 
 - Start stack: `docker compose up -d --build`
-- Check DB service: `docker compose ps pgvector`
-- Tail DB logs: `docker compose logs -f pgvector`
+- Check service: `docker compose ps agent`
+- Tail logs: `docker compose logs -f agent`
 
 ### 접속 및 점검
 
 포트가 외부에 열려 있지 않으므로 다음 방식으로만 접속합니다.
 
 - 컨테이너 내부에서 접속:
-  `docker exec -it pgvector psql -U ndev -d ndev`
+  `docker exec -it agent psql -U ndev -d ndev`
 
-- 앱 코드에서는 Compose 내부 DNS(`pgvector`)를 사용한 연결 문자열을 사용:
-  `postgresql://ndev:ndev@pgvector:5432/ndev`
+- 앱 코드에서는 같은 컨테이너의 로컬 PostgreSQL을 사용:
+  `postgresql://ndev:ndev@127.0.0.1:5432/ndev`
 
 ### 데이터 초기화/운영 규칙
 
-* 스토리지 디렉터리는 `./pgvector/data`를 사용한다.
+* 스토리지 디렉터리는 ndx 루트 볼륨 하위의 `./volume/pgvector`를 사용한다.
 * DB 비밀번호/계정은 기본값 `ndev/ndev`이다.
 * 볼륨 데이터는 버전관리 대상이 아니며 `.gitignore`에 등록되어 있다.
 * 한국어 형태소 분석기와 검색 확장은 현재 운영 이미지(`pgvector/Dockerfile.pgvector`) 내에서 포함된다.

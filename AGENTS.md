@@ -33,20 +33,53 @@ Primary product constraints:
 * Treat `ndev` as the mandatory default account when no explicit login flow has
   selected another account.
 
+### Agent Prompt Prefix Cache Contract
+
+Agent model requests must preserve provider prefix-cache reuse whenever the
+request has no intentional one-shot payload.
+
+The model-visible prompt shape is:
+
+1. stable developer/system instructions;
+2. stable user instruction prelude, including environment context;
+3. ordered append-only session history reconstructed from PostgreSQL;
+4. explicit one-request payloads such as inlined attachment bytes.
+
+Do not insert, remove, reorder, or rewrite model-visible content before the
+append-only history tail during a running turn. The next model request should
+start with the complete previous model request byte-for-byte, then append new
+tool calls, tool results, reminders, or assistant/user history. A shorter common
+prefix is not sufficient.
+
+`environment_context` must be part of the stable prelude, not a separate
+message after history. Hooks that create model-visible rows, including
+`cot_work_reminder`, must append them to `sessiondata` and expose them in the
+same append position; never temporarily splice them into the middle of the
+request.
+
+The accepted exception is one-request attachment payloads. Binary/image/file
+bytes may be appended for a single request and then replaced by durable path
+references because repeatedly paying that context cost is worse than breaking
+the prefix for that attachment turn.
+
+Any change to agent context reconstruction, model request assembly, hooks,
+tool-call continuation, or fallback text serialization must check this contract
+and add/update a regression test when it could affect prompt ordering.
+
 ### PostgreSQL (`pgvector`) 운영 계약
 
-`docker-compose.yml` must include a local `pgvector` service using:
+The agent Docker image must include PostgreSQL/pgvector runtime support using:
 
-* image `pgvector/pgvector:pg17`
-* `POSTGRES_USER=ndev`
-* `POSTGRES_PASSWORD=ndev`
-* host data volume `./pgvector/data:/var/lib/postgresql/data`
+* prebuilt base image `ghcr.io/hikamaeng/ndx2-pgvector:<version>`
+* built-in defaults `POSTGRES_USER=ndev`, `POSTGRES_PASSWORD=ndev`, and `PGDATA=/ndx/pgvector/pgdata`
+* host data under `./volume/pgvector` through the agent `/ndx` bind mount
 
 No external host port is exposed for PostgreSQL.
 
-The `pgvector` Dockerfile must live at `./pgvector/Dockerfile.pgvector` and build
-a PostgreSQL image with Korean morphology (mecab-ko + textsearch_ko) tooling for
-in-repo text search use-cases.
+The `pgvector` Dockerfile must live at `./pgvector/Dockerfile.pgvector`. The
+`./pgvector/publish-ghcr.sh` script publishes the slow PostgreSQL image with
+Korean morphology (mecab-ko + textsearch_ko) tooling to GHCR, and
+`apps/agent/docker/Dockerfile` must use that image as its base.
 
 Required documentation targets for this contract:
 
@@ -193,7 +226,6 @@ Use the repository-local skills installed under `.codex/skills`:
   locators.
 * `package-docs-writer` for package README and docs structure.
 * `agenttest` for strict JSON test suites and reports.
-* `repository-package-vendor` for reuse and vendoring decisions.
 
 When the user explicitly asks to use `web-deploy-docker` with a service such as
 `apps/dashboard`, do not search for the skill file or inspect repository

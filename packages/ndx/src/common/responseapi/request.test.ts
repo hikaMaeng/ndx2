@@ -5,10 +5,11 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { requestModelResponse } from "./request.js";
+import { Agent } from "undici";
+import { DEFAULT_MODEL_REQUEST_TIMEOUT_MS, requestModelResponse } from "./request.js";
 import type { ResponseInputItem } from "./responses.js";
 
-test("requestModelResponse falls back to text input for tool continuation payloads", async () => {
+test("requestModelResponse sends text input first for tool continuation payloads", async () => {
   const requests: unknown[] = [];
   const server = http.createServer((request, response) => {
     let body = "";
@@ -18,14 +19,9 @@ test("requestModelResponse falls back to text input for tool continuation payloa
     request.on("end", () => {
       const payload = JSON.parse(body) as { input?: unknown };
       requests.push(payload);
-      if (Array.isArray(payload.input)) {
-        response.writeHead(400, { "Content-Type": "application/json" });
-        response.end(JSON.stringify({ error: { message: "Invalid type for 'input'.", type: "invalid_request_error", param: "input", code: "invalid_union" } }));
-        return;
-      }
 
       response.writeHead(200, { "Content-Type": "application/json" });
-      response.end(JSON.stringify({ output: [{ type: "message", content: [{ type: "output_text", text: "fallback ok" }] }] }));
+      response.end(JSON.stringify({ output: [{ type: "message", content: [{ type: "output_text", text: "text ok" }] }] }));
     });
   });
 
@@ -47,14 +43,14 @@ test("requestModelResponse falls back to text input for tool continuation payloa
       messages
     );
 
-    assert.equal(response.content, "fallback ok");
-    assert.equal(requests.length, 2);
-    assert.equal(Array.isArray((requests[0] as { input?: unknown }).input), true);
-    const fallbackInput = (requests[1] as { input?: unknown }).input;
-    assert.equal(typeof fallbackInput, "string");
-    assert.match(String(fallbackInput), /assistant tool_call read_file \(call_1\):/);
-    assert.match(String(fallbackInput), /tool result \(call_1\):/);
-    assert.match(String(fallbackInput), /export function App/);
+    assert.equal(response.content, "text ok");
+    assert.equal(requests.length, 1);
+    const input = (requests[0] as { input?: unknown }).input;
+    assert.equal(typeof input, "string");
+    assert.match(String(input), /assistant function_call read_file \(call_1\):\n\{"path":"apps\/app\/src\/front\/App\.tsx"\}/);
+    assert.doesNotMatch(String(input), /<tool_call>|<parameter=path>|<\/tool_call>/);
+    assert.match(String(input), /tool result \(call_1\):/);
+    assert.match(String(input), /export function App/);
   } finally {
     server.close();
     await once(server, "close");
@@ -153,6 +149,58 @@ test("requestModelResponse keeps attachments encoded when falling back to text i
   }
 });
 
+test("requestModelResponse text serialization preserves the previous request as next prefix", async () => {
+  const requests: Array<{ input?: unknown }> = [];
+  const server = http.createServer((request, response) => {
+    let body = "";
+    request.on("data", (chunk) => {
+      body += String(chunk);
+    });
+    request.on("end", () => {
+      const payload = JSON.parse(body) as { input?: unknown };
+      requests.push(payload);
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.end(JSON.stringify({ output: [{ type: "message", content: [{ type: "output_text", text: "ok" }] }] }));
+    });
+  });
+
+  await new Promise<void>((resolve) => {
+    server.listen(0, "127.0.0.1", () => resolve());
+  });
+  const address = server.address();
+  assert(address && typeof address === "object");
+
+  try {
+    const model = { model: "test-model", url: `http://127.0.0.1:${address.port}/v1`, token: "" };
+    const firstMessages: ResponseInputItem[] = [
+      { role: "system", content: "stable developer" },
+      { role: "user", content: "stable prelude" },
+      { role: "user", content: "first request" },
+      { type: "function_call", call_id: "call_1", name: "read_file", arguments: "{\"path\":\"a.ts\"}" },
+      { type: "function_call_output", call_id: "call_1", output: "file a" }
+    ];
+    const secondMessages: ResponseInputItem[] = [
+      ...firstMessages,
+      { type: "function_call", call_id: "call_2", name: "grep_search", arguments: "{\"pattern\":\"x\"}" },
+      { type: "function_call_output", call_id: "call_2", output: "grep result" }
+    ];
+
+    await requestModelResponse(model, firstMessages);
+    await requestModelResponse(model, secondMessages);
+
+    assert.equal(requests.length, 2);
+    assert.equal(typeof requests[0].input, "string");
+    assert.equal(typeof requests[1].input, "string");
+    assert.match(String(requests[0].input), /assistant function_call read_file \(call_1\):\n\{"path":"a\.ts"\}/);
+    assert.match(String(requests[1].input), /assistant function_call grep_search \(call_2\):\n\{"pattern":"x"\}/);
+    assert.doesNotMatch(String(requests[1].input), /<tool_call>|<parameter=/);
+    assert.ok(String(requests[1].input).startsWith(`${String(requests[0].input)}\n\n`));
+  } finally {
+    server.close();
+    await once(server, "close");
+  }
+});
+
 test("requestModelResponse retries transient fetch failures for the configured endpoint", async () => {
   const previousFetch = globalThis.fetch;
   const requestedUrls: string[] = [];
@@ -193,7 +241,67 @@ test("requestModelResponse retries transient fetch failures for the configured e
   }
 });
 
-test("requestModelResponse does not try text fallback for unreachable endpoints", async () => {
+test("requestModelResponse configures a long provider communication timeout", async () => {
+  const previousFetch = globalThis.fetch;
+  const debugContexts: Array<Record<string, unknown>> = [];
+  let requestInit: (RequestInit & { dispatcher?: unknown }) | undefined;
+  globalThis.fetch = (async (_input, init) => {
+    requestInit = init as RequestInit & { dispatcher?: unknown };
+    return new Response(JSON.stringify({ output: [{ type: "message", content: [{ type: "output_text", text: "timeout ok" }] }] }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    });
+  }) as typeof fetch;
+
+  try {
+    const response = await requestModelResponse(
+      { model: "test-model", url: "http://127.0.0.1:12345/v1", token: "" },
+      [{ role: "user", content: "느린 로컬 모델" }],
+      [],
+      {
+        async onDebug(_event, context) {
+          debugContexts.push(context);
+        }
+      }
+    );
+
+    assert.equal(response.content, "timeout ok");
+    assert.equal(requestInit?.signal instanceof AbortSignal, true);
+    assert.equal(requestInit?.dispatcher instanceof Agent, true);
+    assert.equal(debugContexts.some((context) => context.requestTimeoutMs === DEFAULT_MODEL_REQUEST_TIMEOUT_MS), true);
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test("requestModelResponse aborts with the configured model request timeout", async () => {
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = (async (_input, init) => {
+    await new Promise<void>((_resolve, reject) => {
+      const keepAlive = setInterval(() => undefined, 1);
+      const signal = init?.signal;
+      signal?.addEventListener("abort", () => {
+        clearInterval(keepAlive);
+        reject(signal.reason);
+      }, { once: true });
+    });
+    throw new Error("unreachable");
+  }) as typeof fetch;
+
+  try {
+    await assert.rejects(
+      requestModelResponse(
+        { model: "test-model", url: "http://127.0.0.1:12345/v1", token: "", requestTimeoutMs: 10 },
+        [{ role: "user", content: "타임아웃" }]
+      ),
+      /model request timed out after 10ms/
+    );
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test("requestModelResponse does not try array fallback for unreachable endpoints", async () => {
   const previousFetch = globalThis.fetch;
   const requestInputs: unknown[] = [];
   globalThis.fetch = (async (_input, init) => {
@@ -212,7 +320,7 @@ test("requestModelResponse does not try text fallback for unreachable endpoints"
     );
 
     assert.equal(requestInputs.length, 2);
-    assert.equal(requestInputs.every((input) => Array.isArray(input)), true);
+    assert.equal(requestInputs.every((input) => typeof input === "string"), true);
   } finally {
     globalThis.fetch = previousFetch;
   }
@@ -238,6 +346,54 @@ test("requestModelResponse reports empty event streams without rereading the bod
       ),
       /model stream ended without assistant content or tool calls/
     );
+  } finally {
+    server.close();
+    await once(server, "close");
+  }
+});
+
+test("requestModelResponse keeps native tool request shape on empty stream retries", async () => {
+  const requests: Array<{ input?: unknown; tools?: unknown }> = [];
+  const server = http.createServer((request, response) => {
+    let body = "";
+    request.on("data", (chunk) => {
+      body += String(chunk);
+    });
+    request.on("end", () => {
+      const payload = JSON.parse(body) as { input?: unknown; tools?: unknown };
+      requests.push(payload);
+      response.writeHead(200, { "Content-Type": "text/event-stream" });
+      response.end("data: [DONE]\n\n");
+    });
+  });
+
+  await new Promise<void>((resolve) => {
+    server.listen(0, "127.0.0.1", () => resolve());
+  });
+  const address = server.address();
+  assert(address && typeof address === "object");
+
+  try {
+    await assert.rejects(
+      requestModelResponse(
+        { model: "test-model", url: `http://127.0.0.1:${address.port}/v1`, token: "" },
+        [{ role: "user", content: "파일을 읽어라" }],
+        [
+          {
+            type: "function",
+            name: "read_file",
+            description: "Reads a file.",
+            parameters: { type: "object", properties: { path: { type: "string" } }, required: ["path"] }
+          }
+        ]
+      ),
+      /model stream ended without assistant content or tool calls/
+    );
+
+    assert.equal(requests.length, 2);
+    assert.equal(Array.isArray(requests[0]?.tools), true);
+    assert.equal(Array.isArray(requests[1]?.tools), true);
+    assert.equal(requests.every((request) => typeof request.input === "string"), true);
   } finally {
     server.close();
     await once(server, "close");

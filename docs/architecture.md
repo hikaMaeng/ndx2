@@ -4,8 +4,8 @@ The baseline service shape is Express server plus Vite React front shell. Produc
 
 The target architecture is a TypeScript-first web-service monorepo:
 
-* `apps/admin` contains the administration service.
-* `apps/agent` contains the agent session service.
+* `apps/ndx` contains the administration service.
+* `apps/ndx` contains the agent session service.
 * `packages/ndx` contains shared common, admin, and agent domain contracts.
 * The agent server is the only component allowed to execute agent loops, call tools, manage model inference, reconstruct context, or persist session events.
 * Browser, CLI, VS Code, and native clients are session clients. They connect to the agent server session socket and render downstream events, but do not own agent runtime state.
@@ -21,7 +21,7 @@ Logical server surfaces:
 | Session web client | Browser UI connected to the session WebSocket server |
 | Account server | Account creation, deletion, login state, default-account behavior |
 
-`apps/agent` owns `src/server` and `src/front`. The single Express server under
+`apps/ndx` owns `src/server` and `src/webclient_front`. The single Express server under
 `src/server` serves backend API routes, built front-end assets, and the session
 WebSocket upgrade surface; socket-specific transport wiring lives under
 `src/server/agent`.

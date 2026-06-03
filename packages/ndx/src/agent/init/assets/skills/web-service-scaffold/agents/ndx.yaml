@@ -1,0 +1,4 @@
+interface:
+  display_name: "Web Service Scaffold"
+  short_description: "Run explicit web scaffold."
+  default_prompt: "Run this skill's scripts/install_project_ndx.sh \"$PWD\" <service-name>, then stop after file checks."

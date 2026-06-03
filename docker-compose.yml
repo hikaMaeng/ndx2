@@ -1,72 +1,21 @@
 name: ndx2
 
 services:
-  admin:
+  ndx:
     build:
       context: .
-      dockerfile: apps/admin/docker/Dockerfile
-    image: ndx2-admin:latest
-    container_name: admin
+      dockerfile: apps/ndx/docker/Dockerfile
+    image: ndx2-ndx:latest
+    container_name: ndx
     env_file:
-      - apps/admin/docker/.env
+      - apps/ndx/docker/.env
     ports:
-      - "${ADMIN_HOST_PORT:-18081}:18080"
-    depends_on:
-      pgvector:
-        condition: service_healthy
-    networks:
-      - ndx2_internal
-    volumes:
-      - type: bind
-        source: ./volume
-        target: /ndx
-    environment:
-      - NDX_ROOT=F:/dev/ndx2/volume
-  agent:
-    build:
-      context: .
-      dockerfile: apps/agent/docker/Dockerfile
-    image: ndx2-agent:latest
-    container_name: agent
-    env_file:
-      - apps/agent/docker/.env
-    ports:
-      - "${AGENT_WEB_HOST_PORT:-18082}:18080"
+      - "${NDX_WEB_HOST_PORT:-18082}:18080"
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    depends_on:
-      pgvector:
-        condition: service_healthy
-    networks:
-      - ndx2_internal
     volumes:
-      - type: bind
-        source: ./volume
-        target: /ndx
-      - type: bind
-        source: /var/run/docker.sock
-        target: /var/run/docker.sock
+      - ./volume:/ndx
+      - /var/run/docker.sock:/var/run/docker.sock
     environment:
-      - NDX_ROOT=F:/dev/ndx2/volume
-  pgvector:
-    build:
-      context: ./pgvector
-      dockerfile: Dockerfile.pgvector
-    image: pgvector/pgvector:pg17
-    environment:
-      - POSTGRES_USER=ndev
-      - POSTGRES_PASSWORD=ndev
-      - PGDATA=/var/lib/postgresql/data/pgdata
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ndev"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-    volumes:
-      - ./pgvector/data:/var/lib/postgresql/data
-    networks:
-      - ndx2_internal
-
-networks:
-  ndx2_internal:
-    internal: false
+      - NDX_ROOT=/ndx
+      - NDX_HOST_ROOT=F:/dev/ndx2/volume

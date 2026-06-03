@@ -1129,73 +1129,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"admin@workspace:apps/admin":
-  version: 0.0.0-use.local
-  resolution: "admin@workspace:apps/admin"
-  dependencies:
-    "@radix-ui/react-slot": "npm:1.2.4"
-    "@tailwindcss/postcss": "npm:4.3.0"
-    "@types/express": "npm:5.0.6"
-    "@types/node": "npm:25.6.2"
-    "@types/react": "npm:19.2.14"
-    "@types/react-dom": "npm:19.2.3"
-    "@types/supertest": "npm:7.2.0"
-    "@vitejs/plugin-react": "npm:6.0.1"
-    autoprefixer: "npm:10.5.0"
-    class-variance-authority: "npm:0.7.1"
-    clsx: "npm:2.1.1"
-    esbuild: "npm:0.28.0"
-    express: "npm:5.2.1"
-    lucide-react: "npm:1.14.0"
-    ndx: "workspace:*"
-    postcss: "npm:8.5.14"
-    react: "npm:19.2.6"
-    react-dom: "npm:19.2.6"
-    supertest: "npm:7.2.2"
-    tailwind-merge: "npm:3.5.0"
-    tailwindcss: "npm:4.3.0"
-    tsx: "npm:4.21.0"
-    typescript: "npm:5.9.3"
-    vite: "npm:8.0.11"
-  languageName: unknown
-  linkType: soft
-
-"agent@workspace:apps/agent":
-  version: 0.0.0-use.local
-  resolution: "agent@workspace:apps/agent"
-  dependencies:
-    "@radix-ui/react-slot": "npm:1.2.4"
-    "@tailwindcss/postcss": "npm:4.3.0"
-    "@types/express": "npm:5.0.6"
-    "@types/node": "npm:25.6.2"
-    "@types/react": "npm:19.2.14"
-    "@types/react-dom": "npm:19.2.3"
-    "@types/supertest": "npm:7.2.0"
-    "@types/ws": "npm:8.18.1"
-    "@vitejs/plugin-react": "npm:6.0.1"
-    autoprefixer: "npm:10.5.0"
-    class-variance-authority: "npm:0.7.1"
-    clsx: "npm:2.1.1"
-    esbuild: "npm:0.28.0"
-    express: "npm:5.2.1"
-    lucide-react: "npm:1.14.0"
-    ndx: "workspace:*"
-    postcss: "npm:8.5.14"
-    react: "npm:19.2.6"
-    react-dom: "npm:19.2.6"
-    react-markdown: "npm:^10.1.0"
-    react-mentions-ts: "npm:6.0.0"
-    remark-gfm: "npm:^4.0.1"
-    supertest: "npm:7.2.2"
-    tailwind-merge: "npm:3.5.0"
-    tailwindcss: "npm:4.3.0"
-    tsx: "npm:4.21.0"
-    typescript: "npm:5.9.3"
-    vite: "npm:8.0.11"
-    ws: "npm:8.18.3"
-  languageName: unknown
-  linkType: soft
-
 "asap@npm:^2.0.0":
   version: 2.0.6
   resolution: "asap@npm:2.0.6"
@@ -2986,6 +2919,42 @@ __metadata:
   languageName: node
   linkType: hard
 
+"ndx-app@workspace:apps/ndx":
+  version: 0.0.0-use.local
+  resolution: "ndx-app@workspace:apps/ndx"
+  dependencies:
+    "@radix-ui/react-slot": "npm:1.2.4"
+    "@tailwindcss/postcss": "npm:4.3.0"
+    "@types/express": "npm:5.0.6"
+    "@types/node": "npm:25.6.2"
+    "@types/react": "npm:19.2.14"
+    "@types/react-dom": "npm:19.2.3"
+    "@types/supertest": "npm:7.2.0"
+    "@types/ws": "npm:8.18.1"
+    "@vitejs/plugin-react": "npm:6.0.1"
+    autoprefixer: "npm:10.5.0"
+    class-variance-authority: "npm:0.7.1"
+    clsx: "npm:2.1.1"
+    esbuild: "npm:0.28.0"
+    express: "npm:5.2.1"
+    lucide-react: "npm:1.14.0"
+    ndx: "workspace:*"
+    postcss: "npm:8.5.14"
+    react: "npm:19.2.6"
+    react-dom: "npm:19.2.6"
+    react-markdown: "npm:^10.1.0"
+    react-mentions-ts: "npm:6.0.0"
+    remark-gfm: "npm:^4.0.1"
+    supertest: "npm:7.2.2"
+    tailwind-merge: "npm:3.5.0"
+    tailwindcss: "npm:4.3.0"
+    tsx: "npm:4.21.0"
+    typescript: "npm:5.9.3"
+    vite: "npm:8.0.11"
+    ws: "npm:8.18.3"
+  languageName: unknown
+  linkType: soft
+
 "ndx2@workspace:.":
   version: 0.0.0-use.local
   resolution: "ndx2@workspace:."
@@ -3004,6 +2973,7 @@ __metadata:
     pg: "npm:8.16.3"
     tsx: "npm:4.21.0"
     typescript: "npm:5.9.3"
+    undici: "npm:6.25.0"
   languageName: unknown
   linkType: soft
 
@@ -3830,7 +3800,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"undici@npm:^6.25.0":
+"undici@npm:6.25.0, undici@npm:^6.25.0":
   version: 6.25.0
   resolution: "undici@npm:6.25.0"
   checksum: 10c0/2597cc6689bdb02c210c557b1f85febbfda65becae6e6fc1061508e2f33734d25207f81cd8af56ada9956329eb3a7bd7431e87dcfeceba20ee87059b57dcf985

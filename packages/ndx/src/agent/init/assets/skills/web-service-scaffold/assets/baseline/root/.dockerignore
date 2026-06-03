@@ -1,0 +1,8 @@
+.git
+.ndx
+.turbo
+.yarn
+.pnp.*
+node_modules
+test
+*.log

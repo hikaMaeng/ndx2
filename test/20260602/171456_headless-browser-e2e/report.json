@@ -1,0 +1,48 @@
+{
+  "status": "passed",
+  "mode": "scenario",
+  "startedAt": "2026-06-02T08:17:54.715Z",
+  "testedUrl": "http://127.0.0.1:18080/",
+  "finalUrl": "http://127.0.0.1:18080/admin/",
+  "title": "admin",
+  "mainPresent": true,
+  "documentStatus": 200,
+  "consoleErrors": [],
+  "pageErrors": [],
+  "screenshots": [
+    "/tmp/ndx-headless-e2e/screenshots/webclient-home.png",
+    "/tmp/ndx-headless-e2e/screenshots/admin-runtime.png"
+  ],
+  "trace": "/tmp/ndx-headless-e2e/trace.zip",
+  "steps": [
+    {
+      "action": "goto",
+      "status": "passed"
+    },
+    {
+      "action": "assertRole",
+      "status": "passed"
+    },
+    {
+      "action": "screenshot",
+      "status": "passed"
+    },
+    {
+      "action": "goto",
+      "status": "passed"
+    },
+    {
+      "action": "assertRole",
+      "status": "passed"
+    },
+    {
+      "action": "assertText",
+      "status": "passed"
+    },
+    {
+      "action": "screenshot",
+      "status": "passed"
+    }
+  ],
+  "finishedAt": "2026-06-02T08:18:48.697Z"
+}

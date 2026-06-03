@@ -1,0 +1,30 @@
+{
+  "status": "failed",
+  "mode": "smoke",
+  "startedAt": "2026-05-30T06:08:18.279Z",
+  "testedUrl": "http://host.docker.internal:18082/",
+  "finalUrl": "http://host.docker.internal:18082/",
+  "title": "NDX vibe",
+  "mainPresent": false,
+  "documentStatus": 200,
+  "consoleErrors": [],
+  "pageErrors": [
+    "crypto.randomUUID is not a function"
+  ],
+  "screenshots": [
+    "/work/test/20260530/060817_headless-browser-test/screenshots/failure-2-assertRole.png"
+  ],
+  "trace": "/work/test/20260530/060817_headless-browser-test/trace.zip",
+  "steps": [
+    {
+      "action": "goto",
+      "status": "passed"
+    },
+    {
+      "action": "assertRole",
+      "status": "failed",
+      "error": "locator.waitFor: Timeout 10000ms exceeded.\nCall log:\n  - waiting for getByRole('main').first() to be visible\n"
+    }
+  ],
+  "finishedAt": "2026-05-30T06:08:32.427Z"
+}

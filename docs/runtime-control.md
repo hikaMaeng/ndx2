@@ -5,8 +5,8 @@ The agent runtime distinguishes idle, active, interrupted, queued, and interject
 Session-server user-visible fallback text is resource keyed. The session server
 uses English when no request language is supplied. Browser clients send their
 current web-client locale as an optional `language` field on session socket
-requests, and app/server resource lookup overlays `/ndx/assets/i18n/*.json`
-before bundled `apps/agent/assets/i18n/*.json`.
+requests, and app/server resource lookup overlays `/ndx/.ndx/i18n/*.json`
+before bundled `apps/ndx/assets/i18n/*.json`.
 
 ## Idle
 
@@ -27,6 +27,13 @@ The interruption command and every observed interruption result must be written 
 
 Tools or remote servers that cannot honor interruption still need explicit policy. The session history must make clear whether the tool stopped, ignored cancellation, timed out, or completed after interruption was requested.
 
+Function tools that are waiting on connected clients, including
+`askUserQuestion`, receive the active turn abort signal through the session
+client bridge. When the signal aborts, the pending socket request is removed and
+all attached clients receive `session.client.request.closed` with
+`reason="interrupted"`. The tool returns a cancelled result instead of waiting
+for a stale browser response.
+
 ## Iteration Limit
 
 Model/tool iteration finalization is configured by `/ndx/.ndx/settings.json`
@@ -34,6 +41,20 @@ under `runtime.maxModelIterations`. The default is `500`. When a turn exceeds
 that value, the agent makes one final model request with no tools and asks for a
 user-facing summary instead of treating the iteration count itself as a runtime
 failure.
+
+Model requests are not stopped merely because the first response token is slow.
+Local models may spend more than two minutes in prompt processing before
+streaming output. While a model request is still pending, the turn loop emits a
+socket-only `turn.model.progress` event every 120 seconds telling connected
+clients that the request is still running and that the user may interrupt the
+session if they do not want to keep waiting. These progress notices are not
+written to `sessiondata` and are not model-visible history.
+
+OpenAI-compatible model provider requests use an explicit 60-minute
+communication timeout for request headers and streaming bodies. This overrides
+the shorter default Node fetch/undici timeout so slow local models can finish
+prompt processing before their first streamed event. User interrupts still abort
+the active provider request immediately.
 
 Loop detection during tool-heavy turns is configured under
 `runtime.loopDetectionInterval`. The default is `50`. After tool results are
@@ -58,6 +79,23 @@ If a tool is currently running, the server lets the active tool handling point f
 
 Interjection must preserve event ordering so every connected client can render the same history.
 
+## Interactive Client Requests
+
+The session server may issue `session.client.request` messages while a function
+tool is running. A connected client answers with `session.client.response`.
+Only clients holding a valid connection token for the target session may answer.
+
+Interactive client requests are not queued user turns and do not start a new
+sessiondata `user` row. They resolve the current tool call. If several clients
+are attached to the same session, the server broadcasts the request and accepts
+the first valid response for the request id.
+
+If no client is attached when an interactive request is created, or every
+attached client disconnects before answering, the request remains pending in
+the running turn and is resent when a client attaches to the same session. A
+normal answer or cancel closes the pending request and broadcasts
+`session.client.request.closed` so duplicate browser dialogs disappear.
+
 ## Turn Hooks
 
 The session server exposes only these turn-loop hook events:
@@ -75,3 +113,9 @@ post-write completion.
 `runAgentTurn` and `runSessionTurn` are side-effect procedures. After entry,
 they write sessiondata, update session state, and emit socket-facing events;
 callers do not receive a turn result object.
+
+At turn start, `updateSessionStartTurn` returns the current durable
+`session.slidewindow` value from PostgreSQL. The turn loop uses that fixed value
+for every context reconstruction inside the turn. Mid-turn
+`session.slidewindow.update` socket messages update the session row for later
+turns only.

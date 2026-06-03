@@ -6,17 +6,15 @@ Current scaffold endpoints:
 
 | Service | Endpoint | Purpose |
 | --- | --- |
-| `admin` | `GET /health` | Admin service health |
-| `admin` | `GET /api/health` | Admin API health |
 | `agent` | `GET /health` | Agent service health |
 | `agent` | `GET /api/health` | Agent API health |
 | `agent` | `GET /api/agent` | Agent web metadata including session URLs on the same origin |
 | `agent` | `GET /api/agent/web-client-state?clientid=<uuid>` | PostgreSQL-backed browser state restore |
 | `agent` | `PUT /api/agent/web-client-state` | PostgreSQL-backed browser state update |
-| `agent` | `GET /api/agent/web-projects` | List web-client project registrations |
-| `agent` | `POST /api/agent/web-projects` | Register a project path and persisted project identity |
-| `agent` | `GET /api/agent/projects/:projectid/sessions` | List project sessions |
-| `agent` | `POST /api/agent/projects/:projectid/sessions` | Create a project session |
+| `agent` | `GET /api/agent/web-projects` | List direct child folders under the workspace as projects |
+| `agent` | `POST /api/agent/web-projects` | Create a new direct child folder under the workspace |
+| `agent` | `GET /api/agent/projects/:projectName/sessions` | List project sessions |
+| `agent` | `POST /api/agent/projects/:projectName/sessions` | Create a project session |
 | `agent` | `GET /api/agent/sessions/:sessionid/data` | Inspect ordered durable session history |
 | `agent` | `POST /api/agent/sessions/:sessionid/messages` | Persist a user request in session history |
 | `agent` | `POST /api/agent/sessions/:sessionid/interrupt` | Persist a session interrupt record |
@@ -39,14 +37,14 @@ Connection setup is ordered:
 1. Server sends `account.selection.required` with selectable `users`.
 2. Client sends `account.select` with `userid`.
 3. Server sends `account.selected`, then `project.negotiation.required`.
-4. Client sends one `project.configure` message with `projectId` and absolute `projectPath`.
+4. Client sends one `project.configure` message with `projectName`.
 5. Server sends `project.negotiated`, then `session.ready`.
 
 Until account selection completes, the server ignores all other work and repeats `account.selection.required`. Until project negotiation completes, the server requires `project.configure`.
 
 After `session.ready`, clients enter a session with `session.attach`, including
-`userid`, `projectId`, `projectPath`, and `sessionid`. The server verifies the
-account, project identity, and session ownership, then returns
+`userid`, `projectName`, and `sessionid`. The server verifies the account,
+workspace project folder, and session ownership, then returns
 `session.attached` with a runtime `connectionToken`.
 
 `session.input` and `session.interrupt` messages are accepted only with a valid
@@ -56,6 +54,10 @@ Project session-list actions also use the socket: `session.rename` updates the
 session title and replies with `session.renamed`, while `session.delete` removes
 the session and replies with `session.deleted`. Both actions broadcast
 `session.list.changed` to clients owned by the same account.
+`session.slidewindow.update` updates the session row's `slidewindow` integer
+with the active connection token and replies with
+`session.slidewindow.updated`; running turns keep the value they read at turn
+start, so the update affects later turns.
 
 `GET /api/agent/sessions/:sessionid/data` remains an HTTP inspection endpoint
 for durable `sessiondata` rows. Browser session rendering restores history over

@@ -1,0 +1,904 @@
+[
+  {
+    "model": "ask-user-question-e2e",
+    "input": [
+      {
+        "role": "system",
+        "content": [
+          {
+            "type": "input_text",
+            "text": "<model_instruction>\nYou are NDX, a coding agent running in the NDX agent session server.\nNDX is a TypeScript web-service coding agent, not a mechanical\nport of another agent implementation.\n\nYour capabilities:\n\n- Receive user prompts and context reconstructed by the session\n  server from PostgreSQL-backed session data.\n- Communicate progress and final responses to the user through\n  the connected client.\n- Request tool calls when available; tool execution, inference,\n  context reconstruction, and turn-loop authority belong to the\n  session server.\n- Work inside the configured project workspace and respect\n  repository-local instructions.\n\n# How you work\n\n## Personality\n\nBe concise, direct, and practical. Prioritize action over\nexplanation. Keep the user informed about meaningful progress,\nnot internal reasoning.\n\n## Autonomy and persistence\n\nPursue tasks to completion without stopping for permission at\neach step. When you hit a blocker, attempt to resolve it yourself\nbefore surfacing it to the user. Do not end your turn on analysis\nor a partial change — carry work through to a running, verified\nstate. Only yield back to the user when the task is done or you\nhave reached a decision point that genuinely requires their input.\n\n## Planning\n\nUse the cot_work tool when a task has three or more distinct steps\nor when multiple things were requested in a single message. Call it\nbefore starting any work to record the full plan. The tool\ndescription governs how to manage step states.\n\n## Repository instructions\n\n- Repositories may contain AGENTS.md files that provide durable\n  project policy.\n- Instructions in AGENTS.md apply to files under their directory\n  scope.\n- More deeply nested AGENTS.md files take precedence over broader\n  ones.\n- Direct system, developer, and user instructions take precedence\n  over AGENTS.md.\n- Treat project documentation and repository-local skills as\n  durable policy when they are present.\n\n## Engineering behavior\n\n- Inspect before changing code when context is needed.\n- Keep changes scoped to the user's request.\n- Preserve existing architecture boundaries unless the user\n  explicitly asks for a refactor.\n- Do not move agent-loop, tool-call, inference, or\n  context-reconstruction authority into clients.\n- After making changes, verify the result — run the relevant\n  command, check the output, or confirm the file is correct.\n  Do not report completion before verifying.\n- Prefer TypeScript runtime code, Turbo workspace boundaries,\n  PostgreSQL-backed session state, Express server routes, and\n  React plus shadcn/ui frontend patterns for this repository.\n</model_instruction>\n\n<available_skills_instructions>\n## Skills\nA skill is a set of local instructions to follow that is stored in a `SKILL.md` file. Below is the list of skills that can be used. Each entry includes a name, description, and a short path for traceability; the skill name is the identifier to pass to `loadSkill`.\n### Skill roots\n- `r0` = `/ndx/.ndx/skills`\n- `r1` = `/ndx/.ndx/system/skills`\n- `r2` = `/ndx/workspace/test1/.ndx/skills`\n### Available skills\n- ask-user-question: Use when missing user information materially changes the next action and the askUserQuestion tool is available. (file: r1/ask_user_question/SKILL.md)\n- cot-solve: Activate when steps have dependencies, a wrong first step causes significant rework, changes span multiple files or systems, requirements are ambiguous before acting, or any file, function, or type is assumed to exist without verification. (file: r1/cot_solve/SKILL.md)\n- agenttest: Use when creating or running NDX-executed, filesystem-backed agent tests from JSON suites plus proof assets. Supports category-parallel subagents, one-test-at-a-time execution, result submission, status polling, and final report generation without calling an external LLM API. (file: r2/agenttest/SKILL.md)\n- docker-compose-module-design: Enforce the repository Docker contract: Docker-first runtime, one root docker-compose.yml, module-owned Docker assets, apps service-module to container mapping, isolated networking, Docker socket passthrough for container-spawning services, a standard npm deploy entrypoint, and runtime-only Dockerfiles that copy prebuilt local dist artifacts instead of building the project. Use when defining compose services, Dockerfiles, networks, volumes, env_file wiring, deploy scripts, Docker socket access, or container ownership. (file: r2/docker-compose-module-design/SKILL.md)\n- headless-browser-test: Run headless browser smoke and E2E tests for scaffolded web services. Use when verifying rendered web UI, checking browser errors, creating Playwright-style scenarios, collecting screenshots, or testing a deployed/local service through Chromium. (file: r2/headless-browser-test/SKILL.md)\n- monorepo-architecture-guard: Enforce the repository monorepo contract: TypeScript latest stable, Turbo plus Yarn Plug'n'Play workspace, exact versions, repository package reuse, package and app boundaries, service-module shape, dist manifest targets, env-schema usage, deploy-script conventions, and React plus shadcn/ui plus Express wiring. Use when creating or reviewing packages, app service modules, package.json, tsconfig, workspace imports, env handling, frontend and backend integration, or monorepo configuration. (file: r2/monorepo-architecture-guard/SKILL.md)\n- package-docs-writer: Enforce the repository package documentation contract. Use when creating or updating package README, docs pages, navigation tables, API docs, usage docs, constraints, internals, or testing docs. Keep content terse; keep only repo-specific contracts, paths, exceptions, and decisions. (file: r2/package-docs-writer/SKILL.md)\n- react-decoupled-frontend: Use when designing, implementing, reviewing, or refactoring a React front end to prevent root/global-state coupling, excessive App-level handlers, prop/listener churn, poor partial rendering, or fake refactors that only move complexity into a large hook or wrapper. (file: r2/react-decoupled-frontend/SKILL.md)\n- web-deploy-docker: Explicit-only Docker deploy. Run scripts/deploy.sh directly; do not search for skills, inspect trees, or use subagents. (file: r2/web-deploy-docker/SKILL.md)\n- web-service-scaffold: Use only when explicitly invoked as $web-service-scaffold to run the bundled web-service scaffold script. (file: r0/web-service-scaffold/SKILL.md)\n### How to use skills\n- Discovery: The list above is the skills available in this session (name + description + short path). Skill bodies live on disk at the listed paths after expanding the matching alias from `### Skill roots`; use the displayed skill name when calling `loadSkill`.\n- Trigger rules: If the user names a skill (with `$SkillName` or plain text) OR the task clearly matches a skill's description shown above, you must use that skill for that turn. Multiple mentions mean use them all. Do not carry skills across turns unless re-mentioned.\n- Missing/blocked: If a named skill isn't in the list or can't be loaded, say so briefly and continue with the best fallback.\n- How to use a skill (progressive disclosure):\n  1) After deciding to use a skill, call the `loadSkill` tool with the skill name. Continue the task after the skill instructions are returned.\n  2) When loaded skill instructions reference relative paths (e.g., `scripts/foo.py`), resolve them relative to the skill directory in the returned `<path>` first, and only consider other paths if needed.\n  3) If `SKILL.md` points to extra folders such as `references/`, load only the specific files needed for the request; don't bulk-load everything.\n  4) If `scripts/` exist, prefer running or patching them instead of retyping large code blocks.\n  5) If `assets/` or templates exist, reuse them instead of recreating from scratch.\n- Coordination and sequencing:\n  - If multiple skills apply, choose the minimal set that covers the request and state the order you'll use them.\n  - Announce which skill(s) you're using and why (one short line). If you skip an obvious skill, say why.\n- Context hygiene:\n  - Keep context small: summarize long sections instead of pasting them; only load extra files when needed.\n  - Avoid deep reference-chasing: prefer opening files directly linked from `SKILL.md` unless you're blocked.\n  - When variants exist (frameworks, providers, domains), pick only the relevant reference file(s) and note that choice.\n- Safety and fallback: If a skill can't be applied cleanly (missing files, unclear instructions), state the issue, pick the next-best approach, and continue.\n</available_skills_instructions>"
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "input_text",
+            "text": "# AGENTS.md instructions for /ndx/workspace/test1/AGENTS.md\n\n<INSTRUCTIONS>\n# Repository Instructions\n\nThis repository is a web-service project scaffolded by `web-service-scaffold`.\nKeep detailed procedures in repository-local skills and durable project docs.\n\n## Language\n\nDefault responses are Korean.\n\n## Workspace\n\nThis is a TypeScript + Turbo monorepo using Yarn 4 Plug'n'Play.\n\nFor new scaffolds, use the current working directory as the target repository\nroot and run `git init` before generating project files if `.git/` is absent.\nDo not ask whether this is a new or existing repository; detect it from `.git/`.\n\nRequired root shape:\n\n* `package.json` with `packageManager: \"yarn@...\"`, workspaces for `apps/*`\n  and `packages/*`, and shared `build`, `test`, `lint`, and `deploy` scripts.\n* `.yarnrc.yml` with `nodeLinker: pnp` and `enableGlobalCache: true`.\n* `yarn.lock` generated by the scaffold installer from the bundled lock\n  template and installable with `yarn install --immutable`.\n* `turbo.json` with explicit task `inputs` and `outputs`.\n* `tsconfig.json` with workspace package-name paths only where runtime\n  resolution remains valid.\n* `apps/` for deployable service modules.\n* `packages/` for framework-agnostic shared libraries.\n* Docker host ports assigned by the scaffold installer from the\n  `18080-18999` range, avoiding live listeners and existing scaffold\n  reservations.\n\nChange dependencies with Yarn commands and commit `yarn.lock` when dependency\nwork is requested.\n\nDo not add `pnpm` files, workspace `node_modules`, or package-manager\nmigrations unless this repository explicitly changes that policy in docs.\n\n## Code Style\n\nKeep implementation direct. Do not create functions, classes, modules, or files\nwhose abstraction is effectively the same as their name.\n\nAbstraction rules:\n\n* Prefer one clear exported or top-level function over a chain of private\n  helpers when the helpers are used only once.\n* Allow only first-level decomposition by default. A helper called by the main\n  function must contain real branching, IO boundaries, reusable policy, or\n  meaningful domain invariants.\n* Do not split that helper again unless concrete duplication or a second caller\n  already exists.\n* Do not create a private function just to replace one expression, one method\n  call, one regular expression, one `trim`/`toLowerCase`, or one filename\n  sanitization line.\n* Repeated one-line expressions still do not automatically deserve a function;\n  inline them unless naming the concept prevents a real bug or captures a\n  domain invariant.\n* File-local helpers that are not exported and are called once are suspect.\n  Inline them unless they isolate a genuine boundary such as parsing,\n  validation, persistence, network IO, or a nontrivial algorithm.\n* Avoid classes unless identity, mutable lifecycle, polymorphism, or resource\n  ownership is required. Do not use classes as namespaces.\n\n## Service Shape\n\n`apps/<service>` owns each web service. The server lives in `src/server`, the\nVite React front end lives in `src/front`, and Docker assets live in\n`apps/<service>/docker`.\n\n## App And Domain Package Boundary\n\nApps may depend on packages, but packages must never depend on apps.\n`apps/<service>` owns orchestration, framework lifecycle, HTTP/static serving,\ncomposition, and process wiring. Domain rules, invariants, cross-request state\ninterpretation, and framework-independent product logic belong in packages.\n\nEach app service has exactly one domain package:\n\n* `apps/<service>` pairs with `packages/<service>_domain`.\n* Do not create additional domain-related packages for the same app.\n* Do not put domain logic in unrelated shared packages to bypass the one-domain-package rule.\n* The domain package top-level source shape is `src/common`, `src/server`, and\n  `src/front`.\n* `src/common` is runtime-neutral domain code shared by server and front.\n* `src/server` is server-only domain code and must not import from `src/front`.\n* `src/front` is front-only domain code and must not own app UI composition.\n\nNon-domain packages should stay cohesive and standalone. Avoid dependencies\nbetween unrelated packages unless there is a clear, durable shared abstraction;\ndo not turn `packages/` into a layered application graph.\n\nUse React plus shadcn/ui for front-end implementation and Express for the\nserver. Production serving is through the Express server serving the built\nfront-end assets.\n\nFrontend UI implementation must use shadcn/ui components, Tailwind CSS, and\nRadix UI primitives by default. Do not introduce another UI component framework\nunless the user explicitly overrides this repository contract.\n\nNever import from `apps/` into `packages/`. Cross-package imports use workspace\npackage names, not relative paths across package boundaries. An app importing\nits domain package must use the workspace package name for\n`packages/<service>_domain`.\n\nThe scaffold baseline is intentionally small: health endpoint, one accessible\nfront shell, deploy path, docs, and smoke tests. Do not infer or implement a\nproduct workflow, data model, queue, agent runner, dashboard, or other domain\nfeature unless the user explicitly requests that feature work.\n\nCompose project name is the target folder project name, even when it is one\ncharacter. The Yarn root package name may append `-root` only to avoid a\nworkspace name collision; do not reuse that package name as the Compose project\nname. Container name is the app service name from `apps/<service>` without a\nrepository prefix. Docker Compose rejects one-character explicit\n`container_name` values, so one-character services use `<service>-app`.\n\n## Workflow\n\nUse the repository-local skills installed under `.ndx/skills`:\n\n* `web-deploy-docker` for explicit Docker live deploy of one `apps/<service>`.\n* `monorepo-architecture-guard` for workspace, package, TypeScript, env, and\n  service-boundary rules.\n* `docker-compose-module-design` for compose, Dockerfile, container ownership,\n  and deploy entrypoint rules.\n* `headless-browser-markup` for front-end markup contracts and browser-test\n  locators.\n* `headless-browser-test` for headless browser E2E checks, reports, and\n  screenshots against Docker-deployed services.\n* `package-docs-writer` for package README and docs structure.\n* `agenttest` for strict JSON test suites and reports.\n* `repository-package-vendor` for reuse and vendoring decisions.\n\nWhen the user explicitly asks to use `web-deploy-docker` with a service such as\n`apps/dashboard`, do not search for the skill file or inspect repository\nstructure first. Immediately run `bash scripts/deploy.sh apps/dashboard` from\nthe repository root. The script performs local build, Docker Compose refresh,\nhealth checks, and prints a `deploy-report-begin` / `deploy-report-end` block;\nbase the final answer on that block.\n\n## Fast Scaffold Completion\n\nInitial scaffold creation is complete when the scaffold script has copied the\nbaseline, substituted placeholders, passed its required-file checks, and written\nthe scaffold suite/report/summary under `test/YYYYMMDD/`.\n\nDo not run install, build, tests, `npm run deploy`, browser checks, or Git\ncommit after initial scaffold creation unless the user explicitly asks for\nverification, deployment, or commit.\n\nFor later implementation work, use the relevant repository-local skills and run\nthe checks needed for that requested change.\n</INSTRUCTIONS>\n\n<environment_context>\n  <cwd>/ndx/workspace/test1</cwd>\n  <shell>bash</shell>\n</environment_context>"
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "input_text",
+            "text": "E2E 테스트입니다.\\n반드시 askUserQuestion 도구를 먼저 호출하고, 사용자 응답을 받은 뒤 최종 답변에 E2E_ASKUSERQUESTION_UI_DONE 문자열을 포함하세요."
+          }
+        ]
+      }
+    ],
+    "stream": true,
+    "tools": [
+      {
+        "type": "function",
+        "name": "askUserQuestion",
+        "description": "Ask the connected user one to three short questions and wait for the response. Use this only when missing user information materially changes what you should do next.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "questions": {
+              "type": "array",
+              "description": "Questions to show the user. Prefer one question and never ask more than three.",
+              "minItems": 1,
+              "maxItems": 3,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Stable snake_case identifier for mapping answers."
+                  },
+                  "header": {
+                    "type": "string",
+                    "description": "Short label shown in the dialog header."
+                  },
+                  "question": {
+                    "type": "string",
+                    "description": "One clear question for the user."
+                  },
+                  "inputType": {
+                    "type": "string",
+                    "enum": [
+                      "single_choice",
+                      "free_text",
+                      "secret"
+                    ],
+                    "description": "Use single_choice when options are mutually exclusive, free_text for open answers, and secret for credentials or sensitive values."
+                  },
+                  "options": {
+                    "type": "array",
+                    "description": "Two to four mutually exclusive options for single_choice questions. Put the recommended option first and suffix its label with '(Recommended)'. The client also lets the user add a free-form note.",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "label": {
+                          "type": "string",
+                          "description": "Short user-facing option label."
+                        },
+                        "description": {
+                          "type": "string",
+                          "description": "One short sentence describing the tradeoff or effect."
+                        }
+                      },
+                      "required": [
+                        "label",
+                        "description"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "id",
+                  "header",
+                  "question",
+                  "inputType"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "questions"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "type": "function",
+        "name": "bash",
+        "description": "Runs a bash command under the NDX virtual root. Use file tools for reading, searching, and editing files.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": "string",
+              "description": "Bash command to execute."
+            },
+            "workdir": {
+              "type": "string",
+              "description": "Working directory relative to the project root. Defaults to project root; container absolute paths must stay under the NDX virtual root."
+            },
+            "timeout_ms": {
+              "type": "number",
+              "description": "Timeout in milliseconds. Defaults to 60000."
+            },
+            "max_output_tokens": {
+              "type": "number",
+              "description": "Approximate token budget for returned output."
+            }
+          },
+          "required": [
+            "command"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "type": "function",
+        "name": "cot_work",
+        "description": "Records and tracks a step-by-step plan for the current task. Call this before starting work to make your reasoning explicit, then update it as each step progresses.\n\nWhen to use:\n- The task requires 3 or more distinct actions\n- There are phases or dependencies where order matters\n- The user asked for more than one thing in a single message\n- You generate additional steps while working\n\nWhen NOT to use:\n- Single-step or trivial tasks\n- Purely conversational or informational responses\n\nStep management rules:\n- Call this first before doing any work — record the full plan upfront\n- Always send the complete list on every call, not just changed items\n- Exactly one step must be in_progress at any time\n- Never jump a step from pending to completed — always set in_progress first\n- Mark a step completed immediately when done; do not batch completions\n- If scope changes mid-task, update the plan before continuing and set reason\n- Do not end your turn until every step is completed",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "steps": {
+              "type": "array",
+              "description": "The complete current step list. Always include all steps, not just the ones that changed.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "task": {
+                    "type": "string",
+                    "description": "Imperative description of what this step does. e.g. 'Read the target file', 'Apply the patch', 'Run the tests'"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "pending",
+                      "in_progress",
+                      "completed"
+                    ],
+                    "description": "Current status. Transition order: pending -> in_progress -> completed. At most one step may be in_progress at a time."
+                  }
+                },
+                "required": [
+                  "task",
+                  "status"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 1
+            },
+            "reason": {
+              "type": "string",
+              "description": "Required only when updating an existing plan mid-task. Explain why the plan changed, e.g. discovered additional work, scope narrowed, earlier step revealed new requirements."
+            }
+          },
+          "required": [
+            "steps"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "type": "function",
+        "name": "edit",
+        "description": "Replaces text in a file under the NDX virtual root. The old_string must match exactly once unless replace_all is true.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "file_path": {
+              "type": "string",
+              "description": "Container absolute path under the NDX virtual root, or path relative to the project root."
+            },
+            "old_string": {
+              "type": "string",
+              "description": "Exact literal text to replace. Empty string creates a new file."
+            },
+            "new_string": {
+              "type": "string",
+              "description": "Replacement text."
+            },
+            "replace_all": {
+              "type": "boolean",
+              "description": "Replace all occurrences instead of requiring a single match."
+            }
+          },
+          "required": [
+            "file_path",
+            "old_string",
+            "new_string"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "type": "function",
+        "name": "getImage",
+        "description": "Open a local image file only when the user gives a concrete file path or asks you to inspect an image file in the workspace. Do not use this for images that are already attached to the current message.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "A concrete container absolute path under the NDX virtual root, or a path relative to the project root. Do not invent paths and do not pass a path for an already attached image."
+            }
+          },
+          "required": [
+            "path"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "type": "function",
+        "name": "glob",
+        "description": "Finds files matching a glob pattern under the NDX virtual root.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "pattern": {
+              "type": "string",
+              "description": "Glob pattern such as src/**/*.ts."
+            },
+            "path": {
+              "type": "string",
+              "description": "Directory to search in. Defaults to the project root; container absolute paths must stay under the NDX virtual root."
+            },
+            "limit": {
+              "type": "number",
+              "description": "Maximum number of files to return. Defaults to 100."
+            }
+          },
+          "required": [
+            "pattern"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "type": "function",
+        "name": "grep_search",
+        "description": "Searches text files for a regular expression pattern under the NDX virtual root.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "pattern": {
+              "type": "string",
+              "description": "JavaScript regular expression pattern."
+            },
+            "path": {
+              "type": "string",
+              "description": "File or directory to search. Defaults to project root; container absolute paths must stay under the NDX virtual root."
+            },
+            "glob": {
+              "type": "string",
+              "description": "Optional glob filter such as *.ts or src/**/*.tsx."
+            },
+            "limit": {
+              "type": "number",
+              "description": "Maximum number of matching lines. Defaults to 100."
+            }
+          },
+          "required": [
+            "pattern"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "type": "function",
+        "name": "loadSkill",
+        "description": "Loads the full instructions for an available Codex skill by name, then returns them as a <skill> context block. Use after deciding a listed skill is relevant, then continue the task using the loaded instructions.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "The skill name from the available skills list."
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "type": "function",
+        "name": "prompt_rewrite",
+        "description": "Rewrite the user's prompt into a clearer execution prompt for weaker local models. Use it near the start of a turn when hidden context, prior session flow, project files, or external facts may materially change interpretation. The result separates evidence/report from the rewritten prompt so the model can reflect both without mixing facts and assumptions.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "prompt": {
+              "type": "string",
+              "description": "The raw user prompt to reinterpret. If omitted, the tool uses the latest user message from the current turn context."
+            },
+            "reason": {
+              "type": "string",
+              "description": "Why prompt rewriting is useful for this turn."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "type": "function",
+        "name": "read_file",
+        "description": "Reads a text file under the NDX virtual root, optionally returning a line range.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "Container absolute path under the NDX virtual root, or path relative to the project root."
+            },
+            "offset": {
+              "type": "number",
+              "description": "Zero-based line offset to start reading from."
+            },
+            "limit": {
+              "type": "number",
+              "description": "Maximum number of lines to return."
+            }
+          },
+          "required": [
+            "path"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "type": "function",
+        "name": "web_fetch",
+        "description": "Fetches a public HTTP(S) URL directly and returns readable text content. Authenticated, private, local, and credentialed URLs are not supported.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "url": {
+              "type": "string",
+              "description": "Public HTTP(S) URL to fetch."
+            },
+            "max_chars": {
+              "type": "number",
+              "description": "Maximum content characters to return. Defaults to 20000 and is capped at 100000."
+            }
+          },
+          "required": [
+            "url"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "type": "function",
+        "name": "web_search",
+        "description": "Searches the public web. DuckDuckGo works without configuration. Other providers are selected from .ndx/settings.json websearch settings and require their provider-specific API key.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "Search query."
+            },
+            "allowed_domains": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Only include results from these domains."
+            },
+            "blocked_domains": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Exclude results from these domains."
+            },
+            "limit": {
+              "type": "number",
+              "description": "Maximum results to return. Defaults to 10 and is capped at 15."
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "type": "function",
+        "name": "write_file",
+        "description": "Writes a complete file under the NDX virtual root, creating parent directories as needed.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "file_path": {
+              "type": "string",
+              "description": "Container absolute path under the NDX virtual root, or path relative to the project root."
+            },
+            "content": {
+              "type": "string",
+              "description": "Complete file content to write."
+            }
+          },
+          "required": [
+            "file_path",
+            "content"
+          ],
+          "additionalProperties": false
+        }
+      }
+    ]
+  },
+  {
+    "model": "ask-user-question-e2e",
+    "input": [
+      {
+        "role": "system",
+        "content": [
+          {
+            "type": "input_text",
+            "text": "<model_instruction>\nYou are NDX, a coding agent running in the NDX agent session server.\nNDX is a TypeScript web-service coding agent, not a mechanical\nport of another agent implementation.\n\nYour capabilities:\n\n- Receive user prompts and context reconstructed by the session\n  server from PostgreSQL-backed session data.\n- Communicate progress and final responses to the user through\n  the connected client.\n- Request tool calls when available; tool execution, inference,\n  context reconstruction, and turn-loop authority belong to the\n  session server.\n- Work inside the configured project workspace and respect\n  repository-local instructions.\n\n# How you work\n\n## Personality\n\nBe concise, direct, and practical. Prioritize action over\nexplanation. Keep the user informed about meaningful progress,\nnot internal reasoning.\n\n## Autonomy and persistence\n\nPursue tasks to completion without stopping for permission at\neach step. When you hit a blocker, attempt to resolve it yourself\nbefore surfacing it to the user. Do not end your turn on analysis\nor a partial change — carry work through to a running, verified\nstate. Only yield back to the user when the task is done or you\nhave reached a decision point that genuinely requires their input.\n\n## Planning\n\nUse the cot_work tool when a task has three or more distinct steps\nor when multiple things were requested in a single message. Call it\nbefore starting any work to record the full plan. The tool\ndescription governs how to manage step states.\n\n## Repository instructions\n\n- Repositories may contain AGENTS.md files that provide durable\n  project policy.\n- Instructions in AGENTS.md apply to files under their directory\n  scope.\n- More deeply nested AGENTS.md files take precedence over broader\n  ones.\n- Direct system, developer, and user instructions take precedence\n  over AGENTS.md.\n- Treat project documentation and repository-local skills as\n  durable policy when they are present.\n\n## Engineering behavior\n\n- Inspect before changing code when context is needed.\n- Keep changes scoped to the user's request.\n- Preserve existing architecture boundaries unless the user\n  explicitly asks for a refactor.\n- Do not move agent-loop, tool-call, inference, or\n  context-reconstruction authority into clients.\n- After making changes, verify the result — run the relevant\n  command, check the output, or confirm the file is correct.\n  Do not report completion before verifying.\n- Prefer TypeScript runtime code, Turbo workspace boundaries,\n  PostgreSQL-backed session state, Express server routes, and\n  React plus shadcn/ui frontend patterns for this repository.\n</model_instruction>\n\n<available_skills_instructions>\n## Skills\nA skill is a set of local instructions to follow that is stored in a `SKILL.md` file. Below is the list of skills that can be used. Each entry includes a name, description, and a short path for traceability; the skill name is the identifier to pass to `loadSkill`.\n### Skill roots\n- `r0` = `/ndx/.ndx/skills`\n- `r1` = `/ndx/.ndx/system/skills`\n- `r2` = `/ndx/workspace/test1/.ndx/skills`\n### Available skills\n- ask-user-question: Use when missing user information materially changes the next action and the askUserQuestion tool is available. (file: r1/ask_user_question/SKILL.md)\n- cot-solve: Activate when steps have dependencies, a wrong first step causes significant rework, changes span multiple files or systems, requirements are ambiguous before acting, or any file, function, or type is assumed to exist without verification. (file: r1/cot_solve/SKILL.md)\n- agenttest: Use when creating or running NDX-executed, filesystem-backed agent tests from JSON suites plus proof assets. Supports category-parallel subagents, one-test-at-a-time execution, result submission, status polling, and final report generation without calling an external LLM API. (file: r2/agenttest/SKILL.md)\n- docker-compose-module-design: Enforce the repository Docker contract: Docker-first runtime, one root docker-compose.yml, module-owned Docker assets, apps service-module to container mapping, isolated networking, Docker socket passthrough for container-spawning services, a standard npm deploy entrypoint, and runtime-only Dockerfiles that copy prebuilt local dist artifacts instead of building the project. Use when defining compose services, Dockerfiles, networks, volumes, env_file wiring, deploy scripts, Docker socket access, or container ownership. (file: r2/docker-compose-module-design/SKILL.md)\n- headless-browser-test: Run headless browser smoke and E2E tests for scaffolded web services. Use when verifying rendered web UI, checking browser errors, creating Playwright-style scenarios, collecting screenshots, or testing a deployed/local service through Chromium. (file: r2/headless-browser-test/SKILL.md)\n- monorepo-architecture-guard: Enforce the repository monorepo contract: TypeScript latest stable, Turbo plus Yarn Plug'n'Play workspace, exact versions, repository package reuse, package and app boundaries, service-module shape, dist manifest targets, env-schema usage, deploy-script conventions, and React plus shadcn/ui plus Express wiring. Use when creating or reviewing packages, app service modules, package.json, tsconfig, workspace imports, env handling, frontend and backend integration, or monorepo configuration. (file: r2/monorepo-architecture-guard/SKILL.md)\n- package-docs-writer: Enforce the repository package documentation contract. Use when creating or updating package README, docs pages, navigation tables, API docs, usage docs, constraints, internals, or testing docs. Keep content terse; keep only repo-specific contracts, paths, exceptions, and decisions. (file: r2/package-docs-writer/SKILL.md)\n- react-decoupled-frontend: Use when designing, implementing, reviewing, or refactoring a React front end to prevent root/global-state coupling, excessive App-level handlers, prop/listener churn, poor partial rendering, or fake refactors that only move complexity into a large hook or wrapper. (file: r2/react-decoupled-frontend/SKILL.md)\n- web-deploy-docker: Explicit-only Docker deploy. Run scripts/deploy.sh directly; do not search for skills, inspect trees, or use subagents. (file: r2/web-deploy-docker/SKILL.md)\n- web-service-scaffold: Use only when explicitly invoked as $web-service-scaffold to run the bundled web-service scaffold script. (file: r0/web-service-scaffold/SKILL.md)\n### How to use skills\n- Discovery: The list above is the skills available in this session (name + description + short path). Skill bodies live on disk at the listed paths after expanding the matching alias from `### Skill roots`; use the displayed skill name when calling `loadSkill`.\n- Trigger rules: If the user names a skill (with `$SkillName` or plain text) OR the task clearly matches a skill's description shown above, you must use that skill for that turn. Multiple mentions mean use them all. Do not carry skills across turns unless re-mentioned.\n- Missing/blocked: If a named skill isn't in the list or can't be loaded, say so briefly and continue with the best fallback.\n- How to use a skill (progressive disclosure):\n  1) After deciding to use a skill, call the `loadSkill` tool with the skill name. Continue the task after the skill instructions are returned.\n  2) When loaded skill instructions reference relative paths (e.g., `scripts/foo.py`), resolve them relative to the skill directory in the returned `<path>` first, and only consider other paths if needed.\n  3) If `SKILL.md` points to extra folders such as `references/`, load only the specific files needed for the request; don't bulk-load everything.\n  4) If `scripts/` exist, prefer running or patching them instead of retyping large code blocks.\n  5) If `assets/` or templates exist, reuse them instead of recreating from scratch.\n- Coordination and sequencing:\n  - If multiple skills apply, choose the minimal set that covers the request and state the order you'll use them.\n  - Announce which skill(s) you're using and why (one short line). If you skip an obvious skill, say why.\n- Context hygiene:\n  - Keep context small: summarize long sections instead of pasting them; only load extra files when needed.\n  - Avoid deep reference-chasing: prefer opening files directly linked from `SKILL.md` unless you're blocked.\n  - When variants exist (frameworks, providers, domains), pick only the relevant reference file(s) and note that choice.\n- Safety and fallback: If a skill can't be applied cleanly (missing files, unclear instructions), state the issue, pick the next-best approach, and continue.\n</available_skills_instructions>"
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "input_text",
+            "text": "# AGENTS.md instructions for /ndx/workspace/test1/AGENTS.md\n\n<INSTRUCTIONS>\n# Repository Instructions\n\nThis repository is a web-service project scaffolded by `web-service-scaffold`.\nKeep detailed procedures in repository-local skills and durable project docs.\n\n## Language\n\nDefault responses are Korean.\n\n## Workspace\n\nThis is a TypeScript + Turbo monorepo using Yarn 4 Plug'n'Play.\n\nFor new scaffolds, use the current working directory as the target repository\nroot and run `git init` before generating project files if `.git/` is absent.\nDo not ask whether this is a new or existing repository; detect it from `.git/`.\n\nRequired root shape:\n\n* `package.json` with `packageManager: \"yarn@...\"`, workspaces for `apps/*`\n  and `packages/*`, and shared `build`, `test`, `lint`, and `deploy` scripts.\n* `.yarnrc.yml` with `nodeLinker: pnp` and `enableGlobalCache: true`.\n* `yarn.lock` generated by the scaffold installer from the bundled lock\n  template and installable with `yarn install --immutable`.\n* `turbo.json` with explicit task `inputs` and `outputs`.\n* `tsconfig.json` with workspace package-name paths only where runtime\n  resolution remains valid.\n* `apps/` for deployable service modules.\n* `packages/` for framework-agnostic shared libraries.\n* Docker host ports assigned by the scaffold installer from the\n  `18080-18999` range, avoiding live listeners and existing scaffold\n  reservations.\n\nChange dependencies with Yarn commands and commit `yarn.lock` when dependency\nwork is requested.\n\nDo not add `pnpm` files, workspace `node_modules`, or package-manager\nmigrations unless this repository explicitly changes that policy in docs.\n\n## Code Style\n\nKeep implementation direct. Do not create functions, classes, modules, or files\nwhose abstraction is effectively the same as their name.\n\nAbstraction rules:\n\n* Prefer one clear exported or top-level function over a chain of private\n  helpers when the helpers are used only once.\n* Allow only first-level decomposition by default. A helper called by the main\n  function must contain real branching, IO boundaries, reusable policy, or\n  meaningful domain invariants.\n* Do not split that helper again unless concrete duplication or a second caller\n  already exists.\n* Do not create a private function just to replace one expression, one method\n  call, one regular expression, one `trim`/`toLowerCase`, or one filename\n  sanitization line.\n* Repeated one-line expressions still do not automatically deserve a function;\n  inline them unless naming the concept prevents a real bug or captures a\n  domain invariant.\n* File-local helpers that are not exported and are called once are suspect.\n  Inline them unless they isolate a genuine boundary such as parsing,\n  validation, persistence, network IO, or a nontrivial algorithm.\n* Avoid classes unless identity, mutable lifecycle, polymorphism, or resource\n  ownership is required. Do not use classes as namespaces.\n\n## Service Shape\n\n`apps/<service>` owns each web service. The server lives in `src/server`, the\nVite React front end lives in `src/front`, and Docker assets live in\n`apps/<service>/docker`.\n\n## App And Domain Package Boundary\n\nApps may depend on packages, but packages must never depend on apps.\n`apps/<service>` owns orchestration, framework lifecycle, HTTP/static serving,\ncomposition, and process wiring. Domain rules, invariants, cross-request state\ninterpretation, and framework-independent product logic belong in packages.\n\nEach app service has exactly one domain package:\n\n* `apps/<service>` pairs with `packages/<service>_domain`.\n* Do not create additional domain-related packages for the same app.\n* Do not put domain logic in unrelated shared packages to bypass the one-domain-package rule.\n* The domain package top-level source shape is `src/common`, `src/server`, and\n  `src/front`.\n* `src/common` is runtime-neutral domain code shared by server and front.\n* `src/server` is server-only domain code and must not import from `src/front`.\n* `src/front` is front-only domain code and must not own app UI composition.\n\nNon-domain packages should stay cohesive and standalone. Avoid dependencies\nbetween unrelated packages unless there is a clear, durable shared abstraction;\ndo not turn `packages/` into a layered application graph.\n\nUse React plus shadcn/ui for front-end implementation and Express for the\nserver. Production serving is through the Express server serving the built\nfront-end assets.\n\nFrontend UI implementation must use shadcn/ui components, Tailwind CSS, and\nRadix UI primitives by default. Do not introduce another UI component framework\nunless the user explicitly overrides this repository contract.\n\nNever import from `apps/` into `packages/`. Cross-package imports use workspace\npackage names, not relative paths across package boundaries. An app importing\nits domain package must use the workspace package name for\n`packages/<service>_domain`.\n\nThe scaffold baseline is intentionally small: health endpoint, one accessible\nfront shell, deploy path, docs, and smoke tests. Do not infer or implement a\nproduct workflow, data model, queue, agent runner, dashboard, or other domain\nfeature unless the user explicitly requests that feature work.\n\nCompose project name is the target folder project name, even when it is one\ncharacter. The Yarn root package name may append `-root` only to avoid a\nworkspace name collision; do not reuse that package name as the Compose project\nname. Container name is the app service name from `apps/<service>` without a\nrepository prefix. Docker Compose rejects one-character explicit\n`container_name` values, so one-character services use `<service>-app`.\n\n## Workflow\n\nUse the repository-local skills installed under `.ndx/skills`:\n\n* `web-deploy-docker` for explicit Docker live deploy of one `apps/<service>`.\n* `monorepo-architecture-guard` for workspace, package, TypeScript, env, and\n  service-boundary rules.\n* `docker-compose-module-design` for compose, Dockerfile, container ownership,\n  and deploy entrypoint rules.\n* `headless-browser-markup` for front-end markup contracts and browser-test\n  locators.\n* `headless-browser-test` for headless browser E2E checks, reports, and\n  screenshots against Docker-deployed services.\n* `package-docs-writer` for package README and docs structure.\n* `agenttest` for strict JSON test suites and reports.\n* `repository-package-vendor` for reuse and vendoring decisions.\n\nWhen the user explicitly asks to use `web-deploy-docker` with a service such as\n`apps/dashboard`, do not search for the skill file or inspect repository\nstructure first. Immediately run `bash scripts/deploy.sh apps/dashboard` from\nthe repository root. The script performs local build, Docker Compose refresh,\nhealth checks, and prints a `deploy-report-begin` / `deploy-report-end` block;\nbase the final answer on that block.\n\n## Fast Scaffold Completion\n\nInitial scaffold creation is complete when the scaffold script has copied the\nbaseline, substituted placeholders, passed its required-file checks, and written\nthe scaffold suite/report/summary under `test/YYYYMMDD/`.\n\nDo not run install, build, tests, `npm run deploy`, browser checks, or Git\ncommit after initial scaffold creation unless the user explicitly asks for\nverification, deployment, or commit.\n\nFor later implementation work, use the relevant repository-local skills and run\nthe checks needed for that requested change.\n</INSTRUCTIONS>\n\n<environment_context>\n  <cwd>/ndx/workspace/test1</cwd>\n  <shell>bash</shell>\n</environment_context>"
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "input_text",
+            "text": "E2E 테스트입니다.\\n반드시 askUserQuestion 도구를 먼저 호출하고, 사용자 응답을 받은 뒤 최종 답변에 E2E_ASKUSERQUESTION_UI_DONE 문자열을 포함하세요."
+          }
+        ]
+      },
+      {
+        "name": "askUserQuestion",
+        "type": "function_call",
+        "call_id": "call_e2e_ask_user_question",
+        "arguments": "{\"questions\":[{\"id\":\"e2e_choice\",\"header\":\"ASK_USER_QUESTION_LONG_HEADER: 긴 질문과 긴 선택지를 검수하기 위한 제목입니다. 이 제목은 모달 상단 타이틀과 중복되면 안 되고 본문 질문 카드 안에서만 한 번 보여야 합니다.\",\"question\":\"이번 검수는 e2e 확인처럼 짧은 문장이 아니라 실제 사용 중 모델이 보낼 수 있는 긴 질문을 대상으로 합니다. 질문 본문이 여러 문장으로 길어져도 모달 전체가 화면 밖으로 밀려나지 않고, 본문 영역이 스크롤되며, 텍스트가 가로로 넘치지 않아야 합니다. 또한 선택지는 상세한 장단점을 포함할 수 있으므로 선택지 라벨과 설명 모두 줄바꿈되어 읽을 수 있어야 합니다.\",\"inputType\":\"single_choice\",\"options\":[{\"label\":\"Proceed with the long validated path (Recommended) - 선택지 라벨 자체가 길어도 라디오 행의 오른쪽으로 뚫고 나가지 않아야 합니다\",\"description\":\"이 선택지는 현재 구현을 유지하면서 긴 질문, 긴 선택지, 추가 답변, 이미지 붙여넣기 첨부가 모두 다음 모델 이터레이션으로 전달되는지 검증합니다.\"},{\"label\":\"Stop and keep the current session unchanged\",\"description\":\"현재 턴을 취소하고 이미지와 추가 답변이 모델로 전달되지 않는 경로를 검증합니다.\"}]}]}"
+      },
+      {
+        "type": "function_call_output",
+        "call_id": "call_e2e_ask_user_question",
+        "output": "{\"answers\":{\"e2e_choice\":{\"answers\":[\"Proceed with the long validated path (Recommended) - 선택지 라벨 자체가 길어도 라디오 행의 오른쪽으로 뚫고 나가지 않아야 합니다\",\"user_note: browser e2e note with pasted image\"],\"attachments\":[{\"name\":\"pasted-proof.png\",\"mimeType\":\"image/png\",\"size\":68}]}}}"
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "input_text",
+            "text": "User attached image(s) while answering askUserQuestion.\n[image/png] pasted-proof.png: /ndx/.ndx/runtime/askUserQuestion/019e7870-66e0-7b24-9e5c-6cee1bd568f1/call_e2e_ask_user_question/e2e_choice/1-pasted-proof.png"
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "input_image",
+            "ndx_dataid": "7425",
+            "image_url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="
+          }
+        ]
+      }
+    ],
+    "stream": true,
+    "tools": [
+      {
+        "type": "function",
+        "name": "askUserQuestion",
+        "description": "Ask the connected user one to three short questions and wait for the response. Use this only when missing user information materially changes what you should do next.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "questions": {
+              "type": "array",
+              "description": "Questions to show the user. Prefer one question and never ask more than three.",
+              "minItems": 1,
+              "maxItems": 3,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Stable snake_case identifier for mapping answers."
+                  },
+                  "header": {
+                    "type": "string",
+                    "description": "Short label shown in the dialog header."
+                  },
+                  "question": {
+                    "type": "string",
+                    "description": "One clear question for the user."
+                  },
+                  "inputType": {
+                    "type": "string",
+                    "enum": [
+                      "single_choice",
+                      "free_text",
+                      "secret"
+                    ],
+                    "description": "Use single_choice when options are mutually exclusive, free_text for open answers, and secret for credentials or sensitive values."
+                  },
+                  "options": {
+                    "type": "array",
+                    "description": "Two to four mutually exclusive options for single_choice questions. Put the recommended option first and suffix its label with '(Recommended)'. The client also lets the user add a free-form note.",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "label": {
+                          "type": "string",
+                          "description": "Short user-facing option label."
+                        },
+                        "description": {
+                          "type": "string",
+                          "description": "One short sentence describing the tradeoff or effect."
+                        }
+                      },
+                      "required": [
+                        "label",
+                        "description"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "id",
+                  "header",
+                  "question",
+                  "inputType"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "questions"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "type": "function",
+        "name": "bash",
+        "description": "Runs a bash command under the NDX virtual root. Use file tools for reading, searching, and editing files.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": "string",
+              "description": "Bash command to execute."
+            },
+            "workdir": {
+              "type": "string",
+              "description": "Working directory relative to the project root. Defaults to project root; container absolute paths must stay under the NDX virtual root."
+            },
+            "timeout_ms": {
+              "type": "number",
+              "description": "Timeout in milliseconds. Defaults to 60000."
+            },
+            "max_output_tokens": {
+              "type": "number",
+              "description": "Approximate token budget for returned output."
+            }
+          },
+          "required": [
+            "command"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "type": "function",
+        "name": "cot_work",
+        "description": "Records and tracks a step-by-step plan for the current task. Call this before starting work to make your reasoning explicit, then update it as each step progresses.\n\nWhen to use:\n- The task requires 3 or more distinct actions\n- There are phases or dependencies where order matters\n- The user asked for more than one thing in a single message\n- You generate additional steps while working\n\nWhen NOT to use:\n- Single-step or trivial tasks\n- Purely conversational or informational responses\n\nStep management rules:\n- Call this first before doing any work — record the full plan upfront\n- Always send the complete list on every call, not just changed items\n- Exactly one step must be in_progress at any time\n- Never jump a step from pending to completed — always set in_progress first\n- Mark a step completed immediately when done; do not batch completions\n- If scope changes mid-task, update the plan before continuing and set reason\n- Do not end your turn until every step is completed",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "steps": {
+              "type": "array",
+              "description": "The complete current step list. Always include all steps, not just the ones that changed.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "task": {
+                    "type": "string",
+                    "description": "Imperative description of what this step does. e.g. 'Read the target file', 'Apply the patch', 'Run the tests'"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "pending",
+                      "in_progress",
+                      "completed"
+                    ],
+                    "description": "Current status. Transition order: pending -> in_progress -> completed. At most one step may be in_progress at a time."
+                  }
+                },
+                "required": [
+                  "task",
+                  "status"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 1
+            },
+            "reason": {
+              "type": "string",
+              "description": "Required only when updating an existing plan mid-task. Explain why the plan changed, e.g. discovered additional work, scope narrowed, earlier step revealed new requirements."
+            }
+          },
+          "required": [
+            "steps"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "type": "function",
+        "name": "edit",
+        "description": "Replaces text in a file under the NDX virtual root. The old_string must match exactly once unless replace_all is true.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "file_path": {
+              "type": "string",
+              "description": "Container absolute path under the NDX virtual root, or path relative to the project root."
+            },
+            "old_string": {
+              "type": "string",
+              "description": "Exact literal text to replace. Empty string creates a new file."
+            },
+            "new_string": {
+              "type": "string",
+              "description": "Replacement text."
+            },
+            "replace_all": {
+              "type": "boolean",
+              "description": "Replace all occurrences instead of requiring a single match."
+            }
+          },
+          "required": [
+            "file_path",
+            "old_string",
+            "new_string"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "type": "function",
+        "name": "getImage",
+        "description": "Open a local image file only when the user gives a concrete file path or asks you to inspect an image file in the workspace. Do not use this for images that are already attached to the current message.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "A concrete container absolute path under the NDX virtual root, or a path relative to the project root. Do not invent paths and do not pass a path for an already attached image."
+            }
+          },
+          "required": [
+            "path"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "type": "function",
+        "name": "glob",
+        "description": "Finds files matching a glob pattern under the NDX virtual root.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "pattern": {
+              "type": "string",
+              "description": "Glob pattern such as src/**/*.ts."
+            },
+            "path": {
+              "type": "string",
+              "description": "Directory to search in. Defaults to the project root; container absolute paths must stay under the NDX virtual root."
+            },
+            "limit": {
+              "type": "number",
+              "description": "Maximum number of files to return. Defaults to 100."
+            }
+          },
+          "required": [
+            "pattern"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "type": "function",
+        "name": "grep_search",
+        "description": "Searches text files for a regular expression pattern under the NDX virtual root.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "pattern": {
+              "type": "string",
+              "description": "JavaScript regular expression pattern."
+            },
+            "path": {
+              "type": "string",
+              "description": "File or directory to search. Defaults to project root; container absolute paths must stay under the NDX virtual root."
+            },
+            "glob": {
+              "type": "string",
+              "description": "Optional glob filter such as *.ts or src/**/*.tsx."
+            },
+            "limit": {
+              "type": "number",
+              "description": "Maximum number of matching lines. Defaults to 100."
+            }
+          },
+          "required": [
+            "pattern"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "type": "function",
+        "name": "loadSkill",
+        "description": "Loads the full instructions for an available Codex skill by name, then returns them as a <skill> context block. Use after deciding a listed skill is relevant, then continue the task using the loaded instructions.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "The skill name from the available skills list."
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "type": "function",
+        "name": "prompt_rewrite",
+        "description": "Rewrite the user's prompt into a clearer execution prompt for weaker local models. Use it near the start of a turn when hidden context, prior session flow, project files, or external facts may materially change interpretation. The result separates evidence/report from the rewritten prompt so the model can reflect both without mixing facts and assumptions.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "prompt": {
+              "type": "string",
+              "description": "The raw user prompt to reinterpret. If omitted, the tool uses the latest user message from the current turn context."
+            },
+            "reason": {
+              "type": "string",
+              "description": "Why prompt rewriting is useful for this turn."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "type": "function",
+        "name": "read_file",
+        "description": "Reads a text file under the NDX virtual root, optionally returning a line range.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "Container absolute path under the NDX virtual root, or path relative to the project root."
+            },
+            "offset": {
+              "type": "number",
+              "description": "Zero-based line offset to start reading from."
+            },
+            "limit": {
+              "type": "number",
+              "description": "Maximum number of lines to return."
+            }
+          },
+          "required": [
+            "path"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "type": "function",
+        "name": "web_fetch",
+        "description": "Fetches a public HTTP(S) URL directly and returns readable text content. Authenticated, private, local, and credentialed URLs are not supported.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "url": {
+              "type": "string",
+              "description": "Public HTTP(S) URL to fetch."
+            },
+            "max_chars": {
+              "type": "number",
+              "description": "Maximum content characters to return. Defaults to 20000 and is capped at 100000."
+            }
+          },
+          "required": [
+            "url"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "type": "function",
+        "name": "web_search",
+        "description": "Searches the public web. DuckDuckGo works without configuration. Other providers are selected from .ndx/settings.json websearch settings and require their provider-specific API key.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "Search query."
+            },
+            "allowed_domains": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Only include results from these domains."
+            },
+            "blocked_domains": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Exclude results from these domains."
+            },
+            "limit": {
+              "type": "number",
+              "description": "Maximum results to return. Defaults to 10 and is capped at 15."
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "type": "function",
+        "name": "write_file",
+        "description": "Writes a complete file under the NDX virtual root, creating parent directories as needed.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "file_path": {
+              "type": "string",
+              "description": "Container absolute path under the NDX virtual root, or path relative to the project root."
+            },
+            "content": {
+              "type": "string",
+              "description": "Complete file content to write."
+            }
+          },
+          "required": [
+            "file_path",
+            "content"
+          ],
+          "additionalProperties": false
+        }
+      }
+    ]
+  }
+]

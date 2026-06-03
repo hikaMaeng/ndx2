@@ -9,8 +9,8 @@ Deployable services are split by operational surface:
 
 | Service | Package dependencies | Notes |
 | --- | --- | --- |
-| `apps/admin` | `ndx/common`, `ndx/admin/*` | Administration HTTP and front shell. |
-| `apps/agent` | `ndx/common`, `ndx/agent/*` | Agent service, session web client, and session socket-server wiring. |
+| `apps/ndx` | `ndx/common`, `ndx/admin/*` | Administration HTTP and front shell. |
+| `apps/ndx` | `ndx/common`, `ndx/agent/*` | Agent service, session web client, and session socket-server wiring. |
 
 The agent runtime is modeled around task turns.
 

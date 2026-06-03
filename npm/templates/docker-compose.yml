@@ -1,0 +1,20 @@
+name: ndx2
+
+services:
+  agent:
+    image: ghcr.io/hikamaeng/ndx2-agent:__IMAGE_TAG__
+    container_name: ndx2-agent
+    restart: unless-stopped
+    ports:
+      - "__AGENT_WEB_HOST_PORT__:18080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - type: bind
+        source: "__NDX_ROOT__"
+        target: /ndx
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+    environment:
+      - NDX_ROOT=/ndx

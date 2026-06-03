@@ -11,6 +11,6 @@ The server product has four durable responsibilities:
 * Session web client: provides a browser interface for a session, alongside possible CLI, editor, or native clients.
 * Account-management server: creates, removes, and authenticates user accounts.
 
-The scaffold now separates deployable services into `apps/admin` and `apps/agent`. Shared domain contracts live in `packages/ndx` under `src/common`, `src/admin/*`, and `src/agent/*`. Domain behavior is documented here before implementation so future code can follow stable contracts instead of inferring product design from scaffold placeholders.
+The scaffold now separates deployable services into `apps/ndx` and `apps/ndx`. Shared domain contracts live in `packages/ndx` under `src/common`, `src/admin/*`, and `src/agent/*`. Domain behavior is documented here before implementation so future code can follow stable contracts instead of inferring product design from scaffold placeholders.
 
-The runtime datastore is a compose-local PostgreSQL service named `pgvector`, built from `./pgvector/Dockerfile.pgvector` and configured with default credentials `ndev/ndev`. The container exposes no host port and stores data under `./pgvector/data`.
+The runtime datastore is PostgreSQL inside the agent container, built from the GHCR pgvector base image produced by `./pgvector/Dockerfile.pgvector` and `./pgvector/publish-ghcr.sh`. PostgreSQL exposes no host port and stores data under `./volume/pgvector`, inside the ndx root volume.

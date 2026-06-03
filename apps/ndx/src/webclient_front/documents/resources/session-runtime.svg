@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1160" height="520" viewBox="0 0 1160 520" role="img" aria-labelledby="title desc">
+  <title id="title">NDX session runtime flow</title>
+  <desc id="desc">A high level diagram of the browser, Express server, session authority, PostgreSQL store, tools, hooks, and model provider flow.</desc>
+  <rect width="1160" height="520" fill="#050505"/>
+  <rect x="32" y="32" width="1096" height="456" rx="24" fill="#09090b" stroke="#27272a" stroke-width="2"/>
+  <text x="64" y="78" fill="#fafafa" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="700">NDX session runtime</text>
+  <text x="64" y="108" fill="#a1a1aa" font-family="Inter, Arial, sans-serif" font-size="15">All agent execution authority stays inside the session server. PostgreSQL remains the durable source of truth.</text>
+
+  <defs>
+    <marker id="arrow" markerWidth="14" markerHeight="14" refX="10" refY="7" orient="auto">
+      <path d="M2 2 L10 7 L2 12 Z" fill="#94a3b8"/>
+    </marker>
+    <linearGradient id="authority" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#18181b"/>
+      <stop offset="1" stop-color="#111827"/>
+    </linearGradient>
+  </defs>
+
+  <g font-family="Inter, Arial, sans-serif">
+    <rect x="72" y="178" width="184" height="104" rx="12" fill="#111111" stroke="#3f3f46" stroke-width="2"/>
+    <text x="100" y="218" fill="#f4f4f5" font-size="19" font-weight="700">Web client</text>
+    <text x="100" y="248" fill="#a1a1aa" font-size="14">React UI, composer,</text>
+    <text x="100" y="269" fill="#a1a1aa" font-size="14">session event stream</text>
+
+    <rect x="336" y="166" width="228" height="128" rx="14" fill="url(#authority)" stroke="#60a5fa" stroke-width="2"/>
+    <text x="370" y="209" fill="#f8fafc" font-size="20" font-weight="700">Express session server</text>
+    <text x="370" y="240" fill="#bfdbfe" font-size="14">Transport, auth context,</text>
+    <text x="370" y="261" fill="#bfdbfe" font-size="14">agent loop ownership</text>
+
+    <rect x="644" y="152" width="224" height="156" rx="14" fill="#101010" stroke="#22c55e" stroke-width="2"/>
+    <text x="680" y="197" fill="#f0fdf4" font-size="20" font-weight="700">Turn loop</text>
+    <text x="680" y="228" fill="#bbf7d0" font-size="14">context assembly, tools,</text>
+    <text x="680" y="249" fill="#bbf7d0" font-size="14">hooks, continuation</text>
+    <text x="680" y="276" fill="#86efac" font-size="13">append-only history</text>
+
+    <rect x="944" y="166" width="144" height="128" rx="14" fill="#111111" stroke="#a78bfa" stroke-width="2"/>
+    <text x="974" y="209" fill="#f5f3ff" font-size="20" font-weight="700">Model</text>
+    <text x="974" y="240" fill="#ddd6fe" font-size="14">Responses API</text>
+    <text x="974" y="261" fill="#ddd6fe" font-size="14">stream adapter</text>
+
+    <rect x="336" y="362" width="228" height="82" rx="12" fill="#111111" stroke="#f59e0b" stroke-width="2"/>
+    <text x="374" y="397" fill="#fffbeb" font-size="19" font-weight="700">PostgreSQL + pgvector</text>
+    <text x="374" y="426" fill="#fde68a" font-size="14">session, sessiondata, search</text>
+
+    <rect x="644" y="362" width="190" height="82" rx="12" fill="#111111" stroke="#f43f5e" stroke-width="2"/>
+    <text x="684" y="397" fill="#fff1f2" font-size="19" font-weight="700">Tools</text>
+    <text x="684" y="426" fill="#fecdd3" font-size="14">basetools and function tools</text>
+
+    <rect x="880" y="362" width="190" height="82" rx="12" fill="#111111" stroke="#14b8a6" stroke-width="2"/>
+    <text x="920" y="397" fill="#f0fdfa" font-size="19" font-weight="700">Hooks and skills</text>
+    <text x="920" y="426" fill="#99f6e4" font-size="14">event policy, skill prelude</text>
+
+    <path d="M256 230 H328" fill="none" stroke="#94a3b8" stroke-width="2.5" marker-end="url(#arrow)"/>
+    <path d="M564 230 H636" fill="none" stroke="#94a3b8" stroke-width="2.5" marker-end="url(#arrow)"/>
+    <path d="M868 230 H936" fill="none" stroke="#94a3b8" stroke-width="2.5" marker-end="url(#arrow)"/>
+    <path d="M756 308 V354" fill="none" stroke="#94a3b8" stroke-width="2.5" marker-end="url(#arrow)"/>
+    <path d="M824 362 C858 334 910 334 956 358" fill="none" stroke="#94a3b8" stroke-width="2.5" marker-end="url(#arrow)"/>
+    <path d="M450 294 V354" fill="none" stroke="#94a3b8" stroke-width="2.5" marker-end="url(#arrow)"/>
+    <path d="M564 403 C606 403 610 280 640 262" fill="none" stroke="#94a3b8" stroke-width="2.5" marker-end="url(#arrow)"/>
+    <path d="M944 251 C904 328 838 342 802 354" fill="none" stroke="#94a3b8" stroke-width="2.5" marker-end="url(#arrow)"/>
+
+    <text x="286" y="214" fill="#cbd5e1" font-size="12">HTTP / WS</text>
+    <text x="584" y="214" fill="#cbd5e1" font-size="12">start turn</text>
+    <text x="890" y="214" fill="#cbd5e1" font-size="12">model request</text>
+    <text x="466" y="333" fill="#cbd5e1" font-size="12">durable rows</text>
+    <text x="584" y="382" fill="#cbd5e1" font-size="12">reconstruct</text>
+  </g>
+</svg>

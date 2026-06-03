@@ -1,0 +1,3 @@
+display_name: Agenttest
+short_description: Run NDX-executed JSON test suites with proof assets.
+default_prompt: Create or run an asset-backed agenttest suite using the stateful TypeScript runner.

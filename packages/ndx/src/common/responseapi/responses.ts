@@ -10,11 +10,12 @@ export type ResponseStreamInterrupt = (reason?: string | Error) => Promise<never
 
 export type ModelResponse = {
   content: string;
+  reasoning?: string;
   toolCalls: unknown[];
   outputItems: unknown[];
 };
 
-export type ResponsePayloadResult = ModelResponse & {
+export type ResponsePayloadResult = {
   text: string;
   content: string;
   toolCalls: unknown[];
@@ -38,6 +39,7 @@ export type ResponseModelConfig = {
   model: string;
   url: string;
   token: string;
+  requestTimeoutMs?: number;
   temperature?: number;
   topP?: number;
   topK?: number;
@@ -128,6 +130,17 @@ export async function readResponsesStream(stream: ReadableStream<Uint8Array>, on
           });
           throw error;
         }
+        const streamFailure = responseFailureError(parsed);
+        if (streamFailure && !isRecoverableToolCallParseFailure(streamFailure, parsedText)) {
+          throw streamFailure;
+        }
+        if (streamFailure) {
+          await onEvent?.onDebug?.("responseapi.stream.tool_call_parse_failure_recovered", {
+            error: streamFailure.message,
+            toolCallCount: parsedText.toolCalls.length,
+            textLength: parsedText.text.length
+          });
+        }
 
         for (const summary of parsedText.reasoning) {
           const nextReasoningContent = isReasoningDeltaEvent(parsed)
@@ -182,12 +195,16 @@ export async function readResponsesStream(stream: ReadableStream<Uint8Array>, on
     toolCalls.push(...textToolCalls);
     outputItems.push(...textToolCalls);
   }
+  if (toolCalls.length > 0) {
+    content = stripTextToolCalls(content);
+  }
 
   await onEvent?.onDebug?.("responseapi.stream.complete", {
     contentLength: content.length,
+    reasoningLength: reasoningContent.length,
     toolCallCount: toolCalls.length
   });
-  return { content, toolCalls, outputItems };
+  return { content, reasoning: reasoningContent, toolCalls, outputItems };
 }
 
 function abortError(reason?: string | Error): Error {
@@ -239,8 +256,8 @@ export function parseResponsesPayload(payload: unknown): ResponsePayloadResult {
     if (output.type === "message") {
       const messageText = extractOutputMessageText(output.content);
       if (messageText) {
-        text += messageText;
         toolCalls.push(...extractTextToolCalls(messageText));
+        text += stripTextToolCalls(messageText);
       }
       continue;
     }
@@ -253,8 +270,8 @@ export function parseResponsesPayload(payload: unknown): ResponsePayloadResult {
     ) {
       const delta = extractResponseText(output);
       if (delta) {
-        text += delta;
         toolCalls.push(...extractTextToolCalls(delta));
+        text += stripTextToolCalls(delta, { trim: false });
       }
     }
   }
@@ -351,6 +368,38 @@ function isReasoningDeltaEvent(payload: unknown): boolean {
     typeof payload === "object" &&
     ((payload as { type?: unknown }).type === "response.reasoning_text.delta" || (payload as { type?: unknown }).type === "reasoning_text.delta")
   );
+}
+
+function responseFailureError(payload: unknown): Error | undefined {
+  if (!payload || typeof payload !== "object") {
+    return undefined;
+  }
+  const record = payload as { type?: unknown; error?: unknown; response?: unknown };
+  const response = record.response && typeof record.response === "object" ? record.response as { status?: unknown; error?: unknown } : undefined;
+  if (record.type !== "error" && record.type !== "response.failed" && response?.status !== "failed") {
+    return undefined;
+  }
+  const errorPayload = record.error ?? response?.error;
+  const message = responseErrorMessage(errorPayload);
+  return new Error(message ? `model response failed: ${message}` : "model response failed.");
+}
+
+function responseErrorMessage(errorPayload: unknown): string {
+  if (typeof errorPayload === "string") {
+    return errorPayload;
+  }
+  if (!errorPayload || typeof errorPayload !== "object") {
+    return "";
+  }
+  const record = errorPayload as { message?: unknown; code?: unknown; type?: unknown };
+  const message = typeof record.message === "string" ? record.message : "";
+  const code = typeof record.code === "string" ? record.code : "";
+  const type = typeof record.type === "string" ? record.type : "";
+  return [message, code || type ? `(${[type, code].filter(Boolean).join("/")})` : ""].filter(Boolean).join(" ");
+}
+
+function isRecoverableToolCallParseFailure(error: Error, parsedText: ResponsePayloadResult): boolean {
+  return /parse tool call/i.test(error.message) && parsedText.toolCalls.length > 0;
 }
 
 function responsePayloadDebugContext(payload: unknown): Record<string, unknown> {
@@ -455,9 +504,19 @@ function extractTextToolCalls(text: string): unknown[] {
     const codeCall = parseCodeToolCall(body);
     if (codeCall) {
       calls.push(codeCall);
+      continue;
+    }
+    const taggedCall = parseTaggedToolCall(body, calls.length);
+    if (taggedCall) {
+      calls.push(taggedCall);
     }
   }
   return calls;
+}
+
+function stripTextToolCalls(text: string, options: { trim?: boolean } = {}): string {
+  const stripped = text.replace(/<tool_(?:code|call)>[\s\S]*?<\/tool_(?:code|call)>/giu, "");
+  return options.trim === false ? stripped : stripped.trim();
 }
 
 function parseJsonToolCalls(body: string): unknown[] {
@@ -499,6 +558,52 @@ function parseCodeToolCall(body: string): unknown | undefined {
     call_id: "text_tool_call_1",
     name: match[1],
     arguments: JSON.stringify(parseCodeToolArguments(match[2] ?? ""))
+  };
+}
+
+function parseTaggedToolCall(body: string, index: number): unknown | undefined {
+  const header = /^\s*(?:assistant\s+)?tool_call\s+([A-Za-z_][A-Za-z0-9_]*)\s*(?:\(([^)]+)\))?\s*:?\s*/u.exec(body);
+  if (!header) {
+    return undefined;
+  }
+  const args: Record<string, unknown> = {};
+  const parameterPattern = /<parameter=([A-Za-z_][A-Za-z0-9_]*)>\s*([\s\S]*?)\s*<\/parameter>/giu;
+  for (const match of body.matchAll(parameterPattern)) {
+    const name = match[1]?.trim();
+    if (name) {
+      args[name] = match[2] ?? "";
+    }
+  }
+  if (Object.keys(args).length === 0) {
+    const tail = body.slice(header[0].length).trim();
+    if (!tail || /^<\/(?:function|tool_(?:code|call))>\s*$/iu.test(tail)) {
+      return {
+        type: "function_call",
+        source: "text_tool_code",
+        call_id: header[2]?.trim() || `text_tool_call_${index + 1}`,
+        name: header[1],
+        arguments: JSON.stringify({})
+      };
+    }
+    if (!tail.startsWith("{")) {
+      return undefined;
+    }
+    try {
+      const parsed = JSON.parse(tail) as unknown;
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        return undefined;
+      }
+      Object.assign(args, parsed);
+    } catch {
+      return undefined;
+    }
+  }
+  return {
+    type: "function_call",
+    source: "text_tool_code",
+    call_id: header[2]?.trim() || `text_tool_call_${index + 1}`,
+    name: header[1],
+    arguments: JSON.stringify(args)
   };
 }
 

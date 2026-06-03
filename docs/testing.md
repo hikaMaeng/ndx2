@@ -16,3 +16,9 @@ Future implementation tests must cover:
 * mid-turn interjection after an active tool finishes.
 
 Frontend browser tests must use documented landmarks, accessible names, and stable test ids from `docs/constraints.md` or the owning app package docs.
+
+Scaffolded web projects include a repository-local `headless-browser-test` skill
+for running Chromium/Playwright checks against Docker-deployed services. The
+ndx2 agent image owns the browser runtime; project skills should focus on the
+test URL, user-visible scenario, report, and screenshots rather than dependency
+installation.

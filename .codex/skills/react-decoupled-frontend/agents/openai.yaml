@@ -1,0 +1,4 @@
+interface:
+  display_name: "React Decoupled Frontend"
+  short_description: "Keep React feature state out of root components."
+  default_prompt: "Use $react-decoupled-frontend to design or refactor this React frontend so feature ownership and partial rendering boundaries are preserved."

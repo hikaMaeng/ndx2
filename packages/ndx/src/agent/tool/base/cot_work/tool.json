@@ -1,0 +1,43 @@
+{
+  "tool": {
+    "command": "sh",
+    "args": ["./index.sh"]
+  },
+  "schema": {
+    "type": "function",
+    "name": "cot_work",
+    "description": "Records and tracks a step-by-step plan for the current task. Use it only when planning state helps the task; do not call it just to restate a short obvious change.\n\nWhen to use:\n- The task requires 3 or more distinct execution actions\n- There are phases or dependencies where order matters\n- The user asked for more than one substantial thing in a single message\n- You generate additional required steps while working\n\nWhen NOT to use:\n- Single-step or trivial tasks\n- One or two straightforward implementation steps\n- Ordinary inspect-before-edit work where reading files is enough\n- Purely conversational or informational responses\n\nStep management rules:\n- Call this before the first implementation action when the task qualifies; reading files to resolve unknowns may happen first\n- Always send the complete list on every call, not just changed items\n- The first call for an active plan must mark the first executable step in_progress; never submit all steps as pending\n- Active plans must have exactly one in_progress step; terminal plans may have every step completed and no in_progress step\n- Never have more than one in_progress step\n- Never jump a step from pending to completed — always set in_progress first\n- Mark a step completed immediately when done; do not batch completions\n- If scope changes mid-task, update the plan before continuing and set reason\n- When the final planned action is verified, either send a terminal all-completed plan or finish the turn; the runtime records final completion at turn end",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "steps": {
+          "type": "array",
+          "description": "The complete current step list. Always include all steps, not just the ones that changed.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "task": {
+                "type": "string",
+                "description": "Imperative description of what this step does. e.g. 'Read the target file', 'Apply the patch', 'Run the tests'"
+              },
+              "status": {
+                "type": "string",
+                "enum": ["pending", "in_progress", "completed"],
+                "description": "Current status. Transition order: pending -> in_progress -> completed. Active plans require exactly one in_progress step; terminal plans require every step completed."
+              }
+            },
+            "required": ["task", "status"],
+            "additionalProperties": false
+          },
+          "minItems": 1
+        },
+        "reason": {
+          "type": "string",
+          "description": "Required only when updating an existing plan mid-task. Explain why the plan changed, e.g. discovered additional work, scope narrowed, earlier step revealed new requirements."
+        }
+      },
+      "required": ["steps"],
+      "additionalProperties": false
+    }
+  }
+}

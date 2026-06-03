@@ -52,6 +52,22 @@ Built-in tools that need agent runtime state should consume these runtime
 templates instead of reading session storage, connecting to PostgreSQL, or
 reimplementing context reconstruction.
 
+## Built-In Runtime Placement
+
+Built-in process-backed tools live in
+`packages/ndx/src/agent/tool/base/<tool>`. The bundled server resolves the
+built-in tool root as `<server bundle directory>/base`, so the Docker runtime
+must copy that tree to `/app/dist/server/base`.
+
+Do not copy it to `/app/dist/server/basetools`. Function tools such as
+`session_history` are bundled into server JavaScript and can still appear when
+the process-tool directory is missing. That partial tool list is a broken
+runtime: `bash`, `read_file`, `grep_search`, `edit`, and `loadSkill` disappear,
+which can make the model overuse `session_history` because the normal current
+workspace tools were never exposed.
+
+`apps/ndx/src/server/docker.test.ts` guards this Dockerfile path contract.
+
 The process receives:
 
 - `NDX_TOOL_NAME`

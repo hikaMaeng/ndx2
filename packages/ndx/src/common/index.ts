@@ -6,9 +6,12 @@ export const serviceDomain = Object.freeze({
 export const workspaceSurfaces = Object.freeze({
   common: "common",
   admin: "admin",
-  agent: "agent"
+  agent: "agent",
+  webclient: "webclient"
 });
 
+export * from "./protocol/index.js";
+export * from "./resource/index.js";
 export {
   copyDirectoryRecursively,
   ensureDirectory,

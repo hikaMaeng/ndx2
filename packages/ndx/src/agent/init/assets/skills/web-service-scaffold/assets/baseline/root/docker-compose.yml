@@ -1,0 +1,24 @@
+name: __PROJECT_NAME__
+
+services:
+  __SERVICE_NAME__:
+    build:
+      context: .
+      dockerfile: apps/__SERVICE_NAME__/docker/Dockerfile
+    image: __IMAGE_NAME__:latest
+    container_name: __SERVICE_CONTAINER_NAME__
+    env_file:
+      - apps/__SERVICE_NAME__/docker/.env
+    ports:
+      - "${__SERVICE_ENV_PREFIX___HOST_PORT:-__SERVICE_HOST_PORT__}:18080"
+    networks:
+      - __NETWORK_NAME__
+    volumes:
+      - __VOLUME_NAME__:/app/data
+
+volumes:
+  __VOLUME_NAME__:
+
+networks:
+  __NETWORK_NAME__:
+    internal: true

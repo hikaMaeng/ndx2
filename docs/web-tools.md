@@ -1,7 +1,7 @@
 # Web Tools
 
 NDX ships two built-in read-only web tools under
-`packages/ndx/src/agent/server/tool/basetools`.
+`packages/ndx/src/agent/tool/base`.
 
 ## `web_fetch`
 

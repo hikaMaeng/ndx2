@@ -9,11 +9,11 @@ Public exports:
 | `ndx/admin/common` | Admin runtime-neutral domain entrypoint. |
 | `ndx/admin/server` | Admin server-only domain entrypoint. |
 | `ndx/admin/front` | Admin front-only domain entrypoint. |
-| `ndx/agent/common` | Agent runtime-neutral domain entrypoint. |
-| `ndx/agent/server` | Agent server-only domain entrypoint. |
+| `ndx/common` | Agent runtime-neutral domain entrypoint. |
+| `ndx/agent` | Agent server-only domain entrypoint. |
 | `ndx/agent/cli` | Agent CLI client domain entrypoint. |
-| `ndx/agent/web` | Agent web client domain entrypoint. |
-| `ndx/server/common` | Server-side path mapping and fixed container path contracts. |
+| `ndx/webclient/common` | Agent web client domain entrypoint. |
+| `ndx/common/server-path` | Server-side path mapping and fixed container path contracts. |
 
 Add APIs only when a requested product behavior needs a durable domain contract.
 
@@ -30,19 +30,19 @@ Add APIs only when a requested product behavior needs a durable domain contract.
 | `ensureDirectory(path)` | Creates a directory recursively. |
 | `copyDirectoryRecursively(source, target, options?)` | Copies a directory tree, optionally overwriting existing files. |
 
-## `ndx/agent/common`
+## `ndx/common`
 
 No server-only initialization or database API is exported from this runtime-neutral surface.
 
-## `ndx/server/common`
+## `ndx/common/server-path`
 
 | API | Purpose |
 | --- | --- |
 | `defaultServerVolumeMap()` | Reads host-side `NDX_ROOT`; container paths stay fixed. |
 | `NDX_CONTAINER_ROOT` | Fixed runtime mount root, `/ndx`. |
-| `NDX_CONTAINER_ASSETS_ROOT` | Fixed runtime web/assets root, `/ndx/assets`. |
-| `NDX_CONTAINER_DATA_ROOT` | Fixed app data root, `/ndx/data`. |
-| `NDX_CONTAINER_LOG_ROOT` | Fixed log root, `/ndx/log`. |
+| `NDX_CONTAINER_ASSETS_ROOT` | Fixed runtime user asset root, `/ndx/.ndx`. |
+| `NDX_CONTAINER_DATA_ROOT` | Fixed app data root, `/ndx/.ndx/data`. |
+| `NDX_CONTAINER_LOG_ROOT` | Fixed log root, `/ndx/.ndx/log`. |
 | `NDX_CONTAINER_WORKSPACE` | Fixed workspace mount path, `/ndx/workspace`. |
 | `NDX_CONTAINER_USER_HOME` | Fixed runtime user home, `/ndx`. |
 | `NDX_CONTAINER_NDX_HOME` | Fixed mounted user `.ndx` directory, `/ndx/.ndx`. |
@@ -57,25 +57,26 @@ No server-only initialization or database API is exported from this runtime-neut
 | `toServerWorkspaceDescendantPath(value, map?)` | Requires a project path below the workspace root. |
 | `serverPathRelativeToWorkspace(value, map?)` | Returns the workspace-relative path used by web workspace browsing. |
 
-## `ndx/agent/server`
+## `ndx/agent`
 
 | API | Purpose |
 | --- | --- |
 | `initServer(options?)` | Seeds server-owned `.ndx` assets and initializes account/session DB schemas when a database is requested. Runtime callers use the returned initialized database handle. |
 | `NDXDatabase` | Minimal query/close interface accepted by init and schema functions. |
-| `initProjectDatabase(database)` | Runs the `project` table/index SQL. |
-| `ensureProject(database, input)` | Resolves or creates a `project` row by `target + path` and returns its UUIDv7-shaped id. |
-| `getProjectById(database, projectid)` | Reads one project row by id for session attach validation. |
 | `buildContext(sessionMetadata)` | Builds the single developer context string and single user context string for an agent turn from the session model config, cwd, homes, and environment metadata. |
 | `resolveModelInstruction(model)` | Resolves the static model instruction, trimming `:` suffixes from the right before falling back to the default prompt. |
 | `initSessionDatabase(database)` | Runs explicit `session` and `sessiondata` table/index SQL. |
 | `createSession(database, input)` | Inserts session metadata with UUIDv7-shaped id, empty title, default `none` mode, and idle state. |
 | `getSession(database, sessionid)` | Reads one session metadata row. |
-| `listSession(database, userid, projectid)` | Lists sessions for one owner and project, newest `lastupdated` first. |
+| `listSession(database, userid, projectname)` | Lists sessions for one owner and workspace project name, newest `lastupdated` first. |
 | `updateSessionStartTurn(database, sessionid, model?)` | Marks a user-request turn running; updates model only when the next request supplies it. |
 | `updateSessionEndTurn(database, sessionid)` | Marks the turn idle and refreshes `lastupdated`. |
 | `updateSessionTitle(database, sessionid, title)` | Applies direct user title changes without changing turn lifecycle state. |
+| `updateSessionSlideWindow(database, sessionid, slidewindow)` | Persists the bounded `0..30` model-context request window for later turns. |
 | `appendSessionData(database, sessionid, type, contents)` | Appends JSONB history and refreshes the session; first string `user` item becomes title when title is empty. |
 | `listSessionData(database, sessionid)` | Returns ordered session history. |
+| `readAgentRuntimeSettings(userHome)` | Reads runtime loop settings and tool-specific settings such as `tools.prompt_rewrite.model`. |
+| `listAvailableTools(options?)` | Returns merged project/user/builtin tools, including function tools `askUserQuestion`, `prompt_rewrite`, and `session_history`. |
+| `executeToolCalls(toolCalls, options?)` | Executes process and function tools. `prompt_rewrite` requires active `model` and may reuse existing base file/web tools plus `session_history` during its compact rewrite loop. |
 | `SessionMetadata` | Input contract for context construction; `model` is the persisted `NDXModelConfig`, including `contextsize` for skills budget calculation. |
 | `BuiltContext` | `{ developer, user }` context output contract. |

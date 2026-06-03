@@ -34,12 +34,23 @@ usage() {
 }
 
 list_app_services() {
-  find apps -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort
+  docker compose config --services | sort
 }
 
 if [[ ! -d apps ]]; then
   echo "missing apps/ directory" >&2
   exit 2
+fi
+
+if [[ -z "${NDX_HOST_ROOT:-}" ]]; then
+  repo_volume_root="$(pwd -P)/volume"
+  if [[ "$repo_volume_root" =~ ^/mnt/([A-Za-z])/(.*)$ ]]; then
+    drive="${BASH_REMATCH[1]}"
+    rest="${BASH_REMATCH[2]}"
+    export NDX_HOST_ROOT="${drive^^}:/${rest}"
+  else
+    export NDX_HOST_ROOT="$repo_volume_root"
+  fi
 fi
 
 if [[ $# -eq 0 ]]; then
@@ -130,7 +141,7 @@ echo "deploy-phase phase=install status=$install_status elapsed_ms=$install_elap
 build_started_ms="$(now_ms)"
 build_args=(turbo run build)
 for service in "${services[@]}"; do
-  build_args+=(--filter="$service")
+  build_args+=(--filter="./apps/$service")
 done
 yarn "${build_args[@]}"
 build_elapsed_ms="$(elapsed_ms "$build_started_ms")"
