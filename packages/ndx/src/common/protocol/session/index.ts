@@ -54,6 +54,7 @@ export type {
   NDXAskUserQuestionResponse,
   NDXSessionAttachMessage,
   NDXSessionAttachedMessage,
+  NDXSessionCreateInitialInput,
   NDXSessionCreateMessage,
   NDXSessionCreatedMessage,
   NDXSessionDeleteMessage,

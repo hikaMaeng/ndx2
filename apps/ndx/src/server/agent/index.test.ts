@@ -33,6 +33,8 @@ function createDatabase(): NDXDatabase {
 }
 
 function createDatabaseWithSessionInsert(): NDXDatabase {
+  const sessions = new Map<string, Record<string, unknown>>();
+  const tokens = new Map<string, { sessionid: string; createdat: Date }>();
   return {
     async query(text, values) {
       if (/FROM users/i.test(text)) {
@@ -43,21 +45,31 @@ function createDatabaseWithSessionInsert(): NDXDatabase {
       }
 
       if (/INSERT INTO "session"/i.test(text)) {
+        const session = {
+          sessionid: values?.[0],
+          userid: values?.[1],
+          title: values?.[2],
+          mode: values?.[3],
+          projectname: values?.[4],
+          model: JSON.parse(String(values?.[5])),
+          isrunning: false,
+          turnphase: "idle",
+          interruptrequested: false,
+          interruptrequestedat: null,
+          interruptcompletedat: null,
+          runtimedata: {},
+          lastupdated: new Date("2026-05-12T00:00:00.000Z")
+        };
+        sessions.set(String(session.sessionid), session);
         return {
-          rows: [
-            {
-              sessionid: values?.[0],
-              userid: values?.[1],
-              title: values?.[2],
-              mode: values?.[3],
-              projectname: values?.[4],
-              model: JSON.parse(String(values?.[5])),
-              isrunning: false,
-              lastupdated: new Date("2026-05-12T00:00:00.000Z")
-            }
-          ],
+          rows: [session],
           rowCount: 1
         } as never;
+      }
+
+      if (/FROM "session"/i.test(text) && /WHERE sessionid = \$1/i.test(text)) {
+        const session = sessions.get(String(values?.[0]));
+        return { rows: session ? [session] : [], rowCount: session ? 1 : 0 } as never;
       }
 
       if (/DELETE FROM sessiontoken/i.test(text)) {
@@ -65,6 +77,7 @@ function createDatabaseWithSessionInsert(): NDXDatabase {
       }
 
       if (/INSERT INTO sessiontoken/i.test(text)) {
+        tokens.set(String(values?.[0]), { sessionid: String(values?.[2]), createdat: new Date(String(values?.[1])) });
         return {
           rows: [
             {
@@ -74,6 +87,23 @@ function createDatabaseWithSessionInsert(): NDXDatabase {
             }
           ],
           rowCount: 1
+        } as never;
+      }
+
+      if (/FROM sessiontoken/i.test(text) && /JOIN "session"/i.test(text)) {
+        const token = tokens.get(String(values?.[0]));
+        const session = token ? sessions.get(token.sessionid) : undefined;
+        return {
+          rows: token && session
+            ? [{
+              token: values?.[0],
+              createdat: token.createdat,
+              sessionid: token.sessionid,
+              userid: session.userid,
+              projectname: session.projectname
+            }]
+            : [],
+          rowCount: token && session ? 1 : 0
         } as never;
       }
 
@@ -394,15 +424,18 @@ test("session websocket creates a new session after account and project negotiat
     socket.send(
       JSON.stringify({
         type: "session.create",
-        model: { type: "openai", model: "qwen3.6-35b.mm", url: "", token: "", contextsize: 100_000 }
+        model: { type: "openai", model: "qwen3.6-35b.mm", url: "", token: "", contextsize: 100_000 },
+        initialInput: { text: "첫 요청 제목" }
       })
     );
     await waitForMessages(messages, 7);
     const created = JSON.parse(messages[5].toString()) as {
       type: string;
       connectionToken: string;
+      initialInputAccepted?: boolean;
       sessionid: string;
       userid: string;
+      title: string;
       projectname: string;
       path: string;
       model: { model: string };
@@ -410,8 +443,10 @@ test("session websocket creates a new session after account and project negotiat
 
     assert.equal(created.type, "session.created");
     assert.match(created.connectionToken, /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    assert.equal(created.initialInputAccepted, true);
     assert.match(created.sessionid, /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
     assert.equal(created.userid, "ndev");
+    assert.equal(created.title, "첫 요청 제목");
     assert.equal(created.projectname, ready.projectName);
     assert.equal(created.path, projectPath);
     assert.equal(created.model.model, "qwen3.6-35b.mm");
@@ -420,6 +455,52 @@ test("session websocket creates a new session after account and project negotiat
     assert.equal(changed.userid, "ndev");
     assert.equal(changed.projectname, ready.projectName);
     await assertNoProjectIdFile(projectPath);
+
+    socket.terminate();
+  } finally {
+    closeSocketServer(socketServer);
+    await closeServer(server);
+    await fs.rm(projectPath, { recursive: true, force: true });
+  }
+});
+
+test("session websocket rejects idle interrupts without recording interrupt events", async () => {
+  const projectPath = await createWorkspaceProjectPath();
+  const projectName = path.basename(projectPath);
+  const server = http.createServer();
+  const socketServer = attachSessionSocketServer(server, {
+    database: createDatabaseWithSessionInsert(),
+    heartbeatIntervalMs: 60_000
+  });
+
+  try {
+    const port = await listenOnRandomPort(server);
+    const socket = new WebSocket(`ws://127.0.0.1:${port}/session?clientid=018f90d0-75cb-7d37-bfc9-6f9d0bb60cf5`);
+    const messages: Buffer[] = [];
+    socket.on("message", (data) => {
+      messages.push(Buffer.from(data as Buffer));
+    });
+    await once(socket, "open");
+
+    await waitForMessages(messages, 1);
+    socket.send(JSON.stringify({ type: "account.select", userid: "ndev" }));
+    await waitForMessages(messages, 3);
+    socket.send(JSON.stringify({ type: "project.configure", projectName }));
+    await waitForMessages(messages, 5);
+    socket.send(JSON.stringify({
+      type: "session.create",
+      model: { type: "openai", model: "qwen3.6-35b.mm", url: "", token: "", contextsize: 100_000 }
+    }));
+    await waitForMessages(messages, 7);
+    const created = JSON.parse(messages[5].toString()) as { type: string; connectionToken: string };
+    assert.equal(created.type, "session.created");
+
+    socket.send(JSON.stringify({ type: "session.interrupt", connectionToken: created.connectionToken }));
+    await waitForMessages(messages, 8);
+    const rejected = JSON.parse(messages[7].toString()) as { type: string; error: string };
+    assert.equal(rejected.type, "protocol.error");
+    assert.match(rejected.error, /실행 중이 아닙니다/);
+    assert.equal(messages.some((message) => message.toString().includes("interrupt_started")), false);
 
     socket.terminate();
   } finally {

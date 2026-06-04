@@ -54,7 +54,7 @@ root as `/ndx/workspace/<projectName>`.
 | --- | --- |
 | `sessionid` | UUID primary key. Runtime-generated ids are UUIDv7-shaped for index locality. |
 | `userid` | Required immutable owner account id. |
-| `title` | Starts as `''`; the first string `user` history item promotes to title unless already set. |
+| `title` | Starts as `''` for an empty session. When `session.create` carries an initial input, the session row is created with the first input text as title; otherwise the first string `user` history item promotes to title unless already set. |
 | `lastupdated` | Updated whenever session metadata or history changes. |
 | `mode` | `none` or `light`; default `none`. |
 | `projectname` | Workspace direct child folder name. This is the only durable project identity stored on the session row. |

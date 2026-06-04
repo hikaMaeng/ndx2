@@ -29,7 +29,18 @@ test("rejected interrupt clears stale interrupt pending notice", () => {
   const current = {
     ...createSessionUiState(),
     agentRunning: true,
-    notice: "interrupt pending"
+    notice: "interrupt pending",
+    turnFlows: [{
+      id: "turn:session-1:input-1",
+      inputDataId: "input-1",
+      sessionid: "session-1",
+      title: "done",
+      status: "completed" as const,
+      collapsed: true,
+      createdAt: "2026-06-03T14:50:40.000Z",
+      updatedAt: "2026-06-03T14:50:44.000Z",
+      batches: []
+    }]
   };
   const message: NDXSessionEventMessage = {
     type: NDX_SESSION_EVENT,
@@ -44,5 +55,7 @@ test("rejected interrupt clears stale interrupt pending notice", () => {
 
   assert.equal(next.agentRunning, false);
   assert.equal(next.notice, "interrupt stored");
-  assert.equal(next.chatMessages.at(-1)?.role, "system");
+  assert.deepEqual(next.chatMessages, []);
+  assert.equal(next.turnFlows.length, 1);
+  assert.equal(next.turnFlows[0]?.status, "completed");
 });

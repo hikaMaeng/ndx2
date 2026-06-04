@@ -93,7 +93,10 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
     if (message.sessionid !== activeSessionIdRef.current) return;
     updateContextUsage(message.contextUsage);
     setCotWork(undefined);
-    setChatMessages((current) => mergeRestoredChatMessages(current, message.visibleEvents.map(chatMessageFromSessionEvent)));
+    setChatMessages((current) => mergeRestoredChatMessages(current, message.visibleEvents.flatMap((event) => {
+      const chatMessage = chatMessageFromSessionEvent(event);
+      return chatMessage ? [chatMessage] : [];
+    })));
     setTurnFlows((current) => mergeRestoredTurnFlows(current, message.turns));
   };
 
@@ -153,7 +156,7 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
         requestStored: t[RSC.APP_STATUS_REQUEST_STORED_STATUS]
       });
     });
-    if (!isActiveSessionEvent || message.event === NDX_TURN_EVENT.AssistantRecorded || message.event === NDX_TURN_EVENT.InterruptCompleted || (message.event === NDX_TURN_EVENT.Interrupted && !interruptWasAccepted(message.contents))) {
+    if (!isActiveSessionEvent || message.event === NDX_TURN_EVENT.InputRecorded || message.event === NDX_TURN_EVENT.AssistantRecorded || message.event === NDX_TURN_EVENT.InterruptCompleted || (message.event === NDX_TURN_EVENT.Interrupted && !interruptWasAccepted(message.contents))) {
       void project.refreshSessions();
     }
   };
@@ -201,6 +204,10 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
     void project.refreshSessions();
     const pending = sessionUiManagerRef.current.get(message.sessionid)?.pendingInitialRequest;
     updateSessionUi(message.sessionid, (current) => ({ ...current, pendingInitialRequest: undefined }));
+    if (message.initialInputAccepted) {
+      updateSessionUi(message.sessionid, (current) => ({ ...current, agentRunning: true, cotWork: undefined, rightSidebarItems: [] }));
+      return;
+    }
     if (!pending) return;
     if (message.connectionToken && socketRef.current?.sendInput(message.connectionToken, pending.text, pending.model, pending.attachments)) {
       updateSessionUi(message.sessionid, (current) => ({ ...current, cotWork: undefined, rightSidebarItems: [] }));
@@ -224,7 +231,7 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
     if (pending?.sessionid !== message.sessionid) return;
     updateSessionUi(message.sessionid, (current) => ({ ...current, pendingAttachRequest: undefined }));
     if (socketRef.current?.sendInput(message.connectionToken, pending.text, pending.model, pending.attachments)) {
-      updateSessionUi(message.sessionid, (current) => ({ ...current, cotWork: undefined, turnFlows: [], rightSidebarItems: [] }));
+      updateSessionUi(message.sessionid, (current) => ({ ...current, agentRunning: true, cotWork: undefined, rightSidebarItems: [] }));
       return;
     }
     finishAction("session-submit");

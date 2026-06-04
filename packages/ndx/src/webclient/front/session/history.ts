@@ -2,8 +2,11 @@ import { NDX_TURN_EVENT, type NDXSessionEventMessage, type NDXSessionIterationDe
 import { sessionDataToChatMessage, type ChatMessage } from "./chat.js";
 import { applyTurnEvent, type TurnBatchState, type TurnFlowState } from "./turn/index.js";
 
-export function chatMessageFromSessionEvent(message: NDXSessionEventMessage): ChatMessage {
-  const rowType = message.event === NDX_TURN_EVENT.AssistantRecorded ? "assistant" : message.event === NDX_TURN_EVENT.Interrupted ? "interrupt" : "user";
+export function chatMessageFromSessionEvent(message: NDXSessionEventMessage): ChatMessage | undefined {
+  if (message.event !== NDX_TURN_EVENT.InputRecorded && message.event !== NDX_TURN_EVENT.AssistantRecorded) {
+    return undefined;
+  }
+  const rowType = message.event === NDX_TURN_EVENT.AssistantRecorded ? "assistant" : "user";
   return sessionDataToChatMessage({ dataid: message.dataid, sessionid: message.sessionid, type: rowType, contents: message.contents, createdat: message.createdat });
 }
 

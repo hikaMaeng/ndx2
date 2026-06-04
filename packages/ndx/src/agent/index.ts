@@ -49,6 +49,7 @@ export {
   completeSessionInterrupt,
   requestSessionInterrupt,
   runSessionTurn,
+  sessionDataTitleText,
   sessionDataText,
   sessionDataRowsToModelMessages,
   searchSessionHistory,

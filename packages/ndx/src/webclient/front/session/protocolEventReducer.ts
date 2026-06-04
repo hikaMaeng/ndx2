@@ -168,15 +168,13 @@ function interruptedEvent(current: SessionUiState, message: NDXSessionEventMessa
       notice: text.interruptPending
     };
   }
-  const nextMessage = sessionDataToChatMessage({ dataid: message.dataid, sessionid: message.sessionid, type: "interrupt", contents: message.contents, createdat: message.createdat });
-  const nextMessages = current.chatMessages.filter((item) => item.id !== "empty" && item.id !== nextMessage.id);
   return {
-    ...withContextAndTurn(current, message),
+    ...current,
+    reportedContextUsage: contextUsageForUi(current, message.contextUsage),
     cotWork: undefined,
     agentRunning: false,
     compactRunning: false,
-    notice: text.interruptStored,
-    chatMessages: [...nextMessages, nextMessage]
+    notice: text.interruptStored
   };
 }
 

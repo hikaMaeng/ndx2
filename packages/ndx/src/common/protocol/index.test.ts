@@ -151,6 +151,45 @@ test("session create accepts an optional model config", () => {
   assert.equal(
     isNDXSessionCreateMessage({
       type: NDX_SESSION_CREATE,
+      userid: "ndev",
+      projectName: "project-1",
+      model: {
+        type: "openai",
+        model: "qwen3.6-35b.mm",
+        url: "",
+        token: "",
+        contextsize: 100_000
+      },
+      initialInput: {
+        text: "첫 요청"
+      }
+    }),
+    true
+  );
+  assert.equal(
+    isNDXSessionCreateMessage({
+      type: NDX_SESSION_CREATE,
+      userid: "ndev",
+      projectName: "project-1",
+      initialInput: {
+        text: "",
+        attachments: [{ name: "a.txt", mimeType: "text/plain", size: 1, data: "YQ==" }]
+      }
+    }),
+    true
+  );
+  assert.equal(
+    isNDXSessionCreateMessage({
+      type: NDX_SESSION_CREATE,
+      userid: "ndev",
+      projectName: "project-1",
+      initialInput: { text: "" }
+    }),
+    false
+  );
+  assert.equal(
+    isNDXSessionCreateMessage({
+      type: NDX_SESSION_CREATE,
       model: { type: "openai", model: "", url: "", token: "", contextsize: 100_000 }
     }),
     false

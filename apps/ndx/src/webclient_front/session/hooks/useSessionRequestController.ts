@@ -146,13 +146,13 @@ export function useSessionRequestController({
         const model = toModelConfig(selectedModel);
         const connectionToken = sessionTokensRef.current[sessionid];
         if (connectionToken && getSocket()?.sendInput(connectionToken, text, model, encodedAttachments)) {
-          updateSessionUi(sessionid, (current) => ({ ...current, cotWork: undefined, turnFlows: [], rightSidebarItems: [] }));
+          updateSessionUi(sessionid, (current) => ({ ...current, agentRunning: true, cotWork: undefined, rightSidebarItems: [] }));
           return;
         }
         const session = attachSessionRow ?? Object.values(sessionsByProject).flat().find((item) => item.sessionid === sessionid);
         if (getSocket()?.isOpen() && session) {
           updateSessionUi(sessionid, (current) => ({ ...current, pendingAttachRequest: { sessionid, text, model, attachments: encodedAttachments } }));
-          updateSessionUi(sessionid, (current) => ({ ...current, turnFlows: [], rightSidebarItems: [] }));
+          updateSessionUi(sessionid, (current) => ({ ...current, rightSidebarItems: [] }));
           if (attachSession(session)) return;
           updateSessionUi(sessionid, (current) => ({ ...current, pendingAttachRequest: undefined }));
         }
@@ -165,7 +165,12 @@ export function useSessionRequestController({
         if (socketState === "connected") {
           const model = toModelConfig(selectedModel);
           updateActiveUi((current) => ({ ...current, pendingInitialRequest: { text, model, attachments: encodedAttachments } }));
-          if (getSocket()?.createSession({ userid: project.userid, projectName: project.projectName, model })) return;
+          if (getSocket()?.createSession({
+            userid: project.userid,
+            projectName: project.projectName,
+            model,
+            initialInput: { text, ...(encodedAttachments.length ? { attachments: encodedAttachments } : {}) }
+          })) return;
           updateActiveUi((current) => ({ ...current, pendingInitialRequest: undefined }));
         }
         void createProjectSession(project, { model: toModelConfig(selectedModel) }).then((session) => {
@@ -182,7 +187,7 @@ export function useSessionRequestController({
           draftSessionProjectIdRef.current = undefined;
           setDraftSessionProjectId(undefined);
           setActiveSessionId(session.sessionid);
-          updateSessionUi(session.sessionid, (current) => ({ ...current, turnFlows: [], rightSidebarItems: [] }));
+          updateSessionUi(session.sessionid, (current) => ({ ...current, rightSidebarItems: [] }));
           sendMessage(session.sessionid, session);
         }).catch((error) => {
           const message = error instanceof Error && error.message ? error.message : t[RSC.APP_STATUS_STATE_UNAVAILABLE_ALERT];

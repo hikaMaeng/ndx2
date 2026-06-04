@@ -26,6 +26,7 @@ import {
   type NDXSessionClientRequestClosedMessage,
   type NDXSessionClientRequestMessage,
   type NDXSessionClientResponseMessage,
+  type NDXSessionCreateMessage,
   type NDXSessionModelConfig,
   type NDXSessionSkillListResultMessage,
   type NDXSessionSidebarItemMessage,
@@ -40,7 +41,7 @@ export type SessionSocketClient = {
   socket: WebSocket;
   isOpen: () => boolean;
   attachSession: (input: { userid: string; projectName: string; sessionid: string }) => boolean;
-  createSession: (input: { userid: string; projectName: string; model: NDXSessionModelConfig }) => boolean;
+  createSession: (input: Omit<NDXSessionCreateMessage, "type" | "language">) => boolean;
   sendInput: (connectionToken: string, text: string, model: NDXSessionModelConfig, attachments?: Array<{ name: string; mimeType: string; size: number; data: string }>) => boolean;
   sendInterrupt: (connectionToken: string) => boolean;
   requestSkillList: (connectionToken?: string) => boolean;

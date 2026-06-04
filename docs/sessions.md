@@ -15,7 +15,8 @@ Session metadata records properties about the session itself:
 * immutable account owner (`userid`);
 * project id;
 * UUIDv7-shaped session id;
-* title, initially empty and then derived from the first user request unless renamed;
+* title, initially empty for empty sessions and derived from the first user request
+  when an initial request exists unless renamed;
 * last mode (`none` or `light`);
 * model config JSON (`NDXModelConfig` shape: `type`, `model`, `url`, `token`, `contextsize`, optional `modalities`);
 * last interaction time (`lastupdated`);
@@ -76,6 +77,14 @@ rendered from the web client's provider/model tables, but the socket server
 still only receives the final `NDXModelConfig` payload. The socket server owns
 agent execution; the web client only requests session lists, creates sessions,
 selects accounts, and opens socket connections.
+
+For a new project session with a first request, the browser sends that request
+inside `session.create.initialInput`. The socket server validates the target
+account/project, model, attachments, session row, and session token before it
+emits `session.created`. That message carries the token, the first-request
+title, and `initialInputAccepted`; the web client must promote its draft surface
+to the returned session without sending a second `session.input`. The server
+then starts the turn from that accepted initial input.
 
 OpenAI-compatible `/models` responses do not provide a portable guarantee for
 input modality support. NDX therefore treats `modalities` as local model

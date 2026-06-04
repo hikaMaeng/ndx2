@@ -121,7 +121,7 @@ export function MainSurface({
       return changed ? next : current;
     });
   }, [activeSession?.projectname, activeSession?.sessionid, sessionsByProject]);
-  const agentRunning = Boolean(activeUi?.agentRunning || activeSession?.isrunning);
+  const agentRunning = Boolean(activeUi?.agentRunning);
   const modelDialog = useModelDialogController({ activeSession, selectedModel, setSelectedModel, setNotice, t });
   const askUserQuestion = useAskUserQuestionController({ getSocket: () => socketRef.current, t });
   const chatSurfaceKey = surface.kind === "chat-draft"
@@ -319,7 +319,11 @@ export function MainSurface({
       draftSessionProjectIdRef.current = undefined;
       setActiveSessionId(surface.sessionId);
       setDraftSessionProjectId(undefined);
-      updateSessionUi(surface.sessionId, (current) => cachedSkills ? { ...current, availableSkills: cachedSkills } : current);
+      updateSessionUi(surface.sessionId, (current) => ({
+        ...current,
+        ...(cachedSkills ? { availableSkills: cachedSkills } : {}),
+        agentRunning: current.chatMessages.length === 0 && current.turnFlows.length === 0 ? Boolean(session?.isrunning) : current.agentRunning
+      }));
       sessionSocket.refreshSkillList();
       return;
     }

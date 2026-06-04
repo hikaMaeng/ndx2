@@ -1,10 +1,12 @@
 import { randomUUID } from "node:crypto";
+import fs from "node:fs/promises";
 import {
   NDX_PROTOCOL_ERROR,
   NDX_SESSION_ATTACHED,
   NDX_SESSION_CREATED,
   NDX_SESSION_DELETED,
   NDX_SESSION_EVENT,
+  NDX_SESSION_INPUT,
   NDX_SESSION_LIST_CHANGED,
   NDX_SESSION_RENAMED,
   NDX_SESSION_SIDEBAR_ITEM,
@@ -27,7 +29,7 @@ import {
   NDX_SESSION_CLIENT_REQUEST,
   NDX_SESSION_CLIENT_REQUEST_CLOSED
 } from "ndx/common";
-import type { NDXAskUserQuestionRequest, NDXAskUserQuestionResponse, NDXSessionAttachMessage, NDXSessionCreateMessage, NDXSessionDeleteMessage, NDXSessionRenameMessage, NDXSessionSidebarItemMessage, NDXSessionSkillListMessage } from "ndx/common/protocol";
+import type { NDXAskUserQuestionRequest, NDXAskUserQuestionResponse, NDXSessionAttachMessage, NDXSessionCreateInitialInput, NDXSessionCreateMessage, NDXSessionDeleteMessage, NDXSessionRenameMessage, NDXSessionSidebarItemMessage, NDXSessionSkillListMessage } from "ndx/common/protocol";
 import {
 	  appendSessionData,
 	  createSession,
@@ -42,6 +44,8 @@ import {
   requestRuntimeTurnInterrupt,
   requestSessionInterrupt,
   assertModelSupportsAttachments,
+  userMessageContents,
+  sessionDataTitleText,
   updateSessionTitle,
   writeSessionAttachments,
   type NDXDatabase,
@@ -498,9 +502,13 @@ async function handleSessionMessage(
       await sendJson(client, { type: NDX_PROTOCOL_ERROR, error: "세션 히스토리 compact가 진행 중입니다. 완료 후 다시 시도하세요." });
       return;
     }
+    const runtimePhase = getRuntimeTurnPhase(session.sessionid);
+    if (!session.isrunning && !runtimePhase) {
+      await sendJson(client, { type: NDX_PROTOCOL_ERROR, error: "세션이 실행 중이 아닙니다." });
+      return;
+    }
 
     const data = await appendSessionData(database, session.sessionid, "interrupt", interruptContents(new Date().toISOString()));
-    const runtimePhase = getRuntimeTurnPhase(session.sessionid);
     const interruptedSession = await requestSessionInterrupt(database, session.sessionid, runtimePhase);
     const interrupt = requestRuntimeTurnInterrupt(session.sessionid);
     await sendJson(client, {
@@ -566,8 +574,30 @@ async function handleSessionMessage(
     if (!input) {
       return;
     }
+    const initialInput = message.initialInput;
+    if (initialInput) {
+      try {
+        assertModelSupportsAttachments(input.model, initialInput.attachments);
+        assertSessionInputAttachmentBytes(initialInput.attachments);
+      } catch (error) {
+        logger?.warn("agent.socket.protocol.session_create.initial_input_rejected", { clientid: client.clientid, error });
+        await sendJson(client, { type: NDX_PROTOCOL_ERROR, error: error instanceof Error ? error.message : resource(NDX_AGENT_RESOURCE.PROTOCOL_UNSUPPORTED_SESSION_MESSAGE_ERROR, { language }) });
+        return;
+      }
+      (input as { title?: string }).title = sessionDataTitleText({ type: "user", contents: userMessageContents(initialInput.text.trim()) }) ?? "";
+    }
     const session = await createSession(database, input);
-    const token = await createSessionToken(database, session.sessionid);
+    let token;
+    try {
+      token = await createSessionToken(database, session.sessionid);
+    } catch (error) {
+      logger?.warn("agent.socket.protocol.session_create.token_failed", { clientid: client.clientid, sessionid: session.sessionid, error });
+      await deleteSession(database, session.sessionid).catch((deleteError) => {
+        logger?.error("agent.socket.protocol.session_create.rollback_failed", { clientid: client.clientid, sessionid: session.sessionid, error: deleteError });
+      });
+      await sendJson(client, { type: NDX_PROTOCOL_ERROR, error: error instanceof Error ? error.message : resource(NDX_AGENT_RESOURCE.PROTOCOL_SESSION_CREATE_TARGET_REQUIRED_ERROR, { language }) });
+      return;
+    }
     client.grants.set(token.token, {
       sessionid: session.sessionid,
       userid: session.userid,
@@ -577,9 +607,27 @@ async function handleSessionMessage(
     await sendJson(client, {
       type: NDX_SESSION_CREATED,
       connectionToken: token.token,
+      ...(initialInput ? { initialInputAccepted: true } : {}),
       ...toSocketSession(session)
     });
     await broadcastSessionListChanged(connectedClients, session.userid, session.projectname, logger);
+    if (initialInput) {
+      await handleSessionMessage(
+        client,
+        Buffer.from(JSON.stringify({
+          type: NDX_SESSION_INPUT,
+          connectionToken: token.token,
+          text: initialInput.text,
+          ...(initialInput.attachments?.length ? { attachments: initialInput.attachments } : {}),
+          model: input.model,
+          language
+        })),
+        connectedClients,
+        database,
+        logger,
+        resource
+      );
+    }
     logger?.info("agent.socket.protocol.session_create.complete", { clientid: client.clientid, sessionid: session.sessionid });
     return;
   }
@@ -689,6 +737,14 @@ function hasAskUserQuestionAnswers(response: NDXAskUserQuestionResponse): boolea
   return Object.values(response.answers).some((answer) => answer.answers.length > 0 || Boolean(answer.attachments?.length));
 }
 
+function assertSessionInputAttachmentBytes(attachments: NDXSessionCreateInitialInput["attachments"] = []): void {
+  for (const attachment of attachments) {
+    if (Buffer.from(attachment.data, "base64").length !== attachment.size) {
+      throw new Error(`Attachment size mismatch: ${attachment.name}`);
+    }
+  }
+}
+
 async function resolveCreateSessionInput(
   client: SessionClientState,
   message: NDXSessionCreateMessage,
@@ -700,6 +756,12 @@ async function resolveCreateSessionInput(
   const projectName = message.projectName ?? client.projectName;
   if (!userid || !projectName) {
     logger?.warn("agent.socket.protocol.session_create.rejected", { clientid: client.clientid, reason: "missing_project" });
+    await sendJson(client, { type: NDX_PROTOCOL_ERROR, error: resource(NDX_AGENT_RESOURCE.PROTOCOL_SESSION_CREATE_TARGET_REQUIRED_ERROR, { language: client.language }) });
+    return undefined;
+  }
+  const stat = await fs.stat(serverWorkspaceProjectPath(projectName)).catch(() => undefined);
+  if (!stat?.isDirectory()) {
+    logger?.warn("agent.socket.protocol.session_create.rejected", { clientid: client.clientid, reason: "missing_project", projectName });
     await sendJson(client, { type: NDX_PROTOCOL_ERROR, error: resource(NDX_AGENT_RESOURCE.PROTOCOL_SESSION_CREATE_TARGET_REQUIRED_ERROR, { language: client.language }) });
     return undefined;
   }

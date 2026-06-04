@@ -47,12 +47,19 @@ export type NDXSessionCreateMessage = {
   userid?: string;
   projectName?: string;
   model?: NDXSessionModelConfig;
+  initialInput?: NDXSessionCreateInitialInput;
   language?: NDXAgentLanguage;
+};
+
+export type NDXSessionCreateInitialInput = {
+  text: string;
+  attachments?: NDXSessionInputAttachment[];
 };
 
 export type NDXSessionCreatedMessage = {
   type: typeof NDX_SESSION_CREATED;
   connectionToken?: string;
+  initialInputAccepted?: boolean;
   sessionid: string;
   userid: string;
   title: string;
@@ -411,7 +418,7 @@ export function isNDXSessionCreateMessage(value: unknown): value is NDXSessionCr
     return false;
   }
 
-  const message = value as { type?: unknown; userid?: unknown; projectName?: unknown; model?: unknown };
+  const message = value as { type?: unknown; userid?: unknown; projectName?: unknown; model?: unknown; initialInput?: unknown };
   if (message.type !== NDX_SESSION_CREATE) {
     return false;
   }
@@ -427,6 +434,20 @@ export function isNDXSessionCreateMessage(value: unknown): value is NDXSessionCr
     )
   ) {
     return false;
+  }
+
+  if (message.initialInput !== undefined) {
+    if (!message.initialInput || typeof message.initialInput !== "object" || Array.isArray(message.initialInput)) {
+      return false;
+    }
+    const initialInput = message.initialInput as { text?: unknown; attachments?: unknown };
+    if (
+      typeof initialInput.text !== "string" ||
+      (initialInput.text.trim().length === 0 && !isValidSessionInputAttachments(initialInput.attachments)) ||
+      (initialInput.attachments !== undefined && !isValidSessionInputAttachments(initialInput.attachments))
+    ) {
+      return false;
+    }
   }
 
   if (message.model === undefined) {

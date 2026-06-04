@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { NDX_SESSION_EVENT, NDX_TURN_EVENT } from "ndx/common/protocol";
 import type { ChatMessage } from "./chat.js";
-import { mergeRestoredChatMessages, mergeRestoredTurnFlows, mergeTurnSummary } from "./history.js";
+import { chatMessageFromSessionEvent, mergeRestoredChatMessages, mergeRestoredTurnFlows, mergeTurnSummary } from "./history.js";
 import type { TurnFlowState } from "./turn/index.js";
 
 test("history restore does not erase live chat messages when a stale empty summary arrives", () => {
@@ -25,6 +26,17 @@ test("history restore deduplicates durable messages and keeps live stream messag
     restored[0],
     live[1]
   ]);
+});
+
+test("history chat projection ignores interrupt diagnostics", () => {
+  assert.equal(chatMessageFromSessionEvent({
+    type: NDX_SESSION_EVENT,
+    sessionid: "session-1",
+    event: NDX_TURN_EVENT.Interrupted,
+    dataid: "interrupt-1",
+    contents: { kind: "interrupt", requestedAt: "2026-06-03T14:50:45.679Z", interrupt: { accepted: false } } as Record<string, unknown>,
+    createdat: "2026-06-03T14:50:45.699Z"
+  }), undefined);
 });
 
 test("history restore does not erase live turn flow when a stale empty summary arrives", () => {
