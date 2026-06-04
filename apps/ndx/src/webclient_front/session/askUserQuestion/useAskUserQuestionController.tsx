@@ -1,5 +1,5 @@
 import React from "react";
-import type { NDXSessionClientRequestClosedMessage, NDXSessionClientResponseMessage } from "ndx/common/protocol";
+import { NDX_SESSION_CLIENT_REQUEST_KIND_ASK_USER_QUESTION, type NDXSessionClientRequestClosedMessage, type NDXSessionClientResponseMessage } from "ndx/common/protocol";
 import type { SessionSocketClient } from "../socket/sessionSocket";
 import { AskUserQuestionDialog } from "./AskUserQuestionDialog";
 import { askUserQuestionResponse, initialAskUserQuestionDraft } from "./askUserQuestionProtocol";
@@ -27,7 +27,7 @@ export function useAskUserQuestionController({
   }, []);
 
   const onClientRequest = (message: AskUserQuestionRequest) => {
-    if (message.request.kind !== "askUserQuestion") return;
+    if (message.request.kind !== NDX_SESSION_CLIENT_REQUEST_KIND_ASK_USER_QUESTION) return;
     for (const attachment of Object.values(draft.attachments).flat()) {
       URL.revokeObjectURL(attachment.previewUrl);
     }
@@ -112,7 +112,7 @@ export function useAskUserQuestionController({
       requestId: request.requestId,
       connectionToken: request.connectionToken,
       response: {
-        kind: "askUserQuestion",
+        kind: NDX_SESSION_CLIENT_REQUEST_KIND_ASK_USER_QUESTION,
         answers: Object.fromEntries(request.request.questions.map((question) => [question.id, { answers: [] }]))
       }
     };

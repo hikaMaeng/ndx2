@@ -1,7 +1,28 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { NDX_TURN_EVENT, type NDXSessionEventMessage } from "ndx/common/protocol";
+import { NDX_TURN_EVENT, type NDXSessionEventMessage, type NDXSessionIterationSummary, type NDXSessionTurnSummary } from "ndx/common/protocol";
 import { applyTurnEvent } from "./reducer.js";
+import type { TurnBatchState, TurnFlowState } from "./types.js";
+
+type TypeEquals<A, B> =
+  (<T>() => T extends A ? 1 : 2) extends
+  (<T>() => T extends B ? 1 : 2) ? true : false;
+
+const turnProtocolProjectionTypeCheck: {
+  inputDataId: TypeEquals<TurnFlowState["inputDataId"], NDXSessionTurnSummary["inputDataId"]>;
+  iteration: TypeEquals<TurnBatchState["iteration"], NDXSessionIterationSummary["iteration"]>;
+  sessionid: TypeEquals<TurnFlowState["sessionid"], NDXSessionTurnSummary["sessionid"]>;
+  status: TypeEquals<TurnFlowState["status"], NDXSessionTurnSummary["status"]>;
+  title: TypeEquals<TurnFlowState["title"], NDXSessionTurnSummary["title"]>;
+} = {
+  inputDataId: true,
+  iteration: true,
+  sessionid: true,
+  status: true,
+  title: true
+};
+
+void turnProtocolProjectionTypeCheck;
 
 test("turn reducer only auto-collapses the previous iteration", () => {
   const input = event("turn.input.recorded", NDX_TURN_EVENT.InputRecorded, { text: "inspect files" });

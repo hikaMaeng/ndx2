@@ -15,6 +15,8 @@ import {
   NDX_SESSION_SIDEBAR_ITEM,
   NDX_SESSION_TURN_DETAIL_RESULT,
   NDX_SESSION_READY,
+  isNDXSocketServerMessage,
+  type NDXSocketServerMessage,
   type NDXAccountSelectionRequiredMessage,
   type NDXProjectNegotiatedMessage,
   type NDXProtocolErrorMessage,
@@ -71,7 +73,7 @@ export type SessionSocketOptions = {
   onIterationDetail: (message: NDXSessionIterationDetailResultMessage) => void;
   onClientRequest: (message: NDXSessionClientRequestMessage) => void;
   onClientRequestClosed: (message: NDXSessionClientRequestClosedMessage) => void;
-  onUnhandledMessage?: (message: { type?: string }) => boolean;
+  onUnhandledMessage?: (message: NDXSocketServerMessage) => boolean;
   onProtocolError?: (message: NDXProtocolErrorMessage) => void;
   onTransportError?: (message: string) => void;
   t: Record<string, string>;
@@ -96,11 +98,16 @@ export function openSessionSocket(options: SessionSocketOptions): SessionSocketC
     options.onSocketOpen();
   });
   socket.addEventListener("message", (event) => {
-    const message = JSON.parse(String(event.data)) as { type?: string };
-    options.setLastProtocolEvent(message.type ?? "");
+    const parsed = JSON.parse(String(event.data)) as unknown;
+    const parsedType = parsed && typeof parsed === "object" ? (parsed as { type?: unknown }).type : undefined;
+    options.setLastProtocolEvent(typeof parsedType === "string" ? parsedType : "");
+    if (!isNDXSocketServerMessage(parsed)) {
+      return;
+    }
+    const message = parsed;
 
     if (message.type === NDX_ACCOUNT_SELECTION_REQUIRED) {
-      const required = message as NDXAccountSelectionRequiredMessage;
+      const required = message;
       const state = options.getState();
       const userid = selectSocketUserid(required, state);
       if (!userid) {
@@ -130,14 +137,14 @@ export function openSessionSocket(options: SessionSocketOptions): SessionSocketC
     }
 
     if (message.type === NDX_PROJECT_NEGOTIATED) {
-      const negotiated = message as NDXProjectNegotiatedMessage;
+      const negotiated = message;
       options.setSocketState("negotiating");
       options.setNotice(`${options.t[RSC.SESSION_SOCKET_NEGOTIATED_PROJECT_LABEL]}: ${negotiated.projectName}`);
       return;
     }
 
     if (message.type === NDX_SESSION_READY) {
-      const ready = message as NDXSessionReadyMessage;
+      const ready = message;
       sessionReady = true;
       options.setSocketState("connected");
       options.setState(stateAfterSessionReady(options.getState(), ready, new Date().toISOString()));
@@ -146,52 +153,52 @@ export function openSessionSocket(options: SessionSocketOptions): SessionSocketC
     }
 
     if (message.type === NDX_SESSION_CREATED) {
-      options.onSessionCreated(message as NDXSessionCreatedMessage);
+      options.onSessionCreated(message);
       return;
     }
 
     if (message.type === NDX_SESSION_ATTACHED) {
-      options.onSessionAttached(message as NDXSessionAttachedMessage);
+      options.onSessionAttached(message);
       return;
     }
 
     if (message.type === NDX_SESSION_EVENT) {
-      options.onSessionEvent(message as NDXSessionEventMessage);
+      options.onSessionEvent(message);
       return;
     }
 
     if (message.type === NDX_SESSION_HISTORY_SUMMARY_RESULT) {
-      options.onHistorySummary(message as NDXSessionHistorySummaryResultMessage);
+      options.onHistorySummary(message);
       return;
     }
 
     if (message.type === NDX_SESSION_SKILL_LIST_RESULT) {
-      options.onSkillList(message as NDXSessionSkillListResultMessage);
+      options.onSkillList(message);
       return;
     }
 
     if (message.type === NDX_SESSION_SIDEBAR_ITEM) {
-      options.onSidebarItem(message as NDXSessionSidebarItemMessage);
+      options.onSidebarItem(message);
       return;
     }
 
     if (message.type === NDX_SESSION_TURN_DETAIL_RESULT) {
-      options.onTurnDetail(message as NDXSessionTurnDetailResultMessage);
+      options.onTurnDetail(message);
       return;
     }
 
     if (message.type === NDX_SESSION_ITERATION_DETAIL_RESULT) {
-      options.onIterationDetail(message as NDXSessionIterationDetailResultMessage);
+      options.onIterationDetail(message);
       return;
     }
 
     if (message.type === NDX_SESSION_CLIENT_REQUEST) {
-      options.onClientRequest(message as NDXSessionClientRequestMessage);
+      options.onClientRequest(message);
       return;
     }
 
     if (message.type === NDX_SESSION_CLIENT_REQUEST_CLOSED) {
-      options.onClientRequestClosed(message as NDXSessionClientRequestClosedMessage);
+      options.onClientRequestClosed(message);
       return;
     }
 
@@ -201,7 +208,7 @@ export function openSessionSocket(options: SessionSocketOptions): SessionSocketC
 
     if (message.type === NDX_PROTOCOL_ERROR) {
       options.setSocketState("error");
-      const protocolError = message as NDXProtocolErrorMessage;
+      const protocolError = message;
       options.setNotice(protocolError.error);
       options.onProtocolError?.(protocolError);
     }

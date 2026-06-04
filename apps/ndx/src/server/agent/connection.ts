@@ -6,10 +6,14 @@ import {
   NDX_SESSION_CREATED,
   NDX_SESSION_DELETED,
   NDX_SESSION_EVENT,
+  NDX_SESSION_HISTORY_SUMMARY_RESULT,
   NDX_SESSION_INPUT,
+  NDX_SESSION_ITERATION_DETAIL_RESULT,
   NDX_SESSION_LIST_CHANGED,
   NDX_SESSION_RENAMED,
   NDX_SESSION_SIDEBAR_ITEM,
+  NDX_SESSION_SKILL_LIST_RESULT,
+  NDX_SESSION_TURN_DETAIL_RESULT,
   NDX_TURN_EVENT,
   NDX_AGENT_RESOURCE,
   createNDXAgentResourceResolver,
@@ -27,9 +31,10 @@ import {
   isNDXSessionSkillListMessage,
   isNDXSessionTurnDetailMessage,
   NDX_SESSION_CLIENT_REQUEST,
-  NDX_SESSION_CLIENT_REQUEST_CLOSED
+  NDX_SESSION_CLIENT_REQUEST_CLOSED,
+  NDX_SESSION_CLIENT_REQUEST_KIND_ASK_USER_QUESTION
 } from "ndx/common";
-import type { NDXAskUserQuestionRequest, NDXAskUserQuestionResponse, NDXSessionAttachMessage, NDXSessionCreateInitialInput, NDXSessionCreateMessage, NDXSessionDeleteMessage, NDXSessionRenameMessage, NDXSessionSidebarItemMessage, NDXSessionSkillListMessage } from "ndx/common/protocol";
+import type { NDXAskUserQuestionRequest, NDXAskUserQuestionResponse, NDXSessionAttachMessage, NDXSessionClientRequestClosedMessage, NDXSessionCreateInitialInput, NDXSessionCreateMessage, NDXSessionDeleteMessage, NDXSessionEventMessage, NDXSessionRenameMessage, NDXSessionSidebarItemMessage, NDXSessionSkillListMessage } from "ndx/common/protocol";
 import {
 	  appendSessionData,
 	  createSession,
@@ -66,7 +71,7 @@ import type { SessionClientState } from "./types.js";
 const pendingClientRequests = new Map<string, {
   sessionid: string;
   request: NDXAskUserQuestionRequest;
-  finish: (response: NDXAskUserQuestionResponse | undefined, reason: "answered" | "cancelled" | "interrupted") => void;
+  finish: (response: NDXAskUserQuestionResponse | undefined, reason: NDXSessionClientRequestClosedMessage["reason"]) => void;
 }>();
 
 export async function handleSessionConnection(
@@ -206,7 +211,7 @@ async function handleSessionMessage(
             sessionid: session.sessionid,
             event: event.type,
             dataid: String(event.input.dataid),
-            contents: event.input.contents,
+            contents: socketSessionEventContents(event.input.contents),
             createdat: event.input.createdat.toISOString(),
             contextUsage: event.contextUsage
           });
@@ -294,7 +299,7 @@ async function handleSessionMessage(
             sessionid: session.sessionid,
             event: event.type,
             dataid: String(event.data.dataid),
-            contents: event.data.contents,
+            contents: socketSessionEventContents(event.data.contents),
             createdat: event.data.createdat.toISOString(),
             contextUsage: event.contextUsage
           });
@@ -383,7 +388,7 @@ async function handleSessionMessage(
             sessionid: session.sessionid,
             event: event.type,
             dataid: String(event.data.dataid),
-            contents: event.data.contents,
+            contents: socketSessionEventContents(event.data.contents),
             createdat: event.data.createdat.toISOString(),
             contextUsage: event.contextUsage
           });
@@ -427,7 +432,7 @@ async function handleSessionMessage(
             sessionid: session.sessionid,
             event: event.type,
             dataid: String(event.assistant.dataid),
-            contents: event.assistant.contents,
+            contents: socketSessionEventContents(event.assistant.contents),
             createdat: event.assistant.createdat.toISOString(),
             contextUsage: event.contextUsage
           });
@@ -456,7 +461,7 @@ async function handleSessionMessage(
     }
     const history = await buildSessionHistorySummary(database, session);
     await sendJson(client, {
-      type: "session.history.summary.result",
+      type: NDX_SESSION_HISTORY_SUMMARY_RESULT,
       sessionid: grant.sessionid,
       ...history
     });
@@ -467,7 +472,7 @@ async function handleSessionMessage(
     const grant = await requireConnectionTokenGrant(client, message.connectionToken, database, logger, resource);
     if (!grant) return;
     await sendJson(client, {
-      type: "session.turn.detail.result",
+      type: NDX_SESSION_TURN_DETAIL_RESULT,
       sessionid: grant.sessionid,
       turn: await buildSessionTurnDetail(database, grant.sessionid, message.inputDataId)
     });
@@ -478,7 +483,7 @@ async function handleSessionMessage(
     const grant = await requireConnectionTokenGrant(client, message.connectionToken, database, logger, resource);
     if (!grant) return;
     await sendJson(client, {
-      type: "session.iteration.detail.result",
+      type: NDX_SESSION_ITERATION_DETAIL_RESULT,
       sessionid: grant.sessionid,
       inputDataId: message.inputDataId,
       iteration: message.iteration,
@@ -672,7 +677,7 @@ async function requestSessionClientQuestion(
 
   return new Promise((resolve) => {
     let abort: (() => void) | undefined;
-    const finish = (response: NDXAskUserQuestionResponse | undefined, reason: "answered" | "cancelled" | "interrupted") => {
+    const finish = (response: NDXAskUserQuestionResponse | undefined, reason: NDXSessionClientRequestClosedMessage["reason"]) => {
       pendingClientRequests.delete(requestId);
       if (abort) signal?.removeEventListener("abort", abort);
       void broadcastClientRequestClosed(connectedClients, sessionid, requestId, reason);
@@ -713,7 +718,7 @@ async function broadcastClientRequestClosed(
   connectedClients: Map<string, SessionClientState>,
   sessionid: string,
   requestId: string,
-  reason: "answered" | "cancelled" | "interrupted"
+  reason: NDXSessionClientRequestClosedMessage["reason"]
 ) {
   const targets: Array<{ client: SessionClientState; token: string }> = [];
   for (const client of connectedClients.values()) {
@@ -727,7 +732,7 @@ async function broadcastClientRequestClosed(
     type: NDX_SESSION_CLIENT_REQUEST_CLOSED,
     requestId,
     connectionToken: target.token,
-    requestKind: "askUserQuestion",
+    requestKind: NDX_SESSION_CLIENT_REQUEST_KIND_ASK_USER_QUESTION,
     reason,
     language: target.client.language
   })));
@@ -795,7 +800,7 @@ async function sendSkillListFromSocket(
   const projectHome = serverWorkspaceProjectPath(projectName);
   const skills = await loadSkills({ userHome: serverContainerUserHome(), projectHome, cwd: projectHome });
   await sendJson(client, {
-    type: "session.skill.list.result",
+    type: NDX_SESSION_SKILL_LIST_RESULT,
     projectName,
     skills: skills.map((skill) => ({
       name: skill.name,
@@ -978,6 +983,14 @@ async function requireConnectionTokenGrant(
 
 function messageType(message: unknown) {
   return message && typeof message === "object" && "type" in message ? String(message.type) : typeof message;
+}
+
+function socketSessionEventContents(contents: unknown): NDXSessionEventMessage["contents"] {
+  if (typeof contents === "string") return contents;
+  if (contents && typeof contents === "object" && !Array.isArray(contents)) {
+    return contents as NDXSessionEventMessage["contents"];
+  }
+  return String(contents ?? "");
 }
 
 function defaultModelConfig(): NDXModelConfig {

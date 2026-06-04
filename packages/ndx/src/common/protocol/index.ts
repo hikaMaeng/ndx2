@@ -110,3 +110,5 @@ export type {
 } from "./session/index.js";
 export { NDX_COT_WORK_CONTENT_KIND, NDX_COT_WORK_STEP_STATUS, NDX_SIDEBAR_ITEM, NDX_TURN_EVENT, NDX_TURNCARD_ARTIFACT, NDX_TURNCARD_SKILL, formatNDXCotWorkElapsed, isNDXCotWorkContents, parseNDXSidebarItem, parseNDXTurnCardItem } from "./turn/index.js";
 export type { NDXCotWorkContents, NDXCotWorkStep, NDXCotWorkStepStatus, NDXSidebarItem, NDXTurnCardArtifactItem, NDXTurnCardItem, NDXTurnCardSkillItem, NDXTurnEventName } from "./turn/index.js";
+export { isNDXSocketServerMessage } from "./socket.js";
+export type { NDXSocketClientMessage, NDXSocketServerMessage } from "./socket.js";

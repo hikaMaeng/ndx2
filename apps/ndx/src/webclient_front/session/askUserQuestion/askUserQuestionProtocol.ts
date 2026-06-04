@@ -1,4 +1,4 @@
-import type { NDXAskUserQuestionResponse } from "ndx/common/protocol";
+import { NDX_SESSION_CLIENT_REQUEST_KIND_ASK_USER_QUESTION, type NDXAskUserQuestionResponse } from "ndx/common/protocol";
 import { encodeAttachments } from "ndx/webclient/front";
 import type { AskUserQuestionDraft, AskUserQuestionRequest } from "./types";
 
@@ -12,7 +12,7 @@ export function initialAskUserQuestionDraft(request: AskUserQuestionRequest): As
 
 export async function askUserQuestionResponse(request: AskUserQuestionRequest, draft: AskUserQuestionDraft): Promise<NDXAskUserQuestionResponse> {
   return {
-    kind: "askUserQuestion",
+    kind: NDX_SESSION_CLIENT_REQUEST_KIND_ASK_USER_QUESTION,
     answers: Object.fromEntries(await Promise.all(request.request.questions.map(async (question) => {
       const values: string[] = [];
       if (question.options?.length) {

@@ -40,6 +40,51 @@ export { interruptWasAccepted } from "./session/event.js";
 export { PROTOCOL_EVENT_UI_REDUCERS, applyProtocolEventToSessionUiState } from "./session/protocolEventReducer.js";
 export type { ProtocolEventUiText } from "./session/protocolEventReducer.js";
 export { applyIterationDetail, chatMessageFromSessionEvent, mergeRestoredChatMessages, mergeRestoredTurnFlows, mergeTurnSummary, turnFlowFromSummary } from "./session/history.js";
+export {
+  applyHistoryRequestedToStore,
+  applyRoutedSessionMessageToStore,
+  applySessionAttachedToStore,
+  applySessionHistorySummary,
+  applySessionIterationDetail,
+  applySessionProtocolEvent,
+  applySessionSidebarItem,
+  applySessionTurnDetail,
+  createDraftSessionIdentity,
+  createDraftSessionModel,
+  createSessionCapabilitiesModel,
+  createSessionComposerModel,
+  createSessionConnectionModel,
+  createSessionHistoryModel,
+  createSessionIdentityFromCreated,
+  createSessionIdentityFromRow,
+  createSessionModelFromRow,
+  createSessionRuntimeModel,
+  createSessionSidebarModel,
+  createSessionViewportModel,
+  draftSessionModelKey,
+  ensureDraftSessionModel,
+  ensureSessionModel,
+  promoteDraftModelInStore,
+  promoteDraftSessionModel,
+  sessionModelToUiState,
+  sessionModelWithUiState,
+  updateSessionModel
+} from "./session/model/index.js";
+export type {
+  SessionCapabilitiesModel,
+  SessionComposerAttachmentModel,
+  SessionComposerModel,
+  SessionConnectionModel,
+  SessionHistoryModel,
+  SessionIdentityModel,
+  SessionInstanceModel,
+  SessionModelRoutedMessage,
+  SessionModelSnapshot,
+  SessionPendingRequestModel,
+  SessionRuntimeModel,
+  SessionSidebarModel,
+  SessionViewportModel
+} from "./session/model/index.js";
 export { selectSocketUserid, sessionAccountSelectMessage, sessionAttachMessage, sessionClientResponseMessage, sessionCreateMessage, sessionHistorySummaryMessage, sessionInputMessage, sessionInterruptMessage, sessionIterationDetailMessage, sessionProjectConfigureMessage, sessionSkillListMessage, sessionSocketUrl, sessionTurnDetailMessage, stateAfterSessionReady } from "./session/socketProtocol.js";
 export { applyTurnEvent, eventContentText, toolCallIdFromCall, toolNameFromCall, toolProgressText } from "./session/turn/index.js";
 export type { TurnBatchState, TurnEventMessage, TurnFlowState, TurnToolState } from "./session/turn/index.js";

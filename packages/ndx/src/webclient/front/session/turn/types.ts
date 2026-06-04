@@ -1,4 +1,9 @@
-import type { NDXSessionEventMessage } from "ndx/common/protocol";
+import type { NDXSessionEventMessage, NDXSessionIterationSummary, NDXSessionTurnSummary } from "ndx/common/protocol";
+
+export type TurnFlowStatus = NDXSessionTurnSummary["status"];
+export type TurnIterationNumber = NDXSessionIterationSummary["iteration"];
+export type TurnInputDataId = NDXSessionTurnSummary["inputDataId"];
+export type TurnSessionId = NDXSessionTurnSummary["sessionid"];
 
 export type TurnToolState = {
   key: string;
@@ -14,7 +19,7 @@ export type TurnToolState = {
 
 export type TurnBatchState = {
   key: string;
-  iteration: number;
+  iteration: TurnIterationNumber;
   collapsed: boolean;
   manuallyExpanded?: boolean;
   assistantText: string;
@@ -25,13 +30,13 @@ export type TurnBatchState = {
 
 export type TurnFlowState = {
   id: string;
-  inputDataId: string;
-  sessionid: string;
-  title: string;
-  status: "running" | "interrupted" | "completed";
+  inputDataId: TurnInputDataId;
+  sessionid: TurnSessionId;
+  title: NDXSessionTurnSummary["title"];
+  status: TurnFlowStatus;
   collapsed: boolean;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: NDXSessionTurnSummary["createdat"];
+  updatedAt: NDXSessionTurnSummary["updatedat"];
   batches: TurnBatchState[];
 };
 

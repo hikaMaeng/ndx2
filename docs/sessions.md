@@ -123,10 +123,43 @@ an extra model-requested `loadSkill` iteration for explicitly selected skills.
 as `function_call_output`, because no preceding model tool call exists for a
 preloaded skill.
 
-The session web client renders only the active session it has joined. Selecting
-another project or session clears the current chat, turn-flow state, context
-usage, and staged-detail request cache before the new session is attached and
-rendered.
+The session web client keeps an in-memory model for every project session or
+draft surface it has created or entered during the current browser lifetime.
+Selecting another project or session changes the active rendered model, but it
+does not clear already-created session models. A non-active session may continue
+to receive socket events, history restoration, running-turn updates, streaming
+assistant text, sidebar items, and detail-expansion results. Those updates are
+applied to that session's model and become visible when the session is selected
+again.
+
+Each model is keyed by `sessionid` for durable sessions and by
+`draft:<projectName>` for a new-session draft. When a draft's first request
+creates the real session, the web client promotes the draft model to the
+returned `sessionid` instead of creating a separate empty model. The promoted
+model preserves composer state, pending request state, scroll/sidebar state,
+and any optimistic runtime state that belongs to the request.
+
+Session socket routing is model-first. Downstream messages that identify a
+session are routed by session token or session id to an existing in-memory
+session model. If no matching model exists, the web client ignores the message
+instead of creating a hidden authoritative state holder. This keeps the browser
+model cache scoped to sessions the UI intentionally entered while PostgreSQL
+remains the server-side source of truth.
+
+The model stores history in three levels:
+
+1. visible user requests and final assistant responses;
+2. turn summaries and iteration summaries used for completed blocks;
+3. iteration details loaded on demand when the user expands a specific
+   iteration.
+
+Rendering is a projection of the active model. Running turns, assistant
+streaming, context usage, interruption status, cot-work state, completed block
+expansion, and right-sidebar content first update the model, then React renders
+from the updated snapshot. DOM-only adjuncts such as actual `File` handles,
+object URLs, element refs, and modal open state may remain in app-local React
+state, but canonical per-session history/runtime/sidebar state belongs to the
+session model.
 
 Chat scrolling defaults to auto-scroll-to-bottom. User scroll, touch, or pointer
 interaction pauses auto-scroll; the client returns to auto-scroll mode after

@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { failedWithoutProcess } from "../../execute/process.js";
-import type { NDXAskUserQuestionQuestion, NDXAskUserQuestionResponse } from "../../../../common/protocol/index.js";
+import { NDX_SESSION_CLIENT_REQUEST_KIND_ASK_USER_QUESTION, type NDXAskUserQuestionQuestion, type NDXAskUserQuestionResponse } from "../../../../common/protocol/index.js";
 import { NDX_SIDEBAR_ITEM_AGENTCALL_NAME } from "../../execute/agentcall/index.js";
 import type { NDXToolExecutionOptions, NDXToolExecutionResult, NDXToolResultEffect } from "../../types.js";
 
@@ -104,7 +104,7 @@ export async function executeAskUserQuestionTool(
     options.signal?.addEventListener("abort", onAbort, { once: true });
   }
   const response = await options.sessionClientBridge.requestUserQuestion({
-    kind: "askUserQuestion",
+    kind: NDX_SESSION_CLIENT_REQUEST_KIND_ASK_USER_QUESTION,
     turnId: options.turnId ?? "",
     iteration: options.iteration ?? 1,
     toolCallId: callId,

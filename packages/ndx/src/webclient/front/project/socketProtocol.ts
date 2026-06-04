@@ -8,7 +8,8 @@ import {
   type NDXSessionDeletedMessage,
   type NDXSessionListChangedMessage,
   type NDXSessionRenameMessage,
-  type NDXSessionRenamedMessage
+  type NDXSessionRenamedMessage,
+  type NDXSocketServerMessage
 } from "ndx/common/protocol";
 
 export type ProjectSocketMessage = NDXSessionDeletedMessage | NDXSessionListChangedMessage | NDXSessionRenamedMessage;
@@ -33,17 +34,17 @@ export function projectSessionRenameMessage(input: ProjectSessionSocketInput & {
   return { type: NDX_SESSION_RENAME, ...input };
 }
 
-export function applyProjectSocketMessage(message: { type?: string }, handlers: ProjectSocketHandlers) {
+export function applyProjectSocketMessage(message: NDXSocketServerMessage, handlers: ProjectSocketHandlers) {
   if (message.type === NDX_SESSION_DELETED) {
-    handlers.onSessionDeleted(message as NDXSessionDeletedMessage);
+    handlers.onSessionDeleted(message);
     return true;
   }
   if (message.type === NDX_SESSION_RENAMED) {
-    handlers.onSessionRenamed(message as NDXSessionRenamedMessage);
+    handlers.onSessionRenamed(message);
     return true;
   }
   if (message.type === NDX_SESSION_LIST_CHANGED) {
-    handlers.onSessionListChanged(message as NDXSessionListChangedMessage);
+    handlers.onSessionListChanged(message);
     return true;
   }
   return false;

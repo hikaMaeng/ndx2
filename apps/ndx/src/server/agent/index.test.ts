@@ -12,7 +12,7 @@ import { acquireAgentServerInstanceLock, attachSessionRoutes, attachSessionSocke
 import { sessionSidebarItemSocketMessage } from "./connection.js";
 import { sendJson } from "./sendJson.js";
 import type { NDXDatabase } from "ndx/agent";
-import { NDX_SESSION_SIDEBAR_ITEM, NDX_TURN_EVENT } from "ndx/common";
+import { NDX_SESSION_READY, NDX_SESSION_SIDEBAR_ITEM, NDX_TURN_EVENT } from "ndx/common";
 
 process.env.NDX_CONTAINER_ROOT = os.tmpdir();
 process.env.NDX_ROOT = os.tmpdir();
@@ -785,7 +785,12 @@ test("socket send writes the provided message unchanged", async () => {
         missedPings: 0,
         pongSinceLastPing: true
       },
-      { type: "session.ready", projectName: "message-project" }
+      {
+        type: NDX_SESSION_READY,
+        clientid: "018f90d0-75cb-7d37-bfc9-6f9d0bb60cf5",
+        userid: "ndev",
+        projectName: "message-project"
+      }
     );
 
     assert.equal(JSON.parse(sent[0]).projectName, "message-project");
