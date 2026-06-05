@@ -1,6 +1,6 @@
 # prompt_rewrite와 session_history 사용법
 
-`prompt_rewrite`와 `session_history`는 약한 local model이 긴 프로젝트 맥락을 더 안정적으로 다루게 돕는 function tool이다. 둘 다 `packages/ndx/src/agent/tool/execute/function`에 있고, tool result는 일반 tool continuation처럼 durable history에 남는다.
+`prompt_rewrite`와 `session_history`는 약한 local model이 긴 프로젝트 맥락을 더 안정적으로 다루게 돕는 function tool이다. 둘 다 `packages/ndx/src/agent/tool/base`의 각 디렉터리(`prompt_rewrite`, `session_history`)에 있고, tool result는 일반 tool continuation처럼 durable history에 남는다.
 
 ## prompt_rewrite
 

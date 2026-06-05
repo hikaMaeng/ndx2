@@ -24,6 +24,26 @@ const turnProtocolProjectionTypeCheck: {
 
 void turnProtocolProjectionTypeCheck;
 
+test("turn reducer ignores non-input running events before a turn input exists", () => {
+  const ready = event("context-ready:session-1:1", NDX_TURN_EVENT.ContextReady, { kind: "context_ready", messageCount: 6 });
+
+  const turns = applyTurnEvent([], ready);
+
+  assert.deepEqual(turns, []);
+});
+
+test("turn reducer does not create an orphan running turn after a completed turn", () => {
+  const input = event("input-1", NDX_TURN_EVENT.InputRecorded, { kind: "user_message", text: "deploy" });
+  const assistant = event("assistant-1", NDX_TURN_EVENT.AssistantRecorded, { kind: "assistant_message", text: "done" });
+  const ready = event("context-ready:session-1:2", NDX_TURN_EVENT.ContextReady, { kind: "context_ready", messageCount: 6 });
+
+  const turns = [input, assistant, ready].reduce(applyTurnEvent, []);
+
+  assert.equal(turns.length, 1);
+  assert.equal(turns[0]?.id, "turn:session-1:input-1");
+  assert.equal(turns[0]?.status, "completed");
+});
+
 test("turn reducer only auto-collapses the previous iteration", () => {
   const input = event("turn.input.recorded", NDX_TURN_EVENT.InputRecorded, { text: "inspect files" });
   const first = event("turn.tool.batch:1", NDX_TURN_EVENT.ToolBatchStarted, {

@@ -1,6 +1,6 @@
 # System Hook 동작
 
-System hook은 NDX runtime이 기본으로 설치하는 hook이다. 사용자가 `.ndx/hook/hook.json`을 만들지 않아도 실행되며, session search, skill marker, cot work reminder, inline image, loop detection 같은 핵심 보조 정책을 담당한다.
+System hook은 NDX runtime이 기본으로 설치하는 hook이다. 사용자가 `.ndx/hook/hook.json`을 만들지 않아도 실행되며, skill marker, cot work reminder, inline image, prefix drift audit, stream guard, loop detection, session search 같은 핵심 보조 정책을 담당한다. 이벤트별 system hook 묶음은 `packages/ndx/src/agent/hook/system.ts`의 `systemNDXHookPlan`이 정의한다.
 
 ## skill marker
 
@@ -29,6 +29,10 @@ Reminder는 다음 내용을 포함한다.
 ## inline input images
 
 `turn.context.prepared`의 inline image hook은 `session.runtimedata.inlineAttachmentDataIds`에 있는 sessiondata row의 image attachment를 다음 request에 한 번만 base64 image payload로 붙인다. 처리 후 runtime data에서 id를 제거해 다음 request의 prefix를 안정화한다.
+
+## prefix drift audit
+
+`turn.model.request`의 prefix drift audit hook(`packages/ndx/src/agent/hook/base/prefixDrift/index.ts`)은 최종 model request 직전에 직전 요청 message와 이번 요청 message의 stable prefix를 비교한다. prefix가 제거되거나 바뀌면 `prefixDrifts`와 진단 메시지를 effect로 반환한다. 이 hook은 model-visible 내용을 바꾸지 않고, prefix-cache 계약 위반을 런타임에서 감지·기록하는 감사 장치다. prefix-cache 문서가 설명하는 "byte-for-byte prefix" 규칙을 코드로 지키는 지점이다.
 
 ## stream guard
 

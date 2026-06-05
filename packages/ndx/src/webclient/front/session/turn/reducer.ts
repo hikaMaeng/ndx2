@@ -5,12 +5,21 @@ import type { TurnBatchState, TurnFlowState, TurnToolState } from "./types.js";
 
 export function applyTurnEvent(turns: TurnFlowState[], message: NDXSessionEventMessage): TurnFlowState[] {
   const now = message.createdat || new Date().toISOString();
-  const current = turns.at(-1);
-  const startsTurn = message.event === NDX_TURN_EVENT.InputRecorded || !current || current.status !== "running";
-  const turn = startsTurn ? newTurn(message, now) : { ...current, updatedAt: now };
-  const base = startsTurn ? turns : turns.slice(0, -1);
-  const next = reduceTurn(turn, message, now);
-  return [...base, next];
+  if (message.event === NDX_TURN_EVENT.InputRecorded) {
+    return [...turns, reduceTurn(newTurn(message, now), message, now)];
+  }
+
+  const runningIndex = findLastTurnIndex(turns, message.sessionid, (turn) => turn.status === "running");
+  const targetIndex = runningIndex >= 0
+    ? runningIndex
+    : message.event === NDX_TURN_EVENT.Interrupted || message.event === NDX_TURN_EVENT.InterruptCompleted
+      ? findLastTurnIndex(turns, message.sessionid)
+      : -1;
+  if (targetIndex < 0) {
+    return turns;
+  }
+
+  return turns.map((turn, index) => index === targetIndex ? reduceTurn({ ...turn, updatedAt: now }, message, now) : turn);
 }
 
 function newTurn(message: NDXSessionEventMessage, now: string): TurnFlowState {
@@ -25,6 +34,16 @@ function newTurn(message: NDXSessionEventMessage, now: string): TurnFlowState {
     updatedAt: now,
     batches: []
   };
+}
+
+function findLastTurnIndex(turns: TurnFlowState[], sessionid: string, predicate: (turn: TurnFlowState) => boolean = () => true): number {
+  for (let index = turns.length - 1; index >= 0; index -= 1) {
+    const turn = turns[index];
+    if (turn?.sessionid === sessionid && predicate(turn)) {
+      return index;
+    }
+  }
+  return -1;
 }
 
 function reduceTurn(turn: TurnFlowState, message: NDXSessionEventMessage, now: string): TurnFlowState {

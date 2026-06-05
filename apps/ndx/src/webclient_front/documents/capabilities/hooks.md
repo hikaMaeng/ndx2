@@ -8,6 +8,7 @@ Hook runtime은 turn loop 중 특정 시점에 system hook과 `.ndx` hook을 실
 | --- | --- |
 | `turn.request.received` | 사용자 요청이 accept된 직후. |
 | `turn.context.prepared` | model messages/tools/context usage가 준비된 직후. |
+| `turn.model.request` | model request 직전, 직전 요청 대비 stable prefix drift를 감사할 때. |
 | `turn.model.responding` | model stream 중 text/reasoning/tool_call이 도착할 때. |
 | `turn.tool.called` | model이 tool calls를 요청한 뒤 실행 전. |
 | `turn.tool.results.collected` | requested tools가 끝나고 결과 기록 전. |
@@ -36,6 +37,8 @@ Hook runtime은 turn loop 중 특정 시점에 system hook과 `.ndx` hook을 실
 | skill marker | 요청에서 skill trigger를 감지하고 context에 반영한다. |
 | inline input images | `runtimedata.inlineAttachmentDataIds`에 지정된 이미지를 한 요청에 인라인한다. |
 | cot work reminder | 장시간 작업 중 cot work 사용 reminder를 추가한다. |
+| prefix drift audit | `turn.model.request`에서 직전 model request의 stable prefix가 깨졌는지 진단한다. |
+| stream guard | reasoning이 너무 길어지면 model stream을 중단한다. |
 | loop detection | tool-heavy loop가 반복되는지 확인한다. |
 | session search | turn end에서 user/final assistant row를 `sessionsearch`에 반영한다. |
 | turn context usage | turn end에서 평균 턴 토큰 사용량을 갱신한다. |

@@ -1,6 +1,6 @@
 # 함수 도구 상세
 
-Function tool은 process를 spawn하지 않고 TypeScript 함수로 실행되는 도구다. 구현은 `packages/ndx/src/agent/tool/execute/function`에 있으며, registry는 이 도구들을 builtin tool처럼 model tool schema에 포함한다.
+Function tool은 process를 spawn하지 않고 TypeScript 함수로 실행되는 도구다. 구현은 `packages/ndx/src/agent/tool/base`의 `askUserQuestion`, `prompt_rewrite`, `session_history` 디렉터리에 있고, `packages/ndx/src/agent/tool/base/functionTools.ts`가 이를 `NDX_BUILTIN_FUNCTION_TOOLS`로 모은다. registry는 이 도구들을 builtin tool처럼 model tool schema에 포함한다.
 
 ## askUserQuestion
 

@@ -31,8 +31,9 @@ attachment bytes는 한 요청에만 payload로 붙을 수 있다. 이미지를 
 | context build | `packages/ndx/src/agent/context` |
 | turn base message | `packages/ndx/src/agent/turnloop/base/context/index.ts` |
 | sessiondata to model messages | `packages/ndx/src/agent/session/sessionDataRowsToModelMessages.ts` |
-| attachment inline | `packages/ndx/src/agent/hook/turn.context.prepared/inlineInputImages.ts` |
-| cot work reminder | `packages/ndx/src/agent/hook/turn.context.prepared/cotWorkReminder.ts` |
-| prompt rewrite | `packages/ndx/src/agent/tool/execute/function/promptRewrite.ts` |
+| attachment inline | `packages/ndx/src/agent/hook/base/inlineInputImages/index.ts` |
+| cot work reminder | `packages/ndx/src/agent/tool/base/cot_work/reminderHook.ts` |
+| prompt rewrite | `packages/ndx/src/agent/tool/base/prompt_rewrite/index.ts` |
+| prefix drift audit | `packages/ndx/src/agent/hook/base/prefixDrift/index.ts` |
 
 이 파일을 바꾸는 작업은 prompt ordering regression test를 함께 봐야 한다. 단순히 빌드가 통과했다고 완료가 아니다.

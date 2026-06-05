@@ -211,6 +211,24 @@ for (const match of sourceInventory.matchAll(/`((?:apps|packages)\/ndx\/src[^`]+
   }
 }
 
+// Every inline source-path reference inside any markdown document must resolve to a
+// real file or directory. This catches doc drift after package/path reorganizations
+// (for example tool/function-tool relocation). Template placeholders (`<...>`) and
+// trailing glob segments (`/*`) are allowed because they describe a path family.
+for (const file of markdownFiles) {
+  const text = fs.readFileSync(path.join(documentsDir, file), "utf8");
+  for (const match of text.matchAll(/`((?:apps|packages)\/ndx\/src[^`]+)`/g)) {
+    const documentedPath = match[1];
+    if (documentedPath.includes("<") || documentedPath.includes(">")) {
+      continue;
+    }
+    const concretePath = documentedPath.replace(/\/\*.*$/, "");
+    if (!exists(concretePath)) {
+      fail(`markdown references a missing source path in ${file}: ${documentedPath}`);
+    }
+  }
+}
+
 for (const rootDoc of rootDocs) {
   if (!allMarkdownText.includes(`\`${rootDoc}\``)) {
     fail(`root docs file is not referenced by app documents: ${rootDoc}`);
