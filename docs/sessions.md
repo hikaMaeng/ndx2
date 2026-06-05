@@ -112,16 +112,29 @@ as user-visible history. The `turn.request.received` system hook consumes the
 markers before the user message is appended:
 
 * if the selected skill is not already present in the current model context, the
-  hook runs the normal `loadSkill` base tool and records its `<skill>...</skill>`
-  output as a `skill_context` row;
+  hook runs the normal `loadSkill` base tool and records a selected-skill
+  instruction plus the `<skill>...</skill>` output as a `skill_context` row;
+* if the selected skill is already present in the current model context, the hook
+  records only a short selected-skill instruction row for the current request and
+  does not rewrite the older skill row;
 * the user request is rewritten back to display text such as `$agenttest`;
 * the normal turn flow then reconstructs model context from `sessiondata`.
 
 This keeps PostgreSQL `sessiondata` as the context source of truth while avoiding
-an extra model-requested `loadSkill` iteration for explicitly selected skills.
+an extra model-requested `loadSkill` iteration for explicitly selected skills and
+making the selected workflow mandatory before the first model iteration.
 `skill_context` rows are exposed to the model as user-role context messages, not
 as `function_call_output`, because no preceding model tool call exists for a
 preloaded skill.
+
+Selected-skill rows are prompt-prefix-cache sensitive. They must be appended as
+durable `sessiondata` rows before the current user message and must not be
+inserted through temporary `turn.context.prepared` message splicing. If a skill is
+selected again after its body is already present in history, append a new short
+selected-skill instruction for the current request instead of editing the older
+`skill_context` row. This preserves the previous model request byte-for-byte as
+the prefix of later model requests while still making the selected workflow
+mandatory for the current request.
 
 The session web client keeps an in-memory model for every project session or
 draft surface it has created or entered during the current browser lifetime.

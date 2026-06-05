@@ -278,6 +278,8 @@ test("buildContext injects available skills section when skills exist", async ()
 
     assert.match(context.developer, /<available_skills_instructions>\n## Skills/);
     assert.match(context.developer, /- review: Review code changes\. \(file: .*\/project\/\.ndx\/skills\/review\/SKILL\.md\)/);
+    assert.match(context.developer, /do not call `loadSkill` again; apply the loaded skill instructions immediately/);
+    assert.match(context.developer, /no selected or loaded skill context is present, call the `loadSkill` tool/);
   });
 });
 

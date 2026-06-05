@@ -338,7 +338,7 @@ Current payload kinds:
 | `tool_generated_user_message` | Tool-generated user-role model input with optional attachment references, `{ kind, text, attachments?, sources? }`. |
 | `assistant_message` | Final assistant response text, `{ kind, text }`. |
 | `assistant_delta` | Streamed assistant content snapshot, `{ kind, iteration, delta, content }`. |
-| `skill_context` | Preloaded `$skill` instructions produced by the normal `loadSkill` tool and exposed to the model as user-role context, `{ kind, name, path, text }`. |
+| `skill_context` | Preloaded `$skill` selected-skill instructions and, when needed, the normal `loadSkill` `<skill>...</skill>` output exposed to the model as user-role context, `{ kind, name, path, text }`. |
 | `tool_call` | Model tool-call request, `{ kind, iteration, toolCalls }`. |
 | `tool_result` | Tool execution result, `{ kind, iteration, toolCallId, success, output }`. |
 | `cot_work_reminder` | Model-visible reminder to continue an active `cot_work` plan, `{ kind, iteration, sourceDataId, text }`. |

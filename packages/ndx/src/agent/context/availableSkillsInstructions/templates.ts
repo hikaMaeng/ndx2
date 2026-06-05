@@ -4,11 +4,12 @@ const SKILLS_HOW_TO_USE_WITH_ABSOLUTE_PATHS = `- Discovery: The list above is th
 - Trigger rules: If the user names a skill (with \`$SkillName\` or plain text) OR the task clearly matches a skill's description shown above, you must use that skill for that turn. Multiple mentions mean use them all. Do not carry skills across turns unless re-mentioned.
 - Missing/blocked: If a named skill isn't in the list or can't be loaded, say so briefly and continue with the best fallback.
 - How to use a skill (progressive disclosure):
-  1) After deciding to use a skill, call the \`loadSkill\` tool with the skill name. Continue the task after the skill instructions are returned.
-  2) When loaded skill instructions reference relative paths (e.g., \`scripts/foo.py\`), resolve them relative to the skill directory in the returned \`<path>\` first, and only consider other paths if needed.
-  3) If \`SKILL.md\` points to extra folders such as \`references/\`, load only the specific files needed for the request; don't bulk-load everything.
-  4) If \`scripts/\` exist, prefer running or patching them instead of retyping large code blocks.
-  5) If \`assets/\` or templates exist, reuse them instead of recreating from scratch.
+  1) If the current request includes an explicit \`$SkillName\` mention and the model context already contains a \`<selected_skill_instruction>\` or \`<skill>\` block for that skill, do not call \`loadSkill\` again; apply the loaded skill instructions immediately.
+  2) If a skill is relevant but no selected or loaded skill context is present, call the \`loadSkill\` tool with the skill name. Continue the task after the skill instructions are returned.
+  3) When loaded skill instructions reference relative paths (e.g., \`scripts/foo.py\`), resolve them relative to the skill directory in the returned \`<path>\` first, and only consider other paths if needed.
+  4) If \`SKILL.md\` points to extra folders such as \`references/\`, load only the specific files needed for the request; don't bulk-load everything.
+  5) If \`scripts/\` exist, prefer running or patching them instead of retyping large code blocks.
+  6) If \`assets/\` or templates exist, reuse them instead of recreating from scratch.
 - Coordination and sequencing:
   - If multiple skills apply, choose the minimal set that covers the request and state the order you'll use them.
   - Announce which skill(s) you're using and why (one short line). If you skip an obvious skill, say why.

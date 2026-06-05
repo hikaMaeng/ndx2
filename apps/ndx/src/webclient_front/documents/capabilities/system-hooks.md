@@ -4,7 +4,7 @@ System hook은 NDX runtime이 기본으로 설치하는 hook이다. 사용자가
 
 ## skill marker
 
-`turn.request.received`의 skill marker hook은 사용자 입력에서 skill trigger를 감지한다. Composer는 `$skill` mention을 `[[NDX_SKILL___id__]]` markup으로 넣고, hook/context builder는 이를 실제 skill loading 흐름과 연결한다. Hook은 normal `loadSkill` base tool을 실행해 얻은 `<skill>...</skill>` output을 `skill_context` row로 저장하고, 모델에는 user-role context message로 노출한다. 선행 model tool call이 없는 preload이므로 `function_call_output`으로 만들지 않는다.
+`turn.request.received`의 skill marker hook은 사용자 입력에서 skill trigger를 감지한다. Composer는 `$skill` mention을 `[[NDX_SKILL___id__]]` markup으로 넣고, hook/context builder는 이를 실제 skill loading 흐름과 연결한다. Hook은 selected-skill instruction을 `skill_context` row로 저장하고, 필요한 경우 normal `loadSkill` base tool을 실행해 얻은 `<skill>...</skill>` output도 같은 row에 넣는다. 모델에는 user-role context message로 노출한다. 선행 model tool call이 없는 preload이므로 `function_call_output`으로 만들지 않는다.
 
 ## session search hooks
 

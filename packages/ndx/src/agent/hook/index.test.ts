@@ -322,15 +322,19 @@ test("request received system hook records selected skill contents before rewrit
   assert.equal(result.effect.replaceRequestText, "$demo로 처리해줘");
   assert.equal(rows.length, 1);
   assert.equal(rows[0].type, "system");
-  assert.deepEqual(rows[0].contents, {
-    kind: "skill_context",
-    name: "demo",
-    path: skillPath,
-    text: `<skill>\n<name>demo</name>\n<path>${skillPath}</path>\n---\nname: demo\ndescription: demo skill\n---\nUse demo workflow.\n\n</skill>`
-  });
+  assert.deepEqual((rows[0].contents as { kind?: unknown; name?: unknown; path?: unknown }).kind, "skill_context");
+  assert.deepEqual((rows[0].contents as { name?: unknown; path?: unknown }).name, "demo");
+  assert.deepEqual((rows[0].contents as { name?: unknown; path?: unknown }).path, skillPath);
+  const text = String((rows[0].contents as { text?: unknown }).text ?? "");
+  assert.match(text, /<selected_skill_instruction>/);
+  assert.match(text, /explicitly selected `\$demo`/);
+  assert.match(text, /You must apply this skill's workflow/);
+  assert.match(text, /Do not call `loadSkill` for this skill again/);
+  assert.match(text, /<skill>\n<name>demo<\/name>/);
+  assert.match(text, /Use demo workflow\./);
 });
 
-test("request received system hook does not preload a skill already present in model context", async () => {
+test("request received system hook appends a selected instruction when the skill is already present in model context", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-hook-skill-loaded-"));
   const userHome = path.join(root, "user");
   const projectHome = path.join(root, "project");
@@ -372,7 +376,16 @@ test("request received system hook does not preload a skill already present in m
   });
 
   assert.equal(result.effect.replaceRequestText, "$demo 다시 써줘");
-  assert.equal(rows.length, 0);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].type, "system");
+  assert.deepEqual((rows[0].contents as { kind?: unknown; name?: unknown; path?: unknown }).kind, "skill_context");
+  assert.deepEqual((rows[0].contents as { name?: unknown; path?: unknown }).name, "demo");
+  assert.deepEqual((rows[0].contents as { name?: unknown; path?: unknown }).path, skillPath);
+  const text = String((rows[0].contents as { text?: unknown }).text ?? "");
+  assert.match(text, /<selected_skill_instruction>/);
+  assert.match(text, /The full <skill> block for this skill is already present earlier/);
+  assert.doesNotMatch(text, /Use demo workflow\./);
+  assert.doesNotMatch(text, /<skill>\n<name>demo<\/name>/);
 });
 
 test("request received system hook appends a corrected skill only once per request", async () => {

@@ -46,7 +46,7 @@ export const skillMarkerHook: NDXHookCodeExecutor = {
         diagnostics.push(result?.output || result?.error || `Skill is not available: ${name}`);
         continue;
       }
-      const loaded = parseLoadedSkillOutput(result.output);
+      const loaded = parseLoadedSkillOutput(result.output) ?? parseAlreadyLoadedSkillOutput(result.output);
       if (!loaded) {
         continue;
       }
@@ -55,7 +55,7 @@ export const skillMarkerHook: NDXHookCodeExecutor = {
         continue;
       }
       preloadedSkillKeys.add(loadedKey);
-      await appendSessionData(context.database, context.session.sessionid, "system", skillContextContents(loaded.name, loaded.path, result.output));
+      await appendSessionData(context.database, context.session.sessionid, "system", skillContextContents(loaded.name, loaded.path, selectedSkillContextText(name, loaded, result.output)));
     }
 
     return {
@@ -91,6 +91,36 @@ function parseLoadedSkillOutput(output: string): { name: string; path: string } 
   const name = output.match(/<skill>\s*<name>([^<]+)<\/name>/)?.[1]?.trim();
   const skillPath = output.match(/<path>([^<]+)<\/path>/)?.[1]?.trim();
   return name && skillPath ? { name, path: skillPath } : undefined;
+}
+
+function parseAlreadyLoadedSkillOutput(output: string): { name: string; path: string } | undefined {
+  const match = output.match(/Skill already loaded in the current session context:\s*(.+?)\s*\((.+?)\)\s*$/);
+  const name = match?.[1]?.trim();
+  const skillPath = match?.[2]?.trim();
+  return name && skillPath ? { name, path: skillPath } : undefined;
+}
+
+function selectedSkillContextText(requestedName: string, loaded: { name: string; path: string }, output: string): string {
+  const selectedInstruction = [
+    "<selected_skill_instruction>",
+    `The user explicitly selected \`$${requestedName}\` for this request.`,
+    "The selected skill is model-visible before the first model iteration.",
+    "You must apply this skill's workflow to the current request.",
+    "Do not call `loadSkill` for this skill again unless the skill block is missing or unreadable.",
+    "</selected_skill_instruction>"
+  ].join("\n");
+  if (parseLoadedSkillOutput(output)) {
+    return `${selectedInstruction}\n\n${output}`;
+  }
+  return [
+    selectedInstruction,
+    "",
+    "<selected_skill_ref>",
+    `<name>${loaded.name}</name>`,
+    `<path>${loaded.path}</path>`,
+    "The full <skill> block for this skill is already present earlier in the session context.",
+    "</selected_skill_ref>"
+  ].join("\n");
 }
 
 function decodeSkillName(raw: string): string {
