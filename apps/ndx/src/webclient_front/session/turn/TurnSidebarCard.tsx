@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BookOpen, CheckCircle2, ChevronDown, ChevronRight, FileImage, FilePenLine, FileSearch, FileText, Globe, History, ListChecks, Loader2, MessageCircleQuestion, Search, Terminal, TextCursorInput, XCircle } from "lucide-react";
+import { BookOpen, ChevronDown, ChevronRight, FileImage, FilePenLine, FileSearch, FileText, Globe, History, ListChecks, MessageCircleQuestion, Search, Terminal, TextCursorInput } from "lucide-react";
 import type { NDXSidebarItem } from "ndx/common/protocol";
 import { groupRightSidebarItems } from "ndx/webclient/front";
 import type { TurnFlowState } from "ndx/webclient/front";
@@ -8,9 +8,7 @@ export function TurnSidebarCards({ items: explicitItems, turn }: { items?: NDXSi
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const items = explicitItems ?? [];
   if (items.length === 0) return null;
-  const status = turn?.status ?? "running";
   const idPrefix = turn?.id ?? "session-sidebar";
-  const StatusIcon = status === "running" ? Loader2 : status === "completed" ? CheckCircle2 : XCircle;
   const groups = groupRightSidebarItems(items);
 
   return (
@@ -27,7 +25,6 @@ export function TurnSidebarCards({ items: explicitItems, turn }: { items?: NDXSi
                 <p className="mt-1 text-xs text-zinc-500">{group.items.length + group.subgroups.reduce((total, subgroup) => total + subgroup.items.length, 0)}개</p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                <StatusIcon aria-hidden="true" className={`h-4 w-4 ${status === "running" ? "animate-spin text-sky-300" : status === "completed" ? "text-emerald-300" : "text-rose-300"}`} />
                 <button
                   type="button"
                   className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 p-0 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950"
