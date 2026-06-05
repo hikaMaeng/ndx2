@@ -31,7 +31,7 @@ export function CotWorkOverlay({ agentRunning, work }: { agentRunning: boolean; 
             <span className="font-medium text-zinc-100">작업 진행</span>
             <span className="ml-2 text-zinc-500">{completedCount}/{work.steps.length} 완료</span>
             <span className="ml-2 text-cyan-200">{formatNDXCotWorkElapsed(totalElapsedMs)}</span>
-            {!expanded && activeStep ? <span className="ml-2 text-zinc-400">{activeStep.task}</span> : null}
+            {!expanded && activeStep ? <span className="ml-2 inline-block max-w-[min(34rem,52vw)] truncate align-bottom text-zinc-400">{activeStep.task}</span> : null}
           </p>
           <button
             type="button"
@@ -49,9 +49,9 @@ export function CotWorkOverlay({ agentRunning, work }: { agentRunning: boolean; 
           <div id={panelId} className="max-h-[min(22rem,40dvh)] overflow-y-auto border-t border-zinc-800 px-3 py-3">
             <ol className="grid gap-2" aria-label="Cot work steps">
               {work.steps.map((step, index) => (
-                <li key={`${index}:${step.task}`} className="grid grid-cols-[1.25rem_1fr_auto] items-start gap-2 text-sm leading-5 text-zinc-200">
+                <li key={`${index}:${step.task}`} className="grid grid-cols-[1.25rem_minmax(0,1fr)_auto] items-start gap-2 text-sm leading-5 text-zinc-200">
                   <StatusIcon status={step.status} />
-                  <span className={step.status === "completed" ? "text-zinc-500 line-through decoration-zinc-600" : ""}>{step.task}</span>
+                  <span className={`min-w-0 truncate ${step.status === "completed" ? "text-zinc-500 line-through decoration-zinc-600" : ""}`}>{step.task}</span>
                   <span className="font-mono text-xs leading-5 text-zinc-500">{formatNDXCotWorkElapsed((step.elapsedMs ?? 0) + (step.status === "in_progress" ? liveDeltaMs : 0))}</span>
                 </li>
               ))}

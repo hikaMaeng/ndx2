@@ -1,11 +1,15 @@
 import {
   NDX_TURN_EVENT,
+  formatNDXCotWorkElapsed,
   isNDXCotWorkContents,
+  type NDXCotWorkContents,
+  type NDXSidebarItem,
   type NDXSessionEventMessage,
   type NDXTurnEventName
 } from "ndx/common/protocol";
 import { sessionDataContentsText, sessionDataToChatMessage } from "./chat.js";
 import { interruptWasAccepted } from "./event.js";
+import { upsertRightSidebarItem } from "./rightSidebar.js";
 import { applyTurnEvent } from "./turn/index.js";
 import type { NDXAgentWebContextUsage } from "./chat.js";
 import type { SessionUiState } from "./uiState.js";
@@ -132,9 +136,29 @@ function cotWorkEvent(current: SessionUiState, message: NDXSessionEventMessage, 
   return {
     ...withContextAndTurn(current, message),
     cotWork: message.contents,
+    rightSidebarItems: cotWorkSidebarItems(message.contents).reduce(
+      upsertRightSidebarItem,
+      current.rightSidebarItems.filter((item) => !(item.group.id === "plans" && item.kind === "cot_work"))
+    ),
     agentRunning: true,
     notice: text.operationInProgress
   };
+}
+
+function cotWorkSidebarItems(contents: NDXCotWorkContents): NDXSidebarItem[] {
+  return contents.steps.flatMap((step, index) => {
+    if (step.status !== "completed") {
+      return [];
+    }
+    const elapsed = step.elapsed ?? (typeof step.elapsedMs === "number" ? formatNDXCotWorkElapsed(step.elapsedMs) : undefined);
+    return [{
+      group: { id: "plans", title: "작업 계획" },
+      key: `cot-work-step:${index}:${step.task}`,
+      title: step.task,
+      ...(elapsed ? { body: elapsed } : {}),
+      kind: "cot_work"
+    }];
+  });
 }
 
 function rowMessageEvent(current: SessionUiState, message: NDXSessionEventMessage, text: ProtocolEventUiText): SessionUiState {
