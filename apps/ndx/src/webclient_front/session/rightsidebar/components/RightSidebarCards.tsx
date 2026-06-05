@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { BookOpen, ChevronDown, ChevronRight, FileImage, FilePenLine, FileSearch, FileText, Globe, History, ListChecks, MessageCircleQuestion, Search, Terminal, TextCursorInput } from "lucide-react";
 import type { NDXSidebarItem } from "ndx/common/protocol";
-import { groupRightSidebarItems } from "ndx/webclient/front";
-import type { TurnFlowState } from "ndx/webclient/front";
+import { groupRightSidebarItems, type TurnFlowState } from "ndx/webclient/front";
 
-export function TurnSidebarCards({ items: explicitItems, turn }: { items?: NDXSidebarItem[]; turn?: TurnFlowState }) {
+export function RightSidebarCards({ items: explicitItems, turn }: { items?: NDXSidebarItem[]; turn?: TurnFlowState }) {
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const items = explicitItems ?? [];
   if (items.length === 0) return null;

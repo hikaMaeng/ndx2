@@ -33,8 +33,8 @@ Project session-list actions use `session.rename` / `session.renamed` and
 `session.delete` / `session.deleted`; successful changes broadcast
 `session.list.changed` so browser project lists can refresh.
 
-Session history is staged over the same socket after `session.attach` returns a
-connection token:
+Session history is staged over the same socket after `session.attach` returns
+`session.attached`:
 
 * `session.history.summary` / `session.history.summary.result` returns visible
   user/final assistant events and collapsed turn shells.
@@ -55,8 +55,9 @@ those items under a second-level heading inside the section, while omitted or
 blank subgroup data renders the item at the section top level. Client rendering
 deduplicates identical explicit item keys inside a section, so the same changed
 file sent across multiple iterations is shown once. Built-in tools render into
-stable groups: `read_file` as `파일참조`, `loadSkill` as `스킬`,
-`write_file`/`edit` as `변경 파일` with folder subgroups, `bash` as `명령 실행`,
+stable groups: `read_file` as `파일참조` with folder subgroups, `loadSkill` as `스킬`,
+`write_file`/`edit` as `변경 파일` with folder subgroups, `bash` as `명령 실행`
+with first-command-word subgroups,
 `glob` as `파일 검색`, `grep_search` as `텍스트 검색`, `getImage` as `이미지`,
 `cot_work` as `작업 계획`, web tools as web reference/search groups, and
 function tools as their matching interaction/history groups. Legacy

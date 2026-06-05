@@ -5,7 +5,6 @@ import path from "node:path";
 import test from "node:test";
 import { DEFAULT_NDX_USERID, DEFAULT_USER_RECORD_SQL, USERS_TABLE_SQL, initAccountDatabase } from "../account/index.js";
 import { SESSION_TABLE_SQL, initSessionDatabase } from "../session/index.js";
-import { initSessionTokenDatabase } from "../session-token/index.js";
 import { initWebClientStateDatabase } from "../../webclient/server/client-state/index.js";
 import { seedServerAssets, type NDXDatabase } from "./index.js";
 
@@ -21,7 +20,6 @@ test("server database initialization creates the default account before session 
 
   await initAccountDatabase(database);
   await initSessionDatabase(database);
-  await initSessionTokenDatabase(database);
   await initWebClientStateDatabase(database);
 
   assert.equal(queries[0].text, USERS_TABLE_SQL);

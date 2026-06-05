@@ -20,11 +20,11 @@ export function useSessionSocketLifecycle(options: UseSessionSocketControllerOpt
     project,
     saveState,
     sessionRename,
-    sessionTokensRef,
+    attachedSessionIdsRef,
     setDraftSessionProjectId,
     setLastProtocolEvent,
     setNotice,
-    setSessionTokens,
+    setAttachedSessionIds,
     setSocketState,
     socketRef,
     socketState,
@@ -40,10 +40,9 @@ export function useSessionSocketLifecycle(options: UseSessionSocketControllerOpt
       return;
     }
     setDraftSessionProjectId(undefined);
-    const token = sessionTokensRef.current[activeSessionId];
-    if (token) {
-      const requestedHistory = Boolean(socketRef.current?.requestHistorySummary(token));
-      socketRef.current?.requestSkillList(token);
+    if (attachedSessionIdsRef.current.has(activeSessionId)) {
+      const requestedHistory = Boolean(socketRef.current?.requestHistorySummary(activeSessionId));
+      socketRef.current?.requestSkillList(activeSessionId);
       if (requestedHistory) return;
     }
     if (activeSession) attachSession(activeSession);
@@ -57,8 +56,8 @@ export function useSessionSocketLifecycle(options: UseSessionSocketControllerOpt
     }
 
     socketRef.current?.close();
-    sessionTokensRef.current = {};
-    setSessionTokens({});
+    attachedSessionIdsRef.current = new Set();
+    setAttachedSessionIds(new Set());
     socketRef.current = openSessionSocket({
       clientid,
       metadata,

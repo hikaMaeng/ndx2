@@ -44,12 +44,12 @@ export type SessionSocketClient = {
   isOpen: () => boolean;
   attachSession: (input: { userid: string; projectName: string; sessionid: string }) => boolean;
   createSession: (input: Omit<NDXSessionCreateMessage, "type" | "language">) => boolean;
-  sendInput: (connectionToken: string, text: string, model: NDXSessionModelConfig, attachments?: Array<{ name: string; mimeType: string; size: number; data: string }>) => boolean;
-  sendInterrupt: (connectionToken: string) => boolean;
-  requestSkillList: (connectionToken?: string) => boolean;
-  requestHistorySummary: (connectionToken: string) => boolean;
-  requestTurnDetail: (connectionToken: string, inputDataId: string) => boolean;
-  requestIterationDetail: (connectionToken: string, inputDataId: string, iteration: number) => boolean;
+  sendInput: (sessionid: string, text: string, model: NDXSessionModelConfig, attachments?: Array<{ name: string; mimeType: string; size: number; data: string }>) => boolean;
+  sendInterrupt: (sessionid: string) => boolean;
+  requestSkillList: (sessionid?: string) => boolean;
+  requestHistorySummary: (sessionid: string) => boolean;
+  requestTurnDetail: (sessionid: string, inputDataId: string) => boolean;
+  requestIterationDetail: (sessionid: string, inputDataId: string, iteration: number) => boolean;
   sendClientResponse: (input: Omit<NDXSessionClientResponseMessage, "type" | "language">) => boolean;
   close: () => void;
 };
@@ -246,46 +246,46 @@ export function openSessionSocket(options: SessionSocketOptions): SessionSocketC
       socket.send(JSON.stringify(sessionCreateMessage(input, options.getState().locale)));
       return true;
     },
-    sendInput: (connectionToken, text, model, attachments) => {
+    sendInput: (sessionid, text, model, attachments) => {
       if (socket.readyState !== WebSocket.OPEN) {
         return false;
       }
-      socket.send(JSON.stringify(sessionInputMessage(connectionToken, text, model, attachments, options.getState().locale)));
+      socket.send(JSON.stringify(sessionInputMessage(sessionid, text, model, attachments, options.getState().locale)));
       return true;
     },
-    sendInterrupt: (connectionToken) => {
+    sendInterrupt: (sessionid) => {
       if (socket.readyState !== WebSocket.OPEN) {
         return false;
       }
-      socket.send(JSON.stringify(sessionInterruptMessage(connectionToken, options.getState().locale)));
+      socket.send(JSON.stringify(sessionInterruptMessage(sessionid, options.getState().locale)));
       return true;
     },
-    requestSkillList: (connectionToken) => {
+    requestSkillList: (sessionid) => {
       if (socket.readyState !== WebSocket.OPEN) {
         return false;
       }
-      socket.send(JSON.stringify(sessionSkillListMessage(connectionToken, options.getState().locale)));
+      socket.send(JSON.stringify(sessionSkillListMessage(sessionid, options.getState().locale)));
       return true;
     },
-    requestHistorySummary: (connectionToken) => {
+    requestHistorySummary: (sessionid) => {
       if (socket.readyState !== WebSocket.OPEN) {
         return false;
       }
-      socket.send(JSON.stringify(sessionHistorySummaryMessage(connectionToken, options.getState().locale)));
+      socket.send(JSON.stringify(sessionHistorySummaryMessage(sessionid, options.getState().locale)));
       return true;
     },
-    requestTurnDetail: (connectionToken, inputDataId) => {
+    requestTurnDetail: (sessionid, inputDataId) => {
       if (socket.readyState !== WebSocket.OPEN) {
         return false;
       }
-      socket.send(JSON.stringify(sessionTurnDetailMessage(connectionToken, inputDataId, options.getState().locale)));
+      socket.send(JSON.stringify(sessionTurnDetailMessage(sessionid, inputDataId, options.getState().locale)));
       return true;
     },
-    requestIterationDetail: (connectionToken, inputDataId, iteration) => {
+    requestIterationDetail: (sessionid, inputDataId, iteration) => {
       if (socket.readyState !== WebSocket.OPEN) {
         return false;
       }
-      socket.send(JSON.stringify(sessionIterationDetailMessage(connectionToken, inputDataId, iteration, options.getState().locale)));
+      socket.send(JSON.stringify(sessionIterationDetailMessage(sessionid, inputDataId, iteration, options.getState().locale)));
       return true;
     },
     sendClientResponse: (input) => {

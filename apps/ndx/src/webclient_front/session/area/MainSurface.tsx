@@ -56,14 +56,14 @@ export function MainSurface({
   const sessionsByProject = useBridgeProjectSessions(bridge);
   const pendingActionsRef = React.useRef<Set<string>>(pendingActions);
   const [socketState, setSocketState] = React.useState<SocketState>("idle");
-  const [sessionTokens, setSessionTokens] = React.useState<Record<string, string>>({});
+  const [attachedSessionIds, setAttachedSessionIds] = React.useState<Set<string>>(new Set());
   const [skillsByProject, setSkillsByProject] = React.useState<Record<string, NDXSessionSkillSummary[]>>({});
   const skillsByProjectRef = React.useRef<Record<string, NDXSessionSkillSummary[]>>({});
   const [chatUiByKey, setChatUiByKey] = React.useState<Record<string, SessionUiState>>({});
   const [chatSessionByKey, setChatSessionByKey] = React.useState<Record<string, NDXAgentWebChatSession>>({});
   const [chatSelectedModelByKey, setChatSelectedModelByKey] = React.useState<Record<string, SelectedModelConfig>>({});
   const socketRef = React.useRef<SessionSocketClient | null>(null);
-  const sessionTokensRef = React.useRef<Record<string, string>>({});
+  const attachedSessionIdsRef = React.useRef<Set<string>>(new Set());
   const sessionUi = useSessionUiController();
   const {
     activeSessionId,
@@ -208,7 +208,7 @@ export function MainSurface({
     sessionRename,
     onClientRequest: askUserQuestion.onClientRequest,
     onClientRequestClosed: askUserQuestion.onClientRequestClosed,
-    sessionTokensRef,
+    attachedSessionIdsRef,
     sessionUiManagerRef,
     setActiveSessionError,
     setActiveSessionId,
@@ -221,7 +221,7 @@ export function MainSurface({
     setPendingActions: (next) => bridge.setPendingActions(next),
     setReportedContextUsage,
     setSessionNotice,
-    setSessionTokens,
+    setAttachedSessionIds,
     setSessionUiByKey,
     setSocketState,
     setTurnFlows,
@@ -251,7 +251,7 @@ export function MainSurface({
     modelDialog,
     refreshSkillList: sessionSocket.refreshSkillList,
     selectedModel,
-    sessionTokensRef,
+    attachedSessionIdsRef,
     sessionUiManagerRef,
     sessionsByProject,
     setActiveSessionError,
@@ -272,8 +272,8 @@ export function MainSurface({
   });
 
   React.useEffect(() => {
-    sessionTokensRef.current = sessionTokens;
-  }, [sessionTokens]);
+    attachedSessionIdsRef.current = attachedSessionIds;
+  }, [attachedSessionIds]);
 
   React.useEffect(() => {
     skillsByProjectRef.current = skillsByProject;
@@ -287,10 +287,10 @@ export function MainSurface({
     if (!deleteSessionRequest) return;
     clearSessionError();
     const { project, session } = deleteSessionRequest;
-    const nextTokens = { ...sessionTokensRef.current };
-    delete nextTokens[session.sessionid];
-    sessionTokensRef.current = nextTokens;
-    setSessionTokens(nextTokens);
+    const nextAttached = new Set(attachedSessionIdsRef.current);
+    nextAttached.delete(session.sessionid);
+    attachedSessionIdsRef.current = nextAttached;
+    setAttachedSessionIds(nextAttached);
     if (!sendProjectSessionDelete(socketRef.current?.socket, { userid: session.userid, projectName: project.projectName, sessionid: session.sessionid })) {
       finishAction(`session-delete:${session.sessionid}`);
       setNotice(t[RSC.APP_STATUS_SOCKET_REQUIRED_ALERT]);
@@ -518,7 +518,7 @@ export function MainSurface({
 
   return (
     <>
-      <SessionSurfaces activeUiKey={activeUiKey} clientState={clientState} hasPendingAction={hasPendingAction} notice={notice} sessionError={sessionError} sessionsByProject={sessionsByProject} sessionUiByKey={sessionUiByKey} skillsByProject={skillsByProject} surfaceKeys={surfaceKeys} t={t} onOpenMenu={onOpenMenu} onToggleRightSidebar={(key) => updateSessionUi(key, (current) => ({ ...current, rightSidebarOpen: !current.rightSidebarOpen }))} onChatScroll={(key, scrollTop) => updateSessionUi(key, (current) => ({ ...current, chatScrollTop: scrollTop }))} onDisableAutoScroll={(key) => updateSessionUi(key, (current) => ({ ...current, autoScrollEnabled: false }))} onDismissError={(key) => updateSessionUi(key, (current) => ({ ...current, sessionError: "" }))} onChatInputChange={(key, value) => updateSessionUi(key, (current) => ({ ...current, chatInput: value }))} onAddAttachments={addChatAttachments} onAttachmentRejected={(key, message) => updateSessionUi(key, (current) => ({ ...current, notice: message }))} onRemoveAttachment={removeChatAttachment} onModelClick={(key) => { activeUiKeyRef.current = key; modelDialog.setOpen(true); }} onSkillListRefresh={sessionSocket.refreshSkillList} onSubmit={sessionRequest.submitChatRequest} onRightSidebarWidthChange={(key, width) => updateSessionUi(key, (current) => ({ ...current, rightSidebarWidth: width }))} onRightSidebarScroll={(key, scrollTop) => updateSessionUi(key, (current) => ({ ...current, rightSidebarScrollTop: scrollTop }))} onTurnToggle={sessionSocket.toggleTurnDetail} onIterationToggle={sessionSocket.toggleIterationDetail} />
+      <SessionSurfaces activeUiKey={activeUiKey} clientState={clientState} hasPendingAction={hasPendingAction} notice={notice} sessionError={sessionError} sessionsByProject={sessionsByProject} sessionUiByKey={sessionUiByKey} skillsByProject={skillsByProject} surfaceKeys={surfaceKeys} t={t} updateSessionUi={updateSessionUi} onOpenMenu={onOpenMenu} onChatScroll={(key, scrollTop) => updateSessionUi(key, (current) => ({ ...current, chatScrollTop: scrollTop }))} onDisableAutoScroll={(key) => updateSessionUi(key, (current) => ({ ...current, autoScrollEnabled: false }))} onDismissError={(key) => updateSessionUi(key, (current) => ({ ...current, sessionError: "" }))} onChatInputChange={(key, value) => updateSessionUi(key, (current) => ({ ...current, chatInput: value }))} onAddAttachments={addChatAttachments} onAttachmentRejected={(key, message) => updateSessionUi(key, (current) => ({ ...current, notice: message }))} onRemoveAttachment={removeChatAttachment} onModelClick={(key) => { activeUiKeyRef.current = key; modelDialog.setOpen(true); }} onSkillListRefresh={sessionSocket.refreshSkillList} onSubmit={sessionRequest.submitChatRequest} onTurnToggle={sessionSocket.toggleTurnDetail} onIterationToggle={sessionSocket.toggleIterationDetail} />
       <ModalPortal>
         {sessionRename.dialog}
         {modelDialog.dialog}

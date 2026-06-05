@@ -7,6 +7,7 @@ import { runToolCalledHook } from "../../hook/turn.tool.called/index.js";
 import { runToolResultsCollectedHook } from "../../hook/turn.tool.results.collected/index.js";
 import { executeToolCalls, summarizeToolName } from "../../tool/index.js";
 import { createCotWorkAgentCallHandler, NDX_COT_WORK_AGENTCALL_NAME } from "../../tool/base/cot_work/agentCall.js";
+import { cotWorkCompletedSidebarItems } from "../../tool/base/cot_work/sidebar.js";
 import { createSidebarItemAgentCallHandler, NDX_SIDEBAR_ITEM_AGENTCALL_NAME } from "../../tool/execute/agentcall/index.js";
 import { responseToolCallId, type ModelResponse } from "ndx/common/responseapi";
 import { NDX_TURN_EVENT } from "../../../common/protocol/index.js";
@@ -150,6 +151,16 @@ export async function processToolCalls(state: NDXActiveTurnPipelineState, respon
           await state.interrupt.checkpoint();
           const timedContents = state.cotWorkTiming.update(contents);
           await appendSessionData(state.database, state.runningSession.sessionid, "assistant", timedContents);
+          for (const item of cotWorkCompletedSidebarItems(timedContents)) {
+            await state.events.onEvent?.({
+              type: NDX_TURN_EVENT.SidebarItem,
+              iteration,
+              tool: context.tool,
+              callId: context.callId,
+              item,
+              contextUsage: toolContextUsage
+            });
+          }
           await state.events.onEvent?.({
             type: NDX_TURN_EVENT.CotWork,
             iteration,

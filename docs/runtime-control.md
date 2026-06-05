@@ -98,7 +98,8 @@ registered context-prepared hook, but it must not own the policy itself.
 
 The session server may issue `session.client.request` messages while a function
 tool is running. A connected client answers with `session.client.response`.
-Only clients holding a valid connection token for the target session may answer.
+Only clients attached to the target session on the current WebSocket may
+answer.
 
 Interactive client requests are not queued user turns and do not start a new
 sessiondata `user` row. They resolve the current tool call. If several clients

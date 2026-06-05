@@ -5,7 +5,6 @@ import { Pool, type QueryResultRow } from "pg";
 import type { NDXLogger } from "../../common/log/index.js";
 import { initAccountDatabase } from "../account/index.js";
 import { initSessionDatabase } from "../session/index.js";
-import { initSessionTokenDatabase } from "../session-token/index.js";
 import { initWebClientStateDatabase } from "../../webclient/server/client-state/index.js";
 import { initChatDatabase } from "../chat/index.js";
 import { initCompactDatabase } from "../compact/index.js";
@@ -40,7 +39,6 @@ export async function initServer(options: InitServerOptions): Promise<Initialize
   try {
     await initAccountDatabase(database);
     await initSessionDatabase(database);
-    await initSessionTokenDatabase(database);
     await initChatDatabase(database);
     await initWebClientStateDatabase(database);
     await initCompactDatabase(database);

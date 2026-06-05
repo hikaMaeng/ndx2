@@ -58,7 +58,6 @@ export type NDXSessionCreateInitialInput = {
 
 export type NDXSessionCreatedMessage = {
   type: typeof NDX_SESSION_CREATED;
-  connectionToken?: string;
   initialInputAccepted?: boolean;
   sessionid: string;
   userid: string;
@@ -81,7 +80,6 @@ export type NDXSessionAttachMessage = {
 
 export type NDXSessionAttachedMessage = {
   type: typeof NDX_SESSION_ATTACHED;
-  connectionToken: string;
   createdat: string;
   sessionid: string;
   userid: string;
@@ -133,7 +131,7 @@ export type NDXSessionListChangedMessage = {
 
 export type NDXSessionInputMessage = {
   type: typeof NDX_SESSION_INPUT;
-  connectionToken: string;
+  sessionid: string;
   text: string;
   attachments?: NDXSessionInputAttachment[];
   model?: NDXSessionModelConfig;
@@ -155,7 +153,7 @@ export type NDXSessionSkillSummary = {
 
 export type NDXSessionSkillListMessage = {
   type: typeof NDX_SESSION_SKILL_LIST;
-  connectionToken?: string;
+  sessionid?: string;
   language?: NDXAgentLanguage;
 };
 
@@ -167,7 +165,7 @@ export type NDXSessionSkillListResultMessage = {
 
 export type NDXSessionInterruptMessage = {
   type: typeof NDX_SESSION_INTERRUPT;
-  connectionToken: string;
+  sessionid: string;
   language?: NDXAgentLanguage;
 };
 
@@ -226,7 +224,7 @@ export type NDXAskUserQuestionResponse = {
 export type NDXSessionClientRequestMessage = {
   type: typeof NDX_SESSION_CLIENT_REQUEST;
   requestId: string;
-  connectionToken: string;
+  sessionid: string;
   request: NDXAskUserQuestionRequest;
   language?: NDXAgentLanguage;
 };
@@ -234,7 +232,7 @@ export type NDXSessionClientRequestMessage = {
 export type NDXSessionClientRequestClosedMessage = {
   type: typeof NDX_SESSION_CLIENT_REQUEST_CLOSED;
   requestId: string;
-  connectionToken: string;
+  sessionid: string;
   requestKind: typeof NDX_SESSION_CLIENT_REQUEST_KIND_ASK_USER_QUESTION;
   reason: "answered" | "cancelled" | "interrupted";
   language?: NDXAgentLanguage;
@@ -243,7 +241,7 @@ export type NDXSessionClientRequestClosedMessage = {
 export type NDXSessionClientResponseMessage = {
   type: typeof NDX_SESSION_CLIENT_RESPONSE;
   requestId: string;
-  connectionToken: string;
+  sessionid: string;
   response: NDXAskUserQuestionResponse;
   language?: NDXAgentLanguage;
 };
@@ -267,7 +265,7 @@ export type NDXSessionTurnSummary = {
 
 export type NDXSessionHistorySummaryMessage = {
   type: typeof NDX_SESSION_HISTORY_SUMMARY;
-  connectionToken: string;
+  sessionid: string;
   language?: NDXAgentLanguage;
 };
 
@@ -281,7 +279,7 @@ export type NDXSessionHistorySummaryResultMessage = {
 
 export type NDXSessionTurnDetailMessage = {
   type: typeof NDX_SESSION_TURN_DETAIL;
-  connectionToken: string;
+  sessionid: string;
   inputDataId: string;
   language?: NDXAgentLanguage;
 };
@@ -294,7 +292,7 @@ export type NDXSessionTurnDetailResultMessage = {
 
 export type NDXSessionIterationDetailMessage = {
   type: typeof NDX_SESSION_ITERATION_DETAIL;
-  connectionToken: string;
+  sessionid: string;
   inputDataId: string;
   iteration: number;
   language?: NDXAgentLanguage;
@@ -313,11 +311,11 @@ export function isNDXSessionInputMessage(value: unknown): value is NDXSessionInp
     return false;
   }
 
-  const message = value as { type?: unknown; connectionToken?: unknown; text?: unknown; attachments?: unknown; language?: unknown };
+  const message = value as { type?: unknown; sessionid?: unknown; text?: unknown; attachments?: unknown; language?: unknown };
   return (
     message.type === NDX_SESSION_INPUT &&
-    typeof message.connectionToken === "string" &&
-    message.connectionToken.trim().length > 0 &&
+    typeof message.sessionid === "string" &&
+    message.sessionid.trim().length > 0 &&
     typeof message.text === "string" &&
     (message.text.trim().length > 0 || isValidSessionInputAttachments(message.attachments)) &&
     (message.attachments === undefined || isValidSessionInputAttachments(message.attachments)) &&
@@ -327,13 +325,13 @@ export function isNDXSessionInputMessage(value: unknown): value is NDXSessionInp
 
 export function isNDXSessionClientResponseMessage(value: unknown): value is NDXSessionClientResponseMessage {
   if (!value || typeof value !== "object") return false;
-  const message = value as { type?: unknown; requestId?: unknown; connectionToken?: unknown; response?: unknown; language?: unknown };
+  const message = value as { type?: unknown; requestId?: unknown; sessionid?: unknown; response?: unknown; language?: unknown };
   return (
     message.type === NDX_SESSION_CLIENT_RESPONSE &&
     typeof message.requestId === "string" &&
     message.requestId.trim().length > 0 &&
-    typeof message.connectionToken === "string" &&
-    message.connectionToken.trim().length > 0 &&
+    typeof message.sessionid === "string" &&
+    message.sessionid.trim().length > 0 &&
     isNDXAskUserQuestionResponse(message.response) &&
     (message.language === undefined || message.language === "en" || message.language === "ko")
   );
@@ -389,10 +387,10 @@ export function isNDXSessionSkillListMessage(value: unknown): value is NDXSessio
     return false;
   }
 
-  const message = value as { type?: unknown; connectionToken?: unknown };
+  const message = value as { type?: unknown; sessionid?: unknown };
   return (
     message.type === NDX_SESSION_SKILL_LIST &&
-    (message.connectionToken === undefined || (typeof message.connectionToken === "string" && message.connectionToken.trim().length > 0))
+    (message.sessionid === undefined || (typeof message.sessionid === "string" && message.sessionid.trim().length > 0))
   );
 }
 
@@ -514,23 +512,23 @@ export function isNDXSessionInterruptMessage(value: unknown): value is NDXSessio
     return false;
   }
 
-  const message = value as { type?: unknown; connectionToken?: unknown };
-  return message.type === NDX_SESSION_INTERRUPT && typeof message.connectionToken === "string" && message.connectionToken.trim().length > 0;
+  const message = value as { type?: unknown; sessionid?: unknown };
+  return message.type === NDX_SESSION_INTERRUPT && typeof message.sessionid === "string" && message.sessionid.trim().length > 0;
 }
 
 export function isNDXSessionHistorySummaryMessage(value: unknown): value is NDXSessionHistorySummaryMessage {
   if (!value || typeof value !== "object") return false;
-  const message = value as { type?: unknown; connectionToken?: unknown };
-  return message.type === NDX_SESSION_HISTORY_SUMMARY && typeof message.connectionToken === "string" && message.connectionToken.trim().length > 0;
+  const message = value as { type?: unknown; sessionid?: unknown };
+  return message.type === NDX_SESSION_HISTORY_SUMMARY && typeof message.sessionid === "string" && message.sessionid.trim().length > 0;
 }
 
 export function isNDXSessionTurnDetailMessage(value: unknown): value is NDXSessionTurnDetailMessage {
   if (!value || typeof value !== "object") return false;
-  const message = value as { type?: unknown; connectionToken?: unknown; inputDataId?: unknown };
+  const message = value as { type?: unknown; sessionid?: unknown; inputDataId?: unknown };
   return (
     message.type === NDX_SESSION_TURN_DETAIL &&
-    typeof message.connectionToken === "string" &&
-    message.connectionToken.trim().length > 0 &&
+    typeof message.sessionid === "string" &&
+    message.sessionid.trim().length > 0 &&
     typeof message.inputDataId === "string" &&
     message.inputDataId.trim().length > 0
   );
@@ -538,11 +536,11 @@ export function isNDXSessionTurnDetailMessage(value: unknown): value is NDXSessi
 
 export function isNDXSessionIterationDetailMessage(value: unknown): value is NDXSessionIterationDetailMessage {
   if (!value || typeof value !== "object") return false;
-  const message = value as { type?: unknown; connectionToken?: unknown; inputDataId?: unknown; iteration?: unknown };
+  const message = value as { type?: unknown; sessionid?: unknown; inputDataId?: unknown; iteration?: unknown };
   return (
     message.type === NDX_SESSION_ITERATION_DETAIL &&
-    typeof message.connectionToken === "string" &&
-    message.connectionToken.trim().length > 0 &&
+    typeof message.sessionid === "string" &&
+    message.sessionid.trim().length > 0 &&
     typeof message.inputDataId === "string" &&
     message.inputDataId.trim().length > 0 &&
     typeof message.iteration === "number" &&

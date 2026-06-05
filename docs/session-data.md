@@ -313,10 +313,10 @@ The web-client normalization helper is
 `packages/ndx/src/webclient/protocol/index.ts#sessionDataToSessionEvent`.
 
 The web client must not fetch full historical turn internals during initial
-session attach. After it receives a session connection token, it requests
-`session.history.summary` over the session socket. The response contains only
-the visible user request and final assistant/error event for each turn plus
-collapsed turn shells. When a user expands a turn, the client requests
+session attach. After `session.attached`, it requests `session.history.summary`
+over the session socket with the attached `sessionid`. The response contains
+only the visible user request and final assistant/error event for each turn
+plus collapsed turn shells. When a user expands a turn, the client requests
 `session.turn.detail`; that result exposes iteration card summaries. When a
 user expands one iteration card, the client requests `session.iteration.detail`
 and renders only that iteration's stored events through the same turn reducer
@@ -357,20 +357,13 @@ Restore event mapping:
 | `kind=tool_result` | `turn.tool.result` |
 | `type=interrupt` | `turn.interrupted` |
 
-`sessiontoken` stores runtime connection tokens issued after a socket client
-enters a session. A token is a routing and authorization grant for one physical
-socket session; it is not durable session truth. Browser clients discard tokens
-when the site is opened again and must attach to sessions again.
+The server does not persist runtime session grants. A physical WebSocket keeps
+an in-memory set of attached `sessionid` values. A freshly opened browser has
+no grants until it creates or attaches the session again, while PostgreSQL
+remains the only authoritative session state.
 
-| Column | Contract |
-| --- | --- |
-| `token` | UUID primary key. Runtime-generated ids are UUIDv7-shaped. |
-| `createdat` | Token issue timestamp. |
-| `sessionid` | Session this token grants access to; cascades on session delete. |
-
-The server prunes `sessiontoken` rows older than five days whenever a new token
-is issued. Expired or missing tokens cannot be used for session input or
-interrupt operations.
+Legacy installations may still have an old runtime-grant table; session schema
+migration drops it because socket grants are no longer durable data.
 
 Project identity is not an authoritative file-backed id value. The session
 server derives and verifies project identity from the workspace direct child

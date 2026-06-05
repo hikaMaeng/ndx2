@@ -11,6 +11,7 @@ import {
   NDX_SESSION_CLIENT_REQUEST_CLOSED,
   NDX_SESSION_CLIENT_RESPONSE,
   NDX_SESSION_RENAME,
+  NDX_SESSION_SIDEBAR_ITEM,
   NDX_SESSION_TURN_DETAIL,
   NDX_SIDEBAR_ITEM,
   NDX_TURNCARD_ARTIFACT,
@@ -29,7 +30,8 @@ import {
   isNDXSessionRenameMessage,
   isNDXSessionTurnDetailMessage,
   parseNDXSidebarItem,
-  parseNDXTurnCardItem
+  parseNDXTurnCardItem,
+  type NDXSessionSidebarItemMessage
 } from "./index.js";
 
 test("client id accepts uuid values only", () => {
@@ -59,13 +61,30 @@ test("cot work accepts elapsed timing fields in mm:ss format", () => {
   );
 });
 
+test("session sidebar item socket messages carry only the routed session id", () => {
+  const message: NDXSessionSidebarItemMessage = {
+    type: NDX_SESSION_SIDEBAR_ITEM,
+    sessionid: "session-a",
+    tool: "loadSkill",
+    createdat: "2026-06-05T00:00:00.000Z",
+    item: {
+      group: { id: "skills", title: "스킬" },
+      key: "skill:demo",
+      title: "demo",
+      kind: "skill"
+    }
+  };
+
+  assert.equal(message.sessionid, "session-a");
+});
+
 test("session client response validates askUserQuestion answers", () => {
   assert.equal(NDX_SESSION_CLIENT_REQUEST_CLOSED, "session.client.request.closed");
   assert.equal(
     isNDXSessionClientResponseMessage({
       type: NDX_SESSION_CLIENT_RESPONSE,
       requestId: "request-1",
-      connectionToken: "token-1",
+      sessionid: "session-1",
       response: {
         kind: "askUserQuestion",
         answers: {
@@ -82,7 +101,7 @@ test("session client response validates askUserQuestion answers", () => {
     isNDXSessionClientResponseMessage({
       type: NDX_SESSION_CLIENT_RESPONSE,
       requestId: "request-1",
-      connectionToken: "token-1",
+      sessionid: "session-1",
       response: {
         kind: "askUserQuestion",
         answers: {
@@ -262,17 +281,17 @@ test("session rename requires session ownership fields and accepts an empty titl
   );
 });
 
-test("session staged history requests require connection token and target ids", () => {
-  assert.equal(isNDXSessionHistorySummaryMessage({ type: NDX_SESSION_HISTORY_SUMMARY, connectionToken: "token-1" }), true);
-  assert.equal(isNDXSessionHistorySummaryMessage({ type: NDX_SESSION_HISTORY_SUMMARY, connectionToken: "" }), false);
-  assert.equal(isNDXSessionTurnDetailMessage({ type: NDX_SESSION_TURN_DETAIL, connectionToken: "token-1", inputDataId: "10" }), true);
-  assert.equal(isNDXSessionTurnDetailMessage({ type: NDX_SESSION_TURN_DETAIL, connectionToken: "token-1", inputDataId: "" }), false);
+test("session staged history requests require session id and target ids", () => {
+  assert.equal(isNDXSessionHistorySummaryMessage({ type: NDX_SESSION_HISTORY_SUMMARY, sessionid: "session-1" }), true);
+  assert.equal(isNDXSessionHistorySummaryMessage({ type: NDX_SESSION_HISTORY_SUMMARY, sessionid: "" }), false);
+  assert.equal(isNDXSessionTurnDetailMessage({ type: NDX_SESSION_TURN_DETAIL, sessionid: "session-1", inputDataId: "10" }), true);
+  assert.equal(isNDXSessionTurnDetailMessage({ type: NDX_SESSION_TURN_DETAIL, sessionid: "session-1", inputDataId: "" }), false);
   assert.equal(
-    isNDXSessionIterationDetailMessage({ type: NDX_SESSION_ITERATION_DETAIL, connectionToken: "token-1", inputDataId: "10", iteration: 2 }),
+    isNDXSessionIterationDetailMessage({ type: NDX_SESSION_ITERATION_DETAIL, sessionid: "session-1", inputDataId: "10", iteration: 2 }),
     true
   );
   assert.equal(
-    isNDXSessionIterationDetailMessage({ type: NDX_SESSION_ITERATION_DETAIL, connectionToken: "token-1", inputDataId: "10", iteration: 0 }),
+    isNDXSessionIterationDetailMessage({ type: NDX_SESSION_ITERATION_DETAIL, sessionid: "session-1", inputDataId: "10", iteration: 0 }),
     false
   );
 });

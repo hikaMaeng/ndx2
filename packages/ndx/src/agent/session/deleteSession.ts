@@ -42,10 +42,7 @@ export async function deleteSession(database: NDXDatabase, sessionid: string, op
   database.logger?.info("agent.server.session.delete.start", { sessionid });
   await database.query(
     `
-WITH deleted_tokens AS (
-  DELETE FROM sessiontoken WHERE sessionid = $1 RETURNING 1
-),
-deleted_data AS (
+WITH deleted_data AS (
   DELETE FROM sessiondata WHERE sessionid = $1 RETURNING 1
 )
 DELETE FROM "session" WHERE sessionid = $1;

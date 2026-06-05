@@ -112,11 +112,11 @@ export async function handleUserRequest(
       const assistantText = requestReceived.finalAssistantText ?? activeState.t(NDX_AGENT_RESOURCE.TURN_HOOK_REQUEST_RECEIVED_STOPPED_MESSAGE);
       const assistant = await appendSessionData(database, activeState.runningSession.sessionid, "assistant", assistantMessageContents(assistantText));
       const contextUsage = calculateDetailedContextUsage([], activeState.runningSession.model.contextsize, assistantText, []);
-      await runTurnEndForState(activeState, assistant, 1, assistantText, contextUsage);
-      const updatedSession = await updateSessionEndTurn(database, activeState.runningSession.sessionid);
       await events.onEvent?.({ type: NDX_TURN_EVENT.InputRecorded, input: activeState.input, contextUsage });
       await events.onEvent?.({ type: NDX_TURN_EVENT.AssistantRecorded, iteration: 1, assistant, contextUsage });
-      void updatedSession;
+      const updatedSession = await updateSessionEndTurn(database, activeState.runningSession.sessionid);
+      await events.onEvent?.({ type: NDX_TURN_EVENT.TurnEnd, iteration: 1, session: updatedSession, contextUsage });
+      await runTurnEndForState(activeState, assistant, 1, assistantText, contextUsage);
       return;
     }
 

@@ -60,8 +60,7 @@ export function promoteDraftSessionModel(model: SessionInstanceModel, message: N
     },
     connection: {
       ...model.connection,
-      attached: Boolean(message.connectionToken),
-      connectionToken: message.connectionToken ?? model.connection.connectionToken,
+      attached: true,
       lastAttachedAt: message.lastupdated
     },
     runtime: {

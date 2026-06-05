@@ -18,10 +18,10 @@ import {
   mergeRestoredChatMessages,
   mergeRestoredTurnFlows,
   mergeTurnSummary,
-  upsertRightSidebarItem,
   type NDXAgentWebContextUsage
 } from "ndx/webclient/front";
 import { RSC } from "../../../app/resource";
+import { applyRightSidebarItemMessage, rightSidebarCleared } from "../../rightsidebar/state";
 import type { SessionSocketControllerActions, UseSessionSocketControllerOptions } from "./types";
 
 export type SessionSocketHandlers = {
@@ -56,7 +56,7 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
     project,
     sessionRename,
     onSkillListReceived,
-    sessionTokensRef,
+    attachedSessionIdsRef,
     sessionUiManagerRef,
     setActiveSessionError,
     setActiveSessionId,
@@ -67,7 +67,7 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
     setNotice,
     setPendingActions,
     setSessionNotice,
-    setSessionTokens,
+    setAttachedSessionIds,
     setSessionUiByKey,
     setTurnFlows,
     socketRef,
@@ -107,10 +107,7 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
   };
 
   const onSidebarItem = (message: NDXSessionSidebarItemMessage) => {
-    updateSessionUi(message.sessionid, (current) => ({
-      ...current,
-      rightSidebarItems: upsertRightSidebarItem(current.rightSidebarItems, message.item)
-    }));
+    applyRightSidebarItemMessage(updateSessionUi, message);
   };
 
   const onTurnDetail = (message: NDXSessionTurnDetailResultMessage) => {
@@ -128,7 +125,7 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
     clearSessionError();
     liveSessionIdsRef.current.add(message.sessionid);
     const isActiveSessionEvent = message.sessionid === activeSessionIdRef.current;
-    if (message.event === NDX_TURN_EVENT.AssistantRecorded) {
+    if (message.event === NDX_TURN_EVENT.AssistantRecorded || message.event === NDX_TURN_EVENT.TurnEnd) {
       finishAction(`session-submit:${message.sessionid}`);
       finishAction("session-submit");
     }
@@ -156,7 +153,7 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
         requestStored: t[RSC.APP_STATUS_REQUEST_STORED_STATUS]
       });
     });
-    if (!isActiveSessionEvent || message.event === NDX_TURN_EVENT.InputRecorded || message.event === NDX_TURN_EVENT.AssistantRecorded || message.event === NDX_TURN_EVENT.InterruptCompleted || (message.event === NDX_TURN_EVENT.Interrupted && !interruptWasAccepted(message.contents))) {
+    if (!isActiveSessionEvent || message.event === NDX_TURN_EVENT.InputRecorded || message.event === NDX_TURN_EVENT.AssistantRecorded || message.event === NDX_TURN_EVENT.TurnEnd || message.event === NDX_TURN_EVENT.InterruptCompleted || (message.event === NDX_TURN_EVENT.Interrupted && !interruptWasAccepted(message.contents))) {
       void project.refreshSessions();
     }
   };
@@ -177,7 +174,7 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
     draftSessionProjectIdRef.current = undefined;
     setDraftSessionProjectId(undefined);
     setActiveSessionId(message.sessionid);
-    updateSessionUi(message.sessionid, (current) => ({ ...current, turnFlows: [], rightSidebarItems: [] }));
+    updateSessionUi(message.sessionid, (current) => rightSidebarCleared({ ...current, turnFlows: [] }));
     project.setSessionsByProject((current) => ({
       ...current,
       [message.projectname]: [
@@ -195,22 +192,21 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
         ...(current[message.projectname] ?? []).filter((session) => session.sessionid !== message.sessionid)
       ]
     }));
-    if (message.connectionToken) {
-      const nextTokens = { ...sessionTokensRef.current, [message.sessionid]: message.connectionToken };
-      sessionTokensRef.current = nextTokens;
-      setSessionTokens(nextTokens);
-      socketRef.current?.requestSkillList(message.connectionToken);
-    }
+    const nextAttached = new Set(attachedSessionIdsRef.current);
+    nextAttached.add(message.sessionid);
+    attachedSessionIdsRef.current = nextAttached;
+    setAttachedSessionIds(nextAttached);
+    socketRef.current?.requestSkillList(message.sessionid);
     void project.refreshSessions();
     const pending = sessionUiManagerRef.current.get(message.sessionid)?.pendingInitialRequest;
     updateSessionUi(message.sessionid, (current) => ({ ...current, pendingInitialRequest: undefined }));
     if (message.initialInputAccepted) {
-      updateSessionUi(message.sessionid, (current) => ({ ...current, agentRunning: true, cotWork: undefined, rightSidebarItems: [] }));
+      updateSessionUi(message.sessionid, (current) => rightSidebarCleared({ ...current, agentRunning: true, cotWork: undefined }));
       return;
     }
     if (!pending) return;
-    if (message.connectionToken && socketRef.current?.sendInput(message.connectionToken, pending.text, pending.model, pending.attachments)) {
-      updateSessionUi(message.sessionid, (current) => ({ ...current, cotWork: undefined, rightSidebarItems: [] }));
+    if (socketRef.current?.sendInput(message.sessionid, pending.text, pending.model, pending.attachments)) {
+      updateSessionUi(message.sessionid, (current) => rightSidebarCleared({ ...current, cotWork: undefined }));
       return;
     }
     finishAction("session-submit");
@@ -220,18 +216,19 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
 
   const onSessionAttached = (message: NDXSessionAttachedMessage) => {
     clearSessionError();
-    const nextTokens = { ...sessionTokensRef.current, [message.sessionid]: message.connectionToken };
-    sessionTokensRef.current = nextTokens;
-    setSessionTokens(nextTokens);
+    const nextAttached = new Set(attachedSessionIdsRef.current);
+    nextAttached.add(message.sessionid);
+    attachedSessionIdsRef.current = nextAttached;
+    setAttachedSessionIds(nextAttached);
     if (message.sessionid === activeSessionIdRef.current) {
-      socketRef.current?.requestHistorySummary(message.connectionToken);
-      socketRef.current?.requestSkillList(message.connectionToken);
+      socketRef.current?.requestHistorySummary(message.sessionid);
+      socketRef.current?.requestSkillList(message.sessionid);
     }
     const pending = sessionUiManagerRef.current.get(message.sessionid)?.pendingAttachRequest;
     if (pending?.sessionid !== message.sessionid) return;
     updateSessionUi(message.sessionid, (current) => ({ ...current, pendingAttachRequest: undefined }));
-    if (socketRef.current?.sendInput(message.connectionToken, pending.text, pending.model, pending.attachments)) {
-      updateSessionUi(message.sessionid, (current) => ({ ...current, agentRunning: true, cotWork: undefined, rightSidebarItems: [] }));
+    if (socketRef.current?.sendInput(message.sessionid, pending.text, pending.model, pending.attachments)) {
+      updateSessionUi(message.sessionid, (current) => rightSidebarCleared({ ...current, agentRunning: true, cotWork: undefined }));
       return;
     }
     finishAction("session-submit");

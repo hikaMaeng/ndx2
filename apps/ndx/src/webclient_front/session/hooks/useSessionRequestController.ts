@@ -3,6 +3,7 @@ import type { NDXAgentWebSession, NDXWebClientProject } from "ndx/webclient/comm
 import { createProjectSession, encodeAttachments, modelSupportsAttachmentMimeType, toModelConfig, type SelectedModelConfig, type SessionAttachmentDraft, type SessionUiState } from "ndx/webclient/front";
 import type { SessionSocketClient } from "../socket/sessionSocket";
 import { RSC } from "../../app/resource";
+import { rightSidebarCleared } from "../rightsidebar/state";
 
 type UseSessionRequestControllerOptions = {
   activeProject?: NDXWebClientProject;
@@ -22,7 +23,7 @@ type UseSessionRequestControllerOptions = {
   modelDialog: { setOpen: (open: boolean) => void };
   refreshSkillList: () => boolean;
   selectedModel: SelectedModelConfig;
-  sessionTokensRef: React.MutableRefObject<Record<string, string>>;
+  attachedSessionIdsRef: React.MutableRefObject<Set<string>>;
   sessionUiManagerRef: React.MutableRefObject<{ promoteToSession: (sessionid: string, previousKey: string) => void; snapshot: Record<string, SessionUiState> }>;
   sessionsByProject: Record<string, NDXAgentWebSession[]>;
   setActiveSessionError: (message: string) => void;
@@ -60,7 +61,7 @@ export function useSessionRequestController({
   modelDialog,
   refreshSkillList,
   selectedModel,
-  sessionTokensRef,
+  attachedSessionIdsRef,
   sessionUiManagerRef,
   sessionsByProject,
   setActiveSessionError,
@@ -88,14 +89,13 @@ export function useSessionRequestController({
     if (agentRunning) {
       const sessionid = activeSessionId;
       if (!sessionid) return;
-      const connectionToken = sessionTokensRef.current[sessionid];
-      if (!connectionToken) {
+      if (!attachedSessionIdsRef.current.has(sessionid)) {
         setSessionNotice(t[RSC.APP_STATUS_SOCKET_REQUIRED_ALERT]);
         return;
       }
       if (!startAction(sessionInterruptActionKey)) return;
       setSessionNotice(t[RSC.SESSION_COMPOSER_INTERRUPT_PENDING_STATUS]);
-      if (!socket?.sendInterrupt(connectionToken)) {
+      if (!socket?.sendInterrupt(sessionid)) {
         finishAction(sessionInterruptActionKey);
         setSessionNotice(t[RSC.APP_STATUS_SOCKET_REQUIRED_ALERT]);
       }
@@ -144,15 +144,14 @@ export function useSessionRequestController({
       const encodedAttachments = await encodeAttachments(pendingAttachments);
       const sendMessage = (sessionid: string, attachSessionRow?: NDXAgentWebSession) => {
         const model = toModelConfig(selectedModel);
-        const connectionToken = sessionTokensRef.current[sessionid];
-        if (connectionToken && getSocket()?.sendInput(connectionToken, text, model, encodedAttachments)) {
-          updateSessionUi(sessionid, (current) => ({ ...current, agentRunning: true, cotWork: undefined, rightSidebarItems: [] }));
+        if (attachedSessionIdsRef.current.has(sessionid) && getSocket()?.sendInput(sessionid, text, model, encodedAttachments)) {
+          updateSessionUi(sessionid, (current) => rightSidebarCleared({ ...current, agentRunning: true, cotWork: undefined }));
           return;
         }
         const session = attachSessionRow ?? Object.values(sessionsByProject).flat().find((item) => item.sessionid === sessionid);
         if (getSocket()?.isOpen() && session) {
           updateSessionUi(sessionid, (current) => ({ ...current, pendingAttachRequest: { sessionid, text, model, attachments: encodedAttachments } }));
-          updateSessionUi(sessionid, (current) => ({ ...current, rightSidebarItems: [] }));
+          updateSessionUi(sessionid, rightSidebarCleared);
           if (attachSession(session)) return;
           updateSessionUi(sessionid, (current) => ({ ...current, pendingAttachRequest: undefined }));
         }
@@ -187,7 +186,7 @@ export function useSessionRequestController({
           draftSessionProjectIdRef.current = undefined;
           setDraftSessionProjectId(undefined);
           setActiveSessionId(session.sessionid);
-          updateSessionUi(session.sessionid, (current) => ({ ...current, rightSidebarItems: [] }));
+          updateSessionUi(session.sessionid, rightSidebarCleared);
           sendMessage(session.sessionid, session);
         }).catch((error) => {
           const message = error instanceof Error && error.message ? error.message : t[RSC.APP_STATUS_STATE_UNAVAILABLE_ALERT];

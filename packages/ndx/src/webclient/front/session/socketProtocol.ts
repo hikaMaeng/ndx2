@@ -73,28 +73,28 @@ export function sessionCreateMessage(input: Omit<NDXSessionCreateMessage, "type"
   return { type: NDX_SESSION_CREATE, ...input, language };
 }
 
-export function sessionInputMessage(connectionToken: string, text: string, model: NDXSessionModelConfig, attachments: NDXSessionInputMessage["attachments"], language: NDXWebClientStateDocument["locale"]): NDXSessionInputMessage {
-  return { type: NDX_SESSION_INPUT, connectionToken, text, model, ...(attachments?.length ? { attachments } : {}), language };
+export function sessionInputMessage(sessionid: string, text: string, model: NDXSessionModelConfig, attachments: NDXSessionInputMessage["attachments"], language: NDXWebClientStateDocument["locale"]): NDXSessionInputMessage {
+  return { type: NDX_SESSION_INPUT, sessionid, text, model, ...(attachments?.length ? { attachments } : {}), language };
 }
 
-export function sessionInterruptMessage(connectionToken: string, language: NDXWebClientStateDocument["locale"]): NDXSessionInterruptMessage {
-  return { type: NDX_SESSION_INTERRUPT, connectionToken, language };
+export function sessionInterruptMessage(sessionid: string, language: NDXWebClientStateDocument["locale"]): NDXSessionInterruptMessage {
+  return { type: NDX_SESSION_INTERRUPT, sessionid, language };
 }
 
-export function sessionSkillListMessage(connectionToken: string | undefined, language: NDXWebClientStateDocument["locale"]): NDXSessionSkillListMessage {
-  return { type: NDX_SESSION_SKILL_LIST, ...(connectionToken ? { connectionToken } : {}), language };
+export function sessionSkillListMessage(sessionid: string | undefined, language: NDXWebClientStateDocument["locale"]): NDXSessionSkillListMessage {
+  return { type: NDX_SESSION_SKILL_LIST, ...(sessionid ? { sessionid } : {}), language };
 }
 
-export function sessionHistorySummaryMessage(connectionToken: string, language: NDXWebClientStateDocument["locale"]): NDXSessionHistorySummaryMessage {
-  return { type: NDX_SESSION_HISTORY_SUMMARY, connectionToken, language };
+export function sessionHistorySummaryMessage(sessionid: string, language: NDXWebClientStateDocument["locale"]): NDXSessionHistorySummaryMessage {
+  return { type: NDX_SESSION_HISTORY_SUMMARY, sessionid, language };
 }
 
-export function sessionTurnDetailMessage(connectionToken: string, inputDataId: string, language: NDXWebClientStateDocument["locale"]): NDXSessionTurnDetailMessage {
-  return { type: NDX_SESSION_TURN_DETAIL, connectionToken, inputDataId, language };
+export function sessionTurnDetailMessage(sessionid: string, inputDataId: string, language: NDXWebClientStateDocument["locale"]): NDXSessionTurnDetailMessage {
+  return { type: NDX_SESSION_TURN_DETAIL, sessionid, inputDataId, language };
 }
 
-export function sessionIterationDetailMessage(connectionToken: string, inputDataId: string, iteration: number, language: NDXWebClientStateDocument["locale"]): NDXSessionIterationDetailMessage {
-  return { type: NDX_SESSION_ITERATION_DETAIL, connectionToken, inputDataId, iteration, language };
+export function sessionIterationDetailMessage(sessionid: string, inputDataId: string, iteration: number, language: NDXWebClientStateDocument["locale"]): NDXSessionIterationDetailMessage {
+  return { type: NDX_SESSION_ITERATION_DETAIL, sessionid, inputDataId, iteration, language };
 }
 
 export function sessionClientResponseMessage(input: Omit<NDXSessionClientResponseMessage, "type" | "language">, language: NDXWebClientStateDocument["locale"]): NDXSessionClientResponseMessage {

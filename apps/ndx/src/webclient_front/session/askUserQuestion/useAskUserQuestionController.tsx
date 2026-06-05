@@ -94,7 +94,7 @@ export function useAskUserQuestionController({
     void (async () => {
       const response: Omit<NDXSessionClientResponseMessage, "type" | "language"> = {
         requestId: request.requestId,
-        connectionToken: request.connectionToken,
+        sessionid: request.sessionid,
         response: await askUserQuestionResponse(request, draft)
       };
       if (getSocket()?.sendClientResponse(response)) {
@@ -110,7 +110,7 @@ export function useAskUserQuestionController({
     if (!request) return;
     const response: Omit<NDXSessionClientResponseMessage, "type" | "language"> = {
       requestId: request.requestId,
-      connectionToken: request.connectionToken,
+      sessionid: request.sessionid,
       response: {
         kind: NDX_SESSION_CLIENT_REQUEST_KIND_ASK_USER_QUESTION,
         answers: Object.fromEntries(request.request.questions.map((question) => [question.id, { answers: [] }]))

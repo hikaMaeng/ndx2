@@ -1,6 +1,7 @@
 import { createSessionUiState, type SessionUiState, type TurnFlowState } from "ndx/webclient/front";
 import type { NDXSessionIterationSummary, NDXSessionSkillSummary } from "ndx/common/protocol";
 import type { NDXAgentWebSession, NDXWebClientProject, NDXWebClientStateDocument } from "ndx/webclient/common";
+import type { UpdateSessionUi } from "../rightsidebar";
 import { SessionSurface } from "./SessionSurface";
 
 type SessionSurfacesProps = {
@@ -18,11 +19,8 @@ type SessionSurfacesProps = {
   onModelClick: (key: string) => void;
   onOpenMenu: () => void;
   onRemoveAttachment: (id: string) => void;
-  onRightSidebarScroll: (key: string, scrollTop: number) => void;
-  onRightSidebarWidthChange: (key: string, width: number) => void;
   onSkillListRefresh: () => void;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
-  onToggleRightSidebar: (key: string) => void;
   onTurnToggle: (turn: TurnFlowState, open: boolean) => void;
   sessionError: string;
   sessionsByProject: Record<string, NDXAgentWebSession[]>;
@@ -30,6 +28,7 @@ type SessionSurfacesProps = {
   skillsByProject: Record<string, NDXSessionSkillSummary[]>;
   surfaceKeys: string[];
   t: Record<string, string>;
+  updateSessionUi: UpdateSessionUi;
 };
 
 export function SessionSurfaces({
@@ -47,18 +46,16 @@ export function SessionSurfaces({
   onModelClick,
   onOpenMenu,
   onRemoveAttachment,
-  onRightSidebarScroll,
-  onRightSidebarWidthChange,
   onSkillListRefresh,
   onSubmit,
-  onToggleRightSidebar,
   onTurnToggle,
   sessionError,
   sessionsByProject,
   sessionUiByKey,
   skillsByProject,
   surfaceKeys,
-  t
+  t,
+  updateSessionUi
 }: SessionSurfacesProps) {
   return surfaceKeys.map((key) => {
     const ui = sessionUiByKey[key] ?? createSessionUiState();
@@ -82,7 +79,6 @@ export function SessionSurfaces({
         submitPending={hasPendingAction(`session-submit:${key}`) || hasPendingAction("session-submit")}
         interruptPending={session ? hasPendingAction(`session-interrupt:${session.sessionid}`) || hasPendingAction("session-interrupt") : false}
         onOpenMenu={onOpenMenu}
-        onToggleRightSidebar={() => onToggleRightSidebar(key)}
         onChatScroll={(scrollTop) => onChatScroll(key, scrollTop)}
         onDisableAutoScroll={() => onDisableAutoScroll(key)}
         onDismissError={() => onDismissError(key)}
@@ -93,10 +89,9 @@ export function SessionSurfaces({
         onModelClick={() => onModelClick(key)}
         onSkillListRefresh={onSkillListRefresh}
         onSubmit={onSubmit}
-        onRightSidebarWidthChange={(width) => onRightSidebarWidthChange(key, width)}
-        onRightSidebarScroll={(scrollTop) => onRightSidebarScroll(key, scrollTop)}
         onTurnToggle={onTurnToggle}
         onIterationToggle={onIterationToggle}
+        updateSessionUi={updateSessionUi}
       />
     );
   });

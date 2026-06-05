@@ -23,9 +23,22 @@ fi
 
 emit_progress "reading file"
 file_title="$(basename "$file_path")"
+file_dir="$(dirname "$file_path")"
+if [ "$file_dir" = "$project_home" ]; then
+  subgroup_title="."
+elif [[ "$file_dir" == "$project_home/"* ]]; then
+  subgroup_title="${file_dir#"$project_home/"}"
+else
+  subgroup_title="$file_dir"
+fi
 sidebar_item="$(
   printf '{"group":{"id":"file-references","title":"파일참조"},"key":'
   printf '%s' "file-reference:$file_path" | json_quote
+  printf ',"subgroup":{"id":'
+  printf '%s' "folder:$file_dir" | json_quote
+  printf ',"title":'
+  printf '%s' "$subgroup_title" | json_quote
+  printf '}'
   printf ',"title":'
   printf '%s' "$file_title" | json_quote
   printf ',"body":'

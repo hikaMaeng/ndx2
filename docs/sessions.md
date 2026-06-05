@@ -48,11 +48,11 @@ from `sessiondata`.
 The session server is a multi-user socket server. Multiple clients may connect to the same session. The server streams downstream events from agent execution to every connected client that is authorized for the session.
 
 A physical WebSocket connection may hold multiple runtime session grants. When
-a client opens a session view, it sends a session attach request and receives a
-connection token for that session. All later session actions on that socket use
-the token, so one physical socket can carry independent sessions across
-accounts and projects. Tokens are runtime grants only; clients forget them on a
-fresh site load and request new tokens.
+a client opens a session view, it sends a session attach request. The server
+records that `sessionid` in the socket-local grant set. All later session
+actions on that socket carry the `sessionid`, so one physical socket can carry
+independent sessions across accounts and projects. Grants are runtime-only;
+clients receive no separate token and must attach again on a fresh site load.
 
 Function tools may use the active session grant to ask connected clients for
 structured input. `askUserQuestion` sends `session.client.request` to every

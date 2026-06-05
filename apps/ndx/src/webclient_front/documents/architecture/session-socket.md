@@ -16,7 +16,7 @@ Session WebSocket은 `apps/ndx/src/server/agent`가 소유하는 transport surfa
 
 | 메시지 | 처리 |
 | --- | --- |
-| attach | connection token grant를 검증하고 session event 수신 권한을 부여한다. |
+| attach | session 소유권을 검증하고 현재 socket에 sessionid grant를 부여한다. |
 | create | project negotiation과 account selection 후 새 session을 만든다. |
 | input | attachment를 쓰고 `runAgentTurn`을 호출한다. |
 | interrupt | session interrupt request를 durable state에 남긴다. |

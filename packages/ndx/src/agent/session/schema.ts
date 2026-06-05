@@ -83,6 +83,7 @@ ALTER TABLE "session" ADD COLUMN IF NOT EXISTS interruptrequestedat timestamptz;
 	  END IF;
 	END $$;
 	DROP INDEX IF EXISTS session_projectid_lastupdated_idx;
+	DROP TABLE IF EXISTS sessiontoken;
 	ALTER TABLE "session" DROP CONSTRAINT IF EXISTS session_slidewindow_range_check;
 	ALTER TABLE "session" DROP COLUMN IF EXISTS slidewindow;
 	ALTER TABLE "session" DROP COLUMN IF EXISTS path;

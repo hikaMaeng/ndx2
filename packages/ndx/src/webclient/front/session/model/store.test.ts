@@ -82,9 +82,11 @@ test("history summary restores visible request and completed turn into the model
 });
 
 test("sidebar item messages are scoped to one session model", () => {
+  const sessionA = createSessionModelFromRow(sessionRow("session-a", "project-a"));
+  const sessionB = createSessionModelFromRow(sessionRow("session-b", "project-a"));
   const snapshot: SessionModelSnapshot = {
-    "session-a": createSessionModelFromRow(sessionRow("session-a", "project-a")),
-    "session-b": createSessionModelFromRow(sessionRow("session-b", "project-a"))
+    "session-a": sessionA,
+    "session-b": sessionB
   };
   const message: NDXSessionSidebarItemMessage = {
     type: NDX_SESSION_SIDEBAR_ITEM,
@@ -138,8 +140,7 @@ test("draft promotion preserves existing model substate under the created sessio
       contextsize: 128000
     },
     isrunning: true,
-    initialInputAccepted: true,
-    connectionToken: "token-a"
+    initialInputAccepted: true
   };
 
   const next = promoteDraftModelInStore(snapshot, draft.key, created);
@@ -147,7 +148,6 @@ test("draft promotion preserves existing model substate under the created sessio
   assert.equal(next[draft.key], undefined);
   assert.equal(next["session-a"]?.composer.input, "작성 중");
   assert.equal(next["session-a"]?.sidebar.open, true);
-  assert.equal(next["session-a"]?.connection.connectionToken, "token-a");
   assert.equal(next["session-a"]?.runtime.agentRunning, true);
 });
 

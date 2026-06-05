@@ -1,44 +1,15 @@
 import React from "react";
-import { AlertTriangle, GripVertical, Menu, PanelRightClose, PanelRightOpen, X } from "lucide-react";
+import { AlertTriangle, Menu, X } from "lucide-react";
 import type { NDXSessionIterationSummary } from "ndx/common/protocol";
 import type { NDXAgentWebSession, NDXWebClientProject } from "ndx/webclient/common";
 import type { NDXAgentWebContextUsage, SessionAttachmentDraft, SessionUiState, TurnFlowState } from "ndx/webclient/front";
-import { RightSidebar } from "../rightsidebar/components/RightSidebar";
 import { RSC } from "../../app/resource";
 import { CotWorkOverlay } from "../cotWork";
+import { RightSidebarRegion, type UpdateSessionUi } from "../rightsidebar";
 import { AssistantChatMessage } from "./AssistantChatMessage";
 import { ChatComposer } from "./ChatComposer";
 import { UserChatMessage } from "./UserChatMessage";
 import { TurnFlow } from "../turn";
-
-function RightSidebarResizeHandle({ width, onWidthChange }: { width: number; onWidthChange: (width: number) => void }) {
-  const startResize = (event: React.PointerEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    const startX = event.clientX;
-    const startWidth = width;
-    const move = (moveEvent: PointerEvent) => {
-      const viewportLimit = Math.max(240, window.innerWidth - 520);
-      const rawWidth = startWidth + startX - moveEvent.clientX;
-      onWidthChange(Math.min(Math.max(rawWidth, 240), Math.min(560, viewportLimit)));
-    };
-    const stop = () => {
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", stop);
-    };
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", stop, { once: true });
-  };
-
-  return (
-    <button type="button" className="hidden h-full w-2 shrink-0 cursor-col-resize items-center justify-center border-l border-zinc-800 bg-zinc-950 text-zinc-600 hover:bg-zinc-900 hover:text-zinc-300 md:flex" aria-label="오른쪽 사이드바 너비 조정" aria-orientation="vertical" role="separator" onPointerDown={startResize}>
-      <GripVertical aria-hidden="true" className="h-4 w-4" />
-    </button>
-  );
-}
 
 type SessionSurfaceProps = {
   surfaceKey: string;
@@ -52,7 +23,6 @@ type SessionSurfaceProps = {
   submitPending: boolean;
   interruptPending: boolean;
   onOpenMenu: () => void;
-  onToggleRightSidebar: () => void;
   onChatScroll: (scrollTop: number) => void;
   onDisableAutoScroll: () => void;
   onDismissError: () => void;
@@ -63,10 +33,9 @@ type SessionSurfaceProps = {
   onModelClick: () => void;
   onSkillListRefresh: () => void;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
-  onRightSidebarWidthChange: (width: number) => void;
-  onRightSidebarScroll: (scrollTop: number) => void;
   onTurnToggle: (turn: TurnFlowState, open: boolean) => void;
   onIterationToggle: (turn: TurnFlowState, iteration: Pick<NDXSessionIterationSummary, "iteration">, open: boolean, userInitiated?: boolean) => void;
+  updateSessionUi: UpdateSessionUi;
 };
 
 export function SessionSurface({
@@ -81,7 +50,6 @@ export function SessionSurface({
   submitPending,
   interruptPending,
   onOpenMenu,
-  onToggleRightSidebar,
   onChatScroll,
   onDisableAutoScroll,
   onDismissError,
@@ -92,10 +60,9 @@ export function SessionSurface({
   onModelClick,
   onSkillListRefresh,
   onSubmit,
-  onRightSidebarWidthChange,
-  onRightSidebarScroll,
   onTurnToggle,
   onIterationToggle,
+  updateSessionUi,
 }: SessionSurfaceProps) {
   const surfaceHasChat = Boolean(session || project);
   const surfaceAgentRunning = Boolean(ui.agentRunning);
@@ -106,7 +73,6 @@ export function SessionSurface({
   const attachments = ui.chatAttachments.map(({ id, name, mimeType, size, previewUrl }: SessionAttachmentDraft) => ({ id, name, mimeType, size, previewUrl }));
   const surfaceTitle = session ? (session.title || session.sessionid) : surfaceKey.startsWith("draft:") ? t[RSC.SESSION_PAGE_NEW_DRAFT_TITLE_TEXT] : surfaceKey;
   const chatScrollRef = React.useRef<HTMLElement | null>(null);
-  const rightSidebarScrollRef = React.useRef<HTMLDivElement | null>(null);
 
   React.useEffect(() => {
     if (!isActive || !ui.autoScrollEnabled || !chatScrollRef.current) return;
@@ -118,18 +84,12 @@ export function SessionSurface({
     if (chatScrollRef.current) {
       chatScrollRef.current.scrollTop = ui.chatScrollTop;
     }
-    if (rightSidebarScrollRef.current) {
-      rightSidebarScrollRef.current.scrollTop = ui.rightSidebarScrollTop;
-    }
   }, [isActive, surfaceKey]);
 
   return (
     <div className={isActive ? "contents" : "hidden"}>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <button type="button" className="fixed left-4 top-4 z-20 inline-flex h-9 w-9 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900/95 p-0 text-sm font-medium text-zinc-300 shadow-lg shadow-black/30 transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 md:hidden" aria-label={t[RSC.APP_SHELL_MENU_OPEN_BUTTON]} onClick={onOpenMenu}><Menu aria-hidden="true" className="h-4 w-4" /></button>
-        <button type="button" className="fixed right-4 top-4 z-20 hidden h-8 w-8 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950/95 p-0 text-sm font-medium text-zinc-500 shadow-lg shadow-black/30 transition-colors hover:bg-zinc-900 hover:text-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 md:inline-flex" aria-label={ui.rightSidebarOpen ? t[RSC.APP_SHELL_RIGHT_SIDEBAR_CLOSE_BUTTON] : t[RSC.APP_SHELL_RIGHT_SIDEBAR_OPEN_BUTTON]} aria-controls={`session-right-sidebar-${suffix}`} aria-expanded={ui.rightSidebarOpen} onClick={onToggleRightSidebar}>
-          {ui.rightSidebarOpen ? <PanelRightClose aria-hidden="true" className="h-4 w-4" /> : <PanelRightOpen aria-hidden="true" className="h-4 w-4" />}
-        </button>
         <main ref={chatScrollRef} className="relative min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-8" onScroll={(event) => onChatScroll(event.currentTarget.scrollTop)} onWheel={onDisableAutoScroll} onTouchMove={onDisableAutoScroll} onPointerDown={(event) => {
           if (event.currentTarget === event.target) {
             onDisableAutoScroll();
@@ -169,7 +129,7 @@ export function SessionSurface({
         {surfaceHasChat && ui.cotWork ? <CotWorkOverlay agentRunning={surfaceAgentRunning} work={ui.cotWork} /> : null}
         {surfaceHasChat ? <ChatComposer idSuffix={suffix} agentRunning={surfaceAgentRunning} compactRunning={surfaceCompactRunning} interruptPending={interruptPending} requestPending={submitPending} contextUsage={surfaceContextUsage} input={ui.chatInput} attachments={attachments} skills={ui.availableSkills} modelLabel={surfaceModelLabel} modelModalities={ui.selectedModel.modalities} notice={notice} t={t} onInputChange={onInputChange} onAddAttachments={onAddAttachments} onAttachmentRejected={onAttachmentRejected} onRemoveAttachment={onRemoveAttachment} onModelClick={onModelClick} onSkillListRefresh={onSkillListRefresh} onSubmit={onSubmit} /> : null}
       </div>
-      {ui.rightSidebarOpen ? <><RightSidebarResizeHandle width={ui.rightSidebarWidth} onWidthChange={onRightSidebarWidthChange} /><RightSidebar id={`session-right-sidebar-${suffix}`} label={t[RSC.SIDEBAR_RIGHT_LABEL]} scrollRef={(node) => { rightSidebarScrollRef.current = node; }} onScroll={onRightSidebarScroll} items={ui.rightSidebarItems} width={ui.rightSidebarWidth} /></> : null}
+      {surfaceHasChat ? <RightSidebarRegion isActive={isActive} surfaceKey={surfaceKey} t={t} ui={ui} updateSessionUi={updateSessionUi} /> : null}
     </div>
   );
 }

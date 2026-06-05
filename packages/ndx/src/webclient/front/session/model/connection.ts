@@ -1,5 +1,4 @@
 export type SessionConnectionModel = {
-  connectionToken?: string;
   attached: boolean;
   historyRequested: boolean;
   historyLoaded: boolean;

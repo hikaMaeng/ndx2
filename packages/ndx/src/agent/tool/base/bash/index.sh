@@ -56,10 +56,16 @@ if [ "$code" -ne 0 ]; then
   exit 1
 fi
 command_title="$(printf '%s' "$command_text" | head -c 80)"
+command_group_title="$(printf '%s\n' "$command_text" | awk 'NF { print $1; exit }')"
 sidebar_body="$(printf '%s · exit %s · %s' "$workdir" "$code" "$(printf '%s' "$output" | sed -E 's/exit_code: [0-9]+$//' | tr '\n' ' ' | head -c 180)")"
 sidebar_item="$(
   printf '{"group":{"id":"commands","title":"명령 실행"},"key":'
   printf '%s' "bash:${NDX_TOOL_CALL_ID:-$command_title}" | json_quote
+  printf ',"subgroup":{"id":'
+  printf '%s' "command:$command_group_title" | json_quote
+  printf ',"title":'
+  printf '%s' "$command_group_title" | json_quote
+  printf '}'
   printf ',"title":'
   printf '%s' "$command_title" | json_quote
   printf ',"body":'

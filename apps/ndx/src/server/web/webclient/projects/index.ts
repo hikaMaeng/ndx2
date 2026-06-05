@@ -205,12 +205,7 @@ function webProjectResponse(project: { projectname: string; screenorder: number;
 async function deleteProjectDirectoryAndSessions(database: NDXDatabase, projectName: string, logger?: NDXLogger): Promise<void> {
   await database.query(
     `
-WITH deleted_tokens AS (
-  DELETE FROM sessiontoken
-  WHERE sessionid IN (SELECT sessionid FROM "session" WHERE projectname = $1)
-  RETURNING 1
-),
-deleted_data AS (
+WITH deleted_data AS (
   DELETE FROM sessiondata
   WHERE sessionid IN (SELECT sessionid FROM "session" WHERE projectname = $1)
   RETURNING 1

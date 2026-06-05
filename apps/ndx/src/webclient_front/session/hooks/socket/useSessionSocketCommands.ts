@@ -3,7 +3,7 @@ import type { UseSessionSocketControllerOptions, SessionSocketControllerActions 
 
 export function useSessionSocketCommands({
   activeSessionIdRef,
-  sessionTokensRef,
+  attachedSessionIdsRef,
   setTurnFlows,
   socketRef,
   socketState
@@ -12,7 +12,7 @@ export function useSessionSocketCommands({
   const requestedIterationDetailsRef = React.useRef<Set<string>>(new Set());
 
   const attachSession: SessionSocketControllerActions["attachSession"] = (session) => {
-    if (sessionTokensRef.current[session.sessionid]) return true;
+    if (attachedSessionIdsRef.current.has(session.sessionid)) return true;
     if (socketState !== "connected" || !socketRef.current?.isOpen()) return false;
     return Boolean(socketRef.current?.attachSession({
       userid: session.userid,
@@ -23,8 +23,7 @@ export function useSessionSocketCommands({
 
   const refreshSkillList = () => {
     const sessionid = activeSessionIdRef.current;
-    const token = sessionid ? sessionTokensRef.current[sessionid] : undefined;
-    return Boolean(socketRef.current?.requestSkillList(token));
+    return Boolean(socketRef.current?.requestSkillList(sessionid && attachedSessionIdsRef.current.has(sessionid) ? sessionid : undefined));
   };
 
   const toggleTurnDetail: SessionSocketControllerActions["toggleTurnDetail"] = (turn, open) => {
@@ -32,8 +31,7 @@ export function useSessionSocketCommands({
     if (!open) return;
     const key = `${turn.sessionid}:${turn.inputDataId}`;
     if (requestedTurnDetailsRef.current.has(key)) return;
-    const token = sessionTokensRef.current[turn.sessionid];
-    if (!token || !socketRef.current?.requestTurnDetail(token, turn.inputDataId)) return;
+    if (!attachedSessionIdsRef.current.has(turn.sessionid) || !socketRef.current?.requestTurnDetail(turn.sessionid, turn.inputDataId)) return;
     requestedTurnDetailsRef.current.add(key);
   };
 
@@ -48,8 +46,7 @@ export function useSessionSocketCommands({
     if (!open) return;
     const key = `${turn.sessionid}:${turn.inputDataId}:${iteration.iteration}`;
     if (requestedIterationDetailsRef.current.has(key)) return;
-    const token = sessionTokensRef.current[turn.sessionid];
-    if (!token || !socketRef.current?.requestIterationDetail(token, turn.inputDataId, iteration.iteration)) return;
+    if (!attachedSessionIdsRef.current.has(turn.sessionid) || !socketRef.current?.requestIterationDetail(turn.sessionid, turn.inputDataId, iteration.iteration)) return;
     requestedIterationDetailsRef.current.add(key);
   };
 

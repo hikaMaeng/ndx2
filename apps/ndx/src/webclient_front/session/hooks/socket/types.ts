@@ -43,7 +43,7 @@ export type UseSessionSocketControllerOptions = {
   };
   onClientRequest: (message: NDXSessionClientRequestMessage) => void;
   onClientRequestClosed: (message: NDXSessionClientRequestClosedMessage) => void;
-  sessionTokensRef: React.MutableRefObject<Record<string, string>>;
+  attachedSessionIdsRef: React.MutableRefObject<Set<string>>;
   sessionUiManagerRef: SessionUiManagerRef;
   setActiveSessionError: (message: string) => void;
   setActiveSessionId: React.Dispatch<React.SetStateAction<string | undefined>>;
@@ -56,7 +56,7 @@ export type UseSessionSocketControllerOptions = {
   setPendingActions: React.Dispatch<React.SetStateAction<Set<string>>>;
   setReportedContextUsage: (update: NDXAgentWebContextUsage | undefined | ((current?: NDXAgentWebContextUsage) => NDXAgentWebContextUsage | undefined)) => void;
   setSessionNotice: (message: string) => void;
-  setSessionTokens: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  setAttachedSessionIds: React.Dispatch<React.SetStateAction<Set<string>>>;
   setSessionUiByKey: React.Dispatch<React.SetStateAction<Record<string, SessionUiState>>>;
   setSocketState: React.Dispatch<React.SetStateAction<SocketState>>;
   setTurnFlows: (update: SessionUiState["turnFlows"] | ((current: SessionUiState["turnFlows"]) => SessionUiState["turnFlows"])) => void;

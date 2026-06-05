@@ -176,7 +176,8 @@ function rowMessageEvent(current: SessionUiState, message: NDXSessionEventMessag
 
 function turnEndEvent(current: SessionUiState, message: NDXSessionEventMessage, text: ProtocolEventUiText): SessionUiState {
   return {
-    ...withContextAndTurn(current, message),
+    ...current,
+    reportedContextUsage: contextUsageForUi(current, message.contextUsage),
     agentRunning: false,
     compactRunning: false,
     notice: text.requestStored

@@ -77,10 +77,6 @@ export function useSessionUiController() {
   }));
   const setSessionNotice = (message: string) => updateActiveUi((current) => ({ ...current, notice: message }));
   const setActiveSessionError = (message: string) => updateActiveUi((current) => ({ ...current, sessionError: message }));
-  const setRightSidebarOpen = (update: boolean | ((current: boolean) => boolean)) => updateActiveUi((current) => ({
-    ...current,
-    rightSidebarOpen: typeof update === "function" ? update(current.rightSidebarOpen) : update
-  }));
   const addChatAttachments = (files: File[]) => {
     if (files.length === 0) return;
     setChatAttachments((current) => [
@@ -137,7 +133,6 @@ export function useSessionUiController() {
     setCotWork,
     setDraftSessionProjectId,
     setReportedContextUsage,
-    setRightSidebarOpen,
     setSelectedModel,
     setSessionNotice,
     setSessionUiByKey,

@@ -86,7 +86,6 @@
 | `packages/ndx/src/agent/project` | durable project identity. |
 | `packages/ndx/src/agent/runtime-settings` | runtime settings reader and defaults. |
 | `packages/ndx/src/agent/session` | PostgreSQL session/sessiondata/sessionsearch domain. |
-| `packages/ndx/src/agent/session-token` | session connection token domain. |
 | `packages/ndx/src/agent/tool` | tool registry and execution. |
 | `packages/ndx/src/agent/tool/base` | built-in process-backed tools and function-tool adapters. |
 | `packages/ndx/src/agent/tool/execute` | process/function tool execution. |

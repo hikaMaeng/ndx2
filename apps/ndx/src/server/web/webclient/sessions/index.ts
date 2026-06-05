@@ -216,13 +216,13 @@ LIMIT 1;
   app.post("/api/agent/sessions/:sessionid/messages", async (request, response, next) => {
     try {
       const language = requestLanguage(request);
-      logger?.warn("web.session_messages.append.rejected", { sessionid: request.params.sessionid, reason: "connection_token_required" });
+      logger?.warn("web.session_messages.append.rejected", { sessionid: request.params.sessionid, reason: "attached_socket_required" });
       if (!database) {
         response.status(503).json({ error: resources(NDX_AGENT_RESOURCE.WEB_DATABASE_UNAVAILABLE_ERROR, { language }) });
         return;
       }
 
-      response.status(409).json({ error: resources(NDX_AGENT_RESOURCE.WEB_SESSION_INPUT_CONNECTION_TOKEN_REQUIRED_ERROR, { language }) });
+      response.status(409).json({ error: resources(NDX_AGENT_RESOURCE.WEB_SESSION_INPUT_SOCKET_REQUIRED_ERROR, { language }) });
     } catch (error) {
       next(error);
     }
@@ -231,13 +231,13 @@ LIMIT 1;
   app.post("/api/agent/sessions/:sessionid/interrupt", async (request, response, next) => {
     try {
       const language = requestLanguage(request);
-      logger?.warn("web.session_interrupt.append.rejected", { sessionid: request.params.sessionid, reason: "connection_token_required" });
+      logger?.warn("web.session_interrupt.append.rejected", { sessionid: request.params.sessionid, reason: "attached_socket_required" });
       if (!database) {
         response.status(503).json({ error: resources(NDX_AGENT_RESOURCE.WEB_DATABASE_UNAVAILABLE_ERROR, { language }) });
         return;
       }
 
-      response.status(409).json({ error: resources(NDX_AGENT_RESOURCE.WEB_SESSION_INTERRUPT_CONNECTION_TOKEN_REQUIRED_ERROR, { language }) });
+      response.status(409).json({ error: resources(NDX_AGENT_RESOURCE.WEB_SESSION_INTERRUPT_SOCKET_REQUIRED_ERROR, { language }) });
     } catch (error) {
       next(error);
     }

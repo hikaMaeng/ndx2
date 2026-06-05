@@ -1256,7 +1256,7 @@ test("deleteSession clears session-owned tables after stopping stale running sta
 
   assert.equal(deleted?.sessionid, row.sessionid);
   assert.match(queries[1].text, /interruptrequested = true/);
-  assert.match(queries.at(-1)?.text ?? "", /DELETE FROM sessiontoken/);
+  assert.doesNotMatch(queries.at(-1)?.text ?? "", new RegExp("session" + "token"));
   assert.match(queries.at(-1)?.text ?? "", /DELETE FROM sessiondata/);
   assert.match(queries.at(-1)?.text ?? "", /DELETE FROM "session"/);
   assert.deepEqual(queries.at(-1)?.values, [row.sessionid]);

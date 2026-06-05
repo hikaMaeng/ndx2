@@ -44,12 +44,13 @@ Until account selection completes, the server ignores all other work and repeats
 
 After `session.ready`, clients enter a session with `session.attach`, including
 `userid`, `projectName`, and `sessionid`. The server verifies the account,
-workspace project folder, and session ownership, then returns
-`session.attached` with a runtime `connectionToken`.
+workspace project folder, and session ownership, then records a socket-local
+grant for that `sessionid` and returns `session.attached`.
 
-`session.input` and `session.interrupt` messages are accepted only with a valid
-`connectionToken` issued on the same physical socket. Durable turn events are
-written to PostgreSQL `sessiondata` and acknowledged with `session.event`.
+`session.input` and `session.interrupt` messages carry `sessionid` and are
+accepted only when the same physical socket has created or attached that
+session. Durable turn events are written to PostgreSQL `sessiondata` and
+acknowledged with `session.event`.
 Ephemeral right-sidebar items use the separate `session.sidebar.item` socket
 message and are not reconstructed from turn or iteration events.
 Project session-list actions also use the socket: `session.rename` updates the
@@ -73,8 +74,8 @@ to a dedicated `session.sidebar.item` socket message. The item shape is
 heading inside its section. Blank or omitted subgroup data renders at the
 section top level. The web client groups items by `group.id` and appends or
 replaces identical explicit item keys inside a section, so repeated changed-file
-items remain visible once. Built-in tools use this for file references, loaded
-skills, changed files with folder subgroups, command runs, search results,
+items remain visible once. Built-in tools use this for file references with
+folder subgroups, loaded skills, changed files with folder subgroups, command runs, search results,
 images, plans, web references, question prompts, prompt rewrites, and
 session-history references. Legacy `${SIDEBAR_ITEM}` and `${TURNCARD_*}`
 progress parsers remain only for compatibility.

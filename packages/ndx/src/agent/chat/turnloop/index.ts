@@ -5,6 +5,7 @@ import { calculateDetailedContextUsage } from "../../contextusage/index.js";
 import { assistantDeltaContents, assistantMessageContents, assistantReasoningContents, errorContents, toolCallContents, toolResultContents, userMessageContents } from "../../session/content.js";
 import type { NDXToolResultContents } from "../../session/index.js";
 import { createCotWorkAgentCallHandler, NDX_COT_WORK_AGENTCALL_NAME } from "../../tool/base/cot_work/agentCall.js";
+import { cotWorkCompletedSidebarItems } from "../../tool/base/cot_work/sidebar.js";
 import { createSidebarItemAgentCallHandler, NDX_SIDEBAR_ITEM_AGENTCALL_NAME } from "../../tool/execute/agentcall/index.js";
 import { executeToolCalls, listAvailableTools, summarizeToolName, toolSchemas } from "../../tool/index.js";
 import { createCotWorkTimingTracker } from "../../tool/base/cot_work/timing.js";
@@ -131,6 +132,16 @@ export async function runChatSessionTurn(
           [NDX_COT_WORK_AGENTCALL_NAME]: createCotWorkAgentCallHandler(async (contents, context) => {
             const timedContents = cotWorkTiming.update(contents);
             await appendChatSessionData(database, runningSession.chatsessionid, "assistant", timedContents);
+            for (const item of cotWorkCompletedSidebarItems(timedContents)) {
+              await events.onEvent?.({
+                type: NDX_TURN_EVENT.SidebarItem,
+                iteration,
+                tool: context.tool,
+                callId: context.callId,
+                item,
+                contextUsage: turnContextUsage()
+              });
+            }
             await events.onEvent?.({
               type: NDX_TURN_EVENT.CotWork,
               iteration,
@@ -166,6 +177,9 @@ export async function runChatSessionTurn(
     const finalCotWork = cotWorkTiming.complete();
     if (finalCotWork) {
       await appendChatSessionData(database, runningSession.chatsessionid, "assistant", finalCotWork);
+      for (const item of cotWorkCompletedSidebarItems(finalCotWork)) {
+        await events.onEvent?.({ type: NDX_TURN_EVENT.SidebarItem, iteration: finalIteration, tool: "cot_work", item, contextUsage: finalContextUsage });
+      }
       await events.onEvent?.({ type: NDX_TURN_EVENT.CotWork, iteration: finalIteration, tool: "cot_work", contents: finalCotWork, contextUsage: finalContextUsage });
     }
     await events.onEvent?.({ type: NDX_TURN_EVENT.AssistantRecorded, iteration: finalIteration, assistant: { ...assistant, sessionid: assistant.chatsessionid }, contextUsage: finalContextUsage } as never);

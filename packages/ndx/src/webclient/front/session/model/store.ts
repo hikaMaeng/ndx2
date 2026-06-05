@@ -53,7 +53,6 @@ export function applySessionAttachedToStore(snapshot: SessionModelSnapshot, mess
     connection: {
       ...model.connection,
       attached: true,
-      connectionToken: message.connectionToken,
       lastAttachedAt: message.createdat
     }
   }));

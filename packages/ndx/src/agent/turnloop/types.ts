@@ -40,7 +40,8 @@ export type NDXTurnLoopEvent =
   | { type: typeof NDX_TURN_EVENT.ToolResultRecorded; iteration: number; data: NDXSessionDataRow; results: NDXToolExecutionResult[]; contextUsage: NDXContextUsage }
   | { type: typeof NDX_TURN_EVENT.Interrupted; phase: string; contextUsage: NDXContextUsage }
   | { type: typeof NDX_TURN_EVENT.InterruptCompleted; phase: string; session: NDXSessionRow; contextUsage: NDXContextUsage }
-  | { type: typeof NDX_TURN_EVENT.AssistantRecorded; iteration: number; assistant: NDXSessionDataRow; contextUsage: NDXContextUsage };
+  | { type: typeof NDX_TURN_EVENT.AssistantRecorded; iteration: number; assistant: NDXSessionDataRow; contextUsage: NDXContextUsage }
+  | { type: typeof NDX_TURN_EVENT.TurnEnd; iteration: number; session: NDXSessionRow; contextUsage: NDXContextUsage };
 
 export type NDXTurnLoopEvents = {
   onEvent?: (event: NDXTurnLoopEvent) => Promise<void>;

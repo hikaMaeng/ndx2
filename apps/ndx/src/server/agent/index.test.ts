@@ -9,10 +9,10 @@ import express from "express";
 import request from "supertest";
 import WebSocket from "ws";
 import { acquireAgentServerInstanceLock, attachSessionRoutes, attachSessionSocketServer } from "./index.js";
-import { sessionSidebarItemSocketMessage } from "./connection.js";
+import { sessionGrantOwnerTargets, sessionSidebarItemSocketMessage, sessionSocketMessagesFromTurnLoopEvent } from "./connection.js";
 import { sendJson } from "./sendJson.js";
-import type { NDXDatabase } from "ndx/agent";
-import { NDX_SESSION_READY, NDX_SESSION_SIDEBAR_ITEM, NDX_TURN_EVENT } from "ndx/common";
+import type { NDXDatabase, NDXSessionRow } from "ndx/agent";
+import { NDX_SESSION_EVENT, NDX_SESSION_READY, NDX_SESSION_SIDEBAR_ITEM, NDX_TURN_EVENT } from "ndx/common";
 
 process.env.NDX_CONTAINER_ROOT = os.tmpdir();
 process.env.NDX_ROOT = os.tmpdir();
@@ -34,7 +34,6 @@ function createDatabase(): NDXDatabase {
 
 function createDatabaseWithSessionInsert(): NDXDatabase {
   const sessions = new Map<string, Record<string, unknown>>();
-  const tokens = new Map<string, { sessionid: string; createdat: Date }>();
   return {
     async query(text, values) {
       if (/FROM users/i.test(text)) {
@@ -72,41 +71,6 @@ function createDatabaseWithSessionInsert(): NDXDatabase {
         return { rows: session ? [session] : [], rowCount: session ? 1 : 0 } as never;
       }
 
-      if (/DELETE FROM sessiontoken/i.test(text)) {
-        return { rows: [], rowCount: 0 } as never;
-      }
-
-      if (/INSERT INTO sessiontoken/i.test(text)) {
-        tokens.set(String(values?.[0]), { sessionid: String(values?.[2]), createdat: new Date(String(values?.[1])) });
-        return {
-          rows: [
-            {
-              token: values?.[0],
-              createdat: new Date(String(values?.[1])),
-              sessionid: values?.[2]
-            }
-          ],
-          rowCount: 1
-        } as never;
-      }
-
-      if (/FROM sessiontoken/i.test(text) && /JOIN "session"/i.test(text)) {
-        const token = tokens.get(String(values?.[0]));
-        const session = token ? sessions.get(token.sessionid) : undefined;
-        return {
-          rows: token && session
-            ? [{
-              token: values?.[0],
-              createdat: token.createdat,
-              sessionid: token.sessionid,
-              userid: session.userid,
-              projectname: session.projectname
-            }]
-            : [],
-          rowCount: token && session ? 1 : 0
-        } as never;
-      }
-
       return { rows: [], rowCount: 0 } as never;
     },
     async close() {}
@@ -114,7 +78,6 @@ function createDatabaseWithSessionInsert(): NDXDatabase {
 }
 
 function createDatabaseWithExistingSession(input: { projectName: string; sessionid: string }): NDXDatabase {
-  const tokens = new Map<string, { sessionid: string; createdat: Date }>();
   return {
     async query(text, values) {
       if (/FROM users/i.test(text)) {
@@ -139,40 +102,6 @@ function createDatabaseWithExistingSession(input: { projectName: string; session
             }
           ],
           rowCount: 1
-        } as never;
-      }
-
-      if (/DELETE FROM sessiontoken/i.test(text)) {
-        return { rows: [], rowCount: 0 } as never;
-      }
-
-      if (/INSERT INTO sessiontoken/i.test(text)) {
-        tokens.set(String(values?.[0]), { sessionid: String(values?.[2]), createdat: new Date(String(values?.[1])) });
-        return {
-          rows: [
-            {
-              token: values?.[0],
-              createdat: new Date(String(values?.[1])),
-              sessionid: values?.[2]
-            }
-          ],
-          rowCount: 1
-        } as never;
-      }
-
-      if (/FROM sessiontoken/i.test(text) && /JOIN "session"/i.test(text)) {
-        const token = tokens.get(String(values?.[0]));
-        return {
-          rows: token
-            ? [{
-              token: values?.[0],
-              createdat: token.createdat,
-              sessionid: token.sessionid,
-              userid: "ndev",
-              projectname: input.projectName
-            }]
-            : [],
-          rowCount: token ? 1 : 0
         } as never;
       }
 
@@ -431,7 +360,6 @@ test("session websocket creates a new session after account and project negotiat
     await waitForMessages(messages, 7);
     const created = JSON.parse(messages[5].toString()) as {
       type: string;
-      connectionToken: string;
       initialInputAccepted?: boolean;
       sessionid: string;
       userid: string;
@@ -442,7 +370,6 @@ test("session websocket creates a new session after account and project negotiat
     };
 
     assert.equal(created.type, "session.created");
-    assert.match(created.connectionToken, /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
     assert.equal(created.initialInputAccepted, true);
     assert.match(created.sessionid, /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
     assert.equal(created.userid, "ndev");
@@ -492,10 +419,10 @@ test("session websocket rejects idle interrupts without recording interrupt even
       model: { type: "openai", model: "qwen3.6-35b.mm", url: "", token: "", contextsize: 100_000 }
     }));
     await waitForMessages(messages, 7);
-    const created = JSON.parse(messages[5].toString()) as { type: string; connectionToken: string };
+    const created = JSON.parse(messages[5].toString()) as { type: string; sessionid: string };
     assert.equal(created.type, "session.created");
 
-    socket.send(JSON.stringify({ type: "session.interrupt", connectionToken: created.connectionToken }));
+    socket.send(JSON.stringify({ type: "session.interrupt", sessionid: created.sessionid }));
     await waitForMessages(messages, 8);
     const rejected = JSON.parse(messages[7].toString()) as { type: string; error: string };
     assert.equal(rejected.type, "protocol.error");
@@ -637,7 +564,7 @@ test("session websocket creates a new session for the explicit project in the cr
   }
 });
 
-test("session websocket routes token input before project negotiation", async () => {
+test("session websocket rejects unattached session input before project negotiation", async () => {
   const server = http.createServer();
   const socketServer = attachSessionSocketServer(server, {
     database: createDatabase(),
@@ -656,12 +583,12 @@ test("session websocket routes token input before project negotiation", async ()
     await waitForMessages(messages, 1);
     socket.send(JSON.stringify({ type: "account.select", userid: "ndev" }));
     await waitForMessages(messages, 3);
-    socket.send(JSON.stringify({ type: "session.input", connectionToken: "missing-token", text: "hello" }));
+    socket.send(JSON.stringify({ type: "session.input", sessionid: "019e2783-4512-70d0-b75b-40200d1d4fe8", text: "hello" }));
     await waitForMessages(messages, 4);
 
     const rejected = JSON.parse(messages[3].toString()) as { type: string; error: string };
     assert.equal(rejected.type, "protocol.error");
-    assert.match(rejected.error, /connection token is missing or expired/i);
+    assert.match(rejected.error, /session is not attached to this socket/i);
 
     socket.terminate();
   } finally {
@@ -670,7 +597,7 @@ test("session websocket routes token input before project negotiation", async ()
   }
 });
 
-test("session websocket attaches an existing session and issues a connection token before project ready", async () => {
+test("session websocket attaches an existing session before project ready without issuing a token", async () => {
   const projectPath = await createWorkspaceProjectPath();
   const projectName = path.basename(projectPath);
   const sessionid = "019e2783-4512-70d0-b75b-40200d1d4fe8";
@@ -695,14 +622,12 @@ test("session websocket attaches an existing session and issues a connection tok
     await waitForMessages(messages, 2);
     const attached = JSON.parse(messages[1].toString()) as {
       type: string;
-      connectionToken: string;
       sessionid: string;
       userid: string;
       projectName: string;
     };
 
     assert.equal(attached.type, "session.attached");
-    assert.match(attached.connectionToken, /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
     assert.equal(attached.sessionid, sessionid);
     assert.equal(attached.userid, "ndev");
     assert.equal(attached.projectName, projectName);
@@ -741,12 +666,12 @@ test("session websocket rejects attachments unsupported by the selected model", 
     await waitForMessages(messages, 3);
     socket.send(JSON.stringify({ type: "session.attach", userid: "ndev", projectName, sessionid }));
     await waitForMessages(messages, 4);
-    const attached = JSON.parse(messages[3].toString()) as { type: string; connectionToken: string };
+    const attached = JSON.parse(messages[3].toString()) as { type: string; sessionid: string };
     assert.equal(attached.type, "session.attached");
 
     socket.send(JSON.stringify({
       type: "session.input",
-      connectionToken: attached.connectionToken,
+      sessionid: attached.sessionid,
       text: "이미지 확인",
       model: { type: "openai", model: "minimax-m2.7", url: "", token: "", contextsize: 196_000, modalities: ["text"] },
       attachments: [{ name: "screen.png", mimeType: "image/png", size: 3, data: "AQID" }]
@@ -798,3 +723,101 @@ test("socket send writes the provided message unchanged", async () => {
     await fs.rm(projectPath, { recursive: true, force: true });
   }
 });
+
+test("turn loop socket serialization emits terminal session events for session grants", () => {
+  const session = turnEventSessionRow("session-a");
+  const messages = sessionSocketMessagesFromTurnLoopEvent({
+    type: NDX_TURN_EVENT.TurnEnd,
+    iteration: 3,
+    session,
+    contextUsage: { tokens: 12, messageTokens: 8, toolDefinitionTokens: 4, percent: 1, contextsize: 1000 }
+  }, {
+    session,
+    now: "2026-06-05T00:00:00.000Z",
+    timeKey: 123
+  });
+
+  assert.equal(messages.length, 1);
+  assert.equal(messages[0]?.type, NDX_SESSION_EVENT);
+  assert.equal(messages[0]?.event, NDX_TURN_EVENT.TurnEnd);
+  assert.equal(messages[0]?.dataid, "turn-end:session-a:3:123");
+  assert.equal((messages[0]?.contents as { kind?: unknown }).kind, "turn_end");
+});
+
+test("turn loop socket serialization emits sidebar items without receiver token fields", () => {
+  const session = turnEventSessionRow("session-a");
+  const messages = sessionSocketMessagesFromTurnLoopEvent({
+    type: NDX_TURN_EVENT.SidebarItem,
+    iteration: 1,
+    tool: "edit",
+    callId: "call-1",
+    item: {
+      group: { id: "files", title: "Files" },
+      key: "file:a.ts",
+      title: "a.ts"
+    },
+    contextUsage: { tokens: 12, messageTokens: 8, toolDefinitionTokens: 4, percent: 1, contextsize: 1000 }
+  }, {
+    session,
+    now: "2026-06-05T00:00:00.000Z",
+    timeKey: 123
+  });
+
+  assert.equal(messages.length, 1);
+  assert.equal(messages[0]?.type, NDX_SESSION_SIDEBAR_ITEM);
+  assert.equal(("connection" + "Token") in (messages[0] ?? {}), false);
+});
+
+test("session grant owner routing targets every connected client attached to the session", () => {
+  const first = sessionClient("client-a", ["session-a", "session-b"]);
+  const second = sessionClient("client-b", ["session-a"]);
+  const third = sessionClient("client-c", ["session-c"]);
+  const connectedClients = new Map<string, ReturnType<typeof sessionClient>>([
+    ["connection-a", first],
+    ["connection-b", second],
+    ["connection-c", third]
+  ]);
+
+  const targets = sessionGrantOwnerTargets(connectedClients, "session-a");
+
+  assert.deepEqual(targets.map((target) => target.client.clientid), ["client-a", "client-b"]);
+});
+
+function turnEventSessionRow(sessionid: string): NDXSessionRow {
+  return {
+    sessionid,
+    userid: "ndev",
+    title: "test session",
+    lastupdated: new Date("2026-06-05T00:00:00.000Z"),
+    mode: "none",
+    projectname: "project-a",
+    path: "/ndx/workspace/project-a",
+    model: { type: "openai", model: "gpt-5", url: "http://localhost", token: "", contextsize: 1000 },
+    isrunning: false,
+    turnphase: "idle",
+    interruptrequested: false,
+    interruptrequestedat: null,
+    interruptcompletedat: null,
+    runtimedata: {}
+  };
+}
+
+function sessionClient(clientid: string, grants: string[]) {
+  return {
+    clientid,
+    socket: {
+      readyState: WebSocket.OPEN,
+      send() {}
+    } as never,
+    userid: "ndev",
+    projectName: "project-a",
+    grants: new Map(grants.map((sessionid) => [sessionid, {
+      sessionid,
+      userid: "ndev",
+      projectName: "project-a",
+      createdat: new Date("2026-06-05T00:00:00.000Z")
+    }])),
+    missedPings: 0,
+    pongSinceLastPing: true
+  };
+}

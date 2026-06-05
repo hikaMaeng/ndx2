@@ -695,7 +695,8 @@ test("builtin file tools read, search, edit, write, and run bash within the NDX 
   assert.ok(read.events.some((event) => event.type === "progress"));
   assert.equal((sidebarItems.at(-1) as { group?: { id?: string; title?: string }; kind?: string }).group?.id, "file-references");
   assert.equal((sidebarItems.at(-1) as { group?: { id?: string; title?: string }; kind?: string }).group?.title, "파일참조");
-  assert.equal((sidebarItems.at(-1) as { group?: { id?: string; title?: string }; kind?: string }).kind, "file_reference");
+  assert.equal((sidebarItems.at(-1) as { group?: { id?: string; title?: string }; subgroup?: { title?: string }; kind?: string }).subgroup?.title, "src");
+  assert.equal((sidebarItems.at(-1) as { group?: { id?: string; title?: string }; subgroup?: { title?: string }; kind?: string }).kind, "file_reference");
   assert.equal(read.events.at(-1)?.type, "result");
   assert.equal(JSON.parse(read.output).content, "needle");
 
@@ -736,6 +737,9 @@ test("builtin file tools read, search, edit, write, and run bash within the NDX 
   assert.equal(bash.success, true);
   assert.equal(bash.events.at(-1)?.type, "result");
   assert.match(bash.output, /bash-ok/);
+  assert.equal((sidebarItems.at(-1) as { group?: { id?: string; title?: string }; subgroup?: { id?: string; title?: string }; kind?: string }).group?.id, "commands");
+  assert.equal((sidebarItems.at(-1) as { group?: { id?: string; title?: string }; subgroup?: { id?: string; title?: string }; kind?: string }).subgroup?.id, "command:printf");
+  assert.equal((sidebarItems.at(-1) as { group?: { id?: string; title?: string }; subgroup?: { id?: string; title?: string }; kind?: string }).subgroup?.title, "printf");
 
   const image = await executeToolCall({ name: "getImage", arguments: JSON.stringify({ path: "src/sample.png" }) }, options);
   assert.equal(image.success, true);

@@ -116,13 +116,3 @@ export type {
   NDXChatSessionDataRow,
   NDXChatSessionRow
 } from "./chat/index.js";
-export {
-  SESSIONTOKEN_TABLE_INDEX_SQL,
-  SESSIONTOKEN_TABLE_SQL,
-  SESSION_TOKEN_MAX_AGE_DAYS,
-  createSessionToken,
-  getSessionTokenGrant,
-  initSessionTokenDatabase,
-  pruneExpiredSessionTokens
-} from "./session-token/index.js";
-export type { NDXSessionTokenGrant, NDXSessionTokenRow } from "./session-token/index.js";
