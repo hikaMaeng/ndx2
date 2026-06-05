@@ -138,6 +138,8 @@ export function useSessionRequestController({
       return;
     }
     setAutoScrollEnabled(true);
+    let activeSubmitActionKey = sessionSubmitActionKey;
+    const finishSubmitAction = () => finishAction(activeSubmitActionKey);
 
     void (async () => {
       refreshSkillList();
@@ -155,7 +157,7 @@ export function useSessionRequestController({
           if (attachSession(session)) return;
           updateSessionUi(sessionid, (current) => ({ ...current, pendingAttachRequest: undefined }));
         }
-        finishAction(sessionSubmitActionKey);
+        finishSubmitAction();
         setAgentRunning(false);
         setSessionNotice(t[RSC.APP_STATUS_SOCKET_REQUIRED_ALERT]);
       };
@@ -187,10 +189,13 @@ export function useSessionRequestController({
           setDraftSessionProjectId(undefined);
           setActiveSessionId(session.sessionid);
           updateSessionUi(session.sessionid, rightSidebarCleared);
+          finishAction(activeSubmitActionKey);
+          activeSubmitActionKey = `session-submit:${session.sessionid}`;
+          startAction(activeSubmitActionKey);
           sendMessage(session.sessionid, session);
         }).catch((error) => {
           const message = error instanceof Error && error.message ? error.message : t[RSC.APP_STATUS_STATE_UNAVAILABLE_ALERT];
-          finishAction(sessionSubmitActionKey);
+          finishSubmitAction();
           setAgentRunning(false);
           setActiveSessionError(message);
           setSessionNotice(message);
@@ -199,7 +204,7 @@ export function useSessionRequestController({
       }
 
       if (!activeSessionId) {
-        finishAction(sessionSubmitActionKey);
+        finishSubmitAction();
         setAgentRunning(false);
         setSessionNotice(t[RSC.APP_STATUS_NO_ACTIVE_PROJECT_ALERT]);
         return;
@@ -208,7 +213,7 @@ export function useSessionRequestController({
       sendMessage(activeSessionId);
     })().catch((error) => {
       const message = error instanceof Error && error.message ? error.message : t[RSC.APP_STATUS_STATE_UNAVAILABLE_ALERT];
-      finishAction(sessionSubmitActionKey);
+      finishSubmitAction();
       setAgentRunning(false);
       setActiveSessionError(message);
       setSessionNotice(message);

@@ -82,11 +82,27 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
     const next = new Set(pendingActionsRef.current);
     next.delete("session-submit");
     next.delete("session-interrupt");
+    if (activeUiKeyRef.current) next.delete(`session-submit:${activeUiKeyRef.current}`);
+    if (activeSessionIdRef.current) {
+      next.delete(`session-submit:${activeSessionIdRef.current}`);
+      next.delete(`session-interrupt:${activeSessionIdRef.current}`);
+    }
     pendingActionsRef.current = next;
     setPendingActions(next);
     updateSessionUi(activeUiKeyRef.current ?? activeSessionIdRef.current ?? "session", (current) => ({ ...current, pendingInitialRequest: undefined, pendingAttachRequest: undefined, agentRunning: false }));
     setActiveSessionError(message);
     setSessionNotice(message);
+  };
+
+  const migrateSubmitAction = (previousKey: string | undefined, sessionid: string) => {
+    if (!previousKey || previousKey === sessionid) return;
+    const previousAction = `session-submit:${previousKey}`;
+    if (!pendingActionsRef.current.has(previousAction)) return;
+    const next = new Set(pendingActionsRef.current);
+    next.delete(previousAction);
+    next.add(`session-submit:${sessionid}`);
+    pendingActionsRef.current = next;
+    setPendingActions(next);
   };
 
   const onHistorySummary = (message: NDXSessionHistorySummaryResultMessage) => {
@@ -168,6 +184,7 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
     if (previousUiKey) {
       sessionUiManagerRef.current.promoteToSession(message.sessionid, previousUiKey);
       setSessionUiByKey(sessionUiManagerRef.current.snapshot);
+      migrateSubmitAction(previousUiKey, message.sessionid);
     }
     activeSessionIdRef.current = message.sessionid;
     activeUiKeyRef.current = message.sessionid;
@@ -239,9 +256,9 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
   const onProtocolError = (message: { error: string }) => {
     const next = new Set(pendingActionsRef.current);
     let renameFailed = false;
-    const hadSessionRequest = next.has("session-submit") || next.has("session-interrupt") || Boolean(activeUi?.pendingInitialRequest || activeUi?.pendingAttachRequest);
+    const hadSessionRequest = [...next].some((action) => action === "session-submit" || action === "session-interrupt" || action.startsWith("session-submit:") || action.startsWith("session-interrupt:")) || Boolean(activeUi?.pendingInitialRequest || activeUi?.pendingAttachRequest);
     for (const action of next) {
-      if (action === "session-submit" || action === "session-interrupt") {
+      if (action === "session-submit" || action === "session-interrupt" || action.startsWith("session-submit:") || action.startsWith("session-interrupt:")) {
         next.delete(action);
       }
       if (action.startsWith("session-delete:")) {
