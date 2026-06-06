@@ -46,7 +46,7 @@ export async function requestModelResponse(
     ...modelInferenceBody(model),
     ...(tools.length > 0 ? { tools } : {})
   };
-  const preferredBodies: Array<{ inputMode: ResponsesInputMode; body: { model: string; input: unknown; stream: true; tools?: Record<string, unknown>[]; temperature?: number; top_p?: number; top_k?: number; min_p?: number } }> =
+  const preferredBodies: Array<{ inputMode: ResponsesInputMode; body: { model: string; input: unknown; stream: true; tools?: Record<string, unknown>[]; reasoning?: { effort: "low" | "medium" | "high" }; temperature?: number; top_p?: number; top_k?: number; min_p?: number } }> =
     hasAttachmentPayload(messages)
       ? [{ inputMode: "array", body: arrayRequestBody }, { inputMode: "text", body: textRequestBody }]
       : [{ inputMode: "text", body: textRequestBody }, { inputMode: "array", body: arrayRequestBody }];
@@ -437,8 +437,9 @@ function isRetryableError(error: unknown): boolean {
   return /fetch failed|network|timeout|terminated|socket|econnreset|econnrefused|etimedout/i.test(message);
 }
 
-function modelInferenceBody(model: ResponseModelConfig): { temperature?: number; top_p?: number; top_k?: number; min_p?: number } {
+function modelInferenceBody(model: ResponseModelConfig): { reasoning?: { effort: "low" | "medium" | "high" }; temperature?: number; top_p?: number; top_k?: number; min_p?: number } {
   return {
+    ...(model.reasoningEffort === "low" || model.reasoningEffort === "medium" || model.reasoningEffort === "high" ? { reasoning: { effort: model.reasoningEffort } } : {}),
     ...(typeof model.temperature === "number" ? { temperature: model.temperature } : {}),
     ...(typeof model.topP === "number" ? { top_p: model.topP } : {}),
     ...(typeof model.topK === "number" ? { top_k: model.topK } : {}),

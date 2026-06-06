@@ -1,6 +1,6 @@
 import React from "react";
 import type { NDXAgentWebSession } from "ndx/webclient/common";
-import { createWebProvider, createWebProviderModel, deleteWebProvider, deleteWebProviderModel, listWebProviderModels, listWebProviders, readProviderModelNames, syncWebProviderModels, updateWebProviderModel, type ProviderBundle, type SelectedModelConfig } from "ndx/webclient/front";
+import { createWebProvider, createWebProviderModel, deleteWebProvider, deleteWebProviderModel, listWebProviderModels, listWebProviders, normalizeReasoningEffort, readProviderModelNames, syncWebProviderModels, updateWebProviderModel, type ProviderBundle, type SelectedModelConfig } from "ndx/webclient/front";
 import { RSC } from "../../app/resource";
 import { ModelDialog } from "./ModelDialog";
 
@@ -59,6 +59,7 @@ export function useModelDialogController({ activeSession, selectedModel, setSele
       url: bundle?.provider.url || activeSession.model.url || "",
       token: bundle?.provider.token || activeSession.model.token || "",
       modalities: activeSession.model.modalities ?? modelRow?.modalities ?? ["text"],
+      reasoningEffort: normalizeReasoningEffort(activeSession.model.reasoningEffort ?? modelRow?.reasoningEffort),
       ...(typeof activeSession.model.temperature === "number" ? { temperature: activeSession.model.temperature } : typeof modelRow?.temperature === "number" ? { temperature: modelRow.temperature } : {}),
       ...(typeof activeSession.model.topP === "number" ? { topP: activeSession.model.topP } : typeof modelRow?.topP === "number" ? { topP: modelRow.topP } : {}),
       ...(typeof activeSession.model.topK === "number" ? { topK: activeSession.model.topK } : typeof modelRow?.topK === "number" ? { topK: modelRow.topK } : {}),
@@ -79,6 +80,7 @@ export function useModelDialogController({ activeSession, selectedModel, setSele
         provider: current.provider || bundle.provider.title,
         contextsize: current.contextsize || modelRow?.contextsize || activeSession.model.contextsize,
         modalities: current.modalities ?? modelRow?.modalities ?? activeSession.model.modalities ?? ["text"],
+        reasoningEffort: normalizeReasoningEffort(current.reasoningEffort ?? modelRow?.reasoningEffort ?? activeSession.model.reasoningEffort),
         url: bundle.provider.url || current.url,
         token: bundle.provider.token || current.token,
         ...(typeof current.temperature === "number" ? { temperature: current.temperature } : typeof modelRow?.temperature === "number" ? { temperature: modelRow.temperature } : typeof activeSession.model.temperature === "number" ? { temperature: activeSession.model.temperature } : {}),
@@ -89,9 +91,11 @@ export function useModelDialogController({ activeSession, selectedModel, setSele
     }
   }, [activeSession?.sessionid, providerBundles, selectedModel.provider, selectedModel.url]);
 
-  const dialog = open ? <ModelDialog selectedModel={selectedModel} providers={providerBundles} t={t} onClose={() => setOpen(false)} onSelect={(provider, model) => {
+  const dialog = open ? <ModelDialog selectedModel={selectedModel} providers={providerBundles} t={t} onClose={() => setOpen(false)} onReasoningEffortChange={(reasoningEffort) => {
+    setSelectedModel((current) => ({ ...current, reasoningEffort }));
+  }} onSelect={(provider, model) => {
     const bundle = providerBundles.find((item) => item.provider.title === provider);
-    setSelectedModel({ provider, model: model.model, contextsize: model.contextsize, url: bundle?.provider.url ?? "", token: bundle?.provider.token ?? "", modalities: model.modalities ?? ["text"], ...(typeof model.temperature === "number" ? { temperature: model.temperature } : {}), ...(typeof model.topP === "number" ? { topP: model.topP } : {}), ...(typeof model.topK === "number" ? { topK: model.topK } : {}), ...(typeof model.minP === "number" ? { minP: model.minP } : {}) });
+    setSelectedModel((current) => ({ provider, model: model.model, contextsize: model.contextsize, url: bundle?.provider.url ?? "", token: bundle?.provider.token ?? "", modalities: model.modalities ?? ["text"], reasoningEffort: normalizeReasoningEffort(current.reasoningEffort ?? model.reasoningEffort), ...(typeof model.temperature === "number" ? { temperature: model.temperature } : {}), ...(typeof model.topP === "number" ? { topP: model.topP } : {}), ...(typeof model.topK === "number" ? { topK: model.topK } : {}), ...(typeof model.minP === "number" ? { minP: model.minP } : {}) }));
     setOpen(false);
   }} onAddProvider={async (input) => {
     const provider = await createWebProvider({ title: input.title, type: "openai", url: input.url, token: input.token });

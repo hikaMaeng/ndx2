@@ -357,6 +357,14 @@ Restore event mapping:
 | `kind=tool_result` | `turn.tool.result` |
 | `type=interrupt` | `turn.interrupted` |
 
+`reasoning_control` rows use `tool_generated_user_message` contents with
+`sources=[{ tool: "reasoning_effort" }]`. They are model-visible user-role
+control tags such as `<ndx_reasoning_effort>low</ndx_reasoning_effort>`,
+appended immediately before the current user request, but they do not restore as
+chat messages. The stable developer prompt instructs models to apply only the
+nearest such tag before the latest user request. The same effort is also sent
+through the provider request body when supported.
+
 The server does not persist runtime session grants. A physical WebSocket keeps
 an in-memory set of attached `sessionid` values. A freshly opened browser has
 no grants until it creates or attaches the session again, while PostgreSQL

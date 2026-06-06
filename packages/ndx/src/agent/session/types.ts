@@ -2,6 +2,7 @@ import type { NDXDatabase } from "../init/database.js";
 import { serverWorkspaceProjectPath } from "../../common/server-path/index.js";
 
 export type NDXSessionMode = "none" | "light";
+export type NDXReasoningEffort = "low" | "medium" | "high";
 
 export type NDXModelConfig = {
   type: "openai";
@@ -11,6 +12,7 @@ export type NDXModelConfig = {
   token: string;
   contextsize: number;
   modalities?: Array<"text" | "image" | "file">;
+  reasoningEffort?: NDXReasoningEffort;
 };
 
 export type NDXSessionRow = {

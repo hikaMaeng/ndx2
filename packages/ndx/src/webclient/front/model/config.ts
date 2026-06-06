@@ -1,4 +1,4 @@
-import type { NDXAgentWebModel, NDXAgentWebModelConfig, NDXAgentWebProvider } from "ndx/webclient/common";
+import type { NDXAgentWebModel, NDXAgentWebModelConfig, NDXAgentWebProvider, NDXReasoningEffort } from "ndx/webclient/common";
 
 export type ProviderBundle = {
   provider: NDXAgentWebProvider;
@@ -12,6 +12,7 @@ export type SelectedModelConfig = {
   url: string;
   token: string;
   modalities: Array<"text" | "image" | "file">;
+  reasoningEffort: NDXReasoningEffort;
   temperature?: number;
   topP?: number;
   topK?: number;
@@ -24,7 +25,8 @@ export const DEFAULT_MODEL: SelectedModelConfig = {
   contextsize: 100_000,
   url: "",
   token: "",
-  modalities: ["text"]
+  modalities: ["text"],
+  reasoningEffort: "medium"
 };
 
 export function toModelConfig(model: SelectedModelConfig) {
@@ -36,6 +38,7 @@ export function toModelConfig(model: SelectedModelConfig) {
     token: model.token ?? "",
     contextsize: typeof model.contextsize === "number" ? model.contextsize : 100_000,
     modalities: model.modalities ?? ["text"],
+    reasoningEffort: normalizeReasoningEffort(model.reasoningEffort),
     ...(typeof model.temperature === "number" ? { temperature: model.temperature } : {}),
     ...(typeof model.topP === "number" ? { topP: model.topP } : {}),
     ...(typeof model.topK === "number" ? { topK: model.topK } : {}),
@@ -51,9 +54,14 @@ export function fromModelConfig(model: NDXAgentWebModelConfig): SelectedModelCon
     url: model.url ?? "",
     token: model.token ?? "",
     modalities: model.modalities ?? ["text"],
+    reasoningEffort: normalizeReasoningEffort(model.reasoningEffort),
     ...(typeof model.temperature === "number" ? { temperature: model.temperature } : {}),
     ...(typeof model.topP === "number" ? { topP: model.topP } : {}),
     ...(typeof model.topK === "number" ? { topK: model.topK } : {}),
     ...(typeof model.minP === "number" ? { minP: model.minP } : {})
   };
+}
+
+export function normalizeReasoningEffort(value: unknown): NDXReasoningEffort {
+  return value === "low" || value === "medium" || value === "high" ? value : "medium";
 }

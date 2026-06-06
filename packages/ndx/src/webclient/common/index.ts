@@ -35,6 +35,7 @@ export type {
   NDXAgentWebModel,
   NDXAgentWebModelConfig,
   NDXAgentWebModelsResponse,
+  NDXReasoningEffort,
   NDXAgentWebProject,
   NDXAgentWebProjectsResponse,
   NDXAgentWebChatFolder,

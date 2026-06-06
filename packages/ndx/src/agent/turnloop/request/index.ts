@@ -1,4 +1,4 @@
-import { assistantMessageContents, userMessageContents } from "../../session/content.js";
+import { assistantMessageContents, toolGeneratedUserMessageContents, userMessageContents } from "../../session/content.js";
 import { appendSessionData } from "../../session/appendSessionData.js";
 import { listSessionDataForModelContext } from "../../compact/index.js";
 import { addInlineAttachmentDataIds, listInlineAttachmentDataIds } from "../../session/runtimeData.js";
@@ -12,6 +12,7 @@ import { listAvailableTools, toolSchemas } from "../../tool/index.js";
 import { serverContainerUserHome, toServerProjectPath } from "../../../common/server-path/index.js";
 import { createNDXAgentResourceResolver, DEFAULT_NDX_AGENT_LANGUAGE, NDX_AGENT_RESOURCE } from "../../../common/resource/index.js";
 import { NDX_TURN_EVENT } from "../../../common/protocol/index.js";
+import { buildReasoningEffortControlLine } from "../../context/reasoningDiscipline/index.js";
 import { beginTurnInterruptScope } from "../base/interrupt/index.js";
 import { buildTurnBaseMessageParts, buildTurnMessagesFromParts } from "../base/context/index.js";
 import { compactTurnContext } from "../base/compact/index.js";
@@ -100,6 +101,14 @@ export async function handleUserRequest(
       await compactTurnContext(state, requestReceived.compact, preInputRows, preInputContextUsage, state.text);
     }
 
+    if (!requestReceived.stopTurn && isReasoningEffort(state.runningSession.model.reasoningEffort)) {
+      await appendSessionData(
+        database,
+        state.runningSession.sessionid,
+        "reasoning_control",
+        toolGeneratedUserMessageContents(buildReasoningEffortControlLine(state.runningSession.model.reasoningEffort), [], [{ tool: "reasoning_effort" }])
+      );
+    }
     state.input = await appendSessionData(database, state.runningSession.sessionid, "user", userMessageContents(state.text, state.attachments));
     if (state.attachments.some((attachment) => attachment.kind === "image")) {
       await addInlineAttachmentDataIds(database, state.runningSession.sessionid, [state.input.dataid]);
@@ -132,4 +141,8 @@ export async function handleUserRequest(
   } finally {
     state.interrupt?.complete();
   }
+}
+
+function isReasoningEffort(value: unknown): value is "low" | "medium" | "high" {
+  return value === "low" || value === "medium" || value === "high";
 }

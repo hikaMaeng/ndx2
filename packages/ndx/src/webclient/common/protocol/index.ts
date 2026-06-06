@@ -100,11 +100,14 @@ export type NDXAgentWebUpdateProviderRequest = {
   token?: string;
 };
 
+export type NDXReasoningEffort = "low" | "medium" | "high";
+
 export type NDXAgentWebModel = {
   provider: string;
   model: string;
   contextsize: number;
   modalities: Array<"text" | "image" | "file">;
+  reasoningEffort?: NDXReasoningEffort;
   temperature?: number;
   topP?: number;
   topK?: number;
@@ -120,6 +123,7 @@ export type NDXAgentWebCreateModelRequest = {
   model: string;
   contextsize: number;
   modalities?: Array<"text" | "image" | "file">;
+  reasoningEffort?: NDXReasoningEffort;
   temperature?: number;
   topP?: number;
   topK?: number;
@@ -129,6 +133,7 @@ export type NDXAgentWebCreateModelRequest = {
 export type NDXAgentWebUpdateModelRequest = {
   contextsize?: number;
   modalities?: Array<"text" | "image" | "file">;
+  reasoningEffort?: NDXReasoningEffort | null;
   temperature?: number | null;
   topP?: number | null;
   topK?: number | null;
@@ -169,6 +174,7 @@ export type NDXAgentWebModelConfig = {
   token: string;
   contextsize: number;
   modalities?: Array<"text" | "image" | "file">;
+  reasoningEffort?: NDXReasoningEffort;
   temperature?: number;
   topP?: number;
   topK?: number;

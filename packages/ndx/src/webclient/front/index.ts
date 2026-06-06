@@ -25,7 +25,7 @@ export type { Translation } from "./i18n/translation.js";
 export { NDXWebClientSessionUiManager } from "./sessionManager.js";
 export type { NDXWebClientSessionUiStateFactory } from "./sessionManager.js";
 export type { SocketState } from "./app/socketState.js";
-export { DEFAULT_MODEL, fromModelConfig, toModelConfig } from "./model/config.js";
+export { DEFAULT_MODEL, fromModelConfig, normalizeReasoningEffort, toModelConfig } from "./model/config.js";
 export type { ProviderBundle, SelectedModelConfig } from "./model/config.js";
 export { normalizeModalities, optionalNullableNumber, optionalNumber, optionalNumberText, toggleModality } from "./model/form.js";
 export { sessionDataContentsAttachments, sessionDataContentsText, sessionDataToChatMessage, sessionDataToVisibleChatMessage } from "./session/chat.js";

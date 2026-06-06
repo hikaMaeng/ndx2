@@ -1,7 +1,7 @@
 import React from "react";
 import { ChevronDown, CircleAlert, Pencil, Plus, RefreshCw, Send, Trash2, X } from "lucide-react";
 import type { NDXAgentWebModel } from "ndx/webclient/common";
-import { createWebProvider, createWebProviderModel, deleteWebProvider, deleteWebProviderModel, listWebProviderModels, listWebProviders, normalizeModalities, optionalNullableNumber, optionalNumber, optionalNumberText, readProviderModelNames, syncWebProviderModels, toggleModality, updateWebProviderModel, type ProviderBundle, type SelectedModelConfig, type SessionUiState } from "ndx/webclient/front";
+import { createWebProvider, createWebProviderModel, deleteWebProvider, deleteWebProviderModel, listWebProviderModels, listWebProviders, normalizeModalities, normalizeReasoningEffort, optionalNullableNumber, optionalNumber, optionalNumberText, readProviderModelNames, syncWebProviderModels, toggleModality, updateWebProviderModel, type ProviderBundle, type SelectedModelConfig, type SessionUiState } from "ndx/webclient/front";
 
 type ChatSurfaceProps = {
   title: string;
@@ -168,6 +168,7 @@ function ChatModelDialog({ selectedModel, onClose, onSelect }: {
       url: provider.url,
       token: provider.token,
       modalities: model.modalities ?? ["text"],
+      reasoningEffort: normalizeReasoningEffort(selectedModel.reasoningEffort ?? model.reasoningEffort),
       ...(typeof model.temperature === "number" ? { temperature: model.temperature } : {}),
       ...(typeof model.topP === "number" ? { topP: model.topP } : {}),
       ...(typeof model.topK === "number" ? { topK: model.topK } : {}),

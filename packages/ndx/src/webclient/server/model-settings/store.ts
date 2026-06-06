@@ -32,6 +32,7 @@ type NDXSettingsModel = {
   topK?: unknown;
   minP?: unknown;
   MinP?: unknown;
+  reasoningEffort?: unknown;
   [key: string]: unknown;
 };
 
@@ -124,6 +125,7 @@ export async function createSettingsWebModel(userHome: string, input: NDXWebMode
     provider: input.provider.trim(),
     maxContext: input.contextsize,
     modalities: normalizeModalities(input.modalities),
+    ...settingsReasoningEffortField(input.reasoningEffort),
     ...settingsInferenceFields(input)
   };
   if (!settings.model) settings.model = key;
@@ -136,6 +138,7 @@ export async function createSettingsWebModel(userHome: string, input: NDXWebMode
 export async function updateSettingsWebModel(userHome: string, provider: string, model: string, input: {
   contextsize: number;
   modalities?: Array<"text" | "image" | "file">;
+  reasoningEffort?: "low" | "medium" | "high" | null;
   temperature?: number | null;
   topP?: number | null;
   topK?: number | null;
@@ -150,6 +153,7 @@ export async function updateSettingsWebModel(userHome: string, provider: string,
     maxContext: input.contextsize,
     modalities: input.modalities ? normalizeModalities(input.modalities) : normalizeModalities(Array.isArray(found.model.modalities) ? found.model.modalities as Array<"text" | "image" | "file"> : undefined)
   };
+  applyOptionalReasoningEffort(settings.models[found.key], input.reasoningEffort);
   applyOptionalNumber(settings.models[found.key], "temperature", input.temperature);
   applyOptionalNumber(settings.models[found.key], "topP", input.topP);
   applyOptionalNumber(settings.models[found.key], "topK", input.topK);
@@ -248,6 +252,7 @@ function settingsModelRow(key: string, model: NDXSettingsModel): NDXWebModelRow 
     model: name,
     contextsize,
     modalities: normalizeModalities(modalities),
+    ...webReasoningEffortField(model.reasoningEffort),
     ...optionalNumberField("temperature", model.temperature),
     ...optionalNumberField("topP", model.topP),
     ...optionalNumberField("topK", model.topK),
@@ -264,6 +269,14 @@ function settingsInferenceFields(input: NDXWebModelRow): Partial<NDXSettingsMode
   };
 }
 
+function settingsReasoningEffortField(value: unknown): Pick<NDXSettingsModel, "reasoningEffort"> {
+  return value === "low" || value === "medium" || value === "high" ? { reasoningEffort: value } : {};
+}
+
+function webReasoningEffortField(value: unknown): Pick<NDXWebModelRow, "reasoningEffort"> {
+  return value === "low" || value === "medium" || value === "high" ? { reasoningEffort: value } : {};
+}
+
 function optionalNumberField<Key extends string>(key: Key, value: unknown): Partial<Record<Key, number>> {
   return typeof value === "number" && Number.isFinite(value) ? { [key]: value } as Partial<Record<Key, number>> : {};
 }
@@ -275,6 +288,16 @@ function applyOptionalNumber(target: NDXSettingsModel, key: "temperature" | "top
   }
   if (value === null) {
     delete target[key];
+  }
+}
+
+function applyOptionalReasoningEffort(target: NDXSettingsModel, value: "low" | "medium" | "high" | null | undefined): void {
+  if (value === "low" || value === "medium" || value === "high") {
+    target.reasoningEffort = value;
+    return;
+  }
+  if (value === null) {
+    delete target.reasoningEffort;
   }
 }
 

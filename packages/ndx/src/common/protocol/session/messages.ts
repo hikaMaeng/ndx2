@@ -36,6 +36,7 @@ export type NDXSessionModelConfig = {
   token: string;
   contextsize: number;
   modalities?: Array<"text" | "image" | "file">;
+  reasoningEffort?: "low" | "medium" | "high";
   temperature?: number;
   topP?: number;
   topK?: number;
@@ -456,7 +457,7 @@ export function isNDXSessionCreateMessage(value: unknown): value is NDXSessionCr
     return false;
   }
 
-  const model = message.model as { type?: unknown; model?: unknown; url?: unknown; token?: unknown; contextsize?: unknown; modalities?: unknown };
+  const model = message.model as { type?: unknown; model?: unknown; url?: unknown; token?: unknown; contextsize?: unknown; modalities?: unknown; reasoningEffort?: unknown };
   return (
     model.type === "openai" &&
     typeof model.model === "string" &&
@@ -466,6 +467,10 @@ export function isNDXSessionCreateMessage(value: unknown): value is NDXSessionCr
     typeof model.contextsize === "number" &&
     Number.isFinite(model.contextsize) &&
     model.contextsize > 0 &&
+    (model.reasoningEffort === undefined ||
+      model.reasoningEffort === "low" ||
+      model.reasoningEffort === "medium" ||
+      model.reasoningEffort === "high") &&
     (model.modalities === undefined ||
       (Array.isArray(model.modalities) &&
         model.modalities.every((modality) => modality === "text" || modality === "image" || modality === "file")))

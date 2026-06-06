@@ -3,6 +3,7 @@ import { buildAvailableSkillsInstructions } from "./availableSkillsInstructions/
 import { buildDeveloperInstructions } from "./developerInstructions/index.js";
 import { buildEnvironmentContext } from "./environmentContext/index.js";
 import { resolveModelInstruction } from "./modelInstrcution/index.js";
+import { buildReasoningDisciplineInstructions } from "./reasoningDiscipline/index.js";
 import type { BuiltContext, BuiltContextParts, SessionMetadata } from "./types.js";
 import { buildUserInstructions } from "./userInstructions/index.js";
 
@@ -28,6 +29,7 @@ export async function buildContextParts(sessionMetadata: SessionMetadata): Promi
 
   const developerSections = [
     modelInstruction ? `<model_instruction>\n${modelInstruction}\n</model_instruction>` : "",
+    `<reasoning_discipline>\n${buildReasoningDisciplineInstructions()}\n</reasoning_discipline>`,
     await buildDeveloperInstructions(sessionMetadata),
     availableSkills ? `<available_skills_instructions>\n${availableSkills}\n</available_skills_instructions>` : "",
     availablePlugins ? `<available_plugins_instructions>${availablePlugins}</available_plugins_instructions>` : "",

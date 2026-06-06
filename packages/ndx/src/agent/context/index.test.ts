@@ -97,6 +97,53 @@ test("buildContext uses user-home default model prompt", async () => {
   });
 });
 
+test("buildContext includes reasoning discipline in developer prompt", async () => {
+  await withTempDir(async (dir) => {
+    const userHome = path.join(dir, "home");
+    const projectHome = path.join(dir, "project");
+    const modelPromptDirectory = path.join(userHome, ".ndx", "system", "modelprompt");
+    await fs.mkdir(modelPromptDirectory, { recursive: true });
+    await fs.writeFile(path.join(modelPromptDirectory, "default.md"), "custom prompt\n", "utf8");
+    await fs.mkdir(path.join(userHome, ".ndx"), { recursive: true });
+    await fs.writeFile(path.join(userHome, ".ndx", "system-promt.md"), "developer policy\n", "utf8");
+
+    const context = await buildContext({
+      model: modelConfig("unknown-local-model"),
+      cwd: projectHome,
+      userHome,
+      projectHome,
+    });
+
+    const modelInstructionIndex = context.developer.indexOf("<model_instruction>");
+    const reasoningIndex = context.developer.indexOf("<reasoning_discipline>");
+    const developerInstructionsIndex = context.developer.indexOf("<developer_instructions>");
+    assert.ok(modelInstructionIndex >= 0);
+    assert.ok(reasoningIndex > modelInstructionIndex);
+    assert.ok(developerInstructionsIndex > reasoningIndex);
+    assert.match(context.developer, /<ndx_reasoning_effort>low\|medium\|high<\/ndx_reasoning_effort>/);
+    assert.match(context.developer, /This line is NDX control metadata/);
+    assert.match(context.developer, /Apply only the nearest such line before the latest user request/);
+  });
+});
+
+test("buildContext keeps developer prompt stable across reasoning effort changes", async () => {
+  await withTempDir(async (dir) => {
+    const low = await buildContext({
+      model: { ...modelConfig("unknown-local-model"), reasoningEffort: "low" },
+      cwd: "/mnt/f/dev/project",
+      userHome: path.join(dir, "missing-home"),
+    });
+    const high = await buildContext({
+      model: { ...modelConfig("unknown-local-model"), reasoningEffort: "high" },
+      cwd: "/mnt/f/dev/project",
+      userHome: path.join(dir, "missing-home"),
+    });
+
+    assert.equal(high.developer, low.developer);
+    assert.match(high.developer, /<ndx_reasoning_effort>low\|medium\|high<\/ndx_reasoning_effort>/);
+  });
+});
+
 test("buildContext prefers model-specific prompt files under initialized .ndx", async () => {
   await withTempDir(async (dir) => {
     const userHome = path.join(dir, "home");

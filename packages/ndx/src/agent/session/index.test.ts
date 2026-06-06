@@ -611,6 +611,115 @@ test("runSessionTurn appends user first, rebuilds history from sessiondata, call
   }
 });
 
+test("runSessionTurn appends reasoning control after prior prefix and before current user input", async () => {
+  const projectPath = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-session-reasoning-control-"));
+  const modelInputs: unknown[] = [];
+  const modelReasoning: unknown[] = [];
+  const modelServer = http.createServer((request, response) => {
+    let body = "";
+    request.on("data", (chunk) => {
+      body += String(chunk);
+    });
+    request.on("end", () => {
+      const payload = JSON.parse(body) as { input?: unknown; reasoning?: unknown };
+      modelInputs.push(payload.input);
+      modelReasoning.push(payload.reasoning);
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.end(JSON.stringify({ output: [{ type: "message", content: [{ type: "output_text", text: "완료" }] }] }));
+    });
+  });
+
+  await new Promise<void>((resolve) => {
+    modelServer.listen(0, "127.0.0.1", () => resolve());
+  });
+  const address = modelServer.address();
+  assert(address && typeof address === "object");
+
+  const session: NDXSessionRow = {
+    sessionid: "018f0000-0000-7000-8000-000000000001",
+    userid: "ndev",
+    title: "",
+    mode: "none",
+    path: projectPath,
+    projectname: "project-1",
+    model: { ...modelConfig("test-model"), url: `http://127.0.0.1:${address.port}/v1`, reasoningEffort: "high" },
+    isrunning: false,
+    turnphase: "idle",
+    interruptrequested: false,
+    interruptrequestedat: null,
+    interruptcompletedat: null,
+    lastupdated: new Date("2026-05-12T00:00:00.000Z")
+  };
+  const rows: NDXSessionDataRow[] = [
+    {
+      dataid: "1",
+      sessionid: session.sessionid,
+      type: "user",
+      contents: { kind: "user_message", text: "이전 질문" },
+      createdat: new Date("2026-05-12T00:00:01.000Z")
+    },
+    {
+      dataid: "2",
+      sessionid: session.sessionid,
+      type: "assistant",
+      contents: { kind: "assistant_message", text: "이전 답변" },
+      createdat: new Date("2026-05-12T00:00:02.000Z")
+    }
+  ];
+  const database: NDXDatabase = {
+    async query(text, values) {
+      if (/SET\s+model = COALESCE/i.test(text)) {
+        session.isrunning = true;
+        return { rows: [session], rowCount: 1 } as never;
+      }
+      if (/SET\s+turnphase = \$2/i.test(text)) {
+        session.turnphase = String(values?.[1]);
+        return { rows: [session], rowCount: 1 } as never;
+      }
+      if (/FROM "session"/i.test(text) && /WHERE sessionid = \$1/i.test(text)) {
+        return { rows: [session], rowCount: 1 } as never;
+      }
+      if (/INSERT INTO sessiondata/i.test(text)) {
+        const row = {
+          dataid: String(rows.length + 1),
+          sessionid: String(values?.[0]),
+          type: String(values?.[1]),
+          contents: JSON.parse(String(values?.[2])),
+          createdat: new Date(`2026-05-12T00:00:${String(rows.length + 1).padStart(2, "0")}.000Z`)
+        };
+        rows.push(row);
+        return { rows: [row], rowCount: 1 } as never;
+      }
+      if (/FROM sessiondata/i.test(text)) {
+        return { rows: [...rows], rowCount: rows.length } as never;
+      }
+      if (/SET\s+isrunning = false/i.test(text)) {
+        session.isrunning = false;
+        return { rows: [session], rowCount: 1 } as never;
+      }
+      return { rows: [], rowCount: 0 } as never;
+    },
+    async close() {}
+  };
+
+  try {
+    await runSessionTurn(database, session, { text: "새 질문" });
+
+    assert.equal(rows[2]?.type, "reasoning_control");
+    assert.deepEqual(rows[2]?.contents, { kind: "tool_generated_user_message", text: "<ndx_reasoning_effort>high</ndx_reasoning_effort>", sources: [{ tool: "reasoning_effort" }] });
+    assert.equal(rows[3]?.type, "user");
+    assert.deepEqual(rows[3]?.contents, { kind: "user_message", text: "새 질문" });
+    assert.deepEqual(modelReasoning[0], { effort: "high" });
+    const input = String(modelInputs[0]);
+    assert.ok(input.indexOf("이전 답변") < input.indexOf("<ndx_reasoning_effort>high</ndx_reasoning_effort>"));
+    assert.ok(input.indexOf("<ndx_reasoning_effort>high</ndx_reasoning_effort>") < input.indexOf("새 질문"));
+  } finally {
+    modelServer.close();
+    await once(modelServer, "close");
+    await fs.rm(projectPath, { recursive: true, force: true });
+  }
+});
+
 test("session data model reconstruction keeps cot_work reminders as durable user history", () => {
   const messages = sessionDataRowsToModelMessages([
     {
@@ -682,6 +791,30 @@ test("session data model reconstruction exposes compact summaries as user histor
   assert.deepEqual(messages, [
     { role: "user", content: "Session compact summary:\n이전 대화 요약" },
     { role: "user", content: "이어 해줘" }
+  ]);
+});
+
+test("session data model reconstruction exposes reasoning control rows without treating them as user input rows", () => {
+  const messages = sessionDataRowsToModelMessages([
+    {
+      dataid: "1",
+      sessionid: "018f0000-0000-7000-8000-000000000010",
+      type: "reasoning_control",
+      contents: { kind: "tool_generated_user_message", text: "<ndx_reasoning_effort>high</ndx_reasoning_effort>", sources: [{ tool: "reasoning_effort" }] },
+      createdat: new Date("2026-05-12T00:00:01.000Z")
+    },
+    {
+      dataid: "2",
+      sessionid: "018f0000-0000-7000-8000-000000000010",
+      type: "user",
+      contents: { kind: "user_message", text: "깊게 검토해" },
+      createdat: new Date("2026-05-12T00:00:02.000Z")
+    }
+  ]);
+
+  assert.deepEqual(messages, [
+    { role: "user", content: "<ndx_reasoning_effort>high</ndx_reasoning_effort>" },
+    { role: "user", content: "깊게 검토해" }
   ]);
 });
 

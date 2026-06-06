@@ -6,7 +6,7 @@ NDX의 컨텍스트 조립은 `packages/ndx/src/agent/context`와 `packages/ndx/
 
 | part | 코드 | 모델 역할 |
 | --- | --- | --- |
-| developer | `buildContextParts().developer` | model instruction, developer instruction, skills/plugins. |
+| developer | `buildContextParts().developer` | model instruction, stable reasoning tag grammar, developer instruction, skills/plugins. |
 | userInstructions | `buildUserInstructions` | AGENTS.md, project/user instruction, repository-local guidance. |
 | environment | `buildEnvironmentContext` | `cwd`, shell, date/timezone 같은 stable environment context. |
 | history | `sessionDataRowsToModelMessages` | PostgreSQL `sessiondata`에서 온 ordered history. |
@@ -21,6 +21,7 @@ NDX의 컨텍스트 조립은 `packages/ndx/src/agent/context`와 `packages/ndx/
 | source | 설명 |
 | --- | --- |
 | model instruction | 모델별 instruction resolver가 만든 기본 지침. |
+| reasoning discipline | `<ndx_reasoning_effort>...</ndx_reasoning_effort>` 태그의 고정 문법과 의미. 실제 `reasoningEffort` 값은 developer prelude에 넣지 않고 현재 턴의 append-only `reasoning_control` row와 Responses API `reasoning.effort`에만 반영한다. |
 | developer instruction | NDX agent personality와 작업 방식. |
 | available skills | 현재 user/project/runtime에서 발견된 skill 요약. |
 | available plugins | 사용 가능한 plugin 안내. |

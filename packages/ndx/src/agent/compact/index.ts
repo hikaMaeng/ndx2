@@ -222,6 +222,12 @@ function compactTurnText(row: NDXSessionDataRow): string | undefined {
     return undefined;
   }
   const contents = row.contents as { kind?: unknown; text?: unknown; message?: unknown };
+  if (contents.kind === "tool_generated_user_message" && Array.isArray((contents as { sources?: unknown }).sources)) {
+    const sources = (contents as { sources: unknown[] }).sources;
+    if (sources.some((source) => source && typeof source === "object" && (source as { tool?: unknown }).tool === "reasoning_effort")) {
+      return undefined;
+    }
+  }
   if ((contents.kind === "user_message" || contents.kind === "tool_generated_user_message") && typeof contents.text === "string" && contents.text.trim()) {
     return `User request:\n${contents.text.trim()}`;
   }

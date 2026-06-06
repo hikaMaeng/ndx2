@@ -252,7 +252,7 @@ test("requestModelResponse retries transient fetch failures for the configured e
 
   try {
     const response = await requestModelResponse(
-      { model: "test-model", url: "http://192.168.0.6:12345/v1", token: "", temperature: 0.7, topP: 0.9, topK: 40, minP: 0.05 },
+      { model: "test-model", url: "http://192.168.0.6:12345/v1", token: "", reasoningEffort: "low", temperature: 0.7, topP: 0.9, topK: 40, minP: 0.05 },
       [{ role: "user", content: "재시도해" }]
     );
 
@@ -261,6 +261,7 @@ test("requestModelResponse retries transient fetch failures for the configured e
       "http://192.168.0.6:12345/v1/responses",
       "http://192.168.0.6:12345/v1/responses"
     ]);
+    assert.deepEqual(requestBodies[0].reasoning, { effort: "low" });
     assert.equal(requestBodies[0].temperature, 0.7);
     assert.equal(requestBodies[0].top_p, 0.9);
     assert.equal(requestBodies[0].top_k, 40);

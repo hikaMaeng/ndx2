@@ -130,6 +130,7 @@ export function attachAgentWebModelRoutes(app: express.Express, database?: NDXDa
         model,
         contextsize: typeof body.contextsize === "number" ? body.contextsize : 100_000,
         modalities: normalizeModalities(body.modalities),
+        ...(isReasoningEffort(body.reasoningEffort) ? { reasoningEffort: body.reasoningEffort } : {}),
         ...(typeof body.temperature === "number" ? { temperature: body.temperature } : {}),
         ...(typeof body.topP === "number" ? { topP: body.topP } : {}),
         ...(typeof body.topK === "number" ? { topK: body.topK } : {}),
@@ -149,6 +150,7 @@ export function attachAgentWebModelRoutes(app: express.Express, database?: NDXDa
       const row = await updateSettingsWebModel(NDX_CONTAINER_USER_HOME, request.params.title, request.params.model, {
         contextsize: typeof body.contextsize === "number" ? body.contextsize : 100_000,
         modalities: body.modalities ? normalizeModalities(body.modalities) : undefined,
+        reasoningEffort: isReasoningEffort(body.reasoningEffort) ? body.reasoningEffort : body.reasoningEffort === null ? null : undefined,
         temperature: typeof body.temperature === "number" ? body.temperature : body.temperature === null ? null : undefined,
         topP: typeof body.topP === "number" ? body.topP : body.topP === null ? null : undefined,
         topK: typeof body.topK === "number" ? body.topK : body.topK === null ? null : undefined,
@@ -179,4 +181,8 @@ function normalizeModalities(value: unknown): Array<"text" | "image" | "file"> {
   }
   const allowed = new Set(["text", "image", "file"]);
   return [...new Set([...value.filter((item) => allowed.has(item)), "text"])] as Array<"text" | "image" | "file">;
+}
+
+function isReasoningEffort(value: unknown): value is "low" | "medium" | "high" {
+  return value === "low" || value === "medium" || value === "high";
 }

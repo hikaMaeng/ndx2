@@ -1,7 +1,7 @@
 import React from "react";
 import { CircleAlert, Pencil, Plus, RefreshCw, Trash2, X } from "lucide-react";
-import type { NDXAgentWebModel, NDXAgentWebProvider } from "ndx/webclient/common";
-import { normalizeModalities, optionalNullableNumber, optionalNumber, optionalNumberText, toggleModality } from "ndx/webclient/front";
+import type { NDXAgentWebModel, NDXAgentWebProvider, NDXReasoningEffort } from "ndx/webclient/common";
+import { normalizeModalities, normalizeReasoningEffort, optionalNullableNumber, optionalNumber, optionalNumberText, toggleModality, type SelectedModelConfig } from "ndx/webclient/front";
 import { RSC } from "../resource";
 
 type ProviderBundle = {
@@ -10,11 +10,12 @@ type ProviderBundle = {
 };
 
 type ModelDialogProps = {
-  selectedModel: { provider: string; model: string };
+  selectedModel: SelectedModelConfig;
   providers: ProviderBundle[];
   t: Record<string, string>;
   onClose: () => void;
   onSelect: (provider: string, model: NDXAgentWebModel) => void;
+  onReasoningEffortChange: (effort: NDXReasoningEffort) => void;
   onAddProvider: (input: { title: string; url: string; token: string }) => Promise<void>;
   onAddModel: (provider: string, input: ModelFormInput) => Promise<void>;
   onSyncProvider: (provider: string) => Promise<void>;
@@ -32,6 +33,12 @@ type ModelFormInput = {
   topK?: number;
   minP?: number;
 };
+
+const REASONING_EFFORT_OPTIONS: Array<{ value: NDXReasoningEffort; key: RSC }> = [
+  { value: "low", key: RSC.SESSION_MODEL_DIALOG_REASONING_EFFORT_LOW_LABEL },
+  { value: "medium", key: RSC.SESSION_MODEL_DIALOG_REASONING_EFFORT_MEDIUM_LABEL },
+  { value: "high", key: RSC.SESSION_MODEL_DIALOG_REASONING_EFFORT_HIGH_LABEL }
+];
 
 type ModelUpdateInput = {
   contextsize: number;
@@ -235,7 +242,7 @@ export function ModelDialog(props: ModelDialogProps) {
           </form>
         ) : null}
 
-        <div className="grid gap-3 max-h-[70vh] overflow-auto pr-1">
+        <div className="grid gap-3 max-h-[60vh] overflow-auto pr-1">
           {props.providers.map(({ provider, models }, providerIndex) => {
             const syncing = syncingProviders.has(provider.title);
             const syncError = syncErrorProviders.has(provider.title);
@@ -349,8 +356,60 @@ export function ModelDialog(props: ModelDialogProps) {
             );
           })}
         </div>
+        <ReasoningEffortCard
+          value={props.selectedModel.reasoningEffort}
+          disabled={dialogLocked}
+          t={props.t}
+          onChange={props.onReasoningEffortChange}
+        />
       </section>
     </div>
+  );
+}
+
+function ReasoningEffortCard(props: { value: NDXReasoningEffort; disabled: boolean; t: Record<string, string>; onChange: (value: NDXReasoningEffort) => void }) {
+  const value = normalizeReasoningEffort(props.value);
+  const selectedIndex = Math.max(0, REASONING_EFFORT_OPTIONS.findIndex((option) => option.value === value));
+  const selected = REASONING_EFFORT_OPTIONS[selectedIndex] ?? REASONING_EFFORT_OPTIONS[1];
+  return (
+    <section className="grid gap-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3" aria-labelledby="reasoning-effort-title">
+      <div className="flex min-w-0 items-center justify-between gap-3">
+        <div className="grid min-w-0 gap-1">
+          <h3 id="reasoning-effort-title" className="text-sm font-semibold text-zinc-100">{props.t[RSC.SESSION_MODEL_DIALOG_REASONING_EFFORT_TITLE_TEXT]}</h3>
+          <p className="text-xs text-zinc-500">{props.t[RSC.SESSION_MODEL_DIALOG_REASONING_EFFORT_DESCRIPTION_TEXT]}</p>
+        </div>
+        <span className="inline-flex h-7 shrink-0 items-center rounded-full border border-emerald-700 bg-emerald-950/60 px-2.5 text-xs font-medium text-emerald-200">
+          {props.t[selected.key]}
+        </span>
+      </div>
+      <div className="grid gap-2">
+        <input
+          aria-label={props.t[RSC.SESSION_MODEL_DIALOG_REASONING_EFFORT_TITLE_TEXT]}
+          className="h-6 w-full accent-emerald-500 disabled:opacity-50"
+          disabled={props.disabled}
+          type="range"
+          min={0}
+          max={2}
+          step={1}
+          value={selectedIndex}
+          onChange={(event) => props.onChange(REASONING_EFFORT_OPTIONS[Number(event.target.value)]?.value ?? "medium")}
+        />
+        <div className="grid grid-cols-3 text-xs text-zinc-500">
+          {REASONING_EFFORT_OPTIONS.map((option, index) => (
+            <button
+              key={option.value}
+              type="button"
+              disabled={props.disabled}
+              className={index === selectedIndex ? "truncate text-emerald-200 disabled:opacity-50" : "truncate text-zinc-500 hover:text-zinc-300 disabled:opacity-50"}
+              aria-pressed={index === selectedIndex}
+              onClick={() => props.onChange(option.value)}
+            >
+              {props.t[option.key]}
+            </button>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 

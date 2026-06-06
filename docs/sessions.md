@@ -18,7 +18,7 @@ Session metadata records properties about the session itself:
 * title, initially empty for empty sessions and derived from the first user request
   when an initial request exists unless renamed;
 * last mode (`none` or `light`);
-* model config JSON (`NDXModelConfig` shape: `type`, `model`, `url`, `token`, `contextsize`, optional `modalities`);
+* model config JSON (`NDXModelConfig` shape: `type`, `model`, `url`, `token`, `contextsize`, optional `modalities`, optional `reasoningEffort`);
 * last interaction time (`lastupdated`);
 * physical project root path;
 * idle or active state (`isrunning`);
