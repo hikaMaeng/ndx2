@@ -2,11 +2,16 @@ export function eventContentText(contents: unknown): string {
   if (typeof contents === "string") return contents;
   if (!contents || typeof contents !== "object") return "";
   const payload = contents as Record<string, unknown>;
-  if (typeof payload.text === "string") return payload.text;
+  if (typeof payload.text === "string") return visibleUserRequestText(payload.text);
   if (typeof payload.content === "string") return payload.content;
   if (typeof payload.summary === "string") return payload.summary;
   if (typeof payload.message === "string") return payload.message;
   return "";
+}
+
+function visibleUserRequestText(text: string): string {
+  const match = text.match(/^<ndx_request\s+reasoning="(?:none|nothink|normal|high|minimal|allowed)">\s*<user_request>\s*([\s\S]*?)\s*<\/user_request>\s*<execution_policy>[\s\S]*<\/execution_policy>\s*<\/ndx_request>\s*$/);
+  return match?.[1] ?? text;
 }
 
 export function toolNameFromCall(toolCall: unknown): string {

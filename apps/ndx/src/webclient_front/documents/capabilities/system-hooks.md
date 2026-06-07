@@ -4,15 +4,16 @@ System hook은 NDX runtime이 기본으로 설치하는 hook이다. 사용자가
 
 ## thinking marker
 
-`turn.request.received`의 thinking marker hook은 Composer가 붙인 `[[NDX_THINKING_low|medium|high]]` markup을 감지한다. Hook은 markup을 user request에서 제거하고, 현재 요청을 `<ndx_request reasoning="none|minimal|allowed">` wrapper로 감싼다. Wrapper는 `<user_request>`와 `<execution_policy>`를 같은 요청 단위 안에 둬서 thinking 정책이 해당 요청에 직접 걸리도록 만든다. 이 변환은 request-specific user prompt tail에 들어가므로 stable developer prompt를 바꾸지 않는다.
+`turn.request.received`의 thinking marker hook은 Composer가 붙인 `[[NDX_THINKING_none|nothink|normal|high]]` markup을 감지한다. `none`은 markup만 제거하고 원문을 그대로 둔다. 다른 값은 현재 요청을 `<ndx_request reasoning="nothink|normal|high">` wrapper로 감싼다. Wrapper는 `<user_request>`와 `<execution_policy>`를 같은 요청 단위 안에 둬서 thinking 정책이 해당 요청에 직접 걸리도록 만든다. 이 변환은 request-specific user prompt tail에 들어가므로 stable developer prompt를 바꾸지 않는다.
 
 Reasoning level mapping은 다음과 같다.
 
 | marker | wrapper | 의미 |
 | --- | --- | --- |
-| `low` | `reasoning="none"` | no-thinking. reasoning 대신 즉시 tool call 또는 짧은 직접 답변을 요구하고, 계획이 필요하면 `cot_work`를 사용하게 한다. |
-| `medium` | `reasoning="minimal"` | almost no-thinking. 아주 짧은 판단만 허용하고, 그 이상은 `cot_work`로 외부화한다. |
-| `high` | `reasoning="allowed"` | reasoning 허용. 그래도 긴 계획/실행 추적은 `cot_work`를 선호한다. |
+| `none` | 없음 | prompt tag와 provider `reasoning.effort`를 모두 보내지 않는다. |
+| `nothink` | `reasoning="nothink"` | no-thinking. reasoning 대신 즉시 tool call 또는 짧은 직접 답변을 요구하고, 계획이 필요하면 `cot_work`를 사용하게 한다. Provider에는 가능한 경우 `reasoning.effort=low`를 보낸다. |
+| `normal` | `reasoning="normal"` | 기본 작업 모드. reasoning을 기본적으로 줄이고, 계획/불확실성은 `cot_work`로 외부화한다. Provider에는 가능한 경우 `reasoning.effort=medium`을 보낸다. |
+| `high` | `reasoning="high"` | reasoning 허용. 그래도 긴 계획/실행 추적은 `cot_work`를 선호한다. Provider에는 가능한 경우 `reasoning.effort=high`를 보낸다. |
 
 ## skill marker
 

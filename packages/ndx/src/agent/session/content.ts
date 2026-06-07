@@ -134,12 +134,17 @@ export function sessionDataTitleText(row: Pick<NDXSessionDataRow, "type" | "cont
 
   const contents = row.contents as Partial<NDXSessionDataContents> & { text?: unknown; message?: unknown };
   if ((contents.kind === "user_message" || contents.kind === "tool_generated_user_message" || contents.kind === "assistant_message") && typeof contents.text === "string") {
-    return contents.text;
+    return contents.kind === "assistant_message" ? contents.text : visibleUserRequestTitle(contents.text);
   }
   if (contents.kind === "error" && typeof contents.message === "string") {
     return contents.message;
   }
   return sessionDataText(row);
+}
+
+function visibleUserRequestTitle(text: string): string {
+  const match = text.match(/^<ndx_request\s+reasoning="(?:none|nothink|normal|high|minimal|allowed)">\s*<user_request>\s*([\s\S]*?)\s*<\/user_request>\s*<execution_policy>[\s\S]*<\/execution_policy>\s*<\/ndx_request>\s*$/);
+  return match?.[1] ?? text;
 }
 
 function stringifyToolOutput(output: unknown): string {

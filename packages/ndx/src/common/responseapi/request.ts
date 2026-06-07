@@ -461,8 +461,16 @@ function isProviderInputParseFailure(error: unknown): boolean {
 }
 
 function modelInferenceBody(model: ResponseModelConfig): { reasoning?: { effort: "low" | "medium" | "high" }; temperature?: number; top_p?: number; top_k?: number; min_p?: number } {
+  const effort =
+    model.reasoningEffort === "nothink" || model.reasoningEffort === "low"
+      ? "low"
+      : model.reasoningEffort === "normal" || model.reasoningEffort === "medium"
+        ? "medium"
+        : model.reasoningEffort === "high"
+          ? "high"
+          : undefined;
   return {
-    ...(model.reasoningEffort === "low" || model.reasoningEffort === "medium" || model.reasoningEffort === "high" ? { reasoning: { effort: model.reasoningEffort } } : {}),
+    ...(effort ? { reasoning: { effort } } : {}),
     ...(typeof model.temperature === "number" ? { temperature: model.temperature } : {}),
     ...(typeof model.topP === "number" ? { top_p: model.topP } : {}),
     ...(typeof model.topK === "number" ? { top_k: model.topK } : {}),

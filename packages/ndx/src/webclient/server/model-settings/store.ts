@@ -138,7 +138,7 @@ export async function createSettingsWebModel(userHome: string, input: NDXWebMode
 export async function updateSettingsWebModel(userHome: string, provider: string, model: string, input: {
   contextsize: number;
   modalities?: Array<"text" | "image" | "file">;
-  reasoningEffort?: "low" | "medium" | "high" | null;
+  reasoningEffort?: "none" | "nothink" | "normal" | "high" | null;
   temperature?: number | null;
   topP?: number | null;
   topK?: number | null;
@@ -270,11 +270,13 @@ function settingsInferenceFields(input: NDXWebModelRow): Partial<NDXSettingsMode
 }
 
 function settingsReasoningEffortField(value: unknown): Pick<NDXSettingsModel, "reasoningEffort"> {
-  return value === "low" || value === "medium" || value === "high" ? { reasoningEffort: value } : {};
+  const effort = normalizeStoredReasoningEffort(value);
+  return effort ? { reasoningEffort: effort } : {};
 }
 
 function webReasoningEffortField(value: unknown): Pick<NDXWebModelRow, "reasoningEffort"> {
-  return value === "low" || value === "medium" || value === "high" ? { reasoningEffort: value } : {};
+  const effort = normalizeStoredReasoningEffort(value);
+  return effort ? { reasoningEffort: effort } : {};
 }
 
 function optionalNumberField<Key extends string>(key: Key, value: unknown): Partial<Record<Key, number>> {
@@ -291,14 +293,21 @@ function applyOptionalNumber(target: NDXSettingsModel, key: "temperature" | "top
   }
 }
 
-function applyOptionalReasoningEffort(target: NDXSettingsModel, value: "low" | "medium" | "high" | null | undefined): void {
-  if (value === "low" || value === "medium" || value === "high") {
-    target.reasoningEffort = value;
+function applyOptionalReasoningEffort(target: NDXSettingsModel, value: "none" | "nothink" | "normal" | "high" | null | undefined): void {
+  const effort = normalizeStoredReasoningEffort(value);
+  if (effort) {
+    target.reasoningEffort = effort;
     return;
   }
   if (value === null) {
     delete target.reasoningEffort;
   }
+}
+
+function normalizeStoredReasoningEffort(value: unknown): "none" | "nothink" | "normal" | "high" | undefined {
+  if (value === "low") return "nothink";
+  if (value === "medium") return "normal";
+  return value === "none" || value === "nothink" || value === "normal" || value === "high" ? value : undefined;
 }
 
 function findSettingsModel(settings: NDXSettingsDocument, provider: string, model: string): { key: string; model: NDXSettingsModel } | undefined {

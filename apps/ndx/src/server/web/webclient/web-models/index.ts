@@ -183,6 +183,6 @@ function normalizeModalities(value: unknown): Array<"text" | "image" | "file"> {
   return [...new Set([...value.filter((item) => allowed.has(item)), "text"])] as Array<"text" | "image" | "file">;
 }
 
-function isReasoningEffort(value: unknown): value is "low" | "medium" | "high" {
-  return value === "low" || value === "medium" || value === "high";
+function isReasoningEffort(value: unknown): value is "none" | "nothink" | "normal" | "high" {
+  return value === "none" || value === "nothink" || value === "normal" || value === "high";
 }

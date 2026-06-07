@@ -36,7 +36,7 @@ export type NDXSessionModelConfig = {
   token: string;
   contextsize: number;
   modalities?: Array<"text" | "image" | "file">;
-  reasoningEffort?: "low" | "medium" | "high";
+  reasoningEffort?: "none" | "nothink" | "normal" | "high";
   temperature?: number;
   topP?: number;
   topK?: number;
@@ -468,8 +468,9 @@ export function isNDXSessionCreateMessage(value: unknown): value is NDXSessionCr
     Number.isFinite(model.contextsize) &&
     model.contextsize > 0 &&
     (model.reasoningEffort === undefined ||
-      model.reasoningEffort === "low" ||
-      model.reasoningEffort === "medium" ||
+      model.reasoningEffort === "none" ||
+      model.reasoningEffort === "nothink" ||
+      model.reasoningEffort === "normal" ||
       model.reasoningEffort === "high") &&
     (model.modalities === undefined ||
       (Array.isArray(model.modalities) &&

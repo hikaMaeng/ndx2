@@ -1,5 +1,5 @@
-export function buildThinkingLevelControlLine(effort: "low" | "medium" | "high"): string {
-  const level = effort === "low" ? "forbidden" : effort === "medium" ? "brief" : "deep";
+export function buildThinkingLevelControlLine(effort: "nothink" | "normal" | "high" | "low" | "medium"): string {
+  const level = effort === "nothink" || effort === "low" ? "forbidden" : effort === "normal" || effort === "medium" ? "brief" : "deep";
   return `<ndx_thinking_level>${level}</ndx_thinking_level>`;
 }
 

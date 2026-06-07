@@ -35,8 +35,9 @@ type ModelFormInput = {
 };
 
 const REASONING_EFFORT_OPTIONS: Array<{ value: NDXReasoningEffort; key: RSC }> = [
-  { value: "low", key: RSC.SESSION_MODEL_DIALOG_REASONING_EFFORT_LOW_LABEL },
-  { value: "medium", key: RSC.SESSION_MODEL_DIALOG_REASONING_EFFORT_MEDIUM_LABEL },
+  { value: "none", key: RSC.SESSION_MODEL_DIALOG_REASONING_EFFORT_NONE_LABEL },
+  { value: "nothink", key: RSC.SESSION_MODEL_DIALOG_REASONING_EFFORT_NOTHINK_LABEL },
+  { value: "normal", key: RSC.SESSION_MODEL_DIALOG_REASONING_EFFORT_NORMAL_LABEL },
   { value: "high", key: RSC.SESSION_MODEL_DIALOG_REASONING_EFFORT_HIGH_LABEL }
 ];
 
@@ -370,7 +371,8 @@ export function ModelDialog(props: ModelDialogProps) {
 function ReasoningEffortCard(props: { value: NDXReasoningEffort; disabled: boolean; t: Record<string, string>; onChange: (value: NDXReasoningEffort) => void }) {
   const value = normalizeReasoningEffort(props.value);
   const selectedIndex = Math.max(0, REASONING_EFFORT_OPTIONS.findIndex((option) => option.value === value));
-  const selected = REASONING_EFFORT_OPTIONS[selectedIndex] ?? REASONING_EFFORT_OPTIONS[1];
+  const selected = REASONING_EFFORT_OPTIONS[selectedIndex] ?? REASONING_EFFORT_OPTIONS[0];
+  const maxIndex = REASONING_EFFORT_OPTIONS.length - 1;
   return (
     <section className="grid gap-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3" aria-labelledby="reasoning-effort-title">
       <div className="flex min-w-0 items-center justify-between gap-3">
@@ -385,7 +387,7 @@ function ReasoningEffortCard(props: { value: NDXReasoningEffort; disabled: boole
       <div
         aria-disabled={props.disabled}
         aria-label={props.t[RSC.SESSION_MODEL_DIALOG_REASONING_EFFORT_TITLE_TEXT]}
-        aria-valuemax={2}
+        aria-valuemax={maxIndex}
         aria-valuemin={0}
         aria-valuenow={selectedIndex}
         aria-valuetext={props.t[selected.key]}
@@ -396,15 +398,15 @@ function ReasoningEffortCard(props: { value: NDXReasoningEffort; disabled: boole
           if (props.disabled) return;
           if (event.key === "ArrowLeft" || event.key === "ArrowDown") {
             event.preventDefault();
-            props.onChange(REASONING_EFFORT_OPTIONS[Math.max(0, selectedIndex - 1)]?.value ?? "low");
+            props.onChange(REASONING_EFFORT_OPTIONS[Math.max(0, selectedIndex - 1)]?.value ?? "none");
           }
           if (event.key === "ArrowRight" || event.key === "ArrowUp") {
             event.preventDefault();
-            props.onChange(REASONING_EFFORT_OPTIONS[Math.min(2, selectedIndex + 1)]?.value ?? "high");
+            props.onChange(REASONING_EFFORT_OPTIONS[Math.min(maxIndex, selectedIndex + 1)]?.value ?? "high");
           }
           if (event.key === "Home") {
             event.preventDefault();
-            props.onChange("low");
+            props.onChange("none");
           }
           if (event.key === "End") {
             event.preventDefault();
@@ -413,8 +415,8 @@ function ReasoningEffortCard(props: { value: NDXReasoningEffort; disabled: boole
         }}
       >
         <div className="absolute left-5 right-5 top-3 h-1 rounded-full bg-zinc-700" />
-        <div className="absolute left-5 top-3 h-1 rounded-full bg-emerald-500" style={{ width: `calc((100% - 2.5rem) * ${selectedIndex / 2})` }} />
-        <span className="pointer-events-none absolute top-1 h-5 w-5 -translate-x-1/2 rounded-full border-2 border-emerald-400 bg-emerald-500 shadow-sm" style={{ left: `calc(1.25rem + (100% - 2.5rem) * ${selectedIndex / 2})` }} />
+        <div className="absolute left-5 top-3 h-1 rounded-full bg-emerald-500" style={{ width: `calc((100% - 2.5rem) * ${selectedIndex / maxIndex})` }} />
+        <span className="pointer-events-none absolute top-1 h-5 w-5 -translate-x-1/2 rounded-full border-2 border-emerald-400 bg-emerald-500 shadow-sm" style={{ left: `calc(1.25rem + (100% - 2.5rem) * ${selectedIndex / maxIndex})` }} />
         <div className="absolute left-5 right-5 top-0">
           {REASONING_EFFORT_OPTIONS.map((option, index) => (
             <button
@@ -422,7 +424,7 @@ function ReasoningEffortCard(props: { value: NDXReasoningEffort; disabled: boole
               type="button"
               disabled={props.disabled}
               className={index === selectedIndex ? "absolute top-0 flex h-14 w-16 -translate-x-1/2 flex-col items-center justify-between pt-2 text-xs text-emerald-200 disabled:opacity-50" : "absolute top-0 flex h-14 w-16 -translate-x-1/2 flex-col items-center justify-between pt-2 text-xs text-zinc-500 hover:text-zinc-300 disabled:opacity-50"}
-              style={{ left: `${index * 50}%` }}
+              style={{ left: `${(index / maxIndex) * 100}%` }}
               aria-pressed={index === selectedIndex}
               onClick={() => props.onChange(option.value)}
             >

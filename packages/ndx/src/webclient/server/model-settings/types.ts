@@ -10,7 +10,7 @@ export type NDXWebModelRow = {
   model: string;
   contextsize: number;
   modalities: Array<"text" | "image" | "file">;
-  reasoningEffort?: "low" | "medium" | "high";
+  reasoningEffort?: "none" | "nothink" | "normal" | "high" | "low" | "medium";
   temperature?: number;
   topP?: number;
   topK?: number;

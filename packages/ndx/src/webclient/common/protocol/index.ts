@@ -100,7 +100,7 @@ export type NDXAgentWebUpdateProviderRequest = {
   token?: string;
 };
 
-export type NDXReasoningEffort = "low" | "medium" | "high";
+export type NDXReasoningEffort = "none" | "nothink" | "normal" | "high";
 
 export type NDXAgentWebModel = {
   provider: string;

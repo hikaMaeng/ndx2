@@ -271,6 +271,33 @@ test("requestModelResponse retries transient fetch failures for the configured e
   }
 });
 
+test("requestModelResponse omits provider reasoning effort for none", async () => {
+  const previousFetch = globalThis.fetch;
+  let requestBody: Record<string, unknown> | undefined;
+  globalThis.fetch = (async (_input, init) => {
+    if (typeof init?.body !== "string") {
+      throw new Error("expected string request body");
+    }
+    requestBody = JSON.parse(init.body) as Record<string, unknown>;
+    return new Response(JSON.stringify({ output: [{ type: "message", content: [{ type: "output_text", text: "ok" }] }] }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    });
+  }) as typeof fetch;
+
+  try {
+    await requestModelResponse(
+      { model: "test-model", url: "http://192.168.0.6:12345/v1", token: "", reasoningEffort: "none" },
+      [{ role: "user", content: "확인해" }]
+    );
+
+    assert.ok(requestBody);
+    assert.equal("reasoning" in requestBody, false);
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
 test("requestModelResponse configures a long provider communication timeout", async () => {
   const previousFetch = globalThis.fetch;
   const debugContexts: Array<Record<string, unknown>> = [];

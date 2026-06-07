@@ -21,7 +21,7 @@ NDX의 컨텍스트 조립은 `packages/ndx/src/agent/context`와 `packages/ndx/
 | source | 설명 |
 | --- | --- |
 | model instruction | 모델별 instruction resolver가 만든 기본 지침. |
-| reasoning discipline | `<ndx_thinking_level>...</ndx_thinking_level>` 태그의 고정 문법과 의미. 실제 `reasoningEffort` 값은 developer prelude에 넣지 않고 현재 턴의 append-only `reasoning_control` row와 Responses API `reasoning.effort`에만 반영한다. |
+| reasoning discipline | `<ndx_thinking_level>...</ndx_thinking_level>`와 request-scoped `<ndx_request reasoning="...">` 문법의 의미. `none`은 추가 prompt/provider 처리를 하지 않고, `nothink/normal/high`만 현재 턴의 append-only control row, request wrapper, Responses API `reasoning.effort` 매핑에 반영한다. |
 | developer instruction | NDX agent personality와 작업 방식. |
 | available skills | 현재 user/project/runtime에서 발견된 skill 요약. |
 | available plugins | 사용 가능한 plugin 안내. |

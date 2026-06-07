@@ -77,7 +77,10 @@ export function sessionDataContentsText(contents: unknown): string | undefined {
     outputReserveTokens?: unknown;
     reason?: unknown;
   };
-  if ((payload.kind === "user_message" || payload.kind === "tool_generated_user_message" || payload.kind === "assistant_message") && typeof payload.text === "string") {
+  if ((payload.kind === "user_message" || payload.kind === "tool_generated_user_message") && typeof payload.text === "string") {
+    return visibleUserRequestText(payload.text);
+  }
+  if (payload.kind === "assistant_message" && typeof payload.text === "string") {
     return payload.text;
   }
   if (payload.kind === "assistant_delta" && typeof payload.content === "string") {
@@ -167,6 +170,11 @@ export function sessionDataContentsText(contents: unknown): string | undefined {
     return payload.message;
   }
   return undefined;
+}
+
+export function visibleUserRequestText(text: string): string {
+  const match = text.match(/^<ndx_request\s+reasoning="(?:none|nothink|normal|high|minimal|allowed)">\s*<user_request>\s*([\s\S]*?)\s*<\/user_request>\s*<execution_policy>[\s\S]*<\/execution_policy>\s*<\/ndx_request>\s*$/);
+  return match?.[1] ?? text;
 }
 
 export function sessionDataContentsAttachments(data: NDXAgentWebSessionData): ChatMessageAttachment[] {

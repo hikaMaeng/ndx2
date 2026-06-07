@@ -129,8 +129,8 @@ test("buildContext includes reasoning discipline in developer prompt", async () 
 
 test("buildContext keeps developer prompt stable across reasoning effort changes", async () => {
   await withTempDir(async (dir) => {
-    const low = await buildContext({
-      model: { ...modelConfig("unknown-local-model"), reasoningEffort: "low" },
+    const nothink = await buildContext({
+      model: { ...modelConfig("unknown-local-model"), reasoningEffort: "nothink" },
       cwd: "/mnt/f/dev/project",
       userHome: path.join(dir, "missing-home"),
     });
@@ -140,7 +140,7 @@ test("buildContext keeps developer prompt stable across reasoning effort changes
       userHome: path.join(dir, "missing-home"),
     });
 
-    assert.equal(high.developer, low.developer);
+    assert.equal(high.developer, nothink.developer);
     assert.match(high.developer, /<ndx_thinking_level>forbidden\|brief\|deep<\/ndx_thinking_level>/);
   });
 });

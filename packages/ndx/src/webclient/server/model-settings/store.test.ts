@@ -41,8 +41,8 @@ test("settings-backed web providers and models edit .ndx/settings.json as source
 
     await updateSettingsWebProvider(userHome, "local", { url: "http://example.test/v1", token: "secret" });
     await createSettingsWebProvider(userHome, { title: "remote", type: "openai", url: "https://api.example.test/v1", token: "r" });
-    await createSettingsWebModel(userHome, { provider: "remote", model: "gpt-test", contextsize: 128000, modalities: ["text", "file"], reasoningEffort: "low", temperature: 0.7, topP: 0.9, topK: 50, minP: 0.05 });
-    await updateSettingsWebModel(userHome, "remote", "gpt-test", { contextsize: 64000, reasoningEffort: "medium", temperature: null, topP: 0.8, topK: null, minP: 0 });
+    await createSettingsWebModel(userHome, { provider: "remote", model: "gpt-test", contextsize: 128000, modalities: ["text", "file"], reasoningEffort: "nothink", temperature: 0.7, topP: 0.9, topK: 50, minP: 0.05 });
+    await updateSettingsWebModel(userHome, "remote", "gpt-test", { contextsize: 64000, reasoningEffort: "normal", temperature: null, topP: 0.8, topK: null, minP: 0 });
     await deleteSettingsWebModel(userHome, "local", "qwen3-coder-next:tr");
 
     const settings = JSON.parse(await fs.readFile(settingsPath, "utf8")) as {
@@ -56,7 +56,7 @@ test("settings-backed web providers and models edit .ndx/settings.json as source
     assert.equal(settings.models["gpt-test"].provider, "remote");
     assert.equal(settings.models["gpt-test"].maxContext, 64000);
     assert.deepEqual(settings.models["gpt-test"].modalities, ["text", "file"]);
-    assert.equal(settings.models["gpt-test"].reasoningEffort, "medium");
+    assert.equal(settings.models["gpt-test"].reasoningEffort, "normal");
     assert.equal(settings.models["gpt-test"].temperature, undefined);
     assert.equal(settings.models["gpt-test"].topP, 0.8);
     assert.equal(settings.models["gpt-test"].topK, undefined);

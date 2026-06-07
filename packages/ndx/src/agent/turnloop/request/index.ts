@@ -143,6 +143,6 @@ export async function handleUserRequest(
   }
 }
 
-function isReasoningEffort(value: unknown): value is "low" | "medium" | "high" {
-  return value === "low" || value === "medium" || value === "high";
+function isReasoningEffort(value: unknown): value is "nothink" | "normal" | "high" | "low" | "medium" {
+  return value === "nothink" || value === "normal" || value === "high" || value === "low" || value === "medium";
 }
