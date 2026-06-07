@@ -334,6 +334,89 @@ test("request received system hook records selected skill contents before rewrit
   assert.match(text, /Use demo workflow\./);
 });
 
+test("request received system hook expands thinking marker into the current user request", async () => {
+  const result = await runNDXHooks(createNDXHookRuntime({ [NDX_TURN_EVENT.RequestReceived]: turnRequestReceivedHooks }, {}), NDX_TURN_EVENT.RequestReceived, {
+    ...baseContext,
+    requestText: "[[NDX_THINKING_low]]\n수정하고 배포해"
+  });
+
+  assert.match(result.effect.replaceRequestText ?? "", /^<ndx_request reasoning="none">/);
+  assert.match(result.effect.replaceRequestText ?? "", /<user_request>\n수정하고 배포해\n<\/user_request>/);
+  assert.match(result.effect.replaceRequestText ?? "", /<execution_policy>/);
+  assert.match(result.effect.replaceRequestText ?? "", /Do not think in the model response/);
+  assert.match(result.effect.replaceRequestText ?? "", /use cot_work as the thinking surface instead of reasoning/);
+  assert.match(result.effect.replaceRequestText ?? "", /immediately call exactly one useful tool/);
+  assert.match(result.effect.replaceRequestText ?? "", /<\/ndx_request>$/);
+  assert.doesNotMatch(result.effect.replaceRequestText ?? "", /NDX_THINKING/);
+});
+
+test("request received thinking marker maps medium and high to distinct guidance", async () => {
+  const medium = await runNDXHooks(createNDXHookRuntime({ [NDX_TURN_EVENT.RequestReceived]: turnRequestReceivedHooks }, {}), NDX_TURN_EVENT.RequestReceived, {
+    ...baseContext,
+    requestText: "[[NDX_THINKING_medium]]\n확인해"
+  });
+  const high = await runNDXHooks(createNDXHookRuntime({ [NDX_TURN_EVENT.RequestReceived]: turnRequestReceivedHooks }, {}), NDX_TURN_EVENT.RequestReceived, {
+    ...baseContext,
+    requestText: "[[NDX_THINKING_high]]\n확인해"
+  });
+
+  assert.match(medium.effect.replaceRequestText ?? "", /^<ndx_request reasoning="minimal">/);
+  assert.match(medium.effect.replaceRequestText ?? "", /Almost no-thinking mode applies to this user request/);
+  assert.match(medium.effect.replaceRequestText ?? "", /call cot_work and put the plan or uncertainty there instead of reasoning/);
+  assert.match(high.effect.replaceRequestText ?? "", /^<ndx_request reasoning="allowed">/);
+  assert.match(high.effect.replaceRequestText ?? "", /Reasoning is allowed/);
+  assert.match(high.effect.replaceRequestText ?? "", /prefer cot_work over extended reasoning text/);
+});
+
+test("request received system hook applies thinking and skill markers together", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-hook-thinking-skill-"));
+  const userHome = path.join(root, "user");
+  const projectHome = path.join(root, "project");
+  const skillPath = path.join(projectHome, ".ndx", "skills", "demo", "SKILL.md");
+  const rows: Array<{ dataid: string; sessionid: string; type: string; contents: unknown; createdat: Date }> = [];
+  await fs.mkdir(path.dirname(skillPath), { recursive: true });
+  await fs.writeFile(skillPath, "---\nname: demo\ndescription: demo skill\n---\nUse demo workflow.\n", "utf8");
+
+  const database: NDXDatabase = {
+    async query(text, values) {
+      if (/SELECT dataid, sessionid, type, contents, createdat\s+FROM sessiondata/i.test(text)) {
+        return { rows, rowCount: rows.length, command: "", oid: 0, fields: [] } as never;
+      }
+      if (/INSERT INTO sessiondata/i.test(text)) {
+        const row = {
+          dataid: String(rows.length + 1),
+          sessionid: String(values?.[0]),
+          type: String(values?.[1]),
+          contents: JSON.parse(String(values?.[2])),
+          createdat: new Date(0)
+        };
+        rows.push(row);
+        return { rows: [row], rowCount: 1, command: "", oid: 0, fields: [] } as never;
+      }
+      return { rows: [], rowCount: 0, command: "", oid: 0, fields: [] } as never;
+    },
+    async close() {}
+  };
+
+  const result = await runNDXHooks(createNDXHookRuntime({ [NDX_TURN_EVENT.RequestReceived]: turnRequestReceivedHooks }, {}), NDX_TURN_EVENT.RequestReceived, {
+    ...baseContext,
+    database,
+    userHome,
+    projectHome,
+    messages: [
+      { role: "system", content: `## Skills\n### Available skills\n- demo: demo skill (file: ${skillPath})` },
+      { role: "user", content: "hello" }
+    ],
+    requestText: "[[NDX_THINKING_low]] [[NDX_SKILL_demo]]로 처리해줘"
+  });
+
+  assert.match(result.effect.replaceRequestText ?? "", /^<ndx_request reasoning="none">/);
+  assert.match(result.effect.replaceRequestText ?? "", /<user_request>\n\$demo로 처리해줘\n<\/user_request>/);
+  assert.doesNotMatch(result.effect.replaceRequestText ?? "", /NDX_THINKING|NDX_SKILL/);
+  assert.equal(rows.length, 1);
+  assert.deepEqual((rows[0].contents as { kind?: unknown }).kind, "skill_context");
+});
+
 test("request received system hook appends a selected instruction when the skill is already present in model context", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-hook-skill-loaded-"));
   const userHome = path.join(root, "user");

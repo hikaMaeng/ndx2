@@ -103,6 +103,7 @@ export function useSessionRequestController({
     }
     if (!startAction(sessionSubmitActionKey)) return;
     const text = chatInput.trim();
+    const requestText = withThinkingMarker(text, selectedModel.reasoningEffort);
     const pendingAttachments = chatAttachments;
     if (!text && pendingAttachments.length === 0) {
       finishAction(sessionSubmitActionKey);
@@ -146,13 +147,13 @@ export function useSessionRequestController({
       const encodedAttachments = await encodeAttachments(pendingAttachments);
       const sendMessage = (sessionid: string, attachSessionRow?: NDXAgentWebSession) => {
         const model = toModelConfig(selectedModel);
-        if (attachedSessionIdsRef.current.has(sessionid) && getSocket()?.sendInput(sessionid, text, model, encodedAttachments)) {
+        if (attachedSessionIdsRef.current.has(sessionid) && getSocket()?.sendInput(sessionid, requestText, model, encodedAttachments)) {
           updateSessionUi(sessionid, (current) => rightSidebarCleared({ ...current, agentRunning: true, cotWork: undefined }));
           return;
         }
         const session = attachSessionRow ?? Object.values(sessionsByProject).flat().find((item) => item.sessionid === sessionid);
         if (getSocket()?.isOpen() && session) {
-          updateSessionUi(sessionid, (current) => ({ ...current, pendingAttachRequest: { sessionid, text, model, attachments: encodedAttachments } }));
+          updateSessionUi(sessionid, (current) => ({ ...current, pendingAttachRequest: { sessionid, text: requestText, model, attachments: encodedAttachments } }));
           updateSessionUi(sessionid, rightSidebarCleared);
           if (attachSession(session)) return;
           updateSessionUi(sessionid, (current) => ({ ...current, pendingAttachRequest: undefined }));
@@ -165,12 +166,12 @@ export function useSessionRequestController({
       if (draftProject) {
         if (socketState === "connected") {
           const model = toModelConfig(selectedModel);
-          updateActiveUi((current) => ({ ...current, pendingInitialRequest: { text, model, attachments: encodedAttachments } }));
+          updateActiveUi((current) => ({ ...current, pendingInitialRequest: { text: requestText, model, attachments: encodedAttachments } }));
           if (getSocket()?.createSession({
             userid: project.userid,
             projectName: project.projectName,
             model,
-            initialInput: { text, ...(encodedAttachments.length ? { attachments: encodedAttachments } : {}) }
+            initialInput: { text: requestText, ...(encodedAttachments.length ? { attachments: encodedAttachments } : {}) }
           })) return;
           updateActiveUi((current) => ({ ...current, pendingInitialRequest: undefined }));
         }
@@ -227,4 +228,11 @@ export function useSessionRequestController({
     sessionSubmitActionKey,
     submitChatRequest
   };
+}
+
+function withThinkingMarker(text: string, effort: unknown): string {
+  if (effort !== "low" && effort !== "medium" && effort !== "high") {
+    return text;
+  }
+  return `[[NDX_THINKING_${effort}]]\n${text}`;
 }

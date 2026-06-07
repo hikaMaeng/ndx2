@@ -1,9 +1,11 @@
 import { requestContextLimitHook } from "../base/contextLimit/index.js";
 import { skillMarkerHook } from "../base/skillMarkers/index.js";
+import { thinkingMarkerHook } from "../base/thinkingMarkers/index.js";
 import { logNDXHookRunResult, runNDXHooks, type NDXHookCodeExecutor, type NDXHookContext, type NDXHookRunResult, type NDXHookRuntime } from "../index.js";
 import { NDX_TURN_EVENT } from "../../../common/protocol/index.js";
 
 export const systemHooks: NDXHookCodeExecutor[] = [
+  thinkingMarkerHook,
   skillMarkerHook,
   requestContextLimitHook
 ];

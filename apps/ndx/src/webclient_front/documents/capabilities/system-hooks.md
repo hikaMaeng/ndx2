@@ -1,6 +1,18 @@
 # System Hook 동작
 
-System hook은 NDX runtime이 기본으로 설치하는 hook이다. 사용자가 `.ndx/hook/hook.json`을 만들지 않아도 실행되며, skill marker, cot work reminder, inline image, prefix drift audit, stream guard, loop detection, session search 같은 핵심 보조 정책을 담당한다. 이벤트별 system hook 묶음은 `packages/ndx/src/agent/hook/system.ts`의 `systemNDXHookPlan`이 정의한다.
+System hook은 NDX runtime이 기본으로 설치하는 hook이다. 사용자가 `.ndx/hook/hook.json`을 만들지 않아도 실행되며, thinking marker, skill marker, cot work reminder, inline image, prefix drift audit, stream guard, loop detection, session search 같은 핵심 보조 정책을 담당한다. 이벤트별 system hook 묶음은 `packages/ndx/src/agent/hook/system.ts`의 `systemNDXHookPlan`이 정의한다.
+
+## thinking marker
+
+`turn.request.received`의 thinking marker hook은 Composer가 붙인 `[[NDX_THINKING_low|medium|high]]` markup을 감지한다. Hook은 markup을 user request에서 제거하고, 현재 요청을 `<ndx_request reasoning="none|minimal|allowed">` wrapper로 감싼다. Wrapper는 `<user_request>`와 `<execution_policy>`를 같은 요청 단위 안에 둬서 thinking 정책이 해당 요청에 직접 걸리도록 만든다. 이 변환은 request-specific user prompt tail에 들어가므로 stable developer prompt를 바꾸지 않는다.
+
+Reasoning level mapping은 다음과 같다.
+
+| marker | wrapper | 의미 |
+| --- | --- | --- |
+| `low` | `reasoning="none"` | no-thinking. reasoning 대신 즉시 tool call 또는 짧은 직접 답변을 요구하고, 계획이 필요하면 `cot_work`를 사용하게 한다. |
+| `medium` | `reasoning="minimal"` | almost no-thinking. 아주 짧은 판단만 허용하고, 그 이상은 `cot_work`로 외부화한다. |
+| `high` | `reasoning="allowed"` | reasoning 허용. 그래도 긴 계획/실행 추적은 `cot_work`를 선호한다. |
 
 ## skill marker
 

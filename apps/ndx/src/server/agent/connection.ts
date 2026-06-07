@@ -356,7 +356,7 @@ async function handleSessionMessage(
         await sendJson(client, { type: NDX_PROTOCOL_ERROR, error: error instanceof Error ? error.message : resource(NDX_AGENT_RESOURCE.PROTOCOL_UNSUPPORTED_SESSION_MESSAGE_ERROR, { language }) });
         return;
       }
-      (input as { title?: string }).title = sessionDataTitleText({ type: "user", contents: userMessageContents(initialInput.text.trim()) }) ?? "";
+      (input as { title?: string }).title = sessionDataTitleText({ type: "user", contents: userMessageContents(initialInput.text.replace(/\[\[NDX_THINKING_(low|medium|high)\]\]/g, "").trim()) }) ?? "";
     }
     const session = await createSession(database, input);
     client.grants.set(session.sessionid, {
