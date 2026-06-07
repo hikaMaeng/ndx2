@@ -706,13 +706,13 @@ test("runSessionTurn appends reasoning control after prior prefix and before cur
     await runSessionTurn(database, session, { text: "새 질문" });
 
     assert.equal(rows[2]?.type, "reasoning_control");
-    assert.deepEqual(rows[2]?.contents, { kind: "tool_generated_user_message", text: "<ndx_reasoning_effort>high</ndx_reasoning_effort>", sources: [{ tool: "reasoning_effort" }] });
+    assert.deepEqual(rows[2]?.contents, { kind: "tool_generated_user_message", text: "<ndx_thinking_level>deep</ndx_thinking_level>", sources: [{ tool: "thinking_level" }] });
     assert.equal(rows[3]?.type, "user");
     assert.deepEqual(rows[3]?.contents, { kind: "user_message", text: "새 질문" });
     assert.deepEqual(modelReasoning[0], { effort: "high" });
     const input = String(modelInputs[0]);
-    assert.ok(input.indexOf("이전 답변") < input.indexOf("<ndx_reasoning_effort>high</ndx_reasoning_effort>"));
-    assert.ok(input.indexOf("<ndx_reasoning_effort>high</ndx_reasoning_effort>") < input.indexOf("새 질문"));
+    assert.ok(input.indexOf("이전 답변") < input.indexOf("<ndx_thinking_level>deep</ndx_thinking_level>"));
+    assert.ok(input.indexOf("<ndx_thinking_level>deep</ndx_thinking_level>") < input.indexOf("새 질문"));
   } finally {
     modelServer.close();
     await once(modelServer, "close");
@@ -800,7 +800,7 @@ test("session data model reconstruction exposes reasoning control rows without t
       dataid: "1",
       sessionid: "018f0000-0000-7000-8000-000000000010",
       type: "reasoning_control",
-      contents: { kind: "tool_generated_user_message", text: "<ndx_reasoning_effort>high</ndx_reasoning_effort>", sources: [{ tool: "reasoning_effort" }] },
+      contents: { kind: "tool_generated_user_message", text: "<ndx_thinking_level>deep</ndx_thinking_level>", sources: [{ tool: "thinking_level" }] },
       createdat: new Date("2026-05-12T00:00:01.000Z")
     },
     {
@@ -813,7 +813,7 @@ test("session data model reconstruction exposes reasoning control rows without t
   ]);
 
   assert.deepEqual(messages, [
-    { role: "user", content: "<ndx_reasoning_effort>high</ndx_reasoning_effort>" },
+    { role: "user", content: "<ndx_thinking_level>deep</ndx_thinking_level>" },
     { role: "user", content: "깊게 검토해" }
   ]);
 });

@@ -12,7 +12,7 @@ import { listAvailableTools, toolSchemas } from "../../tool/index.js";
 import { serverContainerUserHome, toServerProjectPath } from "../../../common/server-path/index.js";
 import { createNDXAgentResourceResolver, DEFAULT_NDX_AGENT_LANGUAGE, NDX_AGENT_RESOURCE } from "../../../common/resource/index.js";
 import { NDX_TURN_EVENT } from "../../../common/protocol/index.js";
-import { buildReasoningEffortControlLine } from "../../context/reasoningDiscipline/index.js";
+import { buildThinkingLevelControlLine } from "../../context/reasoningDiscipline/index.js";
 import { beginTurnInterruptScope } from "../base/interrupt/index.js";
 import { buildTurnBaseMessageParts, buildTurnMessagesFromParts } from "../base/context/index.js";
 import { compactTurnContext } from "../base/compact/index.js";
@@ -106,7 +106,7 @@ export async function handleUserRequest(
         database,
         state.runningSession.sessionid,
         "reasoning_control",
-        toolGeneratedUserMessageContents(buildReasoningEffortControlLine(state.runningSession.model.reasoningEffort), [], [{ tool: "reasoning_effort" }])
+        toolGeneratedUserMessageContents(buildThinkingLevelControlLine(state.runningSession.model.reasoningEffort), [], [{ tool: "thinking_level" }])
       );
     }
     state.input = await appendSessionData(database, state.runningSession.sessionid, "user", userMessageContents(state.text, state.attachments));

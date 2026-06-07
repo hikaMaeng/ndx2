@@ -382,29 +382,52 @@ function ReasoningEffortCard(props: { value: NDXReasoningEffort; disabled: boole
           {props.t[selected.key]}
         </span>
       </div>
-      <div className="grid gap-2">
-        <input
-          aria-label={props.t[RSC.SESSION_MODEL_DIALOG_REASONING_EFFORT_TITLE_TEXT]}
-          className="h-6 w-full accent-emerald-500 disabled:opacity-50"
-          disabled={props.disabled}
-          type="range"
-          min={0}
-          max={2}
-          step={1}
-          value={selectedIndex}
-          onChange={(event) => props.onChange(REASONING_EFFORT_OPTIONS[Number(event.target.value)]?.value ?? "medium")}
-        />
-        <div className="grid grid-cols-3 text-xs text-zinc-500">
+      <div
+        aria-disabled={props.disabled}
+        aria-label={props.t[RSC.SESSION_MODEL_DIALOG_REASONING_EFFORT_TITLE_TEXT]}
+        aria-valuemax={2}
+        aria-valuemin={0}
+        aria-valuenow={selectedIndex}
+        aria-valuetext={props.t[selected.key]}
+        className="relative h-14 px-5"
+        role="slider"
+        tabIndex={props.disabled ? -1 : 0}
+        onKeyDown={(event) => {
+          if (props.disabled) return;
+          if (event.key === "ArrowLeft" || event.key === "ArrowDown") {
+            event.preventDefault();
+            props.onChange(REASONING_EFFORT_OPTIONS[Math.max(0, selectedIndex - 1)]?.value ?? "low");
+          }
+          if (event.key === "ArrowRight" || event.key === "ArrowUp") {
+            event.preventDefault();
+            props.onChange(REASONING_EFFORT_OPTIONS[Math.min(2, selectedIndex + 1)]?.value ?? "high");
+          }
+          if (event.key === "Home") {
+            event.preventDefault();
+            props.onChange("low");
+          }
+          if (event.key === "End") {
+            event.preventDefault();
+            props.onChange("high");
+          }
+        }}
+      >
+        <div className="absolute left-5 right-5 top-3 h-1 rounded-full bg-zinc-700" />
+        <div className="absolute left-5 top-3 h-1 rounded-full bg-emerald-500" style={{ width: `calc((100% - 2.5rem) * ${selectedIndex / 2})` }} />
+        <span className="pointer-events-none absolute top-1 h-5 w-5 -translate-x-1/2 rounded-full border-2 border-emerald-400 bg-emerald-500 shadow-sm" style={{ left: `calc(1.25rem + (100% - 2.5rem) * ${selectedIndex / 2})` }} />
+        <div className="absolute left-5 right-5 top-0">
           {REASONING_EFFORT_OPTIONS.map((option, index) => (
             <button
               key={option.value}
               type="button"
               disabled={props.disabled}
-              className={index === selectedIndex ? "truncate text-emerald-200 disabled:opacity-50" : "truncate text-zinc-500 hover:text-zinc-300 disabled:opacity-50"}
+              className={index === selectedIndex ? "absolute top-0 flex h-14 w-16 -translate-x-1/2 flex-col items-center justify-between pt-2 text-xs text-emerald-200 disabled:opacity-50" : "absolute top-0 flex h-14 w-16 -translate-x-1/2 flex-col items-center justify-between pt-2 text-xs text-zinc-500 hover:text-zinc-300 disabled:opacity-50"}
+              style={{ left: `${index * 50}%` }}
               aria-pressed={index === selectedIndex}
               onClick={() => props.onChange(option.value)}
             >
-              {props.t[option.key]}
+              <span className={index === selectedIndex ? "h-3 w-3 rounded-full bg-transparent" : "h-3 w-3 rounded-full border border-zinc-500 bg-zinc-900"} />
+              <span>{props.t[option.key]}</span>
             </button>
           ))}
         </div>

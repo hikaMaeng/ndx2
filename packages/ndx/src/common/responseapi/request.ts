@@ -242,6 +242,24 @@ export async function requestModelResponse(
             requestTimeoutMs
           });
           lastError = error;
+          if (isProviderInputParseFailure(error)) {
+            shouldTryAlternativeInput = true;
+            rememberRejectedProviderInputMode(compatibilityKey, requestEntry.inputMode);
+            const nextBody = requestBodies[bodyIndex + 1];
+            await requestEvents.onDebug?.("responseapi.request.input_fallback", {
+              endpoint: responseEndpoint.toString(),
+              reason: "provider response parser rejected input serialization",
+              fromInputMode: requestEntry.inputMode,
+              toInputMode: nextBody?.inputMode,
+              fromInputBodyIndex: bodyIndex,
+              toInputBodyIndex: nextBody ? bodyIndex + 1 : undefined,
+              ...inputDebugContext("fromInput", requestBody.input),
+              ...(nextBody ? inputDebugContext("toInput", nextBody.body.input) : {}),
+              prefixCacheRisk: true,
+              message: "Provider failed while parsing the current Responses input serialization, so ndx will retry with a different input serialization. This can invalidate provider prefix-cache reuse for the current turn."
+            });
+            break;
+          }
           if (isRetryableError(error) && attempt < MAX_TRANSIENT_ATTEMPTS) {
             await waitBeforeRetry(attempt, requestEvents);
             continue;
@@ -435,6 +453,11 @@ function isRetryableStatus(status: number): boolean {
 function isRetryableError(error: unknown): boolean {
   const message = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
   return /fetch failed|network|timeout|terminated|socket|econnreset|econnrefused|etimedout/i.test(message);
+}
+
+function isProviderInputParseFailure(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /model response failed: Failed to parse input at pos 0:/i.test(message);
 }
 
 function modelInferenceBody(model: ResponseModelConfig): { reasoning?: { effort: "low" | "medium" | "high" }; temperature?: number; top_p?: number; top_k?: number; min_p?: number } {

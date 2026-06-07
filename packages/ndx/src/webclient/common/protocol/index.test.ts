@@ -48,7 +48,7 @@ test("sessionDataToSessionEvent ignores non-renderable rows", () => {
       dataid: "2",
       sessionid: "018f90d0-75cb-7d37-bfc9-6f9d0bb60cf5",
       type: "reasoning_control",
-      contents: { kind: "tool_generated_user_message", text: "<ndx_reasoning_effort>low</ndx_reasoning_effort>", sources: [{ tool: "reasoning_effort" }] },
+      contents: { kind: "tool_generated_user_message", text: "<ndx_thinking_level>forbidden</ndx_thinking_level>", sources: [{ tool: "thinking_level" }] },
       createdat: "2026-05-18T00:00:00.000Z"
     }),
     undefined

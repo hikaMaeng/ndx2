@@ -356,6 +356,78 @@ test("requestModelResponse does not try array fallback for unreachable endpoints
   }
 });
 
+test("requestModelResponse retries with array input after provider response parser rejects text input", async () => {
+  clearResponseInputCompatibilityCache();
+  const requests: Array<{ input?: unknown }> = [];
+  const debugEvents: Array<{ event: string; context: Record<string, unknown> }> = [];
+  const server = http.createServer((request, response) => {
+    let body = "";
+    request.on("data", (chunk) => {
+      body += String(chunk);
+    });
+    request.on("end", () => {
+      const payload = JSON.parse(body) as { input?: unknown };
+      requests.push(payload);
+      if (typeof payload.input === "string") {
+        response.writeHead(200, { "Content-Type": "text/event-stream" });
+        response.end(`data: ${JSON.stringify({
+          type: "response.failed",
+          response: {
+            status: "failed",
+            error: {
+              message: "Failed to parse input at pos 0: 사용자가 요청한 내용을 분석해보겠습니다:",
+              code: "unknown",
+              type: "internal_error"
+            }
+          }
+        })}\n\n`);
+        return;
+      }
+
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.end(JSON.stringify({ output: [{ type: "message", content: [{ type: "output_text", text: "array ok" }] }] }));
+    });
+  });
+
+  await new Promise<void>((resolve) => {
+    server.listen(0, "127.0.0.1", () => resolve());
+  });
+  const address = server.address();
+  assert(address && typeof address === "object");
+
+  try {
+    const model = { model: "test-model", url: `http://127.0.0.1:${address.port}/v1`, token: "" };
+    const response = await requestModelResponse(
+      model,
+      [{ role: "user", content: "수정하라" }],
+      [],
+      {
+        async onDebug(event, context) {
+          debugEvents.push({ event, context });
+        }
+      }
+    );
+
+    assert.equal(response.content, "array ok");
+    assert.equal(requests.length, 2);
+    assert.equal(typeof requests[0]?.input, "string");
+    assert.equal(Array.isArray(requests[1]?.input), true);
+    const fallbackEvent = debugEvents.find((entry) => entry.event === "responseapi.request.input_fallback");
+    assert.equal(fallbackEvent?.context.reason, "provider response parser rejected input serialization");
+    assert.equal(fallbackEvent?.context.fromInputMode, "text");
+    assert.equal(fallbackEvent?.context.toInputMode, "array");
+    assert.equal(fallbackEvent?.context.prefixCacheRisk, true);
+
+    await requestModelResponse(model, [{ role: "user", content: "다시 수정하라" }]);
+    assert.equal(requests.length, 3);
+    assert.equal(Array.isArray(requests[2]?.input), true);
+  } finally {
+    server.close();
+    await once(server, "close");
+    clearResponseInputCompatibilityCache();
+  }
+});
+
 test("requestModelResponse reports empty event streams without rereading the body", async () => {
   const server = http.createServer((_request, response) => {
     response.writeHead(200, { "Content-Type": "text/event-stream" });

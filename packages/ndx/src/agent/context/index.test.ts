@@ -120,9 +120,10 @@ test("buildContext includes reasoning discipline in developer prompt", async () 
     assert.ok(modelInstructionIndex >= 0);
     assert.ok(reasoningIndex > modelInstructionIndex);
     assert.ok(developerInstructionsIndex > reasoningIndex);
-    assert.match(context.developer, /<ndx_reasoning_effort>low\|medium\|high<\/ndx_reasoning_effort>/);
+    assert.match(context.developer, /<ndx_thinking_level>forbidden\|brief\|deep<\/ndx_thinking_level>/);
     assert.match(context.developer, /This line is NDX control metadata/);
     assert.match(context.developer, /Apply only the nearest such line before the latest user request/);
+    assert.match(context.developer, /Thinking is forbidden/);
   });
 });
 
@@ -140,7 +141,7 @@ test("buildContext keeps developer prompt stable across reasoning effort changes
     });
 
     assert.equal(high.developer, low.developer);
-    assert.match(high.developer, /<ndx_reasoning_effort>low\|medium\|high<\/ndx_reasoning_effort>/);
+    assert.match(high.developer, /<ndx_thinking_level>forbidden\|brief\|deep<\/ndx_thinking_level>/);
   });
 });
 
