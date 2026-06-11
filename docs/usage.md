@@ -90,8 +90,13 @@ Set model `modalities` in the web model picker or in
 text-only models, add `"image"` for image input, and add `"file"` for file
 input. Provider model-list APIs are not authoritative for this flag.
 
-`prompt_rewrite` normally uses the active session model for its internal scope
-and rewrite calls. To dedicate a different local model to rewriting, set:
+The web client can append `[[rewriter]]` to a session request when the Rewrite
+toggle is enabled for that session. The server removes the marker before
+storage, rewrites the request, and stores the rewritten prompt as the durable
+user row.
+
+The rewriter normally uses the active session model. To dedicate a configured
+model to rewriting, set:
 
 ```json
 {
@@ -103,7 +108,9 @@ and rewrite calls. To dedicate a different local model to rewriting, set:
 }
 ```
 
-Only the model name is overridden. Provider URL, token, and inference endpoint
+The value may be a model key from `models` or a model name. Provider URL, token,
+context size, and inference options are resolved from the configured provider
+when a matching model is found; otherwise the active session provider is reused.
 come from the active session model configuration.
 
 `session_history` uses `sessionsearch` in PostgreSQL/pgvector. To enable vector

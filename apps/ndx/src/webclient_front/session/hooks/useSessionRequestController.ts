@@ -22,6 +22,7 @@ type UseSessionRequestControllerOptions = {
   getSocket: () => SessionSocketClient | null;
   modelDialog: { setOpen: (open: boolean) => void };
   refreshSkillList: () => boolean;
+  rewriteEnabled: boolean;
   selectedModel: SelectedModelConfig;
   attachedSessionIdsRef: React.MutableRefObject<Set<string>>;
   sessionUiManagerRef: React.MutableRefObject<{ promoteToSession: (sessionid: string, previousKey: string) => void; snapshot: Record<string, SessionUiState> }>;
@@ -60,6 +61,7 @@ export function useSessionRequestController({
   getSocket,
   modelDialog,
   refreshSkillList,
+  rewriteEnabled,
   selectedModel,
   attachedSessionIdsRef,
   sessionUiManagerRef,
@@ -103,7 +105,7 @@ export function useSessionRequestController({
     }
     if (!startAction(sessionSubmitActionKey)) return;
     const text = chatInput.trim();
-    const requestText = withThinkingMarker(text, selectedModel.reasoningEffort);
+    const requestText = withRewriterMarker(withThinkingMarker(text, selectedModel.reasoningEffort), rewriteEnabled);
     const pendingAttachments = chatAttachments;
     if (!text && pendingAttachments.length === 0) {
       finishAction(sessionSubmitActionKey);
@@ -235,4 +237,8 @@ function withThinkingMarker(text: string, effort: unknown): string {
     return text;
   }
   return `[[NDX_THINKING_${effort}]]\n${text}`;
+}
+
+function withRewriterMarker(text: string, enabled: boolean): string {
+  return enabled ? `${text.trimEnd()}\n[[rewriter]]`.trim() : text;
 }

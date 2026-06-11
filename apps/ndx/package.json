@@ -4,12 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "yarn build:webclient-front && yarn build:admin-front && yarn build:server",
+    "build": "yarn build:webclient-front && yarn build:documents-front && yarn build:server",
     "build:front": "yarn build:webclient-front",
     "build:webclient-front": "vite build --config vite.config.ts",
-    "build:admin-front": "vite build --config vite.admin.config.ts",
+    "build:documents-front": "vite build --config vite.documents.config.ts",
     "build:server": "esbuild src/server/index.ts --bundle --platform=node --format=esm --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\" --outfile=dist/server/index.js",
-    "docs:audit": "node src/webclient_front/documents/audit.mjs",
+    "docs:audit": "node src/documents_front/audit.mjs",
     "test": "node --import tsx --test src/server/*.test.ts src/server/agent/*.test.ts",
     "lint": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.server.json"
   },

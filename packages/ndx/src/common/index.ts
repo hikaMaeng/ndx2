@@ -5,7 +5,6 @@ export const serviceDomain = Object.freeze({
 
 export const workspaceSurfaces = Object.freeze({
   common: "common",
-  admin: "admin",
   agent: "agent",
   webclient: "webclient"
 });

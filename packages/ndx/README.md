@@ -1,4 +1,4 @@
-ndx package for shared common, admin, and agent domain contracts.
+ndx package for shared common, agent, and webclient domain contracts.
 
 | Topic | Link |
 | --- | --- |

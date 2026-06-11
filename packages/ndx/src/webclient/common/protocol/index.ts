@@ -1,5 +1,13 @@
 import type { NDXWebClientStateDocument } from "../../server/client-state/index.js";
 import { NDX_SESSION_EVENT, NDX_TURN_EVENT, type NDXSessionEventMessage, type NDXSessionEventName } from "../../../common/protocol/index.js";
+import type {
+  NDXSettingsDocumentInput,
+  NDXSettingsDocumentRow,
+  NDXSettingsEmbeddingSettingsRow,
+  NDXSettingsModelRow,
+  NDXSettingsProviderRow,
+  NDXSettingsReasoningEffort
+} from "../../../common/settings/index.js";
 
 export const NDX_AGENT_WEB_API = Object.freeze({
   metadata: "/api/agent",
@@ -83,12 +91,7 @@ export type NDXAgentWebProject = {
   updatedat: string;
 };
 
-export type NDXAgentWebProvider = {
-  title: string;
-  type: "openai";
-  url: string;
-  token: string;
-};
+export type NDXAgentWebProvider = NDXSettingsProviderRow;
 
 export type NDXAgentWebProvidersResponse = {
   providers: NDXAgentWebProvider[];
@@ -108,30 +111,16 @@ export type NDXAgentWebUpdateProviderRequest = {
   token?: string;
 };
 
-export type NDXReasoningEffort = "low" | "medium" | "high";
+export type NDXReasoningEffort = NDXSettingsReasoningEffort;
 
-export type NDXAgentWebModel = {
-  key?: string;
-  provider: string;
-  model: string;
-  contextsize: number;
-  modalities: Array<"text" | "image" | "file">;
-  reasoningEffort?: NDXReasoningEffort;
-  temperature?: number;
-  topP?: number;
-  topK?: number;
-  minP?: number;
-};
+export type NDXAgentWebModel = NDXSettingsModelRow;
 
 export type NDXAgentWebModelsResponse = {
   models: NDXAgentWebModel[];
   syncError?: string;
 };
 
-export type NDXAgentWebEmbeddingSettings = {
-  provider: string;
-  model: string;
-};
+export type NDXAgentWebEmbeddingSettings = NDXSettingsEmbeddingSettingsRow;
 
 export type NDXAgentWebEmbeddingSettingsResponse = {
   embeddings?: NDXAgentWebEmbeddingSettings;
@@ -142,52 +131,13 @@ export type NDXAgentWebUpdateEmbeddingSettingsRequest = {
   model: string;
 };
 
-export type NDXAgentWebSettingsDocument = {
-  version: string;
-  defaultModelKey: string;
-  runtime: {
-    maxModelIterations: number;
-    loopDetectionInterval: number;
-  };
-  tools: {
-    prompt_rewrite: {
-      model: string;
-    };
-  };
-  hooks: {
-    StreamGuard: {
-      MAX_REASONING_LENGTH: number;
-    };
-  };
-  websearch: {
-    provider: string;
-    apiKey: string;
-    baseUrl: string;
-    method: string;
-    queryParam: string;
-    providersJson: string;
-  };
-  otherJson: string;
-  topLevelKeys: string[];
-};
+export type NDXAgentWebSettingsDocument = NDXSettingsDocumentRow;
 
 export type NDXAgentWebSettingsResponse = {
   settings: NDXAgentWebSettingsDocument;
 };
 
-export type NDXAgentWebUpdateSettingsRequest = {
-  version?: string;
-  defaultModelKey?: string;
-  runtime?: Partial<NDXAgentWebSettingsDocument["runtime"]>;
-  tools?: {
-    prompt_rewrite?: Partial<NDXAgentWebSettingsDocument["tools"]["prompt_rewrite"]>;
-  };
-  hooks?: {
-    StreamGuard?: Partial<NDXAgentWebSettingsDocument["hooks"]["StreamGuard"]>;
-  };
-  websearch?: Partial<NDXAgentWebSettingsDocument["websearch"]>;
-  otherJson?: string;
-};
+export type NDXAgentWebUpdateSettingsRequest = NDXSettingsDocumentInput;
 
 export type NDXAgentModelFolderPatchRequest = {
   folderPath: string;

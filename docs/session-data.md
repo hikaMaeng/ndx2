@@ -258,32 +258,18 @@ disconnects and later attaches to the same still-running session, the server
 resends the pending `session.client.request`; if the turn is interrupted, the
 tool result is recorded as cancelled and no synthetic user answer is added.
 
-`prompt_rewrite` is also a function tool. It runs a compact internal rewrite
-loop: the configured rewrite model receives the raw prompt plus a compact
-current-session history made only from user requests and final assistant/error
-responses, then either returns a pass-through/rewrite result or calls the
-existing base file/web tools and the shared `session_history` function
-tool for more evidence. Current workspace facts must come from file/search/shell
-tools; `session_history` is only for explicit prior-session references or
-required prior-session decisions. It must not maintain separate project/session
-search mechanisms inside the function tool. Its normal result is one
-`tool_result` row
-whose JSON output separates
-`rewritten_prompt`, `report`, `tool_calls`, `facts`, `assumptions`, and
-`ambiguities`.
+`[[rewriter]]` is a request marker handled by the system
+`turn.request.received` hook before the user row is appended. The hook removes
+the marker, searches `sessionsearch` directly with the raw user request, runs
+the configured rewrite model, and replaces `requestText` with the rewritten
+prompt plus a deterministic `세션 검색 보강 컨텍스트` section built from the
+top project search results.
 
-Do not splice a prompt rewrite result into the stable prelude or into the
-middle of existing history. The model-visible order remains normal tool-call
-continuation:
-
-1. model `tool_call` row for `prompt_rewrite`;
-2. `tool_result` row containing the separated rewrite payload;
-3. the next model request reconstructed from PostgreSQL.
-
-Because `prompt_rewrite` intentionally makes internal model requests for a
-different purpose, a turn that uses it may sacrifice provider prefix-cache reuse
-at the beginning of that rewrite flow. After the tool result is durable,
-subsequent reconstruction must still preserve the append-only history order.
+When the marker is present, the durable user `sessiondata` row stores the
+rewritten prompt, not the raw marker-bearing request. No `prompt_rewrite`
+tool-call or tool-result rows are created. The hook may use read/search/web/bash
+tools inside the internal rewrite loop for current workspace facts, but
+session-history enrichment is not delegated to the model as a tool decision.
 
 `session_history` is a function tool over `sessionsearch`. It supports three
 scopes: all NDX sessions, all sessions in one project, and one session. SQL

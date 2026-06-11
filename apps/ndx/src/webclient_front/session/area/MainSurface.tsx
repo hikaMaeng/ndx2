@@ -10,7 +10,7 @@ import { ModalPortal } from "../../modal/ModalLayer";
 import { SessionSurfaces } from "../components/SessionSurfaces";
 import { VibeLanding } from "../components/VibeLanding";
 import { ChatSurface } from "../../chat/surface/ChatSurface";
-import { ModelSettingsPage } from "../../settings/models/ModelSettingsPage";
+import { SettingsSurface } from "../../settings/SettingsSurface";
 import { useAskUserQuestionController } from "../askUserQuestion";
 import { useSessionRequestController } from "../hooks/useSessionRequestController";
 import { useSessionRenameController } from "../hooks/useSessionRenameController";
@@ -18,6 +18,8 @@ import { useSessionSocketController } from "../hooks/useSessionSocketController"
 import { useSessionUiController } from "../hooks/useSessionUiController";
 import { useModelDialogController } from "../modals/useModelDialogController";
 import type { SessionSocketClient } from "../socket/sessionSocket";
+
+const SESSION_REWRITE_STORAGE_KEY = "ndx.session.rewrite.enabled";
 
 type MainSurfaceProps = {
   bridge: WebClientBridge;
@@ -63,6 +65,7 @@ export function MainSurface({
   const [chatUiByKey, setChatUiByKey] = React.useState<Record<string, SessionUiState>>({});
   const [chatSessionByKey, setChatSessionByKey] = React.useState<Record<string, NDXAgentWebChatSession>>({});
   const [chatSelectedModelByKey, setChatSelectedModelByKey] = React.useState<Record<string, SelectedModelConfig>>({});
+  const [rewriteEnabledBySession, setRewriteEnabledBySession] = React.useState<Record<string, boolean>>(() => loadRewriteEnabledBySession());
   const socketRef = React.useRef<SessionSocketClient | null>(null);
   const attachedSessionIdsRef = React.useRef<Set<string>>(new Set());
   const sessionUi = useSessionUiController();
@@ -123,6 +126,7 @@ export function MainSurface({
     });
   }, [activeSession?.projectname, activeSession?.sessionid, sessionsByProject]);
   const agentRunning = Boolean(activeUi?.agentRunning);
+  const rewriteEnabled = activeSessionId ? Boolean(rewriteEnabledBySession[activeSessionId]) : false;
   const modelDialog = useModelDialogController({ activeSession, selectedModel, setSelectedModel, setNotice, t });
   const askUserQuestion = useAskUserQuestionController({ getSocket: () => socketRef.current, t });
   const chatSurfaceKey = surface.kind === "chat-draft"
@@ -251,6 +255,7 @@ export function MainSurface({
     getSocket: () => socketRef.current,
     modelDialog,
     refreshSkillList: sessionSocket.refreshSkillList,
+    rewriteEnabled,
     selectedModel,
     attachedSessionIdsRef,
     sessionUiManagerRef,
@@ -271,6 +276,16 @@ export function MainSurface({
     updateActiveUi,
     updateSessionUi
   });
+  const toggleSessionRewrite = (sessionid: string) => {
+    setRewriteEnabledBySession((current) => {
+      const next = { ...current, [sessionid]: !current[sessionid] };
+      if (!next[sessionid]) {
+        delete next[sessionid];
+      }
+      saveRewriteEnabledBySession(next);
+      return next;
+    });
+  };
 
   React.useEffect(() => {
     attachedSessionIdsRef.current = attachedSessionIds;
@@ -404,7 +419,7 @@ export function MainSurface({
   }, [modalRequests, clientState.projects, sessionsByProject]);
 
   if (surface.kind === "settings") {
-    return <ModelSettingsPage menuLabel={t[RSC.APP_SHELL_MENU_OPEN_BUTTON]} onOpenMenu={onOpenMenu} />;
+    return <SettingsSurface menuLabel={t[RSC.APP_SHELL_MENU_OPEN_BUTTON]} onOpenMenu={onOpenMenu} />;
   }
 
   if (surface.kind === "chat-folder" || surface.kind === "chat-session" || surface.kind === "chat-draft") {
@@ -523,7 +538,7 @@ export function MainSurface({
 
   return (
     <>
-      <SessionSurfaces activeUiKey={activeUiKey} clientState={clientState} hasPendingAction={hasPendingAction} notice={notice} sessionError={sessionError} sessionsByProject={sessionsByProject} sessionUiByKey={sessionUiByKey} skillsByProject={skillsByProject} surfaceKeys={surfaceKeys} t={t} updateSessionUi={updateSessionUi} onOpenMenu={onOpenMenu} onChatScroll={(key, scrollTop) => updateSessionUi(key, (current) => ({ ...current, chatScrollTop: scrollTop }))} onDisableAutoScroll={(key) => updateSessionUi(key, (current) => ({ ...current, autoScrollEnabled: false }))} onDismissError={(key) => updateSessionUi(key, (current) => ({ ...current, sessionError: "" }))} onChatInputChange={(key, value) => updateSessionUi(key, (current) => ({ ...current, chatInput: value }))} onAddAttachments={addChatAttachments} onAttachmentRejected={(key, message) => updateSessionUi(key, (current) => ({ ...current, notice: message }))} onRemoveAttachment={removeChatAttachment} onModelClick={(key) => { activeUiKeyRef.current = key; modelDialog.setOpen(true); }} onSkillListRefresh={sessionSocket.refreshSkillList} onSubmit={sessionRequest.submitChatRequest} onTurnToggle={sessionSocket.toggleTurnDetail} onIterationToggle={sessionSocket.toggleIterationDetail} />
+      <SessionSurfaces activeUiKey={activeUiKey} clientState={clientState} hasPendingAction={hasPendingAction} notice={notice} rewriteEnabledBySession={rewriteEnabledBySession} sessionError={sessionError} sessionsByProject={sessionsByProject} sessionUiByKey={sessionUiByKey} skillsByProject={skillsByProject} surfaceKeys={surfaceKeys} t={t} updateSessionUi={updateSessionUi} onOpenMenu={onOpenMenu} onChatScroll={(key, scrollTop) => updateSessionUi(key, (current) => ({ ...current, chatScrollTop: scrollTop }))} onDisableAutoScroll={(key) => updateSessionUi(key, (current) => ({ ...current, autoScrollEnabled: false }))} onDismissError={(key) => updateSessionUi(key, (current) => ({ ...current, sessionError: "" }))} onChatInputChange={(key, value) => updateSessionUi(key, (current) => ({ ...current, chatInput: value }))} onAddAttachments={addChatAttachments} onAttachmentRejected={(key, message) => updateSessionUi(key, (current) => ({ ...current, notice: message }))} onRemoveAttachment={removeChatAttachment} onModelClick={(key) => { activeUiKeyRef.current = key; modelDialog.setOpen(true); }} onRewriteToggle={toggleSessionRewrite} onSkillListRefresh={sessionSocket.refreshSkillList} onSubmit={sessionRequest.submitChatRequest} onTurnToggle={sessionSocket.toggleTurnDetail} onIterationToggle={sessionSocket.toggleIterationDetail} />
       <ModalPortal>
         {sessionRename.dialog}
         {modelDialog.dialog}
@@ -531,4 +546,23 @@ export function MainSurface({
       </ModalPortal>
     </>
   );
+}
+
+function loadRewriteEnabledBySession(): Record<string, boolean> {
+  if (typeof window === "undefined") return {};
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(SESSION_REWRITE_STORAGE_KEY) ?? "{}") as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return Object.fromEntries(Object.entries(parsed as Record<string, unknown>).filter(([, value]) => value === true).map(([key]) => [key, true]));
+  } catch {
+    return {};
+  }
+}
+
+function saveRewriteEnabledBySession(value: Record<string, boolean>): void {
+  try {
+    window.localStorage.setItem(SESSION_REWRITE_STORAGE_KEY, JSON.stringify(value));
+  } catch {
+    // Local UI preference only.
+  }
 }

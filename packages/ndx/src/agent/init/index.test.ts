@@ -37,12 +37,11 @@ test("server asset seeding copies registered system skills from base tool owners
 
   const cotSkill = await fs.readFile(path.join(userHome, ".ndx", "system", "skills", "cot_solve", "SKILL.md"), "utf8");
   const askUserSkill = await fs.readFile(path.join(userHome, ".ndx", "system", "skills", "ask_user_question", "SKILL.md"), "utf8");
-  const promptRewriteSkill = await fs.readFile(path.join(userHome, ".ndx", "system", "skills", "prompt_rewrite", "SKILL.md"), "utf8");
   const sessionHistorySkill = await fs.readFile(path.join(userHome, ".ndx", "system", "skills", "session_history", "SKILL.md"), "utf8");
 
   assert.match(cotSkill, /name: cot-solve/);
   assert.doesNotMatch(cotSkill, /stale prompt/);
   assert.match(askUserSkill, /name: ask-user-question/);
-  assert.match(promptRewriteSkill, /name: prompt_rewrite/);
   assert.match(sessionHistorySkill, /name: session-history/);
+  await assert.rejects(fs.access(path.join(userHome, ".ndx", "system", "skills", "prompt_rewrite", "SKILL.md")));
 });

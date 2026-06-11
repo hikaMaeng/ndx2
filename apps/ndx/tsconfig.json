@@ -6,5 +6,5 @@
     "noEmit": true,
     "types": ["vite/client"]
   },
-  "include": ["src/webclient_front", "src/admin_front", "vite.config.ts", "vite.admin.config.ts"]
+  "include": ["src/webclient_front", "src/documents_front", "vite.config.ts", "vite.documents.config.ts"]
 }

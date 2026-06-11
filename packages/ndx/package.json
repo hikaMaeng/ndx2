@@ -31,18 +31,6 @@
       "types": "./dist/common/server-path/index.d.ts",
       "import": "./dist/common/server-path/index.js"
     },
-    "./admin/common": {
-      "types": "./dist/admin/common/index.d.ts",
-      "import": "./dist/admin/common/index.js"
-    },
-    "./admin/server": {
-      "types": "./dist/admin/server/index.d.ts",
-      "import": "./dist/admin/server/index.js"
-    },
-    "./admin/front": {
-      "types": "./dist/admin/front/index.d.ts",
-      "import": "./dist/admin/front/index.js"
-    },
     "./agent": {
       "types": "./dist/agent/index.d.ts",
       "import": "./dist/agent/index.js"

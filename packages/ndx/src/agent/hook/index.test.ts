@@ -180,6 +180,85 @@ test("stopturn effect stops later executors in the same event plan", async () =>
   assert.equal(result.effect.finalAssistantText, "stopped by hook");
 });
 
+test("request received rewriter marker rewrites stored user text and appends direct session search context", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-rewriter-marker-"));
+  const userHome = path.join(root, "user");
+  const projectHome = path.join(root, "project");
+  await fs.mkdir(path.join(userHome, ".ndx"), { recursive: true });
+  const requests: Array<{ model?: string; input?: unknown }> = [];
+  const server = http.createServer((request, response) => {
+    let body = "";
+    request.setEncoding("utf8");
+    request.on("data", (chunk) => {
+      body += chunk;
+    });
+    request.on("end", () => {
+      requests.push(JSON.parse(body) as { model?: string; input?: unknown });
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({
+        output: [{
+          type: "message",
+          content: [{ type: "output_text", text: JSON.stringify({ rewritten_prompt: "재작성된 요청: 이전 설계 흐름을 이어서 테스트를 보강한다.", facts: ["모델이 현재 세션 맥락을 반영했다."], assumptions: [], ambiguities: [] }) }]
+        }]
+      }));
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  try {
+    const address = server.address();
+    assert.equal(typeof address, "object");
+    const port = address && typeof address === "object" ? address.port : 0;
+    await fs.writeFile(path.join(userHome, ".ndx", "settings.json"), JSON.stringify({
+      providers: { local: { url: `http://127.0.0.1:${port}`, key: "token" } },
+      models: { rewriteLocal: { name: "rewrite-model", provider: "local", maxContext: 200000, modalities: ["text"], reasoningEffort: "low" } },
+      tools: { prompt_rewrite: { model: "rewriteLocal" } }
+    }), "utf8");
+    const queries: { text: string; values: unknown[] }[] = [];
+    const hookDatabase: NDXDatabase = {
+      async query(text, values) {
+        queries.push({ text, values: values ?? [] });
+        return {
+          rows: [{
+            dataid: "history-1",
+            sessionid: "018f0000-0000-7000-8000-000000000003",
+            projectname: session.projectname,
+            title: "이전 설계",
+            type: "assistant",
+            createdat: new Date("2026-06-01T00:00:00.000Z"),
+            text: "이전 결정: askUserQuestion과 같은 modal flow 테스트를 우선 보강한다.",
+            tokenlength: 16,
+            rank: 0.5
+          }],
+          rowCount: 1
+        } as never;
+      },
+      async close() {}
+    };
+
+    const result = await runTurnRequestReceivedHook(createNDXHookRuntime({ [NDX_TURN_EVENT.RequestReceived]: turnRequestReceivedHooks }, {}), {
+      ...baseContext,
+      database: hookDatabase,
+      userHome,
+      projectHome,
+      requestText: "그거 이어서 고쳐\n[[rewriter]]",
+      sessionDataRows: [
+        { dataid: "1", sessionid: session.sessionid, type: "user", contents: { kind: "user_message", text: "askUserQuestion 테스트를 봤다." }, createdat: new Date() },
+        { dataid: "2", sessionid: session.sessionid, type: "assistant", contents: { kind: "assistant_message", text: "modal flow가 핵심입니다." }, createdat: new Date() }
+      ]
+    });
+
+    assert.equal(requests[0]?.model, "rewrite-model");
+    assert.match(result.requestText, /재작성된 요청/);
+    assert.match(result.requestText, /세션 검색 보강 컨텍스트/);
+    assert.match(result.requestText, /이전 결정: askUserQuestion/);
+    assert.doesNotMatch(result.requestText, /\[\[rewriter\]\]/);
+    assert.ok(queries.some((query) => query.values.includes("그거 이어서 고쳐")));
+    assert.equal(turnRequestReceivedHooks.at(-1)?.name, "system.turn.request.received.rewriter_marker");
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+});
+
 test("turn end system hooks write sessionsearch rows from durable sessiondata ids", async () => {
   const userHome = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-sessionsearch-hook-"));
   const queries: { text: string; values: unknown[] }[] = [];

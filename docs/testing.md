@@ -2,7 +2,7 @@
 
 Scaffold verification uses `agenttest` JSON reports under `test/YYYYMMDD/` plus smoke checks against the deployed server.
 
-Current scaffold tests cover admin and agent health endpoints, the agent session health placeholder, and deploy smoke behavior.
+Current scaffold tests cover service health endpoints, the agent session health placeholder, document serving, and deploy smoke behavior.
 
 Future implementation tests must cover:
 

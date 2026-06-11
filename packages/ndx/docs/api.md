@@ -6,13 +6,12 @@ Public exports:
 | --- | --- |
 | `ndx` | Common domain entrypoint. |
 | `ndx/common` | Runtime-neutral common entrypoint. |
-| `ndx/admin/common` | Admin runtime-neutral domain entrypoint. |
-| `ndx/admin/server` | Admin server-only domain entrypoint. |
-| `ndx/admin/front` | Admin front-only domain entrypoint. |
-| `ndx/common` | Agent runtime-neutral domain entrypoint. |
 | `ndx/agent` | Agent server-only domain entrypoint. |
-| `ndx/agent/cli` | Agent CLI client domain entrypoint. |
-| `ndx/webclient/common` | Agent web client domain entrypoint. |
+| `ndx/webclient/common` | Webclient shared protocol and DTO entrypoint. |
+| `ndx/webclient/common/protocol` | Webclient API protocol entrypoint. |
+| `ndx/webclient/front` | Browser-facing helper entrypoint. |
+| `ndx/webclient/server` | Server-side webclient persistence and settings entrypoint. |
+| `ndx/webclient/server/client-state` | Browser client-state persistence entrypoint. |
 | `ndx/common/server-path` | Server-side path mapping and fixed container path contracts. |
 
 Add APIs only when a requested product behavior needs a durable domain contract.
@@ -74,8 +73,17 @@ No server-only initialization or database API is exported from this runtime-neut
 | `updateSessionTitle(database, sessionid, title)` | Applies direct user title changes without changing turn lifecycle state. |
 | `appendSessionData(database, sessionid, type, contents)` | Appends JSONB history and refreshes the session; first string `user` item becomes title when title is empty. |
 | `listSessionData(database, sessionid)` | Returns ordered session history. |
-| `readAgentRuntimeSettings(userHome)` | Reads runtime loop settings and tool-specific settings such as `tools.prompt_rewrite.model`. |
-| `listAvailableTools(options?)` | Returns merged project/user/builtin tools, including function tools `askUserQuestion`, `prompt_rewrite`, and `session_history`. |
-| `executeToolCalls(toolCalls, options?)` | Executes process and function tools. `prompt_rewrite` requires active `model` and may reuse existing base file/web tools plus `session_history` during its compact rewrite loop. |
+| `readAgentRuntimeSettings(userHome)` | Reads runtime loop settings and compatibility settings such as `tools.prompt_rewrite.model` for the `[[rewriter]]` marker hook. |
+| `listAvailableTools(options?)` | Returns merged project/user/builtin tools, including function tools `askUserQuestion` and `session_history`. |
+| `executeToolCalls(toolCalls, options?)` | Executes process and function tools. Function tools run inside agent authority and must preserve durable history ordering. |
 | `SessionMetadata` | Input contract for context construction; `model` is the persisted `NDXModelConfig`, including `contextsize` for skills budget calculation. |
 | `BuiltContext` | `{ developer, user }` context output contract. |
+
+## `ndx/webclient/server`
+
+| API | Purpose |
+| --- | --- |
+| `loadModelSettings(userHome)` | Reads provider/model settings from `.ndx/settings.json`. |
+| `saveModelSettings(userHome, settings)` | Persists provider/model settings back to `.ndx/settings.json`. |
+| `normalizeModelPatchSettings(input)` | Normalizes model patch input before persistence. |
+| `applyModelPatchSettings(userHome, input)` | Applies model patch data to settings storage. |

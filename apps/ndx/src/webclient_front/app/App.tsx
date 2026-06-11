@@ -7,13 +7,8 @@ import { ModalLayer } from "../modal/ModalLayer";
 import { MainSurface } from "../session/area/MainSurface";
 import { LeftSidebarResizeHandle } from "./layout/LeftSidebarResizeHandle";
 import { RSC } from "./resource";
-import { DocumentSite } from "../documents/DocumentSite";
 
 export function App() {
-  if (window.location.pathname.startsWith("/docs")) {
-    return <DocumentSite />;
-  }
-
   const [clientid] = React.useState(readOrCreateClientId);
   const bridge = useWebClientBridge();
   const [sidebarOpen, setSidebarOpen] = React.useState(false);

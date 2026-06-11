@@ -18,6 +18,7 @@ type SessionSurfaceProps = {
   project?: NDXWebClientProject;
   isActive: boolean;
   notice: string;
+  rewriteEnabled: boolean;
   sessionError: string;
   t: Record<string, string>;
   submitPending: boolean;
@@ -31,6 +32,7 @@ type SessionSurfaceProps = {
   onAttachmentRejected: (message: string) => void;
   onRemoveAttachment: (id: string) => void;
   onModelClick: () => void;
+  onRewriteToggle: () => void;
   onSkillListRefresh: () => void;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
   onTurnToggle: (turn: TurnFlowState, open: boolean) => void;
@@ -45,6 +47,7 @@ export function SessionSurface({
   project,
   isActive,
   notice,
+  rewriteEnabled,
   sessionError,
   t,
   submitPending,
@@ -58,6 +61,7 @@ export function SessionSurface({
   onAttachmentRejected,
   onRemoveAttachment,
   onModelClick,
+  onRewriteToggle,
   onSkillListRefresh,
   onSubmit,
   onTurnToggle,
@@ -127,7 +131,7 @@ export function SessionSurface({
           </section>
         ) : null}
         {surfaceHasChat && ui.cotWork ? <CotWorkOverlay agentRunning={surfaceAgentRunning} work={ui.cotWork} /> : null}
-        {surfaceHasChat ? <ChatComposer idSuffix={suffix} agentRunning={surfaceAgentRunning} compactRunning={surfaceCompactRunning} interruptPending={interruptPending} requestPending={submitPending} contextUsage={surfaceContextUsage} input={ui.chatInput} attachments={attachments} skills={ui.availableSkills} modelLabel={surfaceModelLabel} modelModalities={ui.selectedModel.modalities} notice={notice} t={t} onInputChange={onInputChange} onAddAttachments={onAddAttachments} onAttachmentRejected={onAttachmentRejected} onRemoveAttachment={onRemoveAttachment} onModelClick={onModelClick} onSkillListRefresh={onSkillListRefresh} onSubmit={onSubmit} /> : null}
+        {surfaceHasChat ? <ChatComposer idSuffix={suffix} agentRunning={surfaceAgentRunning} compactRunning={surfaceCompactRunning} interruptPending={interruptPending} requestPending={submitPending} contextUsage={surfaceContextUsage} input={ui.chatInput} attachments={attachments} skills={ui.availableSkills} modelLabel={surfaceModelLabel} modelModalities={ui.selectedModel.modalities} notice={notice} rewriteEnabled={rewriteEnabled} rewriteToggleDisabled={!session} t={t} onInputChange={onInputChange} onAddAttachments={onAddAttachments} onAttachmentRejected={onAttachmentRejected} onRemoveAttachment={onRemoveAttachment} onModelClick={onModelClick} onRewriteToggle={onRewriteToggle} onSkillListRefresh={onSkillListRefresh} onSubmit={onSubmit} /> : null}
       </div>
       {surfaceHasChat ? <RightSidebarRegion isActive={isActive} surfaceKey={surfaceKey} t={t} ui={ui} updateSessionUi={updateSessionUi} /> : null}
     </div>

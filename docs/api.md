@@ -27,7 +27,7 @@ Target API surfaces:
 | --- | --- | --- |
 | Session stream | WebSocket | Agent server session surface |
 | Account management | HTTP API | Account server |
-| Admin operations | HTTP API plus web UI | Admin server |
+| Settings operations | HTTP API plus web UI | Webclient settings surface |
 | History restoration | HTTP API or WebSocket request-response | Agent server session surface |
 
 Session socket clients submit a UUID `clientid` query parameter during the WebSocket upgrade. The agent server rejects missing, invalid, or currently connected duplicate client ids.

@@ -1,5 +1,4 @@
 import { NDX_ASK_USER_QUESTION_TOOL_NAME, askUserQuestionToolSchema, executeAskUserQuestionTool } from "./askUserQuestion/index.js";
-import { NDX_PROMPT_REWRITE_TOOL_NAME, executePromptRewriteTool, promptRewriteToolSchema } from "./prompt_rewrite/index.js";
 import { NDX_SESSION_HISTORY_TOOL_NAME, executeSessionHistoryTool, sessionHistoryToolSchema } from "./session_history/index.js";
 import type { NDXToolExecutionOptions, NDXToolExecutionResult } from "../types.js";
 
@@ -16,12 +15,6 @@ export const NDX_BUILTIN_FUNCTION_TOOLS: NDXBuiltinFunctionTool[] = [
     directory: "askUserQuestion",
     schema: askUserQuestionToolSchema,
     execute: executeAskUserQuestionTool
-  },
-  {
-    name: NDX_PROMPT_REWRITE_TOOL_NAME,
-    directory: "prompt_rewrite",
-    schema: promptRewriteToolSchema,
-    execute: executePromptRewriteTool
   },
   {
     name: NDX_SESSION_HISTORY_TOOL_NAME,

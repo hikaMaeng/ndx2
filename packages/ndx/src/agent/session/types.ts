@@ -13,6 +13,10 @@ export type NDXModelConfig = {
   contextsize: number;
   modalities?: Array<"text" | "image" | "file">;
   reasoningEffort?: NDXReasoningEffort;
+  temperature?: number;
+  topP?: number;
+  topK?: number;
+  minP?: number;
 };
 
 export type NDXSessionRow = {

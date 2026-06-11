@@ -6,12 +6,12 @@
   "schema": {
     "type": "function",
     "name": "bash",
-    "description": "Runs a bash command under the NDX virtual root. Use file tools for reading, searching, and editing files.",
+    "description": "Runs a bash command under the NDX virtual root. Use file tools for reading, searching, and editing files. Prefer project-relative workdir paths like apps/...; never write them as /apps/....",
     "parameters": {
       "type": "object",
       "properties": {
         "command": { "type": "string", "description": "Bash command to execute." },
-        "workdir": { "type": "string", "description": "Working directory relative to the project root. Defaults to project root; container absolute paths must stay under the NDX virtual root." },
+        "workdir": { "type": "string", "description": "Working directory relative to the project root. Defaults to project root. Prefer project-relative paths; absolute paths must stay under the NDX virtual root." },
         "timeout_ms": { "type": "number", "description": "Timeout in milliseconds. Defaults to 60000." },
         "max_output_tokens": { "type": "number", "description": "Approximate token budget for returned output." }
       },

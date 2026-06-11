@@ -73,7 +73,7 @@ Rejected old settings:
 | `NDX_CONTAINER_USER_HOME` | Fixed `/ndx`. |
 | `NDX_LOG_ROOT` in Compose | App code uses fixed `/ndx/.ndx/log`. |
 | `./apps/ndx/assets:/app/assets` | Runtime i18n overrides live under `volume/.ndx/i18n`; image assets are bundled fallback only. |
-| `agent_data:/app/data` or `admin_data:/app/data` | No separate app-data volume. PostgreSQL data lives under `volume/pgvector`; NDX app state lives under `volume/.ndx`. |
+| `agent_data:/app/data` | No separate app-data volume. PostgreSQL data lives under `volume/pgvector`; NDX app state lives under `volume/.ndx`. |
 
 ## Path Mapping
 

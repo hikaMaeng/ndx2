@@ -17,10 +17,10 @@ export {
   updateSettingsWebDocument,
   updateSettingsWebModel,
   updateSettingsWebProvider
-} from "./model-settings/index.js";
-export type { NDXWebEmbeddingSettingsRow, NDXWebModelRow, NDXWebProviderRow, NDXWebSettingsDocumentInput, NDXWebSettingsDocumentRow } from "./model-settings/index.js";
-export { analyzeModelFolderPatch, applyModelFolderPatch, draftModelFolderPatch } from "./model-patch/index.js";
-export type { NDXModelFolderPatchOptions } from "./model-patch/index.js";
+} from "./settings/index.js";
+export type { NDXWebEmbeddingSettingsRow, NDXWebModelRow, NDXWebProviderRow, NDXWebSettingsDocumentInput, NDXWebSettingsDocumentRow } from "./settings/index.js";
+export { analyzeModelFolderPatch, applyModelFolderPatch, draftModelFolderPatch } from "./settings/index.js";
+export type { NDXModelFolderPatchOptions } from "./settings/index.js";
 
 export {
   DEFAULT_NDX_WEB_CLIENT_LOCALE,

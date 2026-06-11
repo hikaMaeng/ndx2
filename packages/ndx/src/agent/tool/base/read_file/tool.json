@@ -6,11 +6,11 @@
   "schema": {
     "type": "function",
     "name": "read_file",
-    "description": "Reads a text file under the NDX virtual root, optionally returning a line range.",
+    "description": "Reads a text file under the NDX virtual root, optionally returning a line range. Prefer project-relative paths like apps/... for project files; never write them as /apps/....",
     "parameters": {
       "type": "object",
       "properties": {
-        "path": { "type": "string", "description": "Container absolute path under the NDX virtual root, or path relative to the project root." },
+        "path": { "type": "string", "description": "Path relative to the project root, or a container absolute path under the NDX virtual root. Prefer relative project paths." },
         "offset": { "type": "number", "description": "Zero-based line offset to start reading from." },
         "limit": { "type": "number", "description": "Maximum number of lines to return." }
       },

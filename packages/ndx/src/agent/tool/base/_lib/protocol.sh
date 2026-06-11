@@ -40,6 +40,16 @@ emit_error() {
   printf '}\n'
 }
 
+emit_error_with_append_message() {
+  message="$1"
+  appended_text="$2"
+  printf '{"type":"error","success":false,"message":'
+  printf '%s' "$message" | json_quote
+  printf ',"effects":[{"type":"append_user_message","text":'
+  printf '%s' "$appended_text" | json_quote
+  printf '}]}\n'
+}
+
 cancelled() {
   emit_error "cancelled"
   exit 130
@@ -65,7 +75,33 @@ require_ndx_path() {
   case "$resolved_path" in
     "$root"|"$root"/*) ;;
     *)
-      emit_error "path escapes NDX virtual root: $original_input"
+      project_home="$(realpath -m "${NDX_PROJECT_HOME:-$PWD}")"
+      correction="Path correction for this session:
+The rejected path was $original_input.
+This session's project root is $project_home.
+This session's NDX virtual root is $root.
+Use project-relative paths for project files; do not prefix them with /.
+Absolute file-tool paths must stay under $root, and project absolute paths should start with $project_home."
+
+      case "$original_input" in
+        /tmp|/tmp/*)
+          correction="$correction
+Do not pass /tmp paths to file tools. For temporary files, create and use /tmp inside a single bash command, or use a project-local path such as .ndx/tmp/..."
+          ;;
+        /*)
+          stripped_input="${original_input#/}"
+          if [ -n "$stripped_input" ]; then
+            candidate_absolute="$(realpath -m "$project_home/$stripped_input")"
+            correction="$correction
+For this project file, call the tool with:
+$stripped_input
+or:
+$candidate_absolute"
+          fi
+          ;;
+      esac
+
+      emit_error_with_append_message "path escapes NDX virtual root: $original_input" "$correction"
       exit 1
       ;;
   esac

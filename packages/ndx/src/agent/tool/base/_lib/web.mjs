@@ -1,6 +1,3 @@
-import fs from "node:fs/promises";
-import path from "node:path";
-
 export function emitProgress(message) {
   process.stdout.write(`${JSON.stringify({ type: "progress", message })}\n`);
 }
@@ -31,28 +28,12 @@ export function readToolArguments() {
 }
 
 export async function readWebSearchSettings() {
-  const userHome = process.env.NDX_USER_HOME || process.env.HOME || "";
-  const projectHome = process.env.NDX_PROJECT_HOME || process.cwd();
-  const settings = {};
-
-  for (const settingsPath of [
-    userHome ? path.join(userHome, ".ndx", "settings.json") : "",
-    path.join(projectHome, ".ndx", "settings.json")
-  ]) {
-    if (!settingsPath) continue;
-    try {
-      const parsed = JSON.parse(await fs.readFile(settingsPath, "utf8"));
-      if (parsed?.websearch && typeof parsed.websearch === "object" && !Array.isArray(parsed.websearch)) {
-        Object.assign(settings, parsed.websearch);
-      }
-    } catch (error) {
-      if (error?.code !== "ENOENT") {
-        throw new Error(`failed to read websearch settings from ${settingsPath}: ${error instanceof Error ? error.message : String(error)}`);
-      }
-    }
+  try {
+    const parsed = JSON.parse(process.env.NDX_WEBSEARCH_SETTINGS || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
   }
-
-  return settings;
 }
 
 export function providerApiKey(settings, provider, envName) {

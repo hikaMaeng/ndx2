@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { ChevronDown, Paperclip, Send, Square, X } from "lucide-react";
+import { ChevronDown, Paperclip, Send, Square, WandSparkles, X } from "lucide-react";
 import { Mention, MentionsInput } from "react-mentions-ts";
 import { ContextUsageRing } from "./ContextUsageRing";
 import { modelAttachmentInputAccept, modelSupportsAttachmentMimeType, type NDXAgentWebContextUsage } from "ndx/webclient/front";
@@ -18,6 +18,8 @@ export function ChatComposer({
   modelLabel,
   modelModalities,
   notice,
+  rewriteEnabled,
+  rewriteToggleDisabled,
   attachments,
   t,
   onInputChange,
@@ -25,6 +27,7 @@ export function ChatComposer({
   onAttachmentRejected,
   onRemoveAttachment,
   onModelClick,
+  onRewriteToggle,
   onSkillListRefresh,
   onSubmit
 }: {
@@ -39,6 +42,8 @@ export function ChatComposer({
   modelLabel: string;
   modelModalities: Array<"text" | "image" | "file">;
   notice: string;
+  rewriteEnabled: boolean;
+  rewriteToggleDisabled: boolean;
   attachments: Array<{ id: string; name: string; size: number; mimeType: string; previewUrl?: string }>;
   t: Record<string, string>;
   onInputChange: (value: string) => void;
@@ -46,6 +51,7 @@ export function ChatComposer({
   onAttachmentRejected: (message: string) => void;
   onRemoveAttachment: (id: string) => void;
   onModelClick: () => void;
+  onRewriteToggle: () => void;
   onSkillListRefresh: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
@@ -210,6 +216,18 @@ export function ChatComposer({
             <span role="status" className="min-w-0 flex-1 truncate">
               {statusText}
             </span>
+            <button
+              type="button"
+              className={rewriteEnabled ? "inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-cyan-400/60 bg-cyan-400 px-3 text-xs font-medium text-zinc-950 shadow-sm transition-colors hover:bg-cyan-300 disabled:pointer-events-none disabled:opacity-45" : "inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-zinc-800 bg-zinc-950 px-3 text-xs font-medium text-zinc-400 transition-colors hover:border-zinc-700 hover:bg-zinc-900 hover:text-zinc-100 disabled:pointer-events-none disabled:opacity-45"}
+              aria-label={rewriteEnabled ? t[RSC.SESSION_COMPOSER_REWRITE_OFF_BUTTON] : t[RSC.SESSION_COMPOSER_REWRITE_ON_BUTTON]}
+              aria-pressed={rewriteEnabled}
+              disabled={compactRunning || rewriteToggleDisabled}
+              title={rewriteToggleDisabled ? t[RSC.SESSION_COMPOSER_REWRITE_UNAVAILABLE_STATUS] : rewriteEnabled ? t[RSC.SESSION_COMPOSER_REWRITE_OFF_BUTTON] : t[RSC.SESSION_COMPOSER_REWRITE_ON_BUTTON]}
+              onClick={onRewriteToggle}
+            >
+              <WandSparkles aria-hidden="true" className="h-3.5 w-3.5" />
+              <span>Rewrite</span>
+            </button>
             <input
               id={attachmentInputId}
               className="sr-only"

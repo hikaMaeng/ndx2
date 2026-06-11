@@ -7,11 +7,11 @@
   "schema": {
     "type": "function",
     "name": "write_file",
-    "description": "Writes a complete file under the NDX virtual root, creating parent directories as needed.",
+    "description": "Writes a complete file under the NDX virtual root, creating parent directories as needed. Prefer project-relative paths like apps/... for project files; never write them as /apps/....",
     "parameters": {
       "type": "object",
       "properties": {
-        "file_path": { "type": "string", "description": "Container absolute path under the NDX virtual root, or path relative to the project root." },
+        "file_path": { "type": "string", "description": "Path relative to the project root, or a container absolute path under the NDX virtual root. Prefer relative project paths." },
         "content": { "type": "string", "description": "Complete file content to write." }
       },
       "required": ["file_path", "content"],

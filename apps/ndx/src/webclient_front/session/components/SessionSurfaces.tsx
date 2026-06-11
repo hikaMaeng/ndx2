@@ -9,6 +9,7 @@ type SessionSurfacesProps = {
   clientState: NDXWebClientStateDocument;
   hasPendingAction: (key: string) => boolean;
   notice: string;
+  rewriteEnabledBySession: Record<string, boolean>;
   onAddAttachments: (files: File[]) => void;
   onAttachmentRejected: (key: string, message: string) => void;
   onChatInputChange: (key: string, value: string) => void;
@@ -19,6 +20,7 @@ type SessionSurfacesProps = {
   onModelClick: (key: string) => void;
   onOpenMenu: () => void;
   onRemoveAttachment: (id: string) => void;
+  onRewriteToggle: (sessionid: string) => void;
   onSkillListRefresh: () => void;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
   onTurnToggle: (turn: TurnFlowState, open: boolean) => void;
@@ -36,6 +38,7 @@ export function SessionSurfaces({
   clientState,
   hasPendingAction,
   notice,
+  rewriteEnabledBySession,
   onAddAttachments,
   onAttachmentRejected,
   onChatInputChange,
@@ -46,6 +49,7 @@ export function SessionSurfaces({
   onModelClick,
   onOpenMenu,
   onRemoveAttachment,
+  onRewriteToggle,
   onSkillListRefresh,
   onSubmit,
   onTurnToggle,
@@ -74,6 +78,7 @@ export function SessionSurfaces({
         project={project}
         isActive={key === activeUiKey}
         notice={ui.notice || notice}
+        rewriteEnabled={session ? Boolean(rewriteEnabledBySession[session.sessionid]) : false}
         sessionError={ui.sessionError || sessionError}
         t={t}
         submitPending={hasPendingAction(`session-submit:${key}`) || hasPendingAction("session-submit")}
@@ -87,6 +92,7 @@ export function SessionSurfaces({
         onAttachmentRejected={(message) => onAttachmentRejected(key, message)}
         onRemoveAttachment={onRemoveAttachment}
         onModelClick={() => onModelClick(key)}
+        onRewriteToggle={() => { if (session) onRewriteToggle(session.sessionid); }}
         onSkillListRefresh={onSkillListRefresh}
         onSubmit={onSubmit}
         onTurnToggle={onTurnToggle}

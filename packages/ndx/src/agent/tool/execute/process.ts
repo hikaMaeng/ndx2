@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import os from "node:os";
+import { readNDXWebSearchSettings } from "../../../common/settings/index.js";
 import { toServerContainerPath } from "../../../common/server-path/index.js";
 import { routeToolAgentCallLine } from "./agentcall/index.js";
 import { isToolRuntimeArgName, resolveToolRuntimeArg } from "../base/runtimeArgs.js";
@@ -34,6 +35,9 @@ export async function runToolProcess(
   };
   const stdin = typeof tool.stdin === "string" ? await fillTemplate(tool.stdin) : undefined;
   const processArgs = await Promise.all(tool.args.map(fillTemplate));
+  const webSearchSettings = tool.name === "web_search"
+    ? JSON.stringify(await readNDXWebSearchSettings(options.userHome ?? os.homedir(), options.projectHome ?? process.cwd()))
+    : undefined;
   const startedAtDate = new Date();
   const startedAt = startedAtDate.toISOString();
   await options.observer?.onToolStarted?.({ tool: tool.name, callId, startedAt, args: normalizedToolArgs });
@@ -52,7 +56,8 @@ export async function runToolProcess(
         NDX_TOOL_ARGUMENTS: serializedArgs,
         NDX_TOOL_DIRECTORY: tool.directory,
         NDX_USER_HOME: options.userHome ?? os.homedir(),
-        NDX_PROJECT_HOME: options.projectHome ?? process.cwd()
+        NDX_PROJECT_HOME: options.projectHome ?? process.cwd(),
+        ...(webSearchSettings ? { NDX_WEBSEARCH_SETTINGS: webSearchSettings } : {})
       },
       stdio: [stdin === undefined ? "ignore" : "pipe", "pipe", "pipe"]
     });

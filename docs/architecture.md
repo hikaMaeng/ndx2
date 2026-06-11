@@ -4,9 +4,8 @@ The baseline service shape is Express server plus Vite React front shell. Produc
 
 The target architecture is a TypeScript-first web-service monorepo:
 
-* `apps/ndx` contains the administration service.
-* `apps/ndx` contains the agent session service.
-* `packages/ndx` contains shared common, admin, and agent domain contracts.
+* `apps/ndx` contains the Express server, session service, webclient, settings surface, and documents site.
+* `packages/ndx` contains shared common, agent, and webclient domain contracts.
 * The agent server is the only component allowed to execute agent loops, call tools, manage model inference, reconstruct context, or persist session events.
 * Browser, CLI, VS Code, and native clients are session clients. They connect to the agent server session socket and render downstream events, but do not own agent runtime state.
 * PostgreSQL is the authoritative store for accounts, session metadata, context events, task-turn progress, tool logs, and resumable execution state.
@@ -17,14 +16,14 @@ Logical server surfaces:
 | Surface | Responsibility |
 | --- | --- |
 | Agent server session socket | Agent turn execution, client interaction, downstream event streaming |
-| Admin web server | Session management, settings, logs, operational status |
+| Settings HTTP/UI | Settings orchestration and browser editing surface |
 | Session web client | Browser UI connected to the session WebSocket server |
 | Account server | Account creation, deletion, login state, default-account behavior |
 
-`apps/ndx` owns `src/server` and `src/webclient_front`. The single Express server under
-`src/server` serves backend API routes, built front-end assets, and the session
-WebSocket upgrade surface; socket-specific transport wiring lives under
-`src/server/agent`.
+`apps/ndx` owns `src/server`, `src/webclient_front`, and `src/documents_front`.
+The single Express server under `src/server` serves backend API routes, built
+front-end assets, the `/docs` document bundle, and the session WebSocket upgrade
+surface; socket-specific transport wiring lives under `src/server/agent`.
 
 Code placement rules are maintained in `code-placement.md`. Use that document
 when deciding whether new code belongs in `apps/*` or `packages/ndx`.

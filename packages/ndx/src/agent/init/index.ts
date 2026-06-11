@@ -13,6 +13,7 @@ import { NDX_SYSTEM_SKILL_ASSETS, type NDXSystemSkillAsset } from "../tool/base/
 import type { NDXDatabase } from "./database.js";
 
 const DEFAULT_NDX_DATABASE_URL = "postgresql://ndev:ndev@127.0.0.1:5432/ndev";
+const REMOVED_SYSTEM_SKILL_DIRECTORIES = ["prompt_rewrite"];
 
 export interface InitServerOptions {
   userHome: string;
@@ -68,6 +69,9 @@ export async function seedServerAssets(userHome: string): Promise<void> {
 
   for (const systemSkillAsset of NDX_SYSTEM_SKILL_ASSETS) {
     await copySystemSkillAsset(userHome, systemSkillAsset);
+  }
+  for (const directory of REMOVED_SYSTEM_SKILL_DIRECTORIES) {
+    fs.rmSync(path.join(userHome, ".ndx", "system", "skills", directory), { recursive: true, force: true });
   }
 }
 

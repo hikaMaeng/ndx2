@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
-import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -9,6 +8,10 @@ import { executeToolCalls, listAvailableTools, toolSchemas } from "./index.js";
 import { createCotWorkAgentCallHandler } from "./base/cot_work/agentCall.js";
 import { NDX_SIDEBAR_ITEM_AGENTCALL_NAME } from "./execute/agentcall/index.js";
 import type { NDXToolExecutionOptions, NDXToolExecutionResult } from "./index.js";
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 test("listAvailableTools merges external tools before builtin tools with builtin names protected", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-tools-"));
@@ -194,7 +197,7 @@ test("all builtin tool arg templates resolve against their own schema properties
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-tools-"));
   const tools = await listAvailableTools({ userHome: path.join(root, "user"), projectHome: path.join(root, "project") });
 
-  assert.deepEqual(tools.map((tool) => tool.name), ["askUserQuestion", "bash", "cot_work", "edit", "getImage", "glob", "grep_search", "loadSkill", "prompt_rewrite", "read_file", "session_history", "web_fetch", "web_search", "write_file"]);
+  assert.deepEqual(tools.map((tool) => tool.name), ["askUserQuestion", "bash", "cot_work", "edit", "getImage", "glob", "grep_search", "loadSkill", "read_file", "session_history", "web_fetch", "web_search", "write_file"]);
   assert.ok(tools.every((tool) => tool.source === "builtin"));
 });
 
@@ -553,130 +556,6 @@ test("loadSkill corrects minor skill name differences", async () => {
   assert.match(result.output, /Use scaffold workflow\./);
 });
 
-test("prompt_rewrite uses configured rewrite model and existing base tools inside its rewrite loop", async () => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-prompt-rewrite-"));
-  const userHome = path.join(root, "ndx");
-  const projectHome = path.join(userHome, "workspace", "project");
-  await fs.mkdir(path.join(userHome, ".ndx"), { recursive: true });
-  await fs.mkdir(path.join(projectHome, "docs"), { recursive: true });
-  await fs.writeFile(path.join(userHome, ".ndx", "settings.json"), JSON.stringify({ tools: { prompt_rewrite: { model: "qwen3.6-35b-mp" } } }), "utf8");
-  await fs.writeFile(path.join(projectHome, "docs", "askuserquestion.md"), "askuserquestion E2E tests verify the modal response flow.\n", "utf8");
-
-  const requests: Array<{ model?: string; input?: unknown }> = [];
-  const databaseQueries: { text: string; values: unknown[] }[] = [];
-  const server = http.createServer((request, response) => {
-    let body = "";
-    request.setEncoding("utf8");
-    request.on("data", (chunk) => {
-      body += chunk;
-    });
-    request.on("end", () => {
-      const parsed = JSON.parse(body) as { model?: string; input?: unknown };
-      requests.push(parsed);
-      const text = JSON.stringify({
-          rewritten_prompt: "목표: askuserquestion 관련 테스트 맥락을 반영해 요청을 명확히 수행한다.\n근거/사실: 현재 세션, session_history, 기존 파일 검색 결과를 참고했다.\n제약: 원문 범위를 확장하지 않는다.\n절차: 관련 파일과 세션 근거를 확인한 뒤 필요한 변경만 수행한다.\n출력: 재작성 근거와 결과를 분리해 보고한다.",
-          report: "현재 세션 생략 표현, session_history 결과, grep_search 결과를 근거로 작업 대상을 명시했다.",
-          facts: ["다른 세션에 askuserquestion 모달 응답 흐름 결정이 있다.", "docs/askuserquestion.md에 askuserquestion E2E 테스트 설명이 있다."],
-          assumptions: ["사용자는 기존 askuserquestion 흐름을 가리킨다."],
-          ambiguities: [],
-          should_ask_user: false,
-          pass_through: false
-        });
-      response.writeHead(200, { "content-type": "application/json" });
-      response.end(JSON.stringify({
-        output: requests.length === 1
-          ? [{ type: "function_call", call_id: "rewrite_history_1", name: "session_history", arguments: JSON.stringify({ scope: "project", query: "askuserquestion 테스트", limit: 2 }) }]
-          : requests.length === 2
-            ? [{ type: "function_call", call_id: "rewrite_search_1", name: "grep_search", arguments: JSON.stringify({ pattern: "askuserquestion", path: "docs", glob: "*.md", limit: 5 }) }]
-            : [{ type: "message", content: [{ type: "output_text", text }] }]
-      }));
-    });
-  });
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  try {
-    const address = server.address();
-    assert.equal(typeof address, "object");
-    const port = address && typeof address === "object" ? address.port : 0;
-    const model = { type: "openai" as const, model: "session-model", url: `http://127.0.0.1:${port}`, token: "", contextsize: 200_000 };
-    const result = await executeToolCall(
-      { call_id: "rewrite_1", name: "prompt_rewrite", arguments: JSON.stringify({ prompt: "그거 테스트도 추가해", reason: "대화 생략 표현 해소" }) },
-      {
-        userHome,
-        projectHome,
-        model,
-        sessionid: "018f0000-0000-7000-8000-000000000001",
-        session: {
-          sessionid: "018f0000-0000-7000-8000-000000000001",
-          userid: "ndev",
-          title: "",
-          lastupdated: new Date(),
-          mode: "none",
-          path: projectHome,
-          projectname: "018f0000-0000-7000-8000-000000000002",
-          model,
-          isrunning: true,
-          turnphase: "model_request",
-          interruptrequested: false,
-          interruptrequestedat: null,
-          interruptcompletedat: null
-        },
-        database: {
-          async query(text, values) {
-            databaseQueries.push({ text, values: values ?? [] });
-            return {
-              rows: [{
-                dataid: "history-1",
-                sessionid: "018f0000-0000-7000-8000-000000000003",
-                projectname: "018f0000-0000-7000-8000-000000000002",
-                path: projectHome,
-                title: "askuserquestion 설계",
-                type: "assistant",
-                createdat: new Date("2026-05-31T00:00:00.000Z"),
-                text: "다른 세션에서 askuserquestion 모달 응답 흐름을 테스트 대상으로 결정했다.",
-                tokenlength: 11,
-                rank: 0.42
-              }],
-              rowCount: 1
-            } as never;
-          },
-          async close() {}
-        },
-        turnContext: {
-          developer: { role: "system", content: "" },
-          user: { role: "user", content: "" },
-          history: [{ role: "user", content: "기능은 askuserquestion과 비슷하다." }],
-          historyRows: [
-            { dataid: "1", sessionid: "018f0000-0000-7000-8000-000000000001", type: "user", contents: { kind: "user_message", text: "기능은 askuserquestion과 비슷하다." }, createdat: new Date() },
-            { dataid: "2", sessionid: "018f0000-0000-7000-8000-000000000001", type: "assistant", contents: { kind: "assistant_message", text: "askuserquestion은 사용자에게 확인 질문을 보내는 도구입니다." }, createdat: new Date() },
-            { dataid: "3", sessionid: "018f0000-0000-7000-8000-000000000001", type: "assistant", contents: { kind: "tool_result", iteration: 1, results: [{ toolCallId: "x", tool: "grep_search", success: true, output: "should be omitted from compact history" }] }, createdat: new Date() }
-          ]
-        }
-      }
-    );
-
-    assert.equal(result.success, true);
-    assert.equal(requests.length, 3);
-    assert.equal(requests[0]?.model, "qwen3.6-35b-mp");
-    assert.equal(requests[1]?.model, "qwen3.6-35b-mp");
-    assert.equal(requests[2]?.model, "qwen3.6-35b-mp");
-    const output = JSON.parse(result.output) as { rewritten_prompt: string; report: string; tool_calls: Array<{ tool: string; success: boolean; output: string }>; model: { source: string; model: string } };
-    assert.match(output.rewritten_prompt, /목표:/);
-    assert.match(output.rewritten_prompt, /session_history/);
-    assert.match(output.report, /grep_search/);
-    assert.equal(output.model.source, "settings.tools.prompt_rewrite.model");
-    assert.equal(output.model.model, "qwen3.6-35b-mp");
-    assert.deepEqual(output.tool_calls.map((item) => item.tool), ["session_history", "grep_search"]);
-    assert.equal(output.tool_calls[0]?.success, true);
-    assert.match(output.tool_calls[0]?.output ?? "", /다른 세션에서 askuserquestion/);
-    assert.equal(output.tool_calls[1]?.success, true);
-    assert.match(output.tool_calls[1]?.output ?? "", /askuserquestion E2E tests/);
-    assert.match(databaseQueries[0]?.text ?? "", /WHERE s\.projectname = \$1/);
-    assert.deepEqual(databaseQueries[0]?.values, ["018f0000-0000-7000-8000-000000000002", "askuserquestion 테스트", 2]);
-  } finally {
-    await new Promise<void>((resolve) => server.close(() => resolve()));
-  }
-});
-
 test("builtin file tools read, search, edit, write, and run bash within the NDX virtual root", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-file-tools-"));
   const userHome = path.join(root, "ndx");
@@ -773,12 +652,23 @@ test("builtin tools emit protocol errors for invalid runtime situations", async 
     executeToolCall({ name: "bash", arguments: JSON.stringify({ command: "exit 7", workdir: "." }) }, { userHome, projectHome })
   ];
 
-  for (const result of await Promise.all(cases)) {
+  const results = await Promise.all(cases);
+  for (const result of results) {
     assert.equal(result.success, false);
     assert.equal(result.status, "failed");
     assert.equal(result.events.at(-1)?.type, "error");
     assert.match(result.output, /required|exist|escapes|matched|exit_code/i);
   }
+
+  const escapedWrite = results[1];
+  assert.ok(escapedWrite);
+  const appendEffect = escapedWrite?.effects?.find((effect): effect is Extract<NonNullable<typeof escapedWrite.effects>[number], { type: "append_user_message" }> => effect.type === "append_user_message");
+  assert.match(escapedWrite.output, /path escapes NDX virtual root/);
+  assert.match(appendEffect?.text ?? "", /Path correction for this session:/);
+  assert.match(appendEffect?.text ?? "", new RegExp(`This session's project root is ${escapeRegExp(projectHome)}\\.`));
+  assert.match(appendEffect?.text ?? "", new RegExp(`This session's NDX virtual root is ${escapeRegExp(userHome)}\\.`));
+  assert.match(appendEffect?.text ?? "", /Use project-relative paths for project files; do not prefix them with \/\./);
+  assert.match(appendEffect?.text ?? "", /Absolute file-tool paths must stay under/);
 });
 
 test("builtin file tools map Windows volume paths before invoking shell tools", async () => {

@@ -228,7 +228,13 @@ test("buildContext composes implemented sections from initialized arbitrary root
     assert.ok(serviceIndex > appsIndex);
     assert.ok(environmentIndex > serviceIndex);
     assert.match(context.user, new RegExp(`<cwd>${escapeRegExp(cwd)}</cwd>`));
+    assert.match(context.user, new RegExp(`<project_root>${escapeRegExp(projectHome)}</project_root>`));
+    assert.match(context.user, new RegExp(`<ndx_virtual_root>${escapeRegExp(userHome)}</ndx_virtual_root>`));
     assert.match(context.user, /<shell>bash<\/shell>/);
+    assert.match(context.user, new RegExp(`File tools resolve relative paths from ${escapeRegExp(projectHome)}\\.`));
+    assert.match(context.user, /Use project-relative paths like apps\/\.\.\.; do not prefix project paths with \/\./);
+    assert.match(context.user, new RegExp(`Absolute file-tool paths must stay under ${escapeRegExp(userHome)}; project absolute paths should start with ${escapeRegExp(projectHome)}\\.`));
+    assert.match(context.user, new RegExp(`Do not pass /tmp paths to file tools; use bash for /tmp or write under ${escapeRegExp(projectHome)}\\.`));
     assert.match(context.user, /<current_date>2026-05-12<\/current_date>/);
     assert.match(context.user, /<timezone>Asia\/Seoul<\/timezone>/);
   });
@@ -543,6 +549,9 @@ test("buildContext returns one developer string and one user string", async () =
     assert.match(context.developer, /<\/model_instruction>/);
     assert.match(context.user, /<environment_context>/);
     assert.match(context.user, /<cwd>\/mnt\/f\/dev\/project<\/cwd>/);
+    assert.match(context.user, /<project_root>.*\/project<\/project_root>/);
+    assert.match(context.user, /<ndx_virtual_root>.*\/home<\/ndx_virtual_root>/);
+    assert.match(context.user, /<path_policy>/);
     assert.match(context.user, /<shell>bash<\/shell>/);
     assert.match(context.user, /<current_date>2026-05-11<\/current_date>/);
     assert.match(context.user, /<timezone>Asia\/Seoul<\/timezone>/);

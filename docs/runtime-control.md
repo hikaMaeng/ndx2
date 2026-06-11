@@ -130,6 +130,13 @@ The session server exposes only these turn-loop hook events:
 * `turn.end`: runs after turn completion data is available and before the turn
   is treated as fully complete by runtime bookkeeping.
 
+The system `turn.request.received` rewriter marker hook handles explicit
+`[[rewriter]]` suffixes from the web client. It removes the marker before
+persistence, searches `sessionsearch` directly with the raw user request,
+invokes the configured rewrite model, appends a deterministic session-search
+context section, and returns `replaceRequestText`. The stored user row is the
+rewritten request, not the raw marker-bearing text.
+
 Hook events are not added for turn-loop internals such as failure logging,
 context-usage accounting, model-response receipt, resume preparation, or
 post-write completion.
