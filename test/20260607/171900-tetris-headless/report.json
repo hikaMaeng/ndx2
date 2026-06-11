@@ -1,0 +1,33 @@
+{
+  "url": "http://127.0.0.1:18080",
+  "containerUrl": "http://host.docker.internal:18080",
+  "sessionid": "019ea114-fa50-768e-b56e-5e25525fbd8c",
+  "checks": {
+    "initialRender": {
+      "status": "passed",
+      "title": "tetris",
+      "startButton": "START A"
+    },
+    "gameOverReachedByHardDrop": {
+      "status": "passed",
+      "method": "click START A, then press Space repeatedly until GAME OVER appears"
+    },
+    "gameOverPopup": {
+      "status": "partial",
+      "dialogText": "GAME OVER",
+      "buttonText": "START",
+      "expectedButtonText": "START A"
+    },
+    "fallingBlockAreaBlur": {
+      "status": "passed",
+      "boardClass": "grid",
+      "note": "Only the page header had backdrop-blur-sm; the board grid did not contain a blur class."
+    }
+  },
+  "screenshots": [
+    "01-loaded.png",
+    "02-after-harddrop.png"
+  ],
+  "result": "failed",
+  "reason": "The deployed game reaches GAME OVER and the board is not blurred, but the game-over popup does not reuse the original START A button text."
+}

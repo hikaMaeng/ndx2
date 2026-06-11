@@ -14,6 +14,13 @@ export const NDX_AGENT_WEB_API = Object.freeze({
   webProviderModelSync: (title: string) => `/api/agent/web-providers/${encodeURIComponent(title)}/models/sync`,
   webProviderModel: (title: string, model: string) =>
     `/api/agent/web-providers/${encodeURIComponent(title)}/models/${encodeURIComponent(model)}`,
+  webProviderEmbeddingModels: (title: string) => `/api/agent/web-providers/${encodeURIComponent(title)}/embedding-models`,
+  webProviderEmbeddingModelSync: (title: string) => `/api/agent/web-providers/${encodeURIComponent(title)}/embedding-models/sync`,
+  webSettings: "/api/agent/settings",
+  webEmbeddingSettings: "/api/agent/settings/embeddings",
+  modelFolderPatchAnalyze: "/api/agent/settings/models/folder/analyze",
+  modelFolderPatchApply: "/api/agent/settings/models/folder/patch",
+  modelFolderPatchDraft: "/api/agent/settings/models/folder/draft",
   webProjectUser: (projectName: string) => `/api/agent/web-projects/${encodeURIComponent(projectName)}/user`,
   chatFolders: "/api/agent/chat/folders",
   chatFolder: (folderid: string) => `/api/agent/chat/folders/${encodeURIComponent(folderid)}`,
@@ -92,6 +99,7 @@ export type NDXAgentWebCreateProviderRequest = {
   type: "openai";
   url: string;
   token?: string;
+  skipSync?: boolean;
 };
 
 export type NDXAgentWebUpdateProviderRequest = {
@@ -100,9 +108,10 @@ export type NDXAgentWebUpdateProviderRequest = {
   token?: string;
 };
 
-export type NDXReasoningEffort = "none" | "nothink" | "normal" | "high";
+export type NDXReasoningEffort = "low" | "medium" | "high";
 
 export type NDXAgentWebModel = {
+  key?: string;
   provider: string;
   model: string;
   contextsize: number;
@@ -117,6 +126,125 @@ export type NDXAgentWebModel = {
 export type NDXAgentWebModelsResponse = {
   models: NDXAgentWebModel[];
   syncError?: string;
+};
+
+export type NDXAgentWebEmbeddingSettings = {
+  provider: string;
+  model: string;
+};
+
+export type NDXAgentWebEmbeddingSettingsResponse = {
+  embeddings?: NDXAgentWebEmbeddingSettings;
+};
+
+export type NDXAgentWebUpdateEmbeddingSettingsRequest = {
+  provider: string;
+  model: string;
+};
+
+export type NDXAgentWebSettingsDocument = {
+  version: string;
+  defaultModelKey: string;
+  runtime: {
+    maxModelIterations: number;
+    loopDetectionInterval: number;
+  };
+  tools: {
+    prompt_rewrite: {
+      model: string;
+    };
+  };
+  hooks: {
+    StreamGuard: {
+      MAX_REASONING_LENGTH: number;
+    };
+  };
+  websearch: {
+    provider: string;
+    apiKey: string;
+    baseUrl: string;
+    method: string;
+    queryParam: string;
+    providersJson: string;
+  };
+  otherJson: string;
+  topLevelKeys: string[];
+};
+
+export type NDXAgentWebSettingsResponse = {
+  settings: NDXAgentWebSettingsDocument;
+};
+
+export type NDXAgentWebUpdateSettingsRequest = {
+  version?: string;
+  defaultModelKey?: string;
+  runtime?: Partial<NDXAgentWebSettingsDocument["runtime"]>;
+  tools?: {
+    prompt_rewrite?: Partial<NDXAgentWebSettingsDocument["tools"]["prompt_rewrite"]>;
+  };
+  hooks?: {
+    StreamGuard?: Partial<NDXAgentWebSettingsDocument["hooks"]["StreamGuard"]>;
+  };
+  websearch?: Partial<NDXAgentWebSettingsDocument["websearch"]>;
+  otherJson?: string;
+};
+
+export type NDXAgentModelFolderPatchRequest = {
+  folderPath: string;
+};
+
+export type NDXAgentModelFolderPatchResponse = {
+  status: "inaccessible" | "needs_patch" | "patched";
+  folderPath: string;
+  resolvedFolderPath?: string;
+  modelFolderName?: string;
+  publisher?: string;
+  baseModelKey?: string;
+  aliasModelKey?: string;
+  hubModelYamlPath?: string;
+  ggufFiles: string[];
+  hasNdxHubPatch: boolean;
+  warnings: string[];
+  applied?: boolean;
+};
+
+export type NDXAgentModelFolderPatchDraftRequest = {
+  folderName: string;
+  publisher?: string;
+  baseModelKey?: string;
+  aliasModelKey?: string;
+  ggufFiles?: string[];
+  existingModelYaml?: string;
+  template?: string;
+};
+
+export type NDXAgentModelFolderPatchManifest = {
+  version: 1;
+  createdAt: string;
+  folderName: string;
+  publisher: string;
+  baseModelKey: string;
+  aliasModelKey: string;
+  outputFileName: "model.yaml";
+  originalModelYamlExisted: boolean;
+  originalModelYamlSha256?: string;
+  backupFileName?: string;
+};
+
+export type NDXAgentModelFolderPatchDraftResponse = {
+  status: "needs_patch" | "patched";
+  folderName: string;
+  publisher: string;
+  baseModelKey: string;
+  aliasModelKey: string;
+  ggufFiles: string[];
+  modelYaml: string;
+  modelYamlFileName: "model.yaml";
+  manifest: NDXAgentModelFolderPatchManifest;
+  manifestFileName: "ndx-model-patch.json";
+  backupFileName?: string;
+  backupContents?: string;
+  warnings: string[];
 };
 
 export type NDXAgentWebCreateModelRequest = {

@@ -143,8 +143,9 @@ export function sessionDataTitleText(row: Pick<NDXSessionDataRow, "type" | "cont
 }
 
 function visibleUserRequestTitle(text: string): string {
-  const match = text.match(/^<ndx_request\s+reasoning="(?:none|nothink|normal|high|minimal|allowed)">\s*<user_request>\s*([\s\S]*?)\s*<\/user_request>\s*<execution_policy>[\s\S]*<\/execution_policy>\s*<\/ndx_request>\s*$/);
-  return match?.[1] ?? text;
+  const requestMatch = text.match(/^<request\s+thinking="(?:none|nothink|normal|low|medium|high|minimal|allowed)">\s*<thinking_instruction>[\s\S]*?<\/thinking_instruction>\s*<user_request>\s*([\s\S]*?)\s*<\/user_request>\s*<\/request>\s*$/);
+  const legacyMatch = text.match(/^<ndx_request\s+reasoning="(?:none|nothink|normal|low|medium|high|minimal|allowed)">\s*<user_request>\s*([\s\S]*?)\s*<\/user_request>\s*<execution_policy>[\s\S]*<\/execution_policy>\s*<\/ndx_request>\s*$/);
+  return requestMatch?.[1] ?? legacyMatch?.[1] ?? text;
 }
 
 function stringifyToolOutput(output: unknown): string {

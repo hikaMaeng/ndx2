@@ -26,7 +26,7 @@ export const DEFAULT_MODEL: SelectedModelConfig = {
   url: "",
   token: "",
   modalities: ["text"],
-  reasoningEffort: "none"
+  reasoningEffort: "medium"
 };
 
 export function toModelConfig(model: SelectedModelConfig) {
@@ -63,7 +63,7 @@ export function fromModelConfig(model: NDXAgentWebModelConfig): SelectedModelCon
 }
 
 export function normalizeReasoningEffort(value: unknown): NDXReasoningEffort {
-  if (value === "low") return "nothink";
-  if (value === "medium") return "normal";
-  return value === "none" || value === "nothink" || value === "normal" || value === "high" ? value : "none";
+  if (value === "nothink") return "low";
+  if (value === "normal") return "medium";
+  return value === "low" || value === "medium" || value === "high" ? value : "medium";
 }

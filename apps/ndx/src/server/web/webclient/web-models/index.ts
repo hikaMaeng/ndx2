@@ -1,15 +1,20 @@
 import type express from "express";
 import { NDX_AGENT_RESOURCE, createNDXAgentResourceResolver, type NDXAgentResourceResolver } from "ndx/common";
 import {
+  createSettingsWebEmbeddingModel,
   createSettingsWebModel,
   createSettingsWebProvider,
   deleteSettingsWebModel,
   deleteSettingsWebProvider,
+  getSettingsWebEmbeddingSettings,
   getSettingsWebProvider,
+  listSettingsWebEmbeddingModel,
   listSettingsWebModel,
   listSettingsWebProvider,
   providerModelEndpointCandidates,
+  syncSettingsWebProviderEmbeddingModels,
   syncSettingsWebProviderModels,
+  updateSettingsWebEmbeddingSettings,
   updateSettingsWebModel,
   updateSettingsWebProvider
 } from "ndx/webclient/server";
@@ -19,10 +24,12 @@ import {
   NDX_AGENT_WEB_API,
   type NDXAgentWebCreateModelRequest,
   type NDXAgentWebCreateProviderRequest,
+  type NDXAgentWebEmbeddingSettingsResponse,
   type NDXAgentWebModel,
   type NDXAgentWebModelsResponse,
   type NDXAgentWebProvider,
   type NDXAgentWebProvidersResponse,
+  type NDXAgentWebUpdateEmbeddingSettingsRequest,
   type NDXAgentWebUpdateModelRequest,
   type NDXAgentWebUpdateProviderRequest
 } from "ndx/webclient/common";
@@ -50,9 +57,11 @@ export function attachAgentWebModelRoutes(app: express.Express, database?: NDXDa
       const provider = await createSettingsWebProvider(NDX_CONTAINER_USER_HOME, { title, type: "openai", url, token: typeof body.token === "string" ? body.token : "" });
       response.status(201).json(provider as NDXAgentWebProvider);
       logger?.info("web.providers.create.complete", { title: provider.title, url: provider.url });
-      setImmediate(() => {
-        void syncSettingsWebProviderModels(NDX_CONTAINER_USER_HOME, provider).catch((error) => logger?.warn("web.providers.background_sync.failed", { title: provider.title, error }));
-      });
+      if (!body.skipSync) {
+        setImmediate(() => {
+          void syncSettingsWebProviderModels(NDX_CONTAINER_USER_HOME, provider).catch((error) => logger?.warn("web.providers.background_sync.failed", { title: provider.title, error }));
+        });
+      }
     } catch (error) {
       next(error);
     }
@@ -96,6 +105,17 @@ export function attachAgentWebModelRoutes(app: express.Express, database?: NDXDa
     }
   });
 
+  app.get("/api/agent/web-providers/:title/embedding-models", async (request, response, next) => {
+    try {
+      logger?.debug("web.embedding_models.list.start", { title: request.params.title });
+      const body: NDXAgentWebModelsResponse = { models: (await listSettingsWebEmbeddingModel(NDX_CONTAINER_USER_HOME, request.params.title)).map((model) => model as NDXAgentWebModel) };
+      response.json(body);
+      logger?.debug("web.embedding_models.list.complete", { title: request.params.title, count: body.models.length });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.post("/api/agent/web-providers/:title/models/sync", async (request, response, next) => {
     try {
       logger?.info("web.models.sync.start", { title: request.params.title });
@@ -114,6 +134,29 @@ export function attachAgentWebModelRoutes(app: express.Express, database?: NDXDa
       };
       response.json(body);
       logger?.info("web.models.sync.complete", { title: request.params.title, count: body.models.length, hasSyncError: Boolean(syncError) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/agent/web-providers/:title/embedding-models/sync", async (request, response, next) => {
+    try {
+      logger?.info("web.embedding_models.sync.start", { title: request.params.title });
+      const provider = await getSettingsWebProvider(NDX_CONTAINER_USER_HOME, request.params.title);
+      if (!provider) return response.status(404).json({ error: resource(NDX_AGENT_RESOURCE.WEB_PROVIDER_NOT_FOUND_ERROR, { language: request.body?.language }) });
+      const syncError = await syncSettingsWebProviderEmbeddingModels(NDX_CONTAINER_USER_HOME, provider).then(() => "").catch((error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        return resource(NDX_AGENT_RESOURCE.WEB_MODEL_SYNC_FAILED_ERROR, {
+          language: request.body?.language,
+          values: { endpoints: providerModelEndpointCandidates(provider.url).join(", "), message }
+        });
+      });
+      const body: NDXAgentWebModelsResponse = {
+        models: (await listSettingsWebEmbeddingModel(NDX_CONTAINER_USER_HOME, request.params.title)).map((model) => model as NDXAgentWebModel),
+        ...(syncError ? { syncError } : {})
+      };
+      response.json(body);
+      logger?.info("web.embedding_models.sync.complete", { title: request.params.title, count: body.models.length, hasSyncError: Boolean(syncError) });
     } catch (error) {
       next(error);
     }
@@ -138,6 +181,24 @@ export function attachAgentWebModelRoutes(app: express.Express, database?: NDXDa
       });
       response.status(201).json(row);
       logger?.info("web.models.create.complete", { title: row.provider, model: row.model });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/agent/web-providers/:title/embedding-models", async (request, response, next) => {
+    try {
+      logger?.info("web.embedding_models.create.start", { title: request.params.title });
+      const body = request.body as Partial<NDXAgentWebCreateModelRequest>;
+      const model = typeof body.model === "string" ? body.model.trim() : "";
+      if (!model) return response.status(400).json({ error: resource(NDX_AGENT_RESOURCE.WEB_MODEL_REQUIRED_ERROR, { language: request.body?.language }) });
+      if (!model.toLowerCase().includes("embedding")) return response.status(400).json({ error: "임베딩 모델 이름에는 embedding이 포함되어야 합니다." });
+      const row = await createSettingsWebEmbeddingModel(NDX_CONTAINER_USER_HOME, {
+        provider: request.params.title,
+        model
+      });
+      response.status(201).json(row);
+      logger?.info("web.embedding_models.create.complete", { title: row.provider, model: row.model });
     } catch (error) {
       next(error);
     }
@@ -173,6 +234,34 @@ export function attachAgentWebModelRoutes(app: express.Express, database?: NDXDa
       next(error);
     }
   });
+
+  app.get(NDX_AGENT_WEB_API.webEmbeddingSettings, async (_request, response, next) => {
+    try {
+      logger?.debug("web.embedding_settings.get.start");
+      const body: NDXAgentWebEmbeddingSettingsResponse = {
+        embeddings: await getSettingsWebEmbeddingSettings(NDX_CONTAINER_USER_HOME)
+      };
+      response.json(body);
+      logger?.debug("web.embedding_settings.get.complete", { configured: Boolean(body.embeddings) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.put(NDX_AGENT_WEB_API.webEmbeddingSettings, async (request, response, next) => {
+    try {
+      logger?.info("web.embedding_settings.update.start");
+      const body = request.body as Partial<NDXAgentWebUpdateEmbeddingSettingsRequest>;
+      const provider = typeof body.provider === "string" ? body.provider.trim() : "";
+      const model = typeof body.model === "string" ? body.model.trim() : "";
+      if (!provider || !model) return response.status(400).json({ error: "임베딩 provider와 model이 필요합니다." });
+      const embeddings = await updateSettingsWebEmbeddingSettings(NDX_CONTAINER_USER_HOME, { provider, model });
+      response.json({ embeddings } satisfies NDXAgentWebEmbeddingSettingsResponse);
+      logger?.info("web.embedding_settings.update.complete", { provider, model });
+    } catch (error) {
+      next(error);
+    }
+  });
 }
 
 function normalizeModalities(value: unknown): Array<"text" | "image" | "file"> {
@@ -183,6 +272,6 @@ function normalizeModalities(value: unknown): Array<"text" | "image" | "file"> {
   return [...new Set([...value.filter((item) => allowed.has(item)), "text"])] as Array<"text" | "image" | "file">;
 }
 
-function isReasoningEffort(value: unknown): value is "none" | "nothink" | "normal" | "high" {
-  return value === "none" || value === "nothink" || value === "normal" || value === "high";
+function isReasoningEffort(value: unknown): value is "low" | "medium" | "high" {
+  return value === "low" || value === "medium" || value === "high";
 }

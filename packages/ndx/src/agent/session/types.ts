@@ -2,7 +2,7 @@ import type { NDXDatabase } from "../init/database.js";
 import { serverWorkspaceProjectPath } from "../../common/server-path/index.js";
 
 export type NDXSessionMode = "none" | "light";
-export type NDXReasoningEffort = "none" | "nothink" | "normal" | "high" | "low" | "medium";
+export type NDXReasoningEffort = "low" | "medium" | "high";
 
 export type NDXModelConfig = {
   type: "openai";

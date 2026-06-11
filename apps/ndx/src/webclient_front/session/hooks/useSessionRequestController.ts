@@ -231,7 +231,7 @@ export function useSessionRequestController({
 }
 
 function withThinkingMarker(text: string, effort: unknown): string {
-  if (effort !== "nothink" && effort !== "normal" && effort !== "high") {
+  if (effort !== "low" && effort !== "medium" && effort !== "high") {
     return text;
   }
   return `[[NDX_THINKING_${effort}]]\n${text}`;

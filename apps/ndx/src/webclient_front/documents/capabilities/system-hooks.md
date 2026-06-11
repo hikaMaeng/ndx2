@@ -4,16 +4,17 @@ System hook은 NDX runtime이 기본으로 설치하는 hook이다. 사용자가
 
 ## thinking marker
 
-`turn.request.received`의 thinking marker hook은 Composer가 붙인 `[[NDX_THINKING_none|nothink|normal|high]]` markup을 감지한다. `none`은 markup만 제거하고 원문을 그대로 둔다. 다른 값은 현재 요청을 `<ndx_request reasoning="nothink|normal|high">` wrapper로 감싼다. Wrapper는 `<user_request>`와 `<execution_policy>`를 같은 요청 단위 안에 둬서 thinking 정책이 해당 요청에 직접 걸리도록 만든다. 이 변환은 request-specific user prompt tail에 들어가므로 stable developer prompt를 바꾸지 않는다.
+`turn.request.received`의 thinking marker hook은 Composer가 붙인 `[[NDX_THINKING_low|medium|high]]` markup을 감지하고 사용자 요청에서 제거한다. Hook은 현재 요청을 wrapper로 감싸거나 별도 prompt instruction을 삽입하지 않는다. 모델별 thinking 제어는 model config의 Responses API `reasoning.effort`와 provider/model template 설정이 담당한다.
 
 Reasoning level mapping은 다음과 같다.
 
-| marker | wrapper | 의미 |
+| marker | provider effort | 의미 |
 | --- | --- | --- |
-| `none` | 없음 | prompt tag와 provider `reasoning.effort`를 모두 보내지 않는다. |
-| `nothink` | `reasoning="nothink"` | no-thinking. reasoning 대신 즉시 tool call 또는 짧은 직접 답변을 요구하고, 계획이 필요하면 `cot_work`를 사용하게 한다. Provider에는 가능한 경우 `reasoning.effort=low`를 보낸다. |
-| `normal` | `reasoning="normal"` | 기본 작업 모드. reasoning을 기본적으로 줄이고, 계획/불확실성은 `cot_work`로 외부화한다. Provider에는 가능한 경우 `reasoning.effort=medium`을 보낸다. |
-| `high` | `reasoning="high"` | reasoning 허용. 그래도 긴 계획/실행 추적은 `cot_work`를 선호한다. Provider에는 가능한 경우 `reasoning.effort=high`를 보낸다. |
+| `low` | `none` | no-thinking에 가까운 최소 reasoning effort. LM Studio의 `off/on` reasoning 모델에서는 `none`이 off로 동작한다. |
+| `medium` | `medium` | 기본 reasoning effort. |
+| `high` | `high` | 높은 reasoning effort. |
+
+Legacy marker인 `none`, `nothink`, `normal`은 오래된 클라이언트가 남긴 markup 제거만 위해 계속 인식한다.
 
 ## skill marker
 

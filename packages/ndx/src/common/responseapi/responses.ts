@@ -59,7 +59,7 @@ export type ResponseModelConfig = {
   url: string;
   token: string;
   requestTimeoutMs?: number;
-  reasoningEffort?: "none" | "nothink" | "normal" | "high" | "low" | "medium";
+  reasoningEffort?: "low" | "medium" | "high";
   temperature?: number;
   topP?: number;
   topK?: number;

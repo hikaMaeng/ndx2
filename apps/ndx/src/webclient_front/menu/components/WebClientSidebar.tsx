@@ -25,6 +25,7 @@ type WebClientSidebarProps = {
   onDeleteSession: (project: NDXWebClientProject, session: NDXAgentWebSession) => void;
   onOpenProjectInVSCode: (project: NDXWebClientProject) => void;
   onOpenProjectPicker: () => void;
+  onOpenSettings: () => void;
   onPrepareChatSessionDraft: (folder: NDXAgentWebChatFolder) => void;
   onOpenUserDialog: (projectname: string) => void;
   onPrepareSessionDraft: (project: NDXWebClientProject) => void;
@@ -60,6 +61,7 @@ export function WebClientSidebar({
   onDeleteSession,
   onOpenProjectInVSCode,
   onOpenProjectPicker,
+  onOpenSettings,
   onPrepareChatSessionDraft,
   onOpenUserDialog,
   onPrepareSessionDraft,
@@ -78,7 +80,7 @@ export function WebClientSidebar({
   const pendingChatSessionIds = new Set(Object.values(chatSessionsByFolder).flat().filter((session) => hasPendingAction(`chat-session-delete:${session.chatsessionid}`) || hasPendingAction(`chat-session-rename:${session.chatsessionid}`)).map((session) => session.chatsessionid));
 
   return (
-    <MenuSidebar metadata={metadata} t={t} onChangeLanguage={onChangeLanguage} onClose={onClose}>
+    <MenuSidebar metadata={metadata} t={t} onChangeLanguage={onChangeLanguage} onClose={onClose} onOpenSettings={onOpenSettings}>
       <ProjectSidebar activeSessionId={activeSessionId} idSuffix={idSuffix} clientState={clientState} pendingProjectIds={pendingProjectIds} pendingSessionIds={pendingSessionIds} expandedProjectSessionIds={expandedProjectSessionIds} sessionsByProject={sessionsByProject} t={t} onPrepareSessionDraft={onPrepareSessionDraft} onDeleteProject={onDeleteProject} onDeleteSession={onDeleteSession} onOpenProjectInVSCode={onOpenProjectInVSCode} onOpenProjectPicker={onOpenProjectPicker} onRenameSession={onRenameSession} onOpenUserDialog={onOpenUserDialog} onSelectProject={onSelectProject} onSelectSession={onSelectSession} onToggleProjectSessions={onToggleProjectSessions} />
       <ChatSidebar activeFolderId={activeChatFolderId} activeSessionId={activeChatSessionId} folders={chatFolders} pendingFolderIds={pendingChatFolderIds} pendingSessionIds={pendingChatSessionIds} sessionsByFolder={chatSessionsByFolder} onAddFolder={onAddChatFolder} onDeleteFolder={onDeleteChatFolder} onDeleteSession={onDeleteChatSession} onPrepareSessionDraft={onPrepareChatSessionDraft} onRenameFolder={onRenameChatFolder} onRenameSession={onRenameChatSession} onSelectFolder={onSelectChatFolder} onSelectSession={onSelectChatSession} />
     </MenuSidebar>

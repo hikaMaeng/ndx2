@@ -1,0 +1,1306 @@
+{
+  "url": "ws://127.0.0.1:18080/session",
+  "result": {
+    "clientid": "6e9944f5-e936-4ef9-9a85-399a80e96b0b",
+    "sessionid": "019ea114-fa50-768e-b56e-5e25525fbd8c",
+    "inputRecorded": true,
+    "modelRequest": true,
+    "assistantReasoning": 21,
+    "toolCalls": 0,
+    "assistantText": 0,
+    "turnEnd": false,
+    "protocolError": "",
+    "completion": {
+      "timeout": false
+    },
+    "messages": [
+      {
+        "type": "account.selection.required",
+        "users": [
+          {
+            "userid": "ndev",
+            "created": "2026-05-12T14:28:48.606Z"
+          },
+          {
+            "userid": "ndx",
+            "created": "2026-05-12T07:25:11.111Z"
+          }
+        ]
+      },
+      {
+        "type": "account.selected",
+        "userid": "ndev"
+      },
+      {
+        "type": "project.negotiation.required"
+      },
+      {
+        "type": "project.negotiated",
+        "projectName": "test1"
+      },
+      {
+        "type": "session.ready",
+        "clientid": "6e9944f5-e936-4ef9-9a85-399a80e96b0b",
+        "userid": "ndev",
+        "projectName": "test1"
+      },
+      {
+        "type": "session.created",
+        "initialInputAccepted": true,
+        "sessionid": "019ea114-fa50-768e-b56e-5e25525fbd8c",
+        "userid": "ndev",
+        "title": "1. 게임 종료의 조건이 잘못되어있다. 위에 1칸이 남은 경우 종료도 진행도 되지 않는다. 게임 종료조건을 재검토하여 수정하라\n2. 게임 종료시 게임의 블록이 떨어지는 영역에서 블러 효과도 없이 그냥 game over 팝업만 나오면 된다.\nstart버튼은 그저 원래 시작화면에 있던 버튼을 사용하면 된다.\n요구사항에 맞게 수정한 뒤 디플로이(apps/tetris) 하라",
+        "lastupdated": "2026-06-07T07:56:07.130Z",
+        "mode": "none",
+        "projectname": "test1",
+        "model": {
+          "url": "http://192.168.65.254:12345/v1",
+          "type": "openai",
+          "model": "step-3.7-flash",
+          "token": "",
+          "provider": "local",
+          "modalities": [
+            "text",
+            "image"
+          ],
+          "contextsize": 262144,
+          "reasoningEffort": "low"
+        },
+        "isrunning": false,
+        "turnphase": "idle",
+        "interruptrequested": false,
+        "interruptrequestedat": null,
+        "interruptcompletedat": null,
+        "runtimedata": {},
+        "path": "/ndx/workspace/test1"
+      },
+      {
+        "type": "session.list.changed",
+        "userid": "ndev",
+        "projectname": "test1"
+      },
+      {
+        "type": "session.event",
+        "sessionid": "019ea114-fa50-768e-b56e-5e25525fbd8c",
+        "event": "turn.context.ready",
+        "dataid": "context-ready:019ea114-fa50-768e-b56e-5e25525fbd8c:1780818967749",
+        "contents": {
+          "kind": "context_ready",
+          "messageCount": 4
+        },
+        "createdat": "2026-06-07T07:56:07.749Z",
+        "contextUsage": {
+          "tokens": 7693,
+          "messageTokens": 4724,
+          "toolDefinitionTokens": 2969,
+          "percent": 2.93,
+          "contextsize": 262144,
+          "parts": [
+            {
+              "key": "developer",
+              "label": "Developer message",
+              "tokens": 2622,
+              "percent": 1
+            },
+            {
+              "key": "user",
+              "label": "User message",
+              "tokens": 1877,
+              "percent": 0.72
+            },
+            {
+              "key": "history",
+              "label": "Session history",
+              "tokens": 225,
+              "percent": 0.09
+            },
+            {
+              "key": "toolDefinitions",
+              "label": "Tool definitions",
+              "tokens": 2969,
+              "percent": 1.13
+            },
+            {
+              "key": "remaining",
+              "label": "Remaining",
+              "tokens": 254451,
+              "percent": 97.07
+            }
+          ]
+        }
+      },
+      {
+        "type": "session.event",
+        "sessionid": "019ea114-fa50-768e-b56e-5e25525fbd8c",
+        "event": "turn.input.recorded",
+        "dataid": "13314",
+        "contents": {
+          "kind": "user_message",
+          "text": "<ndx_thinking_instruction level=\"low\">\nThis request requires the minimum possible thinking.\nDo not produce visible reasoning, analysis, task restatement, or planning text.\nDo not explain what you are about to inspect.\nImmediately perform the next necessary action, preferably one tool call.\nIf no action is possible, answer directly in the shortest useful form.\n</ndx_thinking_instruction>\n\n1. 게임 종료의 조건이 잘못되어있다. 위에 1칸이 남은 경우 종료도 진행도 되지 않는다. 게임 종료조건을 재검토하여 수정하라\n2. 게임 종료시 게임의 블록이 떨어지는 영역에서 블러 효과도 없이 그냥 game over 팝업만 나오면 된다.\nstart버튼은 그저 원래 시작화면에 있던 버튼을 사용하면 된다.\n요구사항에 맞게 수정한 뒤 디플로이(apps/tetris) 하라"
+        },
+        "createdat": "2026-06-07T07:56:07.628Z",
+        "contextUsage": {
+          "tokens": 7693,
+          "messageTokens": 4724,
+          "toolDefinitionTokens": 2969,
+          "percent": 2.93,
+          "contextsize": 262144,
+          "parts": [
+            {
+              "key": "developer",
+              "label": "Developer message",
+              "tokens": 2622,
+              "percent": 1
+            },
+            {
+              "key": "user",
+              "label": "User message",
+              "tokens": 1877,
+              "percent": 0.72
+            },
+            {
+              "key": "history",
+              "label": "Session history",
+              "tokens": 225,
+              "percent": 0.09
+            },
+            {
+              "key": "toolDefinitions",
+              "label": "Tool definitions",
+              "tokens": 2969,
+              "percent": 1.13
+            },
+            {
+              "key": "remaining",
+              "label": "Remaining",
+              "tokens": 254451,
+              "percent": 97.07
+            }
+          ]
+        }
+      },
+      {
+        "type": "session.event",
+        "sessionid": "019ea114-fa50-768e-b56e-5e25525fbd8c",
+        "event": "turn.model.request",
+        "dataid": "model:019ea114-fa50-768e-b56e-5e25525fbd8c:1",
+        "contents": {
+          "kind": "model_request",
+          "iteration": 1,
+          "messageCount": 4
+        },
+        "createdat": "2026-06-07T07:56:07.926Z",
+        "contextUsage": {
+          "tokens": 7693,
+          "messageTokens": 4724,
+          "toolDefinitionTokens": 2969,
+          "percent": 2.93,
+          "contextsize": 262144,
+          "parts": [
+            {
+              "key": "developer",
+              "label": "Developer message",
+              "tokens": 2622,
+              "percent": 1
+            },
+            {
+              "key": "user",
+              "label": "User message",
+              "tokens": 1877,
+              "percent": 0.72
+            },
+            {
+              "key": "history",
+              "label": "Session history",
+              "tokens": 225,
+              "percent": 0.09
+            },
+            {
+              "key": "toolDefinitions",
+              "label": "Tool definitions",
+              "tokens": 2969,
+              "percent": 1.13
+            },
+            {
+              "key": "remaining",
+              "label": "Remaining",
+              "tokens": 254451,
+              "percent": 97.07
+            }
+          ]
+        }
+      },
+      {
+        "type": "session.event",
+        "sessionid": "019ea114-fa50-768e-b56e-5e25525fbd8c",
+        "event": "turn.assistant.reasoning",
+        "dataid": "reasoning:019ea114-fa50-768e-b56e-5e25525fbd8c:1",
+        "contents": {
+          "kind": "assistant_reasoning",
+          "iteration": 1,
+          "summary": "The"
+        },
+        "createdat": "2026-06-07T07:56:24.121Z",
+        "contextUsage": {
+          "tokens": 7693,
+          "messageTokens": 4724,
+          "toolDefinitionTokens": 2969,
+          "percent": 2.93,
+          "contextsize": 262144,
+          "parts": [
+            {
+              "key": "developer",
+              "label": "Developer message",
+              "tokens": 2622,
+              "percent": 1
+            },
+            {
+              "key": "user",
+              "label": "User message",
+              "tokens": 1877,
+              "percent": 0.72
+            },
+            {
+              "key": "history",
+              "label": "Session history",
+              "tokens": 225,
+              "percent": 0.09
+            },
+            {
+              "key": "toolDefinitions",
+              "label": "Tool definitions",
+              "tokens": 2969,
+              "percent": 1.13
+            },
+            {
+              "key": "remaining",
+              "label": "Remaining",
+              "tokens": 254451,
+              "percent": 97.07
+            }
+          ]
+        }
+      },
+      {
+        "type": "session.event",
+        "sessionid": "019ea114-fa50-768e-b56e-5e25525fbd8c",
+        "event": "turn.assistant.reasoning",
+        "dataid": "reasoning:019ea114-fa50-768e-b56e-5e25525fbd8c:1",
+        "contents": {
+          "kind": "assistant_reasoning",
+          "iteration": 1,
+          "summary": "The user"
+        },
+        "createdat": "2026-06-07T07:56:24.240Z",
+        "contextUsage": {
+          "tokens": 7693,
+          "messageTokens": 4724,
+          "toolDefinitionTokens": 2969,
+          "percent": 2.93,
+          "contextsize": 262144,
+          "parts": [
+            {
+              "key": "developer",
+              "label": "Developer message",
+              "tokens": 2622,
+              "percent": 1
+            },
+            {
+              "key": "user",
+              "label": "User message",
+              "tokens": 1877,
+              "percent": 0.72
+            },
+            {
+              "key": "history",
+              "label": "Session history",
+              "tokens": 225,
+              "percent": 0.09
+            },
+            {
+              "key": "toolDefinitions",
+              "label": "Tool definitions",
+              "tokens": 2969,
+              "percent": 1.13
+            },
+            {
+              "key": "remaining",
+              "label": "Remaining",
+              "tokens": 254451,
+              "percent": 97.07
+            }
+          ]
+        }
+      },
+      {
+        "type": "session.event",
+        "sessionid": "019ea114-fa50-768e-b56e-5e25525fbd8c",
+        "event": "turn.assistant.reasoning",
+        "dataid": "reasoning:019ea114-fa50-768e-b56e-5e25525fbd8c:1",
+        "contents": {
+          "kind": "assistant_reasoning",
+          "iteration": 1,
+          "summary": "The user wants"
+        },
+        "createdat": "2026-06-07T07:56:24.401Z",
+        "contextUsage": {
+          "tokens": 7693,
+          "messageTokens": 4724,
+          "toolDefinitionTokens": 2969,
+          "percent": 2.93,
+          "contextsize": 262144,
+          "parts": [
+            {
+              "key": "developer",
+              "label": "Developer message",
+              "tokens": 2622,
+              "percent": 1
+            },
+            {
+              "key": "user",
+              "label": "User message",
+              "tokens": 1877,
+              "percent": 0.72
+            },
+            {
+              "key": "history",
+              "label": "Session history",
+              "tokens": 225,
+              "percent": 0.09
+            },
+            {
+              "key": "toolDefinitions",
+              "label": "Tool definitions",
+              "tokens": 2969,
+              "percent": 1.13
+            },
+            {
+              "key": "remaining",
+              "label": "Remaining",
+              "tokens": 254451,
+              "percent": 97.07
+            }
+          ]
+        }
+      },
+      {
+        "type": "session.event",
+        "sessionid": "019ea114-fa50-768e-b56e-5e25525fbd8c",
+        "event": "turn.assistant.reasoning",
+        "dataid": "reasoning:019ea114-fa50-768e-b56e-5e25525fbd8c:1",
+        "contents": {
+          "kind": "assistant_reasoning",
+          "iteration": 1,
+          "summary": "The user wants me"
+        },
+        "createdat": "2026-06-07T07:56:24.510Z",
+        "contextUsage": {
+          "tokens": 7693,
+          "messageTokens": 4724,
+          "toolDefinitionTokens": 2969,
+          "percent": 2.93,
+          "contextsize": 262144,
+          "parts": [
+            {
+              "key": "developer",
+              "label": "Developer message",
+              "tokens": 2622,
+              "percent": 1
+            },
+            {
+              "key": "user",
+              "label": "User message",
+              "tokens": 1877,
+              "percent": 0.72
+            },
+            {
+              "key": "history",
+              "label": "Session history",
+              "tokens": 225,
+              "percent": 0.09
+            },
+            {
+              "key": "toolDefinitions",
+              "label": "Tool definitions",
+              "tokens": 2969,
+              "percent": 1.13
+            },
+            {
+              "key": "remaining",
+              "label": "Remaining",
+              "tokens": 254451,
+              "percent": 97.07
+            }
+          ]
+        }
+      },
+      {
+        "type": "session.event",
+        "sessionid": "019ea114-fa50-768e-b56e-5e25525fbd8c",
+        "event": "turn.assistant.reasoning",
+        "dataid": "reasoning:019ea114-fa50-768e-b56e-5e25525fbd8c:1",
+        "contents": {
+          "kind": "assistant_reasoning",
+          "iteration": 1,
+          "summary": "The user wants me to"
+        },
+        "createdat": "2026-06-07T07:56:24.617Z",
+        "contextUsage": {
+          "tokens": 7693,
+          "messageTokens": 4724,
+          "toolDefinitionTokens": 2969,
+          "percent": 2.93,
+          "contextsize": 262144,
+          "parts": [
+            {
+              "key": "developer",
+              "label": "Developer message",
+              "tokens": 2622,
+              "percent": 1
+            },
+            {
+              "key": "user",
+              "label": "User message",
+              "tokens": 1877,
+              "percent": 0.72
+            },
+            {
+              "key": "history",
+              "label": "Session history",
+              "tokens": 225,
+              "percent": 0.09
+            },
+            {
+              "key": "toolDefinitions",
+              "label": "Tool definitions",
+              "tokens": 2969,
+              "percent": 1.13
+            },
+            {
+              "key": "remaining",
+              "label": "Remaining",
+              "tokens": 254451,
+              "percent": 97.07
+            }
+          ]
+        }
+      },
+      {
+        "type": "session.event",
+        "sessionid": "019ea114-fa50-768e-b56e-5e25525fbd8c",
+        "event": "turn.assistant.reasoning",
+        "dataid": "reasoning:019ea114-fa50-768e-b56e-5e25525fbd8c:1",
+        "contents": {
+          "kind": "assistant_reasoning",
+          "iteration": 1,
+          "summary": "The user wants me to:\n"
+        },
+        "createdat": "2026-06-07T07:56:24.723Z",
+        "contextUsage": {
+          "tokens": 7693,
+          "messageTokens": 4724,
+          "toolDefinitionTokens": 2969,
+          "percent": 2.93,
+          "contextsize": 262144,
+          "parts": [
+            {
+              "key": "developer",
+              "label": "Developer message",
+              "tokens": 2622,
+              "percent": 1
+            },
+            {
+              "key": "user",
+              "label": "User message",
+              "tokens": 1877,
+              "percent": 0.72
+            },
+            {
+              "key": "history",
+              "label": "Session history",
+              "tokens": 225,
+              "percent": 0.09
+            },
+            {
+              "key": "toolDefinitions",
+              "label": "Tool definitions",
+              "tokens": 2969,
+              "percent": 1.13
+            },
+            {
+              "key": "remaining",
+              "label": "Remaining",
+              "tokens": 254451,
+              "percent": 97.07
+            }
+          ]
+        }
+      },
+      {
+        "type": "session.event",
+        "sessionid": "019ea114-fa50-768e-b56e-5e25525fbd8c",
+        "event": "turn.assistant.reasoning",
+        "dataid": "reasoning:019ea114-fa50-768e-b56e-5e25525fbd8c:1",
+        "contents": {
+          "kind": "assistant_reasoning",
+          "iteration": 1,
+          "summary": "The user wants me to:\n1"
+        },
+        "createdat": "2026-06-07T07:56:24.827Z",
+        "contextUsage": {
+          "tokens": 7693,
+          "messageTokens": 4724,
+          "toolDefinitionTokens": 2969,
+          "percent": 2.93,
+          "contextsize": 262144,
+          "parts": [
+            {
+              "key": "developer",
+              "label": "Developer message",
+              "tokens": 2622,
+              "percent": 1
+            },
+            {
+              "key": "user",
+              "label": "User message",
+              "tokens": 1877,
+              "percent": 0.72
+            },
+            {
+              "key": "history",
+              "label": "Session history",
+              "tokens": 225,
+              "percent": 0.09
+            },
+            {
+              "key": "toolDefinitions",
+              "label": "Tool definitions",
+              "tokens": 2969,
+              "percent": 1.13
+            },
+            {
+              "key": "remaining",
+              "label": "Remaining",
+              "tokens": 254451,
+              "percent": 97.07
+            }
+          ]
+        }
+      },
+      {
+        "type": "session.event",
+        "sessionid": "019ea114-fa50-768e-b56e-5e25525fbd8c",
+        "event": "turn.assistant.reasoning",
+        "dataid": "reasoning:019ea114-fa50-768e-b56e-5e25525fbd8c:1",
+        "contents": {
+          "kind": "assistant_reasoning",
+          "iteration": 1,
+          "summary": "The user wants me to:\n1."
+        },
+        "createdat": "2026-06-07T07:56:24.940Z",
+        "contextUsage": {
+          "tokens": 7693,
+          "messageTokens": 4724,
+          "toolDefinitionTokens": 2969,
+          "percent": 2.93,
+          "contextsize": 262144,
+          "parts": [
+            {
+              "key": "developer",
+              "label": "Developer message",
+              "tokens": 2622,
+              "percent": 1
+            },
+            {
+              "key": "user",
+              "label": "User message",
+              "tokens": 1877,
+              "percent": 0.72
+            },
+            {
+              "key": "history",
+              "label": "Session history",
+              "tokens": 225,
+              "percent": 0.09
+            },
+            {
+              "key": "toolDefinitions",
+              "label": "Tool definitions",
+              "tokens": 2969,
+              "percent": 1.13
+            },
+            {
+              "key": "remaining",
+              "label": "Remaining",
+              "tokens": 254451,
+              "percent": 97.07
+            }
+          ]
+        }
+      },
+      {
+        "type": "session.event",
+        "sessionid": "019ea114-fa50-768e-b56e-5e25525fbd8c",
+        "event": "turn.assistant.reasoning",
+        "dataid": "reasoning:019ea114-fa50-768e-b56e-5e25525fbd8c:1",
+        "contents": {
+          "kind": "assistant_reasoning",
+          "iteration": 1,
+          "summary": "The user wants me to:\n1. Fix"
+        },
+        "createdat": "2026-06-07T07:56:25.057Z",
+        "contextUsage": {
+          "tokens": 7693,
+          "messageTokens": 4724,
+          "toolDefinitionTokens": 2969,
+          "percent": 2.93,
+          "contextsize": 262144,
+          "parts": [
+            {
+              "key": "developer",
+              "label": "Developer message",
+              "tokens": 2622,
+              "percent": 1
+            },
+            {
+              "key": "user",
+              "label": "User message",
+              "tokens": 1877,
+              "percent": 0.72
+            },
+            {
+              "key": "history",
+              "label": "Session history",
+              "tokens": 225,
+              "percent": 0.09
+            },
+            {
+              "key": "toolDefinitions",
+              "label": "Tool definitions",
+              "tokens": 2969,
+              "percent": 1.13
+            },
+            {
+              "key": "remaining",
+              "label": "Remaining",
+              "tokens": 254451,
+              "percent": 97.07
+            }
+          ]
+        }
+      },
+      {
+        "type": "session.event",
+        "sessionid": "019ea114-fa50-768e-b56e-5e25525fbd8c",
+        "event": "turn.assistant.reasoning",
+        "dataid": "reasoning:019ea114-fa50-768e-b56e-5e25525fbd8c:1",
+        "contents": {
+          "kind": "assistant_reasoning",
+          "iteration": 1,
+          "summary": "The user wants me to:\n1. Fix the"
+        },
+        "createdat": "2026-06-07T07:56:25.155Z",
+        "contextUsage": {
+          "tokens": 7693,
+          "messageTokens": 4724,
+          "toolDefinitionTokens": 2969,
+          "percent": 2.93,
+          "contextsize": 262144,
+          "parts": [
+            {
+              "key": "developer",
+              "label": "Developer message",
+              "tokens": 2622,
+              "percent": 1
+            },
+            {
+              "key": "user",
+              "label": "User message",
+              "tokens": 1877,
+              "percent": 0.72
+            },
+            {
+              "key": "history",
+              "label": "Session history",
+              "tokens": 225,
+              "percent": 0.09
+            },
+            {
+              "key": "toolDefinitions",
+              "label": "Tool definitions",
+              "tokens": 2969,
+              "percent": 1.13
+            },
+            {
+              "key": "remaining",
+              "label": "Remaining",
+              "tokens": 254451,
+              "percent": 97.07
+            }
+          ]
+        }
+      },
+      {
+        "type": "session.event",
+        "sessionid": "019ea114-fa50-768e-b56e-5e25525fbd8c",
+        "event": "turn.assistant.reasoning",
+        "dataid": "reasoning:019ea114-fa50-768e-b56e-5e25525fbd8c:1",
+        "contents": {
+          "kind": "assistant_reasoning",
+          "iteration": 1,
+          "summary": "The user wants me to:\n1. Fix the game"
+        },
+        "createdat": "2026-06-07T07:56:25.274Z",
+        "contextUsage": {
+          "tokens": 7693,
+          "messageTokens": 4724,
+          "toolDefinitionTokens": 2969,
+          "percent": 2.93,
+          "contextsize": 262144,
+          "parts": [
+            {
+              "key": "developer",
+              "label": "Developer message",
+              "tokens": 2622,
+              "percent": 1
+            },
+            {
+              "key": "user",
+              "label": "User message",
+              "tokens": 1877,
+              "percent": 0.72
+            },
+            {
+              "key": "history",
+              "label": "Session history",
+              "tokens": 225,
+              "percent": 0.09
+            },
+            {
+              "key": "toolDefinitions",
+              "label": "Tool definitions",
+              "tokens": 2969,
+              "percent": 1.13
+            },
+            {
+              "key": "remaining",
+              "label": "Remaining",
+              "tokens": 254451,
+              "percent": 97.07
+            }
+          ]
+        }
+      },
+      {
+        "type": "session.event",
+        "sessionid": "019ea114-fa50-768e-b56e-5e25525fbd8c",
+        "event": "turn.assistant.reasoning",
+        "dataid": "reasoning:019ea114-fa50-768e-b56e-5e25525fbd8c:1",
+        "contents": {
+          "kind": "assistant_reasoning",
+          "iteration": 1,
+          "summary": "The user wants me to:\n1. Fix the game end"
+        },
+        "createdat": "2026-06-07T07:56:25.395Z",
+        "contextUsage": {
+          "tokens": 7693,
+          "messageTokens": 4724,
+          "toolDefinitionTokens": 2969,
+          "percent": 2.93,
+          "contextsize": 262144,
+          "parts": [
+            {
+              "key": "developer",
+              "label": "Developer message",
+              "tokens": 2622,
+              "percent": 1
+            },
+            {
+              "key": "user",
+              "label": "User message",
+              "tokens": 1877,
+              "percent": 0.72
+            },
+            {
+              "key": "history",
+              "label": "Session history",
+              "tokens": 225,
+              "percent": 0.09
+            },
+            {
+              "key": "toolDefinitions",
+              "label": "Tool definitions",
+              "tokens": 2969,
+              "percent": 1.13
+            },
+            {
+              "key": "remaining",
+              "label": "Remaining",
+              "tokens": 254451,
+              "percent": 97.07
+            }
+          ]
+        }
+      },
+      {
+        "type": "session.event",
+        "sessionid": "019ea114-fa50-768e-b56e-5e25525fbd8c",
+        "event": "turn.assistant.reasoning",
+        "dataid": "reasoning:019ea114-fa50-768e-b56e-5e25525fbd8c:1",
+        "contents": {
+          "kind": "assistant_reasoning",
+          "iteration": 1,
+          "summary": "The user wants me to:\n1. Fix the game end condition"
+        },
+        "createdat": "2026-06-07T07:56:25.519Z",
+        "contextUsage": {
+          "tokens": 7693,
+          "messageTokens": 4724,
+          "toolDefinitionTokens": 2969,
+          "percent": 2.93,
+          "contextsize": 262144,
+          "parts": [
+            {
+              "key": "developer",
+              "label": "Developer message",
+              "tokens": 2622,
+              "percent": 1
+            },
+            {
+              "key": "user",
+              "label": "User message",
+              "tokens": 1877,
+              "percent": 0.72
+            },
+            {
+              "key": "history",
+              "label": "Session history",
+              "tokens": 225,
+              "percent": 0.09
+            },
+            {
+              "key": "toolDefinitions",
+              "label": "Tool definitions",
+              "tokens": 2969,
+              "percent": 1.13
+            },
+            {
+              "key": "remaining",
+              "label": "Remaining",
+              "tokens": 254451,
+              "percent": 97.07
+            }
+          ]
+        }
+      },
+      {
+        "type": "session.event",
+        "sessionid": "019ea114-fa50-768e-b56e-5e25525fbd8c",
+        "event": "turn.assistant.reasoning",
+        "dataid": "reasoning:019ea114-fa50-768e-b56e-5e25525fbd8c:1",
+        "contents": {
+          "kind": "assistant_reasoning",
+          "iteration": 1,
+          "summary": "The user wants me to:\n1. Fix the game end condition -"
+        },
+        "createdat": "2026-06-07T07:56:25.644Z",
+        "contextUsage": {
+          "tokens": 7693,
+          "messageTokens": 4724,
+          "toolDefinitionTokens": 2969,
+          "percent": 2.93,
+          "contextsize": 262144,
+          "parts": [
+            {
+              "key": "developer",
+              "label": "Developer message",
+              "tokens": 2622,
+              "percent": 1
+            },
+            {
+              "key": "user",
+              "label": "User message",
+              "tokens": 1877,
+              "percent": 0.72
+            },
+            {
+              "key": "history",
+              "label": "Session history",
+              "tokens": 225,
+              "percent": 0.09
+            },
+            {
+              "key": "toolDefinitions",
+              "label": "Tool definitions",
+              "tokens": 2969,
+              "percent": 1.13
+            },
+            {
+              "key": "remaining",
+              "label": "Remaining",
+              "tokens": 254451,
+              "percent": 97.07
+            }
+          ]
+        }
+      },
+      {
+        "type": "session.event",
+        "sessionid": "019ea114-fa50-768e-b56e-5e25525fbd8c",
+        "event": "turn.assistant.reasoning",
+        "dataid": "reasoning:019ea114-fa50-768e-b56e-5e25525fbd8c:1",
+        "contents": {
+          "kind": "assistant_reasoning",
+          "iteration": 1,
+          "summary": "The user wants me to:\n1. Fix the game end condition - currently"
+        },
+        "createdat": "2026-06-07T07:56:25.763Z",
+        "contextUsage": {
+          "tokens": 7693,
+          "messageTokens": 4724,
+          "toolDefinitionTokens": 2969,
+          "percent": 2.93,
+          "contextsize": 262144,
+          "parts": [
+            {
+              "key": "developer",
+              "label": "Developer message",
+              "tokens": 2622,
+              "percent": 1
+            },
+            {
+              "key": "user",
+              "label": "User message",
+              "tokens": 1877,
+              "percent": 0.72
+            },
+            {
+              "key": "history",
+              "label": "Session history",
+              "tokens": 225,
+              "percent": 0.09
+            },
+            {
+              "key": "toolDefinitions",
+              "label": "Tool definitions",
+              "tokens": 2969,
+              "percent": 1.13
+            },
+            {
+              "key": "remaining",
+              "label": "Remaining",
+              "tokens": 254451,
+              "percent": 97.07
+            }
+          ]
+        }
+      },
+      {
+        "type": "session.event",
+        "sessionid": "019ea114-fa50-768e-b56e-5e25525fbd8c",
+        "event": "turn.assistant.reasoning",
+        "dataid": "reasoning:019ea114-fa50-768e-b56e-5e25525fbd8c:1",
+        "contents": {
+          "kind": "assistant_reasoning",
+          "iteration": 1,
+          "summary": "The user wants me to:\n1. Fix the game end condition - currently when"
+        },
+        "createdat": "2026-06-07T07:56:25.883Z",
+        "contextUsage": {
+          "tokens": 7693,
+          "messageTokens": 4724,
+          "toolDefinitionTokens": 2969,
+          "percent": 2.93,
+          "contextsize": 262144,
+          "parts": [
+            {
+              "key": "developer",
+              "label": "Developer message",
+              "tokens": 2622,
+              "percent": 1
+            },
+            {
+              "key": "user",
+              "label": "User message",
+              "tokens": 1877,
+              "percent": 0.72
+            },
+            {
+              "key": "history",
+              "label": "Session history",
+              "tokens": 225,
+              "percent": 0.09
+            },
+            {
+              "key": "toolDefinitions",
+              "label": "Tool definitions",
+              "tokens": 2969,
+              "percent": 1.13
+            },
+            {
+              "key": "remaining",
+              "label": "Remaining",
+              "tokens": 254451,
+              "percent": 97.07
+            }
+          ]
+        }
+      },
+      {
+        "type": "session.event",
+        "sessionid": "019ea114-fa50-768e-b56e-5e25525fbd8c",
+        "event": "turn.assistant.reasoning",
+        "dataid": "reasoning:019ea114-fa50-768e-b56e-5e25525fbd8c:1",
+        "contents": {
+          "kind": "assistant_reasoning",
+          "iteration": 1,
+          "summary": "The user wants me to:\n1. Fix the game end condition - currently when there"
+        },
+        "createdat": "2026-06-07T07:56:25.983Z",
+        "contextUsage": {
+          "tokens": 7693,
+          "messageTokens": 4724,
+          "toolDefinitionTokens": 2969,
+          "percent": 2.93,
+          "contextsize": 262144,
+          "parts": [
+            {
+              "key": "developer",
+              "label": "Developer message",
+              "tokens": 2622,
+              "percent": 1
+            },
+            {
+              "key": "user",
+              "label": "User message",
+              "tokens": 1877,
+              "percent": 0.72
+            },
+            {
+              "key": "history",
+              "label": "Session history",
+              "tokens": 225,
+              "percent": 0.09
+            },
+            {
+              "key": "toolDefinitions",
+              "label": "Tool definitions",
+              "tokens": 2969,
+              "percent": 1.13
+            },
+            {
+              "key": "remaining",
+              "label": "Remaining",
+              "tokens": 254451,
+              "percent": 97.07
+            }
+          ]
+        }
+      },
+      {
+        "type": "session.event",
+        "sessionid": "019ea114-fa50-768e-b56e-5e25525fbd8c",
+        "event": "turn.assistant.reasoning",
+        "dataid": "reasoning:019ea114-fa50-768e-b56e-5e25525fbd8c:1",
+        "contents": {
+          "kind": "assistant_reasoning",
+          "iteration": 1,
+          "summary": "The user wants me to:\n1. Fix the game end condition - currently when there's"
+        },
+        "createdat": "2026-06-07T07:56:26.103Z",
+        "contextUsage": {
+          "tokens": 7693,
+          "messageTokens": 4724,
+          "toolDefinitionTokens": 2969,
+          "percent": 2.93,
+          "contextsize": 262144,
+          "parts": [
+            {
+              "key": "developer",
+              "label": "Developer message",
+              "tokens": 2622,
+              "percent": 1
+            },
+            {
+              "key": "user",
+              "label": "User message",
+              "tokens": 1877,
+              "percent": 0.72
+            },
+            {
+              "key": "history",
+              "label": "Session history",
+              "tokens": 225,
+              "percent": 0.09
+            },
+            {
+              "key": "toolDefinitions",
+              "label": "Tool definitions",
+              "tokens": 2969,
+              "percent": 1.13
+            },
+            {
+              "key": "remaining",
+              "label": "Remaining",
+              "tokens": 254451,
+              "percent": 97.07
+            }
+          ]
+        }
+      },
+      {
+        "type": "session.event",
+        "sessionid": "019ea114-fa50-768e-b56e-5e25525fbd8c",
+        "event": "turn.assistant.reasoning",
+        "dataid": "reasoning:019ea114-fa50-768e-b56e-5e25525fbd8c:1",
+        "contents": {
+          "kind": "assistant_reasoning",
+          "iteration": 1,
+          "summary": "The user wants me to:\n1. Fix the game end condition - currently when there's "
+        },
+        "createdat": "2026-06-07T07:56:26.211Z",
+        "contextUsage": {
+          "tokens": 7693,
+          "messageTokens": 4724,
+          "toolDefinitionTokens": 2969,
+          "percent": 2.93,
+          "contextsize": 262144,
+          "parts": [
+            {
+              "key": "developer",
+              "label": "Developer message",
+              "tokens": 2622,
+              "percent": 1
+            },
+            {
+              "key": "user",
+              "label": "User message",
+              "tokens": 1877,
+              "percent": 0.72
+            },
+            {
+              "key": "history",
+              "label": "Session history",
+              "tokens": 225,
+              "percent": 0.09
+            },
+            {
+              "key": "toolDefinitions",
+              "label": "Tool definitions",
+              "tokens": 2969,
+              "percent": 1.13
+            },
+            {
+              "key": "remaining",
+              "label": "Remaining",
+              "tokens": 254451,
+              "percent": 97.07
+            }
+          ]
+        }
+      },
+      {
+        "type": "session.event",
+        "sessionid": "019ea114-fa50-768e-b56e-5e25525fbd8c",
+        "event": "turn.assistant.reasoning",
+        "dataid": "reasoning:019ea114-fa50-768e-b56e-5e25525fbd8c:1",
+        "contents": {
+          "kind": "assistant_reasoning",
+          "iteration": 1,
+          "summary": "The user wants me to:\n1. Fix the game end condition - currently when there's 1"
+        },
+        "createdat": "2026-06-07T07:56:26.327Z",
+        "contextUsage": {
+          "tokens": 7693,
+          "messageTokens": 4724,
+          "toolDefinitionTokens": 2969,
+          "percent": 2.93,
+          "contextsize": 262144,
+          "parts": [
+            {
+              "key": "developer",
+              "label": "Developer message",
+              "tokens": 2622,
+              "percent": 1
+            },
+            {
+              "key": "user",
+              "label": "User message",
+              "tokens": 1877,
+              "percent": 0.72
+            },
+            {
+              "key": "history",
+              "label": "Session history",
+              "tokens": 225,
+              "percent": 0.09
+            },
+            {
+              "key": "toolDefinitions",
+              "label": "Tool definitions",
+              "tokens": 2969,
+              "percent": 1.13
+            },
+            {
+              "key": "remaining",
+              "label": "Remaining",
+              "tokens": 254451,
+              "percent": 97.07
+            }
+          ]
+        }
+      },
+      {
+        "type": "session.event",
+        "sessionid": "019ea114-fa50-768e-b56e-5e25525fbd8c",
+        "event": "turn.assistant.reasoning",
+        "dataid": "reasoning:019ea114-fa50-768e-b56e-5e25525fbd8c:1",
+        "contents": {
+          "kind": "assistant_reasoning",
+          "iteration": 1,
+          "summary": "The user wants me to:\n1. Fix the game end condition - currently when there's 1 block"
+        },
+        "createdat": "2026-06-07T07:56:26.438Z",
+        "contextUsage": {
+          "tokens": 7693,
+          "messageTokens": 4724,
+          "toolDefinitionTokens": 2969,
+          "percent": 2.93,
+          "contextsize": 262144,
+          "parts": [
+            {
+              "key": "developer",
+              "label": "Developer message",
+              "tokens": 2622,
+              "percent": 1
+            },
+            {
+              "key": "user",
+              "label": "User message",
+              "tokens": 1877,
+              "percent": 0.72
+            },
+            {
+              "key": "history",
+              "label": "Session history",
+              "tokens": 225,
+              "percent": 0.09
+            },
+            {
+              "key": "toolDefinitions",
+              "label": "Tool definitions",
+              "tokens": 2969,
+              "percent": 1.13
+            },
+            {
+              "key": "remaining",
+              "label": "Remaining",
+              "tokens": 254451,
+              "percent": 97.07
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

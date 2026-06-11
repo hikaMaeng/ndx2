@@ -1,17 +1,26 @@
 export {
+  createSettingsWebEmbeddingModel,
   createSettingsWebModel,
   createSettingsWebProvider,
   deleteSettingsWebModel,
   deleteSettingsWebProvider,
+  getSettingsWebEmbeddingSettings,
+  getSettingsWebDocument,
   getSettingsWebProvider,
+  listSettingsWebEmbeddingModel,
   listSettingsWebModel,
   listSettingsWebProvider,
   providerModelEndpointCandidates,
+  syncSettingsWebProviderEmbeddingModels,
   syncSettingsWebProviderModels,
+  updateSettingsWebEmbeddingSettings,
+  updateSettingsWebDocument,
   updateSettingsWebModel,
   updateSettingsWebProvider
 } from "./model-settings/index.js";
-export type { NDXWebModelRow, NDXWebProviderRow } from "./model-settings/index.js";
+export type { NDXWebEmbeddingSettingsRow, NDXWebModelRow, NDXWebProviderRow, NDXWebSettingsDocumentInput, NDXWebSettingsDocumentRow } from "./model-settings/index.js";
+export { analyzeModelFolderPatch, applyModelFolderPatch, draftModelFolderPatch } from "./model-patch/index.js";
+export type { NDXModelFolderPatchOptions } from "./model-patch/index.js";
 
 export {
   DEFAULT_NDX_WEB_CLIENT_LOCALE,

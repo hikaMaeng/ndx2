@@ -360,9 +360,53 @@ test("searchSessionHistory uses 256-dimension hnsw vector while preserving embed
     assert.equal(result.embedding.used, true);
     assert.match(queries[0].text, /hnsw <=> \$3::vector\(256\)/);
     assert.doesNotMatch(queries[0].text, /embedding <=>/);
+    assert.match(queries[0].text, /lexical_score/);
+    assert.match(queries[0].text, /COALESCE\(similarity, 0\) \* 0\.65/);
     assert.equal(String(queries[0].values[2]).replace(/^\[|\]$/g, "").split(",").length, 256);
     assert.match(String(queries[0].values[2]), /^\[1,2,3,/);
     assert.match(String(queries[0].values[2]), /,256]$/);
+    assert.deepEqual(queries[0].values[3], ["검색"]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("searchSessionHistory boosts direct lexical matches in vector ranking", async () => {
+  const userHome = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-session-history-lexical-vector-"));
+  await fs.mkdir(path.join(userHome, ".ndx"), { recursive: true });
+  await fs.writeFile(path.join(userHome, ".ndx", "settings.json"), JSON.stringify({
+    embeddings: {
+      provider: "local",
+      model: "embed-test",
+      url: "http://127.0.0.1:9999/v1"
+    }
+  }));
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () => ({
+    ok: true,
+    json: async () => ({ data: [{ embedding: Array.from({ length: 300 }, (_value, index) => index + 1) }] })
+  })) as unknown as typeof fetch;
+  const queries: { text: string; values: unknown[] }[] = [];
+  const database: NDXDatabase = {
+    async query(text, values) {
+      queries.push({ text, values: values ?? [] });
+      return { rows: [], rowCount: 0 } as never;
+    },
+    async close() {}
+  };
+
+  try {
+    await searchSessionHistory(database, {
+      userHome,
+      scope: { type: "project", projectname: "018f0000-0000-7000-8000-000000000001" },
+      query: "deploy-report-begin status ok compose refreshed",
+      limit: 5
+    });
+
+    assert.match(queries[0].text, /unnest\(\$4::text\[\]\) AS query_term/);
+    assert.match(queries[0].text, /OR lexical_score >= 0\.2/);
+    assert.match(queries[0].text, /lexical_score \* 0\.35/);
+    assert.deepEqual(queries[0].values[3], ["deploy-report-begin", "status", "ok", "compose", "refreshed"]);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -611,7 +655,7 @@ test("runSessionTurn appends user first, rebuilds history from sessiondata, call
   }
 });
 
-test("runSessionTurn appends reasoning control after prior prefix and before current user input", async () => {
+test("runSessionTurn sends provider reasoning effort without inserting prompt control rows", async () => {
   const projectPath = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-session-reasoning-control-"));
   const modelInputs: unknown[] = [];
   const modelReasoning: unknown[] = [];
@@ -705,14 +749,13 @@ test("runSessionTurn appends reasoning control after prior prefix and before cur
   try {
     await runSessionTurn(database, session, { text: "새 질문" });
 
-    assert.equal(rows[2]?.type, "reasoning_control");
-    assert.deepEqual(rows[2]?.contents, { kind: "tool_generated_user_message", text: "<ndx_thinking_level>deep</ndx_thinking_level>", sources: [{ tool: "thinking_level" }] });
-    assert.equal(rows[3]?.type, "user");
-    assert.deepEqual(rows[3]?.contents, { kind: "user_message", text: "새 질문" });
+    assert.equal(rows[2]?.type, "user");
+    assert.deepEqual(rows[2]?.contents, { kind: "user_message", text: "새 질문" });
+    assert.equal(rows[3]?.type, "assistant");
     assert.deepEqual(modelReasoning[0], { effort: "high" });
     const input = String(modelInputs[0]);
-    assert.ok(input.indexOf("이전 답변") < input.indexOf("<ndx_thinking_level>deep</ndx_thinking_level>"));
-    assert.ok(input.indexOf("<ndx_thinking_level>deep</ndx_thinking_level>") < input.indexOf("새 질문"));
+    assert.ok(input.indexOf("이전 답변") < input.indexOf("새 질문"));
+    assert.doesNotMatch(input, /<ndx_thinking_level>deep<\/ndx_thinking_level>/);
   } finally {
     modelServer.close();
     await once(modelServer, "close");

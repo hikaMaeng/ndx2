@@ -261,7 +261,7 @@ test("requestModelResponse retries transient fetch failures for the configured e
       "http://192.168.0.6:12345/v1/responses",
       "http://192.168.0.6:12345/v1/responses"
     ]);
-    assert.deepEqual(requestBodies[0].reasoning, { effort: "low" });
+    assert.deepEqual(requestBodies[0].reasoning, { effort: "none" });
     assert.equal(requestBodies[0].temperature, 0.7);
     assert.equal(requestBodies[0].top_p, 0.9);
     assert.equal(requestBodies[0].top_k, 40);
@@ -271,7 +271,7 @@ test("requestModelResponse retries transient fetch failures for the configured e
   }
 });
 
-test("requestModelResponse omits provider reasoning effort for none", async () => {
+test("requestModelResponse sends provider reasoning effort for medium", async () => {
   const previousFetch = globalThis.fetch;
   let requestBody: Record<string, unknown> | undefined;
   globalThis.fetch = (async (_input, init) => {
@@ -287,12 +287,12 @@ test("requestModelResponse omits provider reasoning effort for none", async () =
 
   try {
     await requestModelResponse(
-      { model: "test-model", url: "http://192.168.0.6:12345/v1", token: "", reasoningEffort: "none" },
+      { model: "test-model", url: "http://192.168.0.6:12345/v1", token: "", reasoningEffort: "medium" },
       [{ role: "user", content: "확인해" }]
     );
 
     assert.ok(requestBody);
-    assert.equal("reasoning" in requestBody, false);
+    assert.deepEqual(requestBody.reasoning, { effort: "medium" });
   } finally {
     globalThis.fetch = previousFetch;
   }

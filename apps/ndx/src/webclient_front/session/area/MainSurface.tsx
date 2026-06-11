@@ -10,6 +10,7 @@ import { ModalPortal } from "../../modal/ModalLayer";
 import { SessionSurfaces } from "../components/SessionSurfaces";
 import { VibeLanding } from "../components/VibeLanding";
 import { ChatSurface } from "../../chat/surface/ChatSurface";
+import { ModelSettingsPage } from "../../settings/models/ModelSettingsPage";
 import { useAskUserQuestionController } from "../askUserQuestion";
 import { useSessionRequestController } from "../hooks/useSessionRequestController";
 import { useSessionRenameController } from "../hooks/useSessionRenameController";
@@ -298,7 +299,7 @@ export function MainSurface({
   }, [deleteSessionRequest?.revision]);
 
   React.useEffect(() => {
-    if (surface.kind === "empty" || surface.kind === "project") {
+    if (surface.kind === "empty" || surface.kind === "project" || surface.kind === "settings") {
       activeSessionIdRef.current = undefined;
       activeUiKeyRef.current = undefined;
       draftSessionProjectIdRef.current = undefined;
@@ -401,6 +402,10 @@ export function MainSurface({
       bridge.closeModal("session-rename");
     }
   }, [modalRequests, clientState.projects, sessionsByProject]);
+
+  if (surface.kind === "settings") {
+    return <ModelSettingsPage menuLabel={t[RSC.APP_SHELL_MENU_OPEN_BUTTON]} onOpenMenu={onOpenMenu} />;
+  }
 
   if (surface.kind === "chat-folder" || surface.kind === "chat-session" || surface.kind === "chat-draft") {
     const key = chatSurfaceKey ?? "chat";

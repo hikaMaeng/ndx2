@@ -3,7 +3,7 @@ export const webclientFrontDomain = Object.freeze({
   runtime: "front"
 });
 export { getMetadata, getWebClientState, listWorkspaceDirectories, putWebClientState } from "./api/app.js";
-export { createProjectSession, createUser, createWebProject, createWebProvider, createWebProviderModel, deleteWebProject, deleteWebProvider, deleteWebProviderModel, listProjectSessions, listUsers, listWebProjects, listWebProviderModels, listWebProviders, openWebProjectInVSCode, readProviderModelNames, syncWebProviderModels, updateProjectUser, updateWebProviderModel } from "./api/project.js";
+export { createProjectSession, createUser, createWebProject, createWebProvider, createWebProviderEmbeddingModel, createWebProviderModel, deleteWebProject, deleteWebProvider, deleteWebProviderModel, getWebEmbeddingSettings, getWebSettings, listProjectSessions, listUsers, listWebProjects, listWebProviderEmbeddingModels, listWebProviderModels, listWebProviders, openWebProjectInVSCode, readProviderModelNames, syncWebProviderEmbeddingModels, syncWebProviderModels, updateProjectUser, updateWebEmbeddingSettings, updateWebProvider, updateWebProviderModel, updateWebSettings } from "./api/project.js";
 export { appendSessionMessage, interruptSession, listSessionData } from "./api/session.js";
 export {
   createChatFolder,

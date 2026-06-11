@@ -3,6 +3,7 @@ import {
   makeLocalProject,
   type NDXAgentWebCreateModelRequest,
   type NDXAgentWebCreateProviderRequest,
+  type NDXAgentWebEmbeddingSettingsResponse,
   type NDXAgentWebCreateProjectRequest,
   type NDXAgentWebCreateSessionRequest,
   type NDXAgentWebCreateUserRequest,
@@ -11,11 +12,14 @@ import {
   type NDXAgentWebProvidersResponse,
   type NDXAgentWebProjectsResponse,
   type NDXAgentWebSession,
+  type NDXAgentWebSettingsResponse,
   type NDXAgentWebSessionsResponse,
   type NDXAgentWebModel,
   type NDXAgentWebModelsResponse,
+  type NDXAgentWebUpdateEmbeddingSettingsRequest,
   type NDXAgentWebUpdateModelRequest,
   type NDXAgentWebUpdateProjectUserRequest,
+  type NDXAgentWebUpdateSettingsRequest,
   type NDXAgentWebUsersResponse,
   type NDXWebClientProject
 } from "ndx/webclient/common";
@@ -99,8 +103,18 @@ export async function listWebProviderModels(title: string) {
   return data.models as NDXAgentWebModel[];
 }
 
+export async function listWebProviderEmbeddingModels(title: string) {
+  const data = await requestJson<NDXAgentWebModelsResponse>(NDX_AGENT_WEB_API.webProviderEmbeddingModels(title));
+  return data.models as NDXAgentWebModel[];
+}
+
 export async function syncWebProviderModels(title: string) {
   const data = await requestJson<NDXAgentWebModelsResponse>(NDX_AGENT_WEB_API.webProviderModelSync(title), { method: "POST" });
+  return { models: data.models as NDXAgentWebModel[], syncError: data.syncError };
+}
+
+export async function syncWebProviderEmbeddingModels(title: string) {
+  const data = await requestJson<NDXAgentWebModelsResponse>(NDX_AGENT_WEB_API.webProviderEmbeddingModelSync(title), { method: "POST" });
   return { models: data.models as NDXAgentWebModel[], syncError: data.syncError };
 }
 
@@ -136,8 +150,24 @@ export function createWebProvider(body: NDXAgentWebCreateProviderRequest) {
   });
 }
 
+export function updateWebProvider(title: string, body: Partial<NDXAgentWebCreateProviderRequest>) {
+  return requestJson<NDXAgentWebProvider>(NDX_AGENT_WEB_API.webProvider(title), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+}
+
 export function createWebProviderModel(title: string, body: NDXAgentWebCreateModelRequest) {
   return requestJson<NDXAgentWebModel>(NDX_AGENT_WEB_API.webProviderModels(title), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+}
+
+export function createWebProviderEmbeddingModel(title: string, body: Pick<NDXAgentWebCreateModelRequest, "model">) {
+  return requestJson<NDXAgentWebModel>(NDX_AGENT_WEB_API.webProviderEmbeddingModels(title), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
@@ -158,4 +188,30 @@ export function deleteWebProvider(title: string) {
 
 export function deleteWebProviderModel(title: string, model: string) {
   return requestJson<void>(NDX_AGENT_WEB_API.webProviderModel(title, model), { method: "DELETE" });
+}
+
+export async function getWebEmbeddingSettings() {
+  const data = await requestJson<NDXAgentWebEmbeddingSettingsResponse>(NDX_AGENT_WEB_API.webEmbeddingSettings);
+  return data.embeddings;
+}
+
+export function updateWebEmbeddingSettings(body: NDXAgentWebUpdateEmbeddingSettingsRequest) {
+  return requestJson<NDXAgentWebEmbeddingSettingsResponse>(NDX_AGENT_WEB_API.webEmbeddingSettings, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+}
+
+export async function getWebSettings() {
+  const data = await requestJson<NDXAgentWebSettingsResponse>(NDX_AGENT_WEB_API.webSettings);
+  return data.settings;
+}
+
+export function updateWebSettings(body: NDXAgentWebUpdateSettingsRequest) {
+  return requestJson<NDXAgentWebSettingsResponse>(NDX_AGENT_WEB_API.webSettings, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
 }

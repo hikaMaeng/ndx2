@@ -200,6 +200,8 @@ LIMIT $${values.length};
   if (vector) {
     values.push(hnswVectorLiteral(vector));
     const vectorIndex = values.length;
+    values.push(sessionSearchLexicalTerms(query));
+    const lexicalTermsIndex = values.length;
     values.push(limit);
     const limitIndex = values.length;
     const result = await database.query<NDXSessionSearchRow>(
@@ -216,14 +218,24 @@ ranked AS (
            WHEN hnsw = (array_fill(0::real, ARRAY[256])::vector(256)) THEN NULL
            ELSE 1 - (hnsw <=> $${vectorIndex}::vector(256))
          END AS similarity,
-         ts_rank_cd(fts, websearch_to_tsquery(ndx_sessionsearch_regconfig(), $${queryIndex})) AS rank
+         ts_rank_cd(fts, websearch_to_tsquery(ndx_sessionsearch_regconfig(), $${queryIndex})) AS rank,
+         CASE
+           WHEN cardinality($${lexicalTermsIndex}::text[]) = 0 THEN 0::double precision
+           ELSE (
+             SELECT count(*)::double precision / cardinality($${lexicalTermsIndex}::text[])::double precision
+             FROM unnest($${lexicalTermsIndex}::text[]) AS query_term(value)
+             WHERE lower("text") LIKE '%' || query_term.value || '%'
+           )
+         END AS lexical_score
   FROM scoped
 )
 SELECT *
 FROM ranked
 WHERE COALESCE(similarity, 0) >= 0.15
    OR rank >= 0.05
-ORDER BY COALESCE(similarity, -1) DESC, rank DESC, createdat DESC, dataid DESC
+   OR lexical_score >= 0.2
+ORDER BY (COALESCE(similarity, 0) * 0.65 + LEAST(rank * 2, 0.25) + lexical_score * 0.35) DESC,
+         COALESCE(similarity, -1) DESC, rank DESC, lexical_score DESC, createdat DESC, dataid DESC
 LIMIT $${limitIndex};
 `,
       values
@@ -330,4 +342,11 @@ function hnswVectorLiteral(vector: number[]): string {
 
 function embeddingVectorLiteral(vector: number[]): string {
   return `[${padEmbeddingVector(vector).map((value) => Number.isFinite(value) ? String(value) : "0").join(",")}]`;
+}
+
+function sessionSearchLexicalTerms(query: string): string[] {
+  return [...new Set((query.toLowerCase().match(/[\p{L}\p{N}_-]+/gu) ?? [])
+    .map((term) => term.replace(/^-+|-+$/g, ""))
+    .filter((term) => term.length >= 2))]
+    .slice(0, 24);
 }

@@ -35,9 +35,8 @@ type ModelFormInput = {
 };
 
 const REASONING_EFFORT_OPTIONS: Array<{ value: NDXReasoningEffort; key: RSC }> = [
-  { value: "none", key: RSC.SESSION_MODEL_DIALOG_REASONING_EFFORT_NONE_LABEL },
-  { value: "nothink", key: RSC.SESSION_MODEL_DIALOG_REASONING_EFFORT_NOTHINK_LABEL },
-  { value: "normal", key: RSC.SESSION_MODEL_DIALOG_REASONING_EFFORT_NORMAL_LABEL },
+  { value: "low", key: RSC.SESSION_MODEL_DIALOG_REASONING_EFFORT_LOW_LABEL },
+  { value: "medium", key: RSC.SESSION_MODEL_DIALOG_REASONING_EFFORT_MEDIUM_LABEL },
   { value: "high", key: RSC.SESSION_MODEL_DIALOG_REASONING_EFFORT_HIGH_LABEL }
 ];
 
@@ -398,7 +397,7 @@ function ReasoningEffortCard(props: { value: NDXReasoningEffort; disabled: boole
           if (props.disabled) return;
           if (event.key === "ArrowLeft" || event.key === "ArrowDown") {
             event.preventDefault();
-            props.onChange(REASONING_EFFORT_OPTIONS[Math.max(0, selectedIndex - 1)]?.value ?? "none");
+            props.onChange(REASONING_EFFORT_OPTIONS[Math.max(0, selectedIndex - 1)]?.value ?? "low");
           }
           if (event.key === "ArrowRight" || event.key === "ArrowUp") {
             event.preventDefault();
@@ -406,7 +405,7 @@ function ReasoningEffortCard(props: { value: NDXReasoningEffort; disabled: boole
           }
           if (event.key === "Home") {
             event.preventDefault();
-            props.onChange("none");
+            props.onChange("low");
           }
           if (event.key === "End") {
             event.preventDefault();

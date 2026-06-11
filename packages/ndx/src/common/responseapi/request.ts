@@ -6,6 +6,7 @@ import { Agent } from "undici";
 const MAX_TRANSIENT_ATTEMPTS = 2;
 export const DEFAULT_MODEL_REQUEST_TIMEOUT_MS = 60 * 60 * 1000;
 type ResponsesInputMode = "text" | "array";
+type ProviderReasoningEffort = "none" | "medium" | "high";
 const rejectedProviderInputModes = new Map<string, Set<ResponsesInputMode>>();
 
 export async function requestModelResponse(
@@ -46,7 +47,7 @@ export async function requestModelResponse(
     ...modelInferenceBody(model),
     ...(tools.length > 0 ? { tools } : {})
   };
-  const preferredBodies: Array<{ inputMode: ResponsesInputMode; body: { model: string; input: unknown; stream: true; tools?: Record<string, unknown>[]; reasoning?: { effort: "low" | "medium" | "high" }; temperature?: number; top_p?: number; top_k?: number; min_p?: number } }> =
+  const preferredBodies: Array<{ inputMode: ResponsesInputMode; body: { model: string; input: unknown; stream: true; tools?: Record<string, unknown>[]; reasoning?: { effort: ProviderReasoningEffort }; temperature?: number; top_p?: number; top_k?: number; min_p?: number } }> =
     hasAttachmentPayload(messages)
       ? [{ inputMode: "array", body: arrayRequestBody }, { inputMode: "text", body: textRequestBody }]
       : [{ inputMode: "text", body: textRequestBody }, { inputMode: "array", body: arrayRequestBody }];
@@ -460,15 +461,8 @@ function isProviderInputParseFailure(error: unknown): boolean {
   return /model response failed: Failed to parse input at pos 0:/i.test(message);
 }
 
-function modelInferenceBody(model: ResponseModelConfig): { reasoning?: { effort: "low" | "medium" | "high" }; temperature?: number; top_p?: number; top_k?: number; min_p?: number } {
-  const effort =
-    model.reasoningEffort === "nothink" || model.reasoningEffort === "low"
-      ? "low"
-      : model.reasoningEffort === "normal" || model.reasoningEffort === "medium"
-        ? "medium"
-        : model.reasoningEffort === "high"
-          ? "high"
-          : undefined;
+function modelInferenceBody(model: ResponseModelConfig): { reasoning?: { effort: ProviderReasoningEffort }; temperature?: number; top_p?: number; top_k?: number; min_p?: number } {
+  const effort = providerReasoningEffort(model.reasoningEffort);
   return {
     ...(effort ? { reasoning: { effort } } : {}),
     ...(typeof model.temperature === "number" ? { temperature: model.temperature } : {}),
@@ -476,6 +470,13 @@ function modelInferenceBody(model: ResponseModelConfig): { reasoning?: { effort:
     ...(typeof model.topK === "number" ? { top_k: model.topK } : {}),
     ...(typeof model.minP === "number" ? { min_p: model.minP } : {})
   };
+}
+
+function providerReasoningEffort(effort: ResponseModelConfig["reasoningEffort"]): ProviderReasoningEffort | undefined {
+  if (effort === "low") {
+    return "none";
+  }
+  return effort === "medium" || effort === "high" ? effort : undefined;
 }
 
 function modelRequestTimeoutMs(model: ResponseModelConfig): number {

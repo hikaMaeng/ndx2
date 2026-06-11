@@ -15,6 +15,7 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - ./volume:/ndx
+      - /mnt:/mnt
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - NDX_ROOT=/ndx

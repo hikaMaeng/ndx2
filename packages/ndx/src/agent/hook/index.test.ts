@@ -334,23 +334,17 @@ test("request received system hook records selected skill contents before rewrit
   assert.match(text, /Use demo workflow\./);
 });
 
-test("request received system hook expands thinking marker into the current user request", async () => {
+test("request received system hook strips thinking marker from the current user request", async () => {
   const result = await runNDXHooks(createNDXHookRuntime({ [NDX_TURN_EVENT.RequestReceived]: turnRequestReceivedHooks }, {}), NDX_TURN_EVENT.RequestReceived, {
     ...baseContext,
-    requestText: "[[NDX_THINKING_nothink]]\n수정하고 배포해"
+    requestText: "[[NDX_THINKING_low]]\n수정하고 배포해"
   });
 
-  assert.match(result.effect.replaceRequestText ?? "", /^<ndx_request reasoning="nothink">/);
-  assert.match(result.effect.replaceRequestText ?? "", /<user_request>\n수정하고 배포해\n<\/user_request>/);
-  assert.match(result.effect.replaceRequestText ?? "", /<execution_policy>/);
-  assert.match(result.effect.replaceRequestText ?? "", /Do not think in the model response/);
-  assert.match(result.effect.replaceRequestText ?? "", /use cot_work as the thinking surface instead of reasoning/);
-  assert.match(result.effect.replaceRequestText ?? "", /immediately call exactly one useful tool/);
-  assert.match(result.effect.replaceRequestText ?? "", /<\/ndx_request>$/);
+  assert.equal(result.effect.replaceRequestText, "수정하고 배포해");
   assert.doesNotMatch(result.effect.replaceRequestText ?? "", /NDX_THINKING/);
 });
 
-test("request received thinking marker leaves none unwrapped", async () => {
+test("request received thinking marker strips legacy none marker", async () => {
   const result = await runNDXHooks(createNDXHookRuntime({ [NDX_TURN_EVENT.RequestReceived]: turnRequestReceivedHooks }, {}), NDX_TURN_EVENT.RequestReceived, {
     ...baseContext,
     requestText: "[[NDX_THINKING_none]]\n확인해"
@@ -359,22 +353,18 @@ test("request received thinking marker leaves none unwrapped", async () => {
   assert.equal(result.effect.replaceRequestText, "확인해");
 });
 
-test("request received thinking marker maps normal and high to distinct guidance", async () => {
-  const normal = await runNDXHooks(createNDXHookRuntime({ [NDX_TURN_EVENT.RequestReceived]: turnRequestReceivedHooks }, {}), NDX_TURN_EVENT.RequestReceived, {
+test("request received thinking marker strips medium and high markers without injecting guidance", async () => {
+  const medium = await runNDXHooks(createNDXHookRuntime({ [NDX_TURN_EVENT.RequestReceived]: turnRequestReceivedHooks }, {}), NDX_TURN_EVENT.RequestReceived, {
     ...baseContext,
-    requestText: "[[NDX_THINKING_normal]]\n확인해"
+    requestText: "[[NDX_THINKING_medium]]\n확인해"
   });
   const high = await runNDXHooks(createNDXHookRuntime({ [NDX_TURN_EVENT.RequestReceived]: turnRequestReceivedHooks }, {}), NDX_TURN_EVENT.RequestReceived, {
     ...baseContext,
     requestText: "[[NDX_THINKING_high]]\n확인해"
   });
 
-  assert.match(normal.effect.replaceRequestText ?? "", /^<ndx_request reasoning="normal">/);
-  assert.match(normal.effect.replaceRequestText ?? "", /Normal mode applies to this user request/);
-  assert.match(normal.effect.replaceRequestText ?? "", /call cot_work and put it there instead of reasoning/);
-  assert.match(high.effect.replaceRequestText ?? "", /^<ndx_request reasoning="high">/);
-  assert.match(high.effect.replaceRequestText ?? "", /Reasoning is allowed/);
-  assert.match(high.effect.replaceRequestText ?? "", /prefer cot_work over extended reasoning text/);
+  assert.equal(medium.effect.replaceRequestText, "확인해");
+  assert.equal(high.effect.replaceRequestText, "확인해");
 });
 
 test("request received system hook applies thinking and skill markers together", async () => {
@@ -416,11 +406,10 @@ test("request received system hook applies thinking and skill markers together",
       { role: "system", content: `## Skills\n### Available skills\n- demo: demo skill (file: ${skillPath})` },
       { role: "user", content: "hello" }
     ],
-    requestText: "[[NDX_THINKING_nothink]] [[NDX_SKILL_demo]]로 처리해줘"
+    requestText: "[[NDX_THINKING_low]] [[NDX_SKILL_demo]]로 처리해줘"
   });
 
-  assert.match(result.effect.replaceRequestText ?? "", /^<ndx_request reasoning="nothink">/);
-  assert.match(result.effect.replaceRequestText ?? "", /<user_request>\n\$demo로 처리해줘\n<\/user_request>/);
+  assert.equal(result.effect.replaceRequestText, "$demo로 처리해줘");
   assert.doesNotMatch(result.effect.replaceRequestText ?? "", /NDX_THINKING|NDX_SKILL/);
   assert.equal(rows.length, 1);
   assert.deepEqual((rows[0].contents as { kind?: unknown }).kind, "skill_context");

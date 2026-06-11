@@ -4,6 +4,21 @@ import { sessionDataContentsText } from "./chat.js";
 
 test("sessionDataContentsText shows only original user request from ndx request wrapper", () => {
   const text = [
+    "<request thinking=\"low\">",
+    "<thinking_instruction>",
+    "Do not think in the model response.",
+    "</thinking_instruction>",
+    "<user_request>",
+    "수정하고 배포해",
+    "</user_request>",
+    "</request>"
+  ].join("\n");
+
+  assert.equal(sessionDataContentsText({ kind: "user_message", text }), "수정하고 배포해");
+});
+
+test("sessionDataContentsText keeps legacy ndx request wrapper display-compatible", () => {
+  const text = [
     "<ndx_request reasoning=\"nothink\">",
     "<user_request>",
     "수정하고 배포해",

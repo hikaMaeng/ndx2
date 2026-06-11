@@ -9,7 +9,8 @@ export type WebClientSurface =
   | { kind: "project-draft"; projectName: string; revision: number }
   | { kind: "chat-folder"; folderId: string; revision: number }
   | { kind: "chat-session"; folderId: string; sessionId: string; revision: number }
-  | { kind: "chat-draft"; folderId: string; revision: number };
+  | { kind: "chat-draft"; folderId: string; revision: number }
+  | { kind: "settings"; revision: number; tab: "models" };
 
 export type WebClientModalRequest =
   | { kind: "model"; sourceSurfaceKey: string; revision: number }
@@ -88,6 +89,10 @@ export class WebClientBridge {
 
   openChatDraft(folderId: string) {
     this.setSurface({ kind: "chat-draft", folderId, revision: this.nextRevision() });
+  }
+
+  openSettings(tab: "models" = "models") {
+    this.setSurface({ kind: "settings", tab, revision: this.nextRevision() });
   }
 
   openModal(request: WebClientModalCommand) {
