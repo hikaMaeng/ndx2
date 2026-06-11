@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import os from "node:os";
+import path from "node:path";
 import { readNDXWebSearchSettings } from "../../../common/settings/index.js";
 import { toServerContainerPath } from "../../../common/server-path/index.js";
 import { routeToolAgentCallLine } from "./agentcall/index.js";
@@ -358,7 +359,7 @@ function normalizeToolPathArguments(args: Record<string, unknown>, options: NDXT
     if (typeof value !== "string" || !value.trim()) {
       continue;
     }
-    const mapped = toServerContainerPath(value, options);
+    const mapped = toServerContainerPath(normalizeProjectRelativeAlias(value, options), options);
     if (options.projectHome && pathInside(mapped, options.projectHome)) {
       const relative = mapped === options.projectHome ? "." : mapped.slice(options.projectHome.length + 1);
       output[key] = relative;
@@ -367,6 +368,28 @@ function normalizeToolPathArguments(args: Record<string, unknown>, options: NDXT
     }
   }
   return output;
+}
+
+function normalizeProjectRelativeAlias(value: string, options: NDXToolExecutionOptions): string {
+  if (!options.projectHome || path.posix.isAbsolute(value.replace(/\\/g, "/")) || /^[A-Za-z]:[\\/]/.test(value)) {
+    return value;
+  }
+
+  let normalized = path.posix.normalize(value.replace(/\\/g, "/")).replace(/\/$/, "") || ".";
+  const projectName = path.posix.basename(options.projectHome);
+  const workspaceName = path.posix.basename(path.posix.dirname(options.projectHome));
+  const userHomeName = options.userHome ? path.posix.basename(options.userHome) : "";
+  const aliases = [
+    `${workspaceName}/${projectName}`,
+    userHomeName ? `${userHomeName}/${workspaceName}/${projectName}` : ""
+  ].filter(Boolean);
+
+  for (const alias of aliases) {
+    while (normalized === alias || normalized.startsWith(`${alias}/`)) {
+      normalized = normalized === alias ? "." : normalized.slice(alias.length + 1);
+    }
+  }
+  return normalized;
 }
 
 function pathInside(value: string, root: string): boolean {

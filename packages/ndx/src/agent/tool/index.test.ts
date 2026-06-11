@@ -589,12 +589,16 @@ test("builtin file tools read, search, edit, write, and run bash within the NDX 
   const glob = await executeToolCall({ name: "glob", arguments: JSON.stringify({ pattern: "src/*.ts" }) }, options);
   assert.equal(glob.success, true);
   assert.equal(glob.events.at(-1)?.type, "result");
-  assert.deepEqual(JSON.parse(glob.output).files, [path.join(projectHome, "src", "a.ts")]);
+  const globOutput = JSON.parse(glob.output);
+  assert.equal(globOutput.root, projectHome);
+  assert.deepEqual(globOutput.files, [path.join(projectHome, "src", "a.ts")]);
 
   const grep = await executeToolCall({ name: "grep_search", arguments: JSON.stringify({ pattern: "needle", path: "src", glob: "*.ts" }) }, options);
   assert.equal(grep.success, true);
   assert.equal(grep.events.at(-1)?.type, "result");
-  assert.equal(JSON.parse(grep.output).matches[0].line, 2);
+  const grepOutput = JSON.parse(grep.output);
+  assert.equal(grepOutput.root, path.join(projectHome, "src"));
+  assert.equal(grepOutput.matches[0].line, 2);
 
   const edit = await executeToolCall(
     { name: "edit", arguments: JSON.stringify({ file_path: "src/a.ts", old_string: "needle", new_string: "thread" }) },
@@ -619,6 +623,13 @@ test("builtin file tools read, search, edit, write, and run bash within the NDX 
   assert.equal((sidebarItems.at(-1) as { group?: { id?: string; title?: string }; subgroup?: { id?: string; title?: string }; kind?: string }).group?.id, "commands");
   assert.equal((sidebarItems.at(-1) as { group?: { id?: string; title?: string }; subgroup?: { id?: string; title?: string }; kind?: string }).subgroup?.id, "command:printf");
   assert.equal((sidebarItems.at(-1) as { group?: { id?: string; title?: string }; subgroup?: { id?: string; title?: string }; kind?: string }).subgroup?.title, "printf");
+
+  const aliasBash = await executeToolCall(
+    { name: "bash", arguments: JSON.stringify({ command: "pwd", workdir: `workspace/${path.basename(projectHome)}` }) },
+    options
+  );
+  assert.equal(aliasBash.success, true);
+  assert.match(aliasBash.output, new RegExp(escapeRegExp(projectHome)));
 
   const image = await executeToolCall({ name: "getImage", arguments: JSON.stringify({ path: "src/sample.png" }) }, options);
   assert.equal(image.success, true);
@@ -669,6 +680,16 @@ test("builtin tools emit protocol errors for invalid runtime situations", async 
   assert.match(appendEffect?.text ?? "", new RegExp(`This session's NDX virtual root is ${escapeRegExp(userHome)}\\.`));
   assert.match(appendEffect?.text ?? "", /Use project-relative paths for project files; do not prefix them with \/\./);
   assert.match(appendEffect?.text ?? "", /Absolute file-tool paths must stay under/);
+
+  const workspaceAlias = await executeToolCall(
+    { name: "glob", arguments: JSON.stringify({ pattern: "**/*", path: `/workspace/${path.basename(projectHome)}` }) },
+    { userHome, projectHome }
+  );
+  assert.equal(workspaceAlias.success, false);
+  const workspaceAliasEffect = workspaceAlias.effects?.find((effect): effect is Extract<NonNullable<typeof workspaceAlias.effects>[number], { type: "append_user_message" }> => effect.type === "append_user_message");
+  assert.match(workspaceAlias.output, /path escapes NDX virtual root/);
+  assert.match(workspaceAliasEffect?.text ?? "", /For this project path, call the tool with:\n\./);
+  assert.doesNotMatch(workspaceAliasEffect?.text ?? "", new RegExp(`${escapeRegExp(projectHome)}/workspace/${escapeRegExp(path.basename(projectHome))}`));
 });
 
 test("builtin file tools map Windows volume paths before invoking shell tools", async () => {

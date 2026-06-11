@@ -41,8 +41,8 @@ emit_error() {
 }
 
 emit_error_with_append_message() {
-  message="$1"
-  appended_text="$2"
+  local message="$1"
+  local appended_text="$2"
   printf '{"type":"error","success":false,"message":'
   printf '%s' "$message" | json_quote
   printf ',"effects":[{"type":"append_user_message","text":'
@@ -60,8 +60,8 @@ ndx_virtual_root() {
 }
 
 resolve_ndx_path() {
-  input="$1"
-  base="${2:-${NDX_PROJECT_HOME:-$PWD}}"
+  local input="$1"
+  local base="${2:-${NDX_PROJECT_HOME:-$PWD}}"
   case "$input" in
     /*) realpath -m "$input" ;;
     *) realpath -m "$base/$input" ;;
@@ -69,12 +69,14 @@ resolve_ndx_path() {
 }
 
 require_ndx_path() {
-  resolved_path="$1"
-  original_input="$2"
+  local resolved_path="$1"
+  local original_input="$2"
+  local root
   root="$(ndx_virtual_root)"
   case "$resolved_path" in
     "$root"|"$root"/*) ;;
     *)
+      local project_home correction
       project_home="$(realpath -m "${NDX_PROJECT_HOME:-$PWD}")"
       correction="Path correction for this session:
 The rejected path was $original_input.
@@ -89,14 +91,34 @@ Absolute file-tool paths must stay under $root, and project absolute paths shoul
 Do not pass /tmp paths to file tools. For temporary files, create and use /tmp inside a single bash command, or use a project-local path such as .ndx/tmp/..."
           ;;
         /*)
+          local stripped_input project_name workspace_prefix project_relative candidate_absolute
           stripped_input="${original_input#/}"
-          if [ -n "$stripped_input" ]; then
-            candidate_absolute="$(realpath -m "$project_home/$stripped_input")"
+          project_name="${project_home##*/}"
+          workspace_prefix="workspace/$project_name"
+          project_relative="$stripped_input"
+          while true; do
+            case "$project_relative" in
+              "$workspace_prefix") project_relative="." ;;
+              "$workspace_prefix"/*) project_relative="${project_relative#"$workspace_prefix/"}" ;;
+              *) break ;;
+            esac
+            [ "$project_relative" != "$workspace_prefix" ] || continue
+          done
+          if [ -n "$project_relative" ]; then
+            if [ "$project_relative" = "." ]; then
+              candidate_absolute="$project_home"
+            else
+              candidate_absolute="$(realpath -m "$project_home/$project_relative")"
+            fi
             correction="$correction
-For this project file, call the tool with:
-$stripped_input
+For this project path, call the tool with:
+$project_relative
 or:
 $candidate_absolute"
+            if [ "$project_relative" != "$stripped_input" ]; then
+              correction="$correction
+Do not use $original_input or $stripped_input in this session."
+            fi
           fi
           ;;
       esac
