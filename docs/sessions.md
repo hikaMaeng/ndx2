@@ -117,6 +117,11 @@ markers before the user message is appended:
 * if the selected skill is already present in the current model context, the hook
   records only a short selected-skill instruction row for the current request and
   does not rewrite the older skill row;
+* when a line contains one selected-skill marker followed by whitespace, the
+  rest of that line is preserved as the skill argument in both the selected-skill
+  instruction and display text, so `[[NDX_SKILL_cot-solve]] --min-steps 20`
+  becomes `$cot-solve --min-steps 20` and the loaded skill can apply the full
+  `--min-steps 20` argument;
 * the user request is rewritten back to display text such as `$agenttest`;
 * the normal turn flow then reconstructs model context from `sessiondata`.
 

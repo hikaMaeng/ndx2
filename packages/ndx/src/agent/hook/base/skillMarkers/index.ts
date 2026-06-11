@@ -12,21 +12,31 @@ export type NDXSkillMarkerHookInsertionEvent = typeof NDX_TURN_EVENT.RequestRece
 
 const SKILL_MARKER_PATTERN = /\[\[NDX_SKILL_([^\]\r\n]+)\]\]/g;
 
+type RequestedSkillMarker = {
+  name: string;
+  argument?: string;
+};
+
 export const skillMarkerHook: NDXHookCodeExecutor = {
   kind: "code",
   name: "system.turn.request.received.skill_markers",
   source: "system",
   async run(context): Promise<NDXHookEffect> {
-    const requested = [...context.requestText.matchAll(SKILL_MARKER_PATTERN)]
-      .map((match) => decodeSkillName(match[1] ?? ""))
-      .filter((name) => name.length > 0);
+    const parsed = parseSkillMarkerRequestText(context.requestText);
+    const requested = parsed.requested;
     if (requested.length === 0) {
       return { type: "noeffect", replaceRequestText: context.requestText };
     }
 
     const diagnostics: string[] = [];
     const preloadedSkillKeys = new Set<string>();
-    for (const name of [...new Set(requested)]) {
+    const uniqueRequests = new Map<string, { name: string; argument?: string }>();
+    for (const skill of requested) {
+      if (!uniqueRequests.has(skill.name)) {
+        uniqueRequests.set(skill.name, skill);
+      }
+    }
+    for (const { name, argument } of uniqueRequests.values()) {
       const [result] = await executeToolCalls([{
         type: "function_call",
         call_id: `preload-skill:${name}`,
@@ -55,16 +65,75 @@ export const skillMarkerHook: NDXHookCodeExecutor = {
         continue;
       }
       preloadedSkillKeys.add(loadedKey);
-      await appendSessionData(context.database, context.session.sessionid, "system", skillContextContents(loaded.name, loaded.path, selectedSkillContextText(name, loaded, result.output)));
+      await appendSessionData(context.database, context.session.sessionid, "system", skillContextContents(loaded.name, loaded.path, selectedSkillContextText(name, argument, loaded, result.output)));
     }
 
     return {
       type: "noeffect",
-      replaceRequestText: context.requestText.replace(SKILL_MARKER_PATTERN, (_match, rawName: string) => `$${decodeSkillName(rawName)}`),
+      replaceRequestText: parsed.replaceRequestText,
       ...(diagnostics.length > 0 ? { diagnostics } : {})
     };
   }
 };
+
+function parseSkillMarkerRequestText(requestText: string): { requested: RequestedSkillMarker[]; replaceRequestText: string } {
+  const requested: RequestedSkillMarker[] = [];
+  let replaceRequestText = "";
+  const linePattern = /([^\r\n]*)(\r\n|\n|\r|$)/g;
+  let match: RegExpExecArray | null;
+  while ((match = linePattern.exec(requestText)) !== null) {
+    const line = match[1] ?? "";
+    const ending = match[2] ?? "";
+    if (line.length === 0 && ending.length === 0 && match.index === requestText.length) {
+      break;
+    }
+
+    const markerMatches = [...line.matchAll(SKILL_MARKER_PATTERN)];
+    if (markerMatches.length === 0) {
+      replaceRequestText += line + ending;
+      if (ending.length === 0) {
+        break;
+      }
+      continue;
+    }
+
+    const argumentByMarkerStart = new Map<number, string>();
+    if (markerMatches.length === 1) {
+      const marker = markerMatches[0];
+      const markerStart = marker.index ?? 0;
+      const markerEnd = markerStart + marker[0].length;
+      const restOfLine = line.slice(markerEnd);
+      if (/^[ \t]+/.test(restOfLine)) {
+        const argument = restOfLine.trim();
+        if (argument.length > 0) {
+          argumentByMarkerStart.set(markerStart, argument);
+        }
+      }
+    }
+
+    let nextIndex = 0;
+    let replacedLine = "";
+    for (const marker of markerMatches) {
+      const markerStart = marker.index ?? 0;
+      const markerEnd = markerStart + marker[0].length;
+      const name = decodeSkillName(marker[1] ?? "");
+      if (name.length === 0) {
+        continue;
+      }
+      const argument = argumentByMarkerStart.get(markerStart);
+      requested.push({ name, argument });
+      replacedLine += line.slice(nextIndex, markerStart);
+      replacedLine += `$${name}${argument ? ` ${argument}` : ""}`;
+      nextIndex = argument ? line.length : markerEnd;
+    }
+    replacedLine += line.slice(nextIndex);
+    replaceRequestText += replacedLine + ending;
+    if (ending.length === 0) {
+      break;
+    }
+  }
+  return { requested, replaceRequestText };
+}
 
 function turnContextFromMessages(messages: ResponseInputItem[]): NDXToolRuntimeTurnContext {
   const developer = isModelMessage(messages[0]) && messages[0].role === "system" ? messages[0] : { role: "system" as const, content: "" };
@@ -100,10 +169,15 @@ function parseAlreadyLoadedSkillOutput(output: string): { name: string; path: st
   return name && skillPath ? { name, path: skillPath } : undefined;
 }
 
-function selectedSkillContextText(requestedName: string, loaded: { name: string; path: string }, output: string): string {
+function selectedSkillContextText(requestedName: string, argument: string | undefined, loaded: { name: string; path: string }, output: string): string {
+  const selectedCommand = `$${requestedName}${argument ? ` ${argument}` : ""}`;
   const selectedInstruction = [
     "<selected_skill_instruction>",
-    `The user explicitly selected \`$${requestedName}\` for this request.`,
+    `The user explicitly selected \`${selectedCommand}\` for this request.`,
+    ...(argument ? [
+      `The selected skill argument is \`${argument}\`.`,
+      "When this skill defines optional arguments, apply this argument to the workflow."
+    ] : []),
     "The selected skill is model-visible before the first model iteration.",
     "You must apply this skill's workflow to the current request.",
     "Do not call `loadSkill` for this skill again unless the skill block is missing or unreadable.",

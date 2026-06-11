@@ -413,6 +413,56 @@ test("request received system hook records selected skill contents before rewrit
   assert.match(text, /Use demo workflow\./);
 });
 
+test("request received system hook preserves rest-of-line skill marker argument", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-hook-skill-arg-"));
+  const userHome = path.join(root, "user");
+  const projectHome = path.join(root, "project");
+  const skillPath = path.join(projectHome, ".ndx", "skills", "cot-solve", "SKILL.md");
+  const rows: Array<{ dataid: string; sessionid: string; type: string; contents: unknown; createdat: Date }> = [];
+  await fs.mkdir(path.dirname(skillPath), { recursive: true });
+  await fs.writeFile(skillPath, "---\nname: cot-solve\ndescription: step planning\n---\nUse cot workflow.\n", "utf8");
+
+  const database: NDXDatabase = {
+    async query(text, values) {
+      if (/SELECT dataid, sessionid, type, contents, createdat\s+FROM sessiondata/i.test(text)) {
+        return { rows, rowCount: rows.length, command: "", oid: 0, fields: [] } as never;
+      }
+      if (/INSERT INTO sessiondata/i.test(text)) {
+        const row = {
+          dataid: String(rows.length + 1),
+          sessionid: String(values?.[0]),
+          type: String(values?.[1]),
+          contents: JSON.parse(String(values?.[2])),
+          createdat: new Date(0)
+        };
+        rows.push(row);
+        return { rows: [row], rowCount: 1, command: "", oid: 0, fields: [] } as never;
+      }
+      return { rows: [], rowCount: 0, command: "", oid: 0, fields: [] } as never;
+    },
+    async close() {}
+  };
+
+  const result = await runNDXHooks(createNDXHookRuntime({ [NDX_TURN_EVENT.RequestReceived]: turnRequestReceivedHooks }, {}), NDX_TURN_EVENT.RequestReceived, {
+    ...baseContext,
+    database,
+    userHome,
+    projectHome,
+    messages: [
+      { role: "system", content: `## Skills\n### Available skills\n- cot-solve: step planning (file: ${skillPath})` },
+      { role: "user", content: "hello" }
+    ],
+    requestText: "[[NDX_SKILL_cot-solve]] --min-steps 20 --mode terse\n작업해"
+  });
+
+  assert.equal(result.effect.replaceRequestText, "$cot-solve --min-steps 20 --mode terse\n작업해");
+  assert.equal(rows.length, 1);
+  const text = String((rows[0].contents as { text?: unknown }).text ?? "");
+  assert.match(text, /explicitly selected `\$cot-solve --min-steps 20 --mode terse`/);
+  assert.match(text, /selected skill argument is `--min-steps 20 --mode terse`/);
+  assert.match(text, /apply this argument to the workflow/);
+});
+
 test("request received system hook strips thinking marker from the current user request", async () => {
   const result = await runNDXHooks(createNDXHookRuntime({ [NDX_TURN_EVENT.RequestReceived]: turnRequestReceivedHooks }, {}), NDX_TURN_EVENT.RequestReceived, {
     ...baseContext,
@@ -851,6 +901,41 @@ test("model responding stream guard uses configured max reasoning length before 
   } finally {
     await fs.rm(userHome, { recursive: true, force: true });
   }
+});
+
+test("model responding stream guard interrupts repeated reasoning paragraphs", async () => {
+  const repeatedParagraph = "The key observation is that filtering out all-zero rows changes the row indexing, potentially disrupting piece rendering.";
+  const result = await runModelRespondingHook(createNDXHookRuntime({ [NDX_TURN_EVENT.ModelResponding]: modelRespondingHooks }, {}), {
+    ...baseContext,
+    iteration: 102,
+    modelResponse: {
+      type: "reasoning",
+      summary: `${repeatedParagraph}\n\nA different paragraph.\n\n${repeatedParagraph}`,
+      content: "",
+      elapsedMs: 1_000,
+      sequence: 1
+    }
+  });
+
+  assert.equal(result.interruptModelResponse, true);
+  assert.match(result.interruptReason ?? "", /repeated the same paragraph/);
+});
+
+test("model responding stream guard clears repeated reasoning detection after output starts", async () => {
+  const repeatedParagraph = "I need to preserve the original shape while ensuring correct rendering across tetromino configurations.";
+  const result = await runModelRespondingHook(createNDXHookRuntime({ [NDX_TURN_EVENT.ModelResponding]: modelRespondingHooks }, {}), {
+    ...baseContext,
+    iteration: 103,
+    modelResponse: {
+      type: "reasoning",
+      summary: `${repeatedParagraph}\n\n${repeatedParagraph}`,
+      content: "Assistant output has started.",
+      elapsedMs: 1_000,
+      sequence: 1
+    }
+  });
+
+  assert.equal(result.interruptModelResponse, false);
 });
 
 test("tool results system loop detection stops the turn from model judgment on configured interval", async () => {

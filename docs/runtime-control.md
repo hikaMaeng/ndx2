@@ -62,6 +62,14 @@ is produced. Configure the limit in `/ndx/.ndx/settings.json` under
 `hooks.StreamGuard.MAX_REASONING_LENGTH`. If the hook setting is absent or
 invalid, the fallback remains `240000` characters.
 
+The same StreamGuard hook also interrupts a model response when the reasoning
+summary repeats the same paragraph before any output text is produced. This
+duplicate-paragraph guard is fixed runtime policy and does not depend on a
+settings parameter. It uses the reasoning summary observed so far, splits it on
+blank-line paragraph boundaries, normalizes whitespace, and stops the active
+model response as soon as a duplicate non-empty paragraph is found. The turn
+then follows the same existing interruption path as other StreamGuard stops.
+
 Loop detection during tool-heavy turns is configured under
 `runtime.loopDetectionInterval`. The default is `50`. After tool results are
 collected on iterations divisible by that interval, the system

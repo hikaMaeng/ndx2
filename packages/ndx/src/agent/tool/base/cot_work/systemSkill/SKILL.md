@@ -22,6 +22,22 @@ Do not use this skill for:
 - Routine read-before-edit inspection where the change is otherwise obvious
 - A small multi-file edit that does not cross architectural or runtime boundaries
 
+## Optional Step Count Argument
+
+The skill may be invoked with a positive integer argument, such as
+`$COT-SOLVE 10` or `cot-solve 10`.
+
+The argument is optional. Do not ask for it when it is absent.
+
+When a positive integer argument is present, treat it as the minimum number of
+steps for the first cot_work plan. For example, `$COT-SOLVE 10` means the first
+cot_work call for this task must register at least 10 checkable steps.
+
+If the task would normally use fewer steps, decompose the real work into finer
+checkable outcomes such as inspection, implementation, verification, and
+evidence review. Do not add fake busywork, but do not submit a first cot_work
+plan with fewer than the requested number of steps.
+
 ## Phase 1 — Resolve unknowns before planning
 
 Inspect before registering implementation steps when the plan depends on facts
