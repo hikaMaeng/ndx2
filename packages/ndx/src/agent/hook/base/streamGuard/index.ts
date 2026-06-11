@@ -5,7 +5,14 @@ import type { NDXHookCodeExecutor, NDXHookEffect } from "../../index.js";
 export type NDXStreamGuardHookInsertionEvent = typeof NDX_TURN_EVENT.ModelResponding;
 
 const MAX_REASONING_CHARS = 240_000;
-const REPEATED_REASONING_BLOCK_WINDOWS = [160, 320, 640] as const;
+const REPEATED_REASONING_BLOCK_WINDOWS = [80, 160, 320, 640] as const;
+const REPEATED_REASONING_DENSITY_RECENT_CHARS = 4_000;
+const REPEATED_REASONING_DENSITY_MIN_SHINGLES = 120;
+const REPEATED_REASONING_DENSITY_MAX_UNIQUE_RATIO = 0.65;
+const REPEATED_REASONING_DENSITY_MIN_DUPLICATE_COUNT = 3;
+const NO_OUTPUT_REASONING_MAX_ELAPSED_MS = 90_000;
+const NO_OUTPUT_REASONING_MAX_SEQUENCE = 1_000;
+const NO_OUTPUT_REASONING_MAX_CHARS = 8_000;
 
 type StreamGuardState = {
   maxReasoningObservedChars: number;
@@ -53,6 +60,14 @@ export const modelResponseStreamGuardHook: NDXHookCodeExecutor = {
       streamGuardState.delete(key);
       return interruptEffect("model response reasoning repeated the same text block before producing output.");
     }
+    if (hasDenseRepeatedReasoning(context.modelResponse.summary)) {
+      streamGuardState.delete(key);
+      return interruptEffect("model response reasoning repeated too densely before producing output.");
+    }
+    if (hasExcessiveNoOutputReasoning(context.modelResponse.summary, context.modelResponse.elapsedMs, context.modelResponse.sequence)) {
+      streamGuardState.delete(key);
+      return interruptEffect("model response reasoning streamed too long before producing output.");
+    }
     if (state.maxReasoningObservedChars > state.maxReasoningAllowedChars) {
       streamGuardState.delete(key);
       return interruptEffect(`model response reasoning exceeded ${state.maxReasoningAllowedChars} characters before producing output.`);
@@ -87,7 +102,7 @@ function hasRepeatedReasoningTailBlock(summary: string): boolean {
       continue;
     }
     const block = normalized.slice(normalized.length - size);
-    if (new Set(block).size < 24) {
+    if (new Set(block).size < minUniqueCharactersForRepeatedBlock(size)) {
       continue;
     }
     if (normalized.slice(0, normalized.length - size).includes(block)) {
@@ -95,6 +110,40 @@ function hasRepeatedReasoningTailBlock(summary: string): boolean {
     }
   }
   return false;
+}
+
+function minUniqueCharactersForRepeatedBlock(size: number): number {
+  return size < 160 ? 18 : 24;
+}
+
+function hasDenseRepeatedReasoning(summary: string): boolean {
+  const normalized = summary.replace(/\s+/g, " ").trim();
+  const recent = normalized.slice(-REPEATED_REASONING_DENSITY_RECENT_CHARS).toLowerCase();
+  const tokens = recent.match(/[a-z0-9가-힣_`'.-]+/g) ?? [];
+  if (tokens.length < REPEATED_REASONING_DENSITY_MIN_SHINGLES) {
+    return false;
+  }
+
+  const shingleSize = 10;
+  const counts = new Map<string, number>();
+  for (let index = 0; index <= tokens.length - shingleSize; index += 1) {
+    const shingle = tokens.slice(index, index + shingleSize).join(" ");
+    counts.set(shingle, (counts.get(shingle) ?? 0) + 1);
+  }
+
+  const total = Math.max(0, tokens.length - shingleSize + 1);
+  if (total < REPEATED_REASONING_DENSITY_MIN_SHINGLES) {
+    return false;
+  }
+  const maxDuplicateCount = Math.max(...counts.values());
+  const uniqueRatio = counts.size / total;
+  return maxDuplicateCount >= REPEATED_REASONING_DENSITY_MIN_DUPLICATE_COUNT && uniqueRatio <= REPEATED_REASONING_DENSITY_MAX_UNIQUE_RATIO;
+}
+
+function hasExcessiveNoOutputReasoning(summary: string, elapsedMs: number, sequence: number): boolean {
+  return elapsedMs >= NO_OUTPUT_REASONING_MAX_ELAPSED_MS &&
+    sequence >= NO_OUTPUT_REASONING_MAX_SEQUENCE &&
+    summary.length >= NO_OUTPUT_REASONING_MAX_CHARS;
 }
 
 function interruptEffect(reason: string): NDXHookEffect {

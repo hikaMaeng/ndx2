@@ -70,6 +70,13 @@ blank-line paragraph boundaries, normalizes whitespace, and stops the active
 model response as soon as a duplicate non-empty paragraph is found. The turn
 then follows the same existing interruption path as other StreamGuard stops.
 
+The same fixed StreamGuard policy also watches for exact repeated tail blocks,
+dense repeated word-shingles in the latest reasoning window, and excessive
+no-output reasoning streams. These checks are intentionally independent of
+`MAX_REASONING_LENGTH`: they stop local-model reasoning loops before the larger
+hard length fallback is reached, while clearing their state as soon as assistant
+output text or a tool call starts.
+
 Loop detection during tool-heavy turns is configured under
 `runtime.loopDetectionInterval`. The default is `50`. After tool results are
 collected on iterations divisible by that interval, the system

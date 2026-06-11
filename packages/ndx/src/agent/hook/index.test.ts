@@ -921,6 +921,44 @@ test("model responding stream guard interrupts repeated reasoning paragraphs", a
   assert.match(result.interruptReason ?? "", /repeated the same paragraph/);
 });
 
+test("model responding stream guard interrupts dense repeated reasoning", async () => {
+  const summary = Array.from({ length: 45 }, (_item, index) =>
+    `I need to inspect the component because the preview layout might clip cells around variant ${index}.`
+  ).join(" ");
+  const result = await runModelRespondingHook(createNDXHookRuntime({ [NDX_TURN_EVENT.ModelResponding]: modelRespondingHooks }, {}), {
+    ...baseContext,
+    iteration: 104,
+    modelResponse: {
+      type: "reasoning",
+      summary,
+      content: "",
+      elapsedMs: 30_000,
+      sequence: 500
+    }
+  });
+
+  assert.equal(result.interruptModelResponse, true);
+  assert.match(result.interruptReason ?? "", /repeated too densely/);
+});
+
+test("model responding stream guard interrupts excessive no-output reasoning stream", async () => {
+  const summary = Array.from({ length: 1_200 }, (_item, index) => `unique-token-${index}`).join(" ");
+  const result = await runModelRespondingHook(createNDXHookRuntime({ [NDX_TURN_EVENT.ModelResponding]: modelRespondingHooks }, {}), {
+    ...baseContext,
+    iteration: 105,
+    modelResponse: {
+      type: "reasoning",
+      summary,
+      content: "",
+      elapsedMs: 91_000,
+      sequence: 1_001
+    }
+  });
+
+  assert.equal(result.interruptModelResponse, true);
+  assert.match(result.interruptReason ?? "", /streamed too long/);
+});
+
 test("model responding stream guard clears repeated reasoning detection after output starts", async () => {
   const repeatedParagraph = "I need to preserve the original shape while ensuring correct rendering across tetromino configurations.";
   const result = await runModelRespondingHook(createNDXHookRuntime({ [NDX_TURN_EVENT.ModelResponding]: modelRespondingHooks }, {}), {
