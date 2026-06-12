@@ -1,8 +1,8 @@
 import { buildContextParts } from "../../../context/index.js";
 import { listSessionDataForModelContext } from "../../../compact/index.js";
 import { listInlineAttachmentDataIds } from "../../../session/runtimeData.js";
-import { sessionDataRowsToInlineAttachmentMessages, sessionDataRowsToModelMessages } from "../../../session/sessionDataRowsToModelMessages.js";
 import { serverContainerUserHome, toServerProjectPath } from "../../../../common/server-path/index.js";
+import { buildFinalModelMessagesFromParts, buildFinalSessionMessages } from "../../model-call/finalMessages/index.js";
 import type { NDXDatabase, NDXModelMessage, NDXSessionDataRow, NDXSessionRow } from "../../../session/types.js";
 import type { ResponseInputItem } from "ndx/common/responseapi";
 
@@ -23,11 +23,12 @@ export async function buildTurnMessageParts(database: NDXDatabase, runningSessio
   const parts = await buildTurnBaseMessageParts(runningSession);
   const historyRows = await listSessionDataForModelContext(database, runningSession.sessionid);
   const inlineAttachmentDataIds = await listInlineAttachmentDataIds(database, runningSession.sessionid);
+  const finalSessionMessages = buildFinalSessionMessages(historyRows, inlineAttachmentDataIds);
   return {
     ...parts,
     historyRows,
-    history: sessionDataRowsToModelMessages(historyRows),
-    inlineAttachments: sessionDataRowsToInlineAttachmentMessages(historyRows, inlineAttachmentDataIds)
+    history: finalSessionMessages.history,
+    inlineAttachments: finalSessionMessages.inlineAttachments
   };
 }
 
@@ -48,17 +49,5 @@ export async function buildTurnBaseMessageParts(runningSession: NDXSessionRow): 
 }
 
 export function buildTurnMessagesFromParts(parts: NDXTurnMessageParts): ResponseInputItem[] {
-  return [
-    parts.developer,
-    parts.user,
-    ...parts.history,
-    ...(parts.inlineAttachments ?? [])
-  ].filter((message) => isNonEmptyResponseInputItem(message));
-}
-
-function isNonEmptyResponseInputItem(message: ResponseInputItem): boolean {
-  if (!("content" in message)) {
-    return true;
-  }
-  return typeof message.content === "string" ? message.content.trim().length > 0 : Array.isArray(message.content) ? message.content.length > 0 : true;
+  return buildFinalModelMessagesFromParts(parts);
 }

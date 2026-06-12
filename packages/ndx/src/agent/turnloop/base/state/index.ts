@@ -2,8 +2,8 @@ import { calculateDetailedContextUsage } from "../../../contextusage/index.js";
 import { listSessionDataForModelContext } from "../../../compact/index.js";
 import { runTurnEndHook } from "../../../hook/turn.end/index.js";
 import { listInlineAttachmentDataIds } from "../../../session/runtimeData.js";
-import { sessionDataRowsToInlineAttachmentMessages, sessionDataRowsToModelMessages } from "../../../session/sessionDataRowsToModelMessages.js";
 import { buildTurnMessagesFromParts } from "../context/index.js";
+import { buildFinalSessionMessages } from "../../model-call/finalMessages/index.js";
 import type { NDXContextUsage } from "../../../contextusage/index.js";
 import type { NDXSessionDataRow } from "../../../session/types.js";
 import type { NDXActiveTurnPipelineState, NDXTurnPipelineState } from "../../types.js";
@@ -32,11 +32,12 @@ export function requireActiveTurnState(state: NDXTurnPipelineState): asserts sta
 export async function refreshCurrentMessageParts(state: NDXActiveTurnPipelineState) {
   const historyRows = await listSessionDataForModelContext(state.database, state.runningSession.sessionid);
   const inlineAttachmentDataIds = await listInlineAttachmentDataIds(state.database, state.runningSession.sessionid);
+  const finalSessionMessages = buildFinalSessionMessages(historyRows, inlineAttachmentDataIds);
   state.currentMessageParts = {
     ...state.messageParts,
     historyRows,
-    history: sessionDataRowsToModelMessages(historyRows),
-    inlineAttachments: sessionDataRowsToInlineAttachmentMessages(historyRows, inlineAttachmentDataIds)
+    history: finalSessionMessages.history,
+    inlineAttachments: finalSessionMessages.inlineAttachments
   };
   return state.currentMessageParts;
 }

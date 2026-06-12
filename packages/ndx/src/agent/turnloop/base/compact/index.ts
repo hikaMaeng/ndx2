@@ -1,9 +1,9 @@
 import { compactSessionHistory, listSessionDataForModelContext } from "../../../compact/index.js";
 import { estimateContextTokens, calculateDetailedContextUsage } from "../../../contextusage/index.js";
 import { listInlineAttachmentDataIds } from "../../../session/runtimeData.js";
-import { sessionDataRowsToInlineAttachmentMessages, sessionDataRowsToModelMessages } from "../../../session/sessionDataRowsToModelMessages.js";
 import { NDX_TURN_EVENT } from "../../../../common/protocol/index.js";
 import { buildTurnMessagesFromParts } from "../context/index.js";
+import { buildFinalSessionMessages } from "../../model-call/finalMessages/index.js";
 import type { NDXContextUsage } from "../../../contextusage/index.js";
 import type { NDXHookCompactEffect } from "../../../hook/index.js";
 import type { NDXSessionDataRow } from "../../../session/types.js";
@@ -24,11 +24,12 @@ export async function compactTurnContext(
   await state.events.onEvent?.({ type: NDX_TURN_EVENT.CompactStarted, report, contextUsage });
   const compact = await compactSessionHistory(state.database, state.runningSession, report, state.model ?? state.runningSession.model, { contextRows });
   const compactRows = await listSessionDataForModelContext(state.database, state.runningSession.sessionid);
+  const compactFinalMessages = buildFinalSessionMessages(compactRows, await listInlineAttachmentDataIds(state.database, state.runningSession.sessionid));
   const compactMessages = buildTurnMessagesFromParts({
     ...state.messageParts,
     historyRows: compactRows,
-    history: sessionDataRowsToModelMessages(compactRows),
-    inlineAttachments: sessionDataRowsToInlineAttachmentMessages(compactRows, await listInlineAttachmentDataIds(state.database, state.runningSession.sessionid))
+    history: compactFinalMessages.history,
+    inlineAttachments: compactFinalMessages.inlineAttachments
   });
   const compactContextUsage = calculateDetailedContextUsage(compactMessages, state.runningSession.model.contextsize, extraContent, state.modelTools);
   await state.events.onEvent?.({

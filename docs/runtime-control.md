@@ -179,11 +179,18 @@ the owning module:
 
 * provider request serialization and compatibility: response API/provider
   adapter;
-* context reconstruction and model-visible ordering: context assembly/session
-  data modules;
+* context reconstruction and model-visible ordering:
+  `packages/ndx/src/agent/turnloop/model-call/finalMessages`;
 * tool-specific policy: the base tool folder;
 * UI rendering of turn events: webclient front reducers;
 * socket fan-out: app server socket wiring.
+
+Runtime-control failures such as stream-guard reasoning loops, model-request
+interrupt markers, and malformed tool-call argument failures remain durable
+sessiondata rows for audit and UI history. Future model requests do not replay
+those rows directly when the final-message policy pipeline classifies them as
+stale runtime-control noise. The prefix-drift audit runs after that final
+message pipeline, not before it.
 
 Turn-loop code should not contain feature-specific hook substitutes. If a
 change does not alter the essential turn lifecycle, the turn loop may pass

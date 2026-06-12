@@ -25,6 +25,16 @@ If a hook writes a model-visible sessiondata row, reconstruction must preserve
 that row as model-visible history instead of treating it as a one-request-only
 append. One-request-only appends are reserved for provider payload mechanics such
 as attachment bytes that are already represented durably by stable references.
+Final provider-visible message assembly is owned by
+`packages/ndx/src/agent/turnloop/model-call/finalMessages`. It runs an ordered
+policy pipeline over durable rows, then appends one-request attachment payloads.
+The pipeline may suppress stale runtime-control noise that would otherwise be
+replayed into a later user request, including old `cot_work_reminder` rows,
+runtime-control error rows, and invalid tool-call/tool-output pairs from before
+the latest real user row. Suppression affects only model visibility; rows remain
+durable audit history. The `turn.model.request` prefix-drift audit receives the
+post-policy provider-visible message list, so any defensive suppression that
+changes the stable prefix is still reported.
 
 This design is required for:
 

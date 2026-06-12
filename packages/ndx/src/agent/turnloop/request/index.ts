@@ -2,7 +2,6 @@ import { assistantMessageContents, userMessageContents } from "../../session/con
 import { appendSessionData } from "../../session/appendSessionData.js";
 import { listSessionDataForModelContext } from "../../compact/index.js";
 import { addInlineAttachmentDataIds, listInlineAttachmentDataIds } from "../../session/runtimeData.js";
-import { sessionDataRowsToInlineAttachmentMessages, sessionDataRowsToModelMessages } from "../../session/sessionDataRowsToModelMessages.js";
 import { updateSessionEndTurn, updateSessionStartTurn } from "../../session/updateSession.js";
 import { calculateDetailedContextUsage } from "../../contextusage/index.js";
 import { loadNDXHookRuntime } from "../../hook/index.js";
@@ -15,6 +14,7 @@ import { NDX_TURN_EVENT } from "../../../common/protocol/index.js";
 import { beginTurnInterruptScope } from "../base/interrupt/index.js";
 import { buildTurnBaseMessageParts, buildTurnMessagesFromParts } from "../base/context/index.js";
 import { compactTurnContext } from "../base/compact/index.js";
+import { buildFinalSessionMessages } from "../model-call/finalMessages/index.js";
 import { createCotWorkTimingTracker } from "../../tool/base/cot_work/timing.js";
 import { attachContextUsageMeasurement, runTurnEndForState } from "../base/state/index.js";
 import { handleTurnFailure } from "../base/failure/index.js";
@@ -75,11 +75,12 @@ export async function handleUserRequest(
     state.modelTools = toolSchemas(state.availableTools);
 
     const preInputRows = await listSessionDataForModelContext(database, state.runningSession.sessionid);
+    const preInputFinalMessages = buildFinalSessionMessages(preInputRows, await listInlineAttachmentDataIds(database, state.runningSession.sessionid));
     const preInputMessages = buildTurnMessagesFromParts({
       ...state.messageParts,
       historyRows: preInputRows,
-      history: sessionDataRowsToModelMessages(preInputRows),
-      inlineAttachments: sessionDataRowsToInlineAttachmentMessages(preInputRows, await listInlineAttachmentDataIds(database, state.runningSession.sessionid))
+      history: preInputFinalMessages.history,
+      inlineAttachments: preInputFinalMessages.inlineAttachments
     });
     state.messages = preInputMessages;
     const preInputContextUsage = calculateDetailedContextUsage(preInputMessages, state.runningSession.model.contextsize, state.requestText, state.modelTools);

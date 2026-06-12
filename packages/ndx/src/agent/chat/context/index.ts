@@ -2,7 +2,7 @@ import { serverContainerUserHome } from "../../../common/server-path/index.js";
 import type { NDXChatSessionDataRow, NDXChatSessionRow } from "../types.js";
 import type { NDXModelMessage, NDXSessionDataRow } from "../../session/types.js";
 import type { ResponseInputItem } from "ndx/common/responseapi";
-import { sessionDataRowsToModelMessages } from "../../session/sessionDataRowsToModelMessages.js";
+import { buildFinalModelMessagesFromParts, sessionDataRowsToModelMessages } from "../../turnloop/model-call/finalMessages/index.js";
 
 export type NDXChatTurnMessageParts = {
   developer: NDXModelMessage;
@@ -53,8 +53,5 @@ export function chatSessionDataRowsToSessionDataRows(rows: NDXChatSessionDataRow
 }
 
 export function buildChatTurnMessagesFromParts(parts: NDXChatTurnMessageParts): ResponseInputItem[] {
-  return [parts.developer, parts.user, ...parts.history].filter((message) => {
-    if (!("content" in message)) return true;
-    return typeof message.content === "string" ? message.content.trim().length > 0 : Array.isArray(message.content) ? message.content.length > 0 : true;
-  });
+  return buildFinalModelMessagesFromParts({ developer: parts.developer, user: parts.user, history: parts.history });
 }
