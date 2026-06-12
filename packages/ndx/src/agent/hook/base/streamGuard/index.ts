@@ -13,6 +13,25 @@ const REPEATED_REASONING_DENSITY_MIN_DUPLICATE_COUNT = 3;
 const NO_OUTPUT_REASONING_MAX_ELAPSED_MS = 90_000;
 const NO_OUTPUT_REASONING_MAX_SEQUENCE = 1_000;
 const NO_OUTPUT_REASONING_MAX_CHARS = 8_000;
+const META_REASONING_MIN_CHARS = 600;
+const META_REASONING_MIN_SIGNAL_COUNT = 4;
+const META_REASONING_SIGNALS = [
+  /\bwe need respond to user\b/i,
+  /\bneed continue task\b/i,
+  /\blast actual output\b/i,
+  /\bactual output from\b/i,
+  /\btranscript\b/i,
+  /\bassistant-to-user\b/i,
+  /\buser reminders?\b/i,
+  /\bfunction outputs?\b/i,
+  /\btool call(?:s| attempts?)?\b/i,
+  /\binvalid json\b/i,
+  /\bbad control character\b/i,
+  /\bcommand string\b/i,
+  /\bjson string\b/i,
+  /\binterface\b.*\becho/i,
+  /\btool result\b.*\binvalid/i
+] as const;
 
 type StreamGuardState = {
   maxReasoningObservedChars: number;
@@ -52,6 +71,10 @@ export const modelResponseStreamGuardHook: NDXHookCodeExecutor = {
     state.maxReasoningObservedChars = Math.max(state.maxReasoningObservedChars, context.modelResponse.summary.length);
     streamGuardState.set(key, state);
 
+    if (hasMetaExecutionReasoning(context.modelResponse.summary)) {
+      streamGuardState.delete(key);
+      return interruptEffect("model response reasoning got stuck analyzing tool-call or transcript state before producing output.");
+    }
     if (hasRepeatedReasoningParagraph(context.modelResponse.summary)) {
       streamGuardState.delete(key);
       return interruptEffect("model response reasoning repeated the same paragraph before producing output.");
@@ -93,6 +116,19 @@ function hasRepeatedReasoningParagraph(summary: string): boolean {
     seen.add(paragraph);
   }
   return false;
+}
+
+function hasMetaExecutionReasoning(summary: string): boolean {
+  if (summary.length < META_REASONING_MIN_CHARS) {
+    return false;
+  }
+  let signalCount = 0;
+  for (const signal of META_REASONING_SIGNALS) {
+    if (signal.test(summary)) {
+      signalCount += 1;
+    }
+  }
+  return signalCount >= META_REASONING_MIN_SIGNAL_COUNT;
 }
 
 function hasRepeatedReasoningTailBlock(summary: string): boolean {

@@ -921,6 +921,33 @@ test("model responding stream guard interrupts repeated reasoning paragraphs", a
   assert.match(result.interruptReason ?? "", /repeated the same paragraph/);
 });
 
+test("model responding stream guard interrupts meta execution reasoning before repeated block fallback", async () => {
+  const summary = [
+    "We need respond to user? Need continue task.",
+    "The last actual output from functions.read_file is shown under user because the interface maybe echoes function outputs.",
+    "There were invalid JSON tool call attempts with Bad control character in string literal.",
+    "Need avoid command string with newlines and inspect tool call failures from the transcript.",
+    "We need respond to user? Need continue task.",
+    "The last actual output from functions.read_file is shown under user because the interface maybe echoes function outputs.",
+    "There were invalid JSON tool call attempts with Bad control character in string literal.",
+    "Need avoid command string with newlines and inspect tool call failures from the transcript."
+  ].join(" ");
+  const result = await runModelRespondingHook(createNDXHookRuntime({ [NDX_TURN_EVENT.ModelResponding]: modelRespondingHooks }, {}), {
+    ...baseContext,
+    iteration: 106,
+    modelResponse: {
+      type: "reasoning",
+      summary,
+      content: "",
+      elapsedMs: 10_000,
+      sequence: 100
+    }
+  });
+
+  assert.equal(result.interruptModelResponse, true);
+  assert.match(result.interruptReason ?? "", /tool-call or transcript state/);
+});
+
 test("model responding stream guard interrupts dense repeated reasoning", async () => {
   const summary = Array.from({ length: 45 }, (_item, index) =>
     `I need to inspect the component because the preview layout might clip cells around variant ${index}.`
