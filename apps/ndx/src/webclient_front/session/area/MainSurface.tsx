@@ -207,6 +207,7 @@ export function MainSurface({
       applySessionDeleted: (message) => bridge.getProjectApi()?.applySessionDeleted(message),
       reloadChangedSessionList: (message) => bridge.getProjectApi()?.reloadChangedSessionList(message),
       refreshSessions: () => bridge.getProjectApi()?.refreshSessions() ?? Promise.resolve(),
+      openProjectSession: (projectName, sessionid) => bridge.openProjectSession(projectName, sessionid),
       setSessionsByProject: (update) => bridge.getProjectApi()?.setSessionsByProject(update)
     },
     saveState,
@@ -260,7 +261,6 @@ export function MainSurface({
     attachedSessionIdsRef,
     sessionUiManagerRef,
     sessionsByProject,
-    setActiveSessionError,
     setActiveSessionId,
     setAgentRunning,
     setAutoScrollEnabled,
@@ -285,6 +285,33 @@ export function MainSurface({
       saveRewriteEnabledBySession(next);
       return next;
     });
+  };
+  const mutateUserTurnAvailable = (sessionid: string) => {
+    const ui = sessionUiByKey[sessionid];
+    const session = Object.values(sessionsByProject).flat().find((item) => item.sessionid === sessionid);
+    return Boolean(session && !session.isrunning && !ui?.agentRunning && !ui?.compactRunning);
+  };
+  const deleteUserTurn = (sessionid: string, inputDataId: string) => {
+    if (!mutateUserTurnAvailable(sessionid)) return;
+    const actionKey = `session-turn-delete:${sessionid}:${inputDataId}`;
+    if (!startAction(actionKey)) return;
+    if (sessionSocket.deleteTurn(sessionid, inputDataId)) {
+      updateSessionUi(sessionid, (current) => ({ ...current, notice: "세션 턴 삭제 중..." }));
+      return;
+    }
+    finishAction(actionKey);
+    updateSessionUi(sessionid, (current) => ({ ...current, notice: t[RSC.APP_STATUS_SOCKET_REQUIRED_ALERT] }));
+  };
+  const createUserTurnBranch = (sessionid: string, inputDataId: string) => {
+    if (!mutateUserTurnAvailable(sessionid)) return;
+    const actionKey = `session-branch:${sessionid}:${inputDataId}`;
+    if (!startAction(actionKey)) return;
+    if (sessionSocket.createBranch(sessionid, inputDataId)) {
+      updateSessionUi(sessionid, (current) => ({ ...current, notice: "세션 분기 생성 중..." }));
+      return;
+    }
+    finishAction(actionKey);
+    updateSessionUi(sessionid, (current) => ({ ...current, notice: t[RSC.APP_STATUS_SOCKET_REQUIRED_ALERT] }));
   };
 
   React.useEffect(() => {
@@ -538,7 +565,7 @@ export function MainSurface({
 
   return (
     <>
-      <SessionSurfaces activeUiKey={activeUiKey} clientState={clientState} hasPendingAction={hasPendingAction} notice={notice} rewriteEnabledBySession={rewriteEnabledBySession} sessionError={sessionError} sessionsByProject={sessionsByProject} sessionUiByKey={sessionUiByKey} skillsByProject={skillsByProject} surfaceKeys={surfaceKeys} t={t} updateSessionUi={updateSessionUi} onOpenMenu={onOpenMenu} onChatScroll={(key, scrollTop) => updateSessionUi(key, (current) => ({ ...current, chatScrollTop: scrollTop }))} onDisableAutoScroll={(key) => updateSessionUi(key, (current) => ({ ...current, autoScrollEnabled: false }))} onDismissError={(key) => updateSessionUi(key, (current) => ({ ...current, sessionError: "" }))} onChatInputChange={(key, value) => updateSessionUi(key, (current) => ({ ...current, chatInput: value }))} onAddAttachments={addChatAttachments} onAttachmentRejected={(key, message) => updateSessionUi(key, (current) => ({ ...current, notice: message }))} onRemoveAttachment={removeChatAttachment} onModelClick={(key) => { activeUiKeyRef.current = key; modelDialog.setOpen(true); }} onRewriteToggle={toggleSessionRewrite} onSkillListRefresh={sessionSocket.refreshSkillList} onSubmit={sessionRequest.submitChatRequest} onTurnToggle={sessionSocket.toggleTurnDetail} onIterationToggle={sessionSocket.toggleIterationDetail} />
+      <SessionSurfaces activeUiKey={activeUiKey} clientState={clientState} hasPendingAction={hasPendingAction} notice={notice} rewriteEnabledBySession={rewriteEnabledBySession} sessionError={sessionError} sessionsByProject={sessionsByProject} sessionUiByKey={sessionUiByKey} skillsByProject={skillsByProject} surfaceKeys={surfaceKeys} t={t} updateSessionUi={updateSessionUi} onOpenMenu={onOpenMenu} onChatScroll={(key, scrollTop) => updateSessionUi(key, (current) => ({ ...current, chatScrollTop: scrollTop }))} onDisableAutoScroll={(key) => updateSessionUi(key, (current) => ({ ...current, autoScrollEnabled: false }))} onDismissError={(key) => updateSessionUi(key, (current) => ({ ...current, sessionError: "" }))} onChatInputChange={(key, value) => updateSessionUi(key, (current) => ({ ...current, chatInput: value }))} onAddAttachments={addChatAttachments} onAttachmentRejected={(key, message) => updateSessionUi(key, (current) => ({ ...current, notice: message }))} onRemoveAttachment={removeChatAttachment} onModelClick={(key) => { activeUiKeyRef.current = key; modelDialog.setOpen(true); }} onRewriteToggle={toggleSessionRewrite} onSkillListRefresh={sessionSocket.refreshSkillList} onSubmit={sessionRequest.submitChatRequest} onUserMessageBranch={createUserTurnBranch} onUserMessageDelete={deleteUserTurn} onTurnToggle={sessionSocket.toggleTurnDetail} onIterationToggle={sessionSocket.toggleIterationDetail} />
       <ModalPortal>
         {sessionRename.dialog}
         {modelDialog.dialog}

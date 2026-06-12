@@ -94,6 +94,19 @@ in append order. This keeps model request prefixes stable for provider KV-cache
 reuse; trimming decisions belong to durable compaction, not client-side session
 settings.
 
+Session history can also be compacted as the first row of a branched session.
+`session.branch.create` is a session socket command that summarizes source
+history through a selected user turn with the same compact package used by
+automatic context compaction, then inserts that summary as the new session's
+initial `compact` row. The branch compact row is model-visible history and is
+also shown as the first restored message in clients.
+
+`session.turn.delete` is a session socket command that deletes one full turn:
+the selected `user` row and every following `sessiondata` row before the next
+`user` row. `sessionsearch` rows are removed by foreign-key cascade. After turn
+deletion, context usage aggregates are rebuilt so later automatic compaction
+decisions do not use stale average-turn data.
+
 Compaction can happen before the current user input is recorded. In that case
 only previous history is compacted, then the user input is appended normally so
 the turn semantics are preserved. If an iteration reaches the limit after tool

@@ -15,6 +15,25 @@ export type ChatMessageAttachment = NDXSessionAttachmentReference & {
 
 export type { NDXAgentWebContextUsage };
 
+const PENDING_USER_CHAT_MESSAGE_ID_PREFIX = "pending-user:";
+
+export function pendingUserChatMessage(text: string): ChatMessage {
+  return {
+    id: `${PENDING_USER_CHAT_MESSAGE_ID_PREFIX}${Date.now()}`,
+    role: "user",
+    text,
+    attachments: []
+  };
+}
+
+export function isPendingUserChatMessage(message: Pick<ChatMessage, "id">): boolean {
+  return message.id.startsWith(PENDING_USER_CHAT_MESSAGE_ID_PREFIX);
+}
+
+export function withoutPendingUserChatMessages(messages: ChatMessage[]): ChatMessage[] {
+  return messages.filter((message) => !isPendingUserChatMessage(message));
+}
+
 export function sessionDataToChatMessage(data: NDXAgentWebSessionData): ChatMessage {
   const text = sessionDataContentsText(data.contents) ?? JSON.stringify(data.contents);
   return {

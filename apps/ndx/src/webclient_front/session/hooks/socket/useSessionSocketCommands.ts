@@ -26,6 +26,16 @@ export function useSessionSocketCommands({
     return Boolean(socketRef.current?.requestSkillList(sessionid && attachedSessionIdsRef.current.has(sessionid) ? sessionid : undefined));
   };
 
+  const deleteTurn: SessionSocketControllerActions["deleteTurn"] = (sessionid, inputDataId) => {
+    if (!attachedSessionIdsRef.current.has(sessionid) || !socketRef.current?.isOpen()) return false;
+    return Boolean(socketRef.current.deleteTurn(sessionid, inputDataId));
+  };
+
+  const createBranch: SessionSocketControllerActions["createBranch"] = (sessionid, inputDataId) => {
+    if (!attachedSessionIdsRef.current.has(sessionid) || !socketRef.current?.isOpen()) return false;
+    return Boolean(socketRef.current.createBranch(sessionid, inputDataId));
+  };
+
   const toggleTurnDetail: SessionSocketControllerActions["toggleTurnDetail"] = (turn, open) => {
     setTurnFlows((turns) => turns.map((current) => current.id === turn.id ? { ...current, collapsed: !open } : current));
     if (!open) return;
@@ -52,6 +62,8 @@ export function useSessionSocketCommands({
 
   return {
     attachSession,
+    createBranch,
+    deleteTurn,
     refreshSkillList,
     toggleIterationDetail,
     toggleTurnDetail

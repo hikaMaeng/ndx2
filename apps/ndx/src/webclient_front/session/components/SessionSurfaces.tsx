@@ -23,6 +23,8 @@ type SessionSurfacesProps = {
   onRewriteToggle: (sessionid: string) => void;
   onSkillListRefresh: () => void;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+  onUserMessageBranch: (sessionid: string, inputDataId: string) => void;
+  onUserMessageDelete: (sessionid: string, inputDataId: string) => void;
   onTurnToggle: (turn: TurnFlowState, open: boolean) => void;
   sessionError: string;
   sessionsByProject: Record<string, NDXAgentWebSession[]>;
@@ -52,6 +54,8 @@ export function SessionSurfaces({
   onRewriteToggle,
   onSkillListRefresh,
   onSubmit,
+  onUserMessageBranch,
+  onUserMessageDelete,
   onTurnToggle,
   sessionError,
   sessionsByProject,
@@ -95,6 +99,8 @@ export function SessionSurfaces({
         onRewriteToggle={() => { if (session) onRewriteToggle(session.sessionid); }}
         onSkillListRefresh={onSkillListRefresh}
         onSubmit={onSubmit}
+        onUserMessageBranch={onUserMessageBranch}
+        onUserMessageDelete={onUserMessageDelete}
         onTurnToggle={onTurnToggle}
         onIterationToggle={onIterationToggle}
         updateSessionUi={updateSessionUi}

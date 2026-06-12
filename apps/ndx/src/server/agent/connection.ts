@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import {
   NDX_PROTOCOL_ERROR,
   NDX_SESSION_ATTACHED,
+  NDX_SESSION_BRANCH_CREATED,
   NDX_SESSION_CREATED,
   NDX_SESSION_DELETED,
   NDX_SESSION_EVENT,
@@ -14,14 +15,17 @@ import {
   NDX_SESSION_SIDEBAR_ITEM,
   NDX_SESSION_SKILL_LIST_RESULT,
   NDX_SESSION_TURN_DETAIL_RESULT,
+  NDX_SESSION_TURN_DELETED,
   NDX_TURN_EVENT,
   NDX_AGENT_RESOURCE,
   createNDXAgentResourceResolver,
   normalizeNDXAgentLanguage,
   type NDXAgentResourceResolver,
   isNDXSessionAttachMessage,
+  isNDXSessionBranchCreateMessage,
   isNDXSessionCreateMessage,
   isNDXSessionDeleteMessage,
+  isNDXSessionTurnDeleteMessage,
   isNDXSessionHistorySummaryMessage,
   isNDXSessionInputMessage,
   isNDXSessionIterationDetailMessage,
@@ -34,12 +38,14 @@ import {
   NDX_SESSION_CLIENT_REQUEST_CLOSED,
   NDX_SESSION_CLIENT_REQUEST_KIND_ASK_USER_QUESTION
 } from "ndx/common";
-import type { NDXAskUserQuestionRequest, NDXAskUserQuestionResponse, NDXSessionAttachMessage, NDXSessionClientRequestClosedMessage, NDXSessionCreateInitialInput, NDXSessionCreateMessage, NDXSessionDeleteMessage, NDXSessionEventMessage, NDXSessionRenameMessage, NDXSessionSidebarItemMessage, NDXSessionSkillListMessage } from "ndx/common/protocol";
+import type { NDXAskUserQuestionRequest, NDXAskUserQuestionResponse, NDXSessionAttachMessage, NDXSessionBranchCreateMessage, NDXSessionClientRequestClosedMessage, NDXSessionCreateInitialInput, NDXSessionCreateMessage, NDXSessionDeleteMessage, NDXSessionEventMessage, NDXSessionRenameMessage, NDXSessionSidebarItemMessage, NDXSessionSkillListMessage, NDXSessionTurnDeleteMessage } from "ndx/common/protocol";
 import {
-	  appendSessionData,
-	  createSession,
-	  deleteSession,
-	  getSession,
+  appendSessionData,
+  branchSessionFromTurn,
+  createSession,
+  deleteSession,
+  deleteSessionTurn,
+  getSession,
   getRuntimeTurnPhase,
   interruptContents,
   loadSkills,
@@ -53,6 +59,7 @@ import {
   writeSessionAttachments,
   type NDXDatabase,
   type NDXModelConfig,
+  type NDXSessionDataRow,
   type NDXSessionRow,
   type NDXTurnLoopEvent,
   runAgentTurn
@@ -317,6 +324,16 @@ async function handleSessionMessage(
 
   if (isNDXSessionDeleteMessage(message)) {
     await deleteSessionFromSocket(client, message, connectedClients, database, logger, resource);
+    return;
+  }
+
+  if (isNDXSessionTurnDeleteMessage(message)) {
+    await deleteSessionTurnFromSocket(client, message, connectedClients, database, logger, resource);
+    return;
+  }
+
+  if (isNDXSessionBranchCreateMessage(message)) {
+    await createSessionBranchFromSocket(client, message, connectedClients, database, logger, resource);
     return;
   }
 
@@ -759,6 +776,91 @@ async function deleteSessionFromSocket(
   logger?.info("agent.socket.protocol.session_delete.complete", { clientid: client.clientid, sessionid: deleted.sessionid });
 }
 
+async function deleteSessionTurnFromSocket(
+  client: SessionClientState,
+  message: NDXSessionTurnDeleteMessage,
+  connectedClients: Map<string, SessionClientState>,
+  database: NDXDatabase,
+  logger?: NDXLogger,
+  resource: NDXAgentResourceResolver = createNDXAgentResourceResolver()
+) {
+  logger?.info("agent.socket.protocol.session_turn_delete.start", {
+    clientid: client.clientid,
+    sessionid: message.sessionid,
+    inputDataId: message.inputDataId
+  });
+  const grant = await requireSessionGrant(client, message.sessionid, logger, resource);
+  if (!grant) return;
+
+  let deleted;
+  try {
+    deleted = await deleteSessionTurn(database, grant.sessionid, message.inputDataId);
+  } catch (error) {
+    logger?.warn("agent.socket.protocol.session_turn_delete.failed", { clientid: client.clientid, sessionid: message.sessionid, error });
+    await sendJson(client, { type: NDX_PROTOCOL_ERROR, error: error instanceof Error ? error.message : "세션 턴을 삭제하지 못했습니다." });
+    return;
+  }
+  if (!deleted) {
+    await sendJson(client, { type: NDX_PROTOCOL_ERROR, error: "삭제할 세션 턴을 찾지 못했습니다." });
+    return;
+  }
+
+  await Promise.all(sessionGrantOwnerTargets(connectedClients, deleted.session.sessionid).map((target) => sendJson(target.client, {
+    type: NDX_SESSION_TURN_DELETED,
+    sessionid: deleted.session.sessionid,
+    inputDataId: deleted.inputDataId,
+    deletedDataIds: deleted.deletedDataIds
+  })));
+  await broadcastSessionListChanged(connectedClients, deleted.session.userid, deleted.session.projectname, logger);
+  logger?.info("agent.socket.protocol.session_turn_delete.complete", { clientid: client.clientid, sessionid: deleted.session.sessionid, deletedCount: deleted.deletedDataIds.length });
+}
+
+async function createSessionBranchFromSocket(
+  client: SessionClientState,
+  message: NDXSessionBranchCreateMessage,
+  connectedClients: Map<string, SessionClientState>,
+  database: NDXDatabase,
+  logger?: NDXLogger,
+  resource: NDXAgentResourceResolver = createNDXAgentResourceResolver()
+) {
+  logger?.info("agent.socket.protocol.session_branch_create.start", {
+    clientid: client.clientid,
+    sessionid: message.sessionid,
+    inputDataId: message.inputDataId
+  });
+  const grant = await requireSessionGrant(client, message.sessionid, logger, resource);
+  if (!grant) return;
+
+  let branch;
+  try {
+    branch = await branchSessionFromTurn(database, grant.sessionid, message.inputDataId);
+  } catch (error) {
+    logger?.warn("agent.socket.protocol.session_branch_create.failed", { clientid: client.clientid, sessionid: message.sessionid, error });
+    await sendJson(client, { type: NDX_PROTOCOL_ERROR, error: error instanceof Error ? error.message : "세션 분기를 생성하지 못했습니다." });
+    return;
+  }
+  if (!branch) {
+    await sendJson(client, { type: NDX_PROTOCOL_ERROR, error: "분기할 세션 턴을 찾지 못했습니다." });
+    return;
+  }
+
+  client.grants.set(branch.session.sessionid, {
+    sessionid: branch.session.sessionid,
+    userid: branch.session.userid,
+    projectName: branch.session.projectname,
+    createdat: new Date()
+  });
+  await sendJson(client, {
+    type: NDX_SESSION_BRANCH_CREATED,
+    sourceSessionid: branch.sourceSession.sessionid,
+    inputDataId: branch.inputDataId,
+    session: toSocketSession(branch.session),
+    compact: toSocketSessionData(branch.compact)
+  });
+  await broadcastSessionListChanged(connectedClients, branch.session.userid, branch.session.projectname, logger);
+  logger?.info("agent.socket.protocol.session_branch_create.complete", { clientid: client.clientid, sourceSessionid: branch.sourceSession.sessionid, sessionid: branch.session.sessionid });
+}
+
 async function broadcastSessionListChanged(
   connectedClients: Map<string, SessionClientState>,
   userid: string,
@@ -844,5 +946,15 @@ function toSocketSession(session: NDXSessionRow) {
     lastupdated: session.lastupdated.toISOString(),
     interruptrequestedat: session.interruptrequestedat?.toISOString() ?? null,
     interruptcompletedat: session.interruptcompletedat?.toISOString() ?? null
+  };
+}
+
+function toSocketSessionData(row: NDXSessionDataRow) {
+  return {
+    dataid: String(row.dataid),
+    sessionid: row.sessionid,
+    type: row.type,
+    contents: socketSessionEventContents(row.contents),
+    createdat: row.createdat.toISOString()
   };
 }

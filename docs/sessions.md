@@ -78,6 +78,21 @@ still only receives the final `NDXModelConfig` payload. The socket server owns
 agent execution; the web client only requests session lists, creates sessions,
 selects accounts, and opens socket connections.
 
+All session-history mutations use the session socket protocol, not web-only HTTP
+routes. A client with a session grant may request `session.turn.delete` for a
+specific user input `dataid`, or `session.branch.create` to create a new session
+from history through that turn. The same commands are the contract for the web
+client and any future CLI client. The socket server rejects both operations
+while the source session is running, compacting, interrupting, or carrying a
+pending interrupt request.
+
+`session.branch.create` copies the source session account, project, mode, and
+model config, creates a new session, and stores one initial `compact`
+`sessiondata` row summarizing source history through the selected turn. The new
+session title is the selected user request title with a leading `🚩`. The
+requesting socket receives a grant for the new session before the
+`session.branch.created` response is sent.
+
 For a new project session with a first request, the browser sends that request
 inside `session.create.initialInput`. The socket server validates the target
 account/project, model, attachments, session row, and session token before it

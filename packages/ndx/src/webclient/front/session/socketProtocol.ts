@@ -3,6 +3,7 @@ import {
   NDX_CLIENT_ID_QUERY_PARAM,
   NDX_PROJECT_CONFIGURE,
   NDX_SESSION_ATTACH,
+  NDX_SESSION_BRANCH_CREATE,
   NDX_SESSION_CREATE,
   NDX_SESSION_HISTORY_SUMMARY,
   NDX_SESSION_INPUT,
@@ -10,11 +11,13 @@ import {
   NDX_SESSION_ITERATION_DETAIL,
   NDX_SESSION_CLIENT_RESPONSE,
   NDX_SESSION_SKILL_LIST,
+  NDX_SESSION_TURN_DELETE,
   NDX_SESSION_TURN_DETAIL,
   type NDXAccountSelectMessage,
   type NDXAccountSelectionRequiredMessage,
   type NDXProjectConfigureMessage,
   type NDXSessionAttachMessage,
+  type NDXSessionBranchCreateMessage,
   type NDXSessionCreateMessage,
   type NDXSessionHistorySummaryMessage,
   type NDXSessionInputMessage,
@@ -24,6 +27,7 @@ import {
   type NDXSessionModelConfig,
   type NDXSessionReadyMessage,
   type NDXSessionSkillListMessage,
+  type NDXSessionTurnDeleteMessage,
   type NDXSessionTurnDetailMessage
 } from "ndx/common/protocol";
 import type { NDXWebClientProject, NDXWebClientStateDocument } from "ndx/webclient/common";
@@ -91,6 +95,14 @@ export function sessionHistorySummaryMessage(sessionid: string, language: NDXWeb
 
 export function sessionTurnDetailMessage(sessionid: string, inputDataId: string, language: NDXWebClientStateDocument["locale"]): NDXSessionTurnDetailMessage {
   return { type: NDX_SESSION_TURN_DETAIL, sessionid, inputDataId, language };
+}
+
+export function sessionTurnDeleteMessage(sessionid: string, inputDataId: string, language: NDXWebClientStateDocument["locale"]): NDXSessionTurnDeleteMessage {
+  return { type: NDX_SESSION_TURN_DELETE, sessionid, inputDataId, language };
+}
+
+export function sessionBranchCreateMessage(sessionid: string, inputDataId: string, language: NDXWebClientStateDocument["locale"]): NDXSessionBranchCreateMessage {
+  return { type: NDX_SESSION_BRANCH_CREATE, sessionid, inputDataId, language };
 }
 
 export function sessionIterationDetailMessage(sessionid: string, inputDataId: string, iteration: number, language: NDXWebClientStateDocument["locale"]): NDXSessionIterationDetailMessage {

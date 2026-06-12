@@ -27,6 +27,10 @@ export {
 export type { NDXSessionDataContents, NDXToolResultContents } from "../../common/protocol/index.js";
 export { createSession } from "./createSession.js";
 export { deleteSession } from "./deleteSession.js";
+export { branchSessionFromTurn } from "./branchSession.js";
+export type { NDXBranchSessionResult } from "./branchSession.js";
+export { deleteSessionTurn } from "./deleteSessionTurn.js";
+export type { NDXDeleteSessionTurnResult } from "./deleteSessionTurn.js";
 export { getSession } from "./getSession.js";
 export { completeSessionInterrupt, requestSessionInterrupt, updateSessionTurnPhase } from "./interruptSession.js";
 export { listSession } from "./listSession.js";
@@ -34,6 +38,8 @@ export { listSessionData } from "./listSessionData.js";
 export { addInlineAttachmentDataIds, consumeInlineAttachmentDataIds, listInlineAttachmentDataIds } from "./runtimeData.js";
 export { runSessionTurn, sessionDataRowsToModelMessages } from "./runSessionTurn.js";
 export { sessionDataRowsToModelMessages as sessionRowsToModelMessages } from "./sessionDataRowsToModelMessages.js";
+export { compactSourceForRows, sessionRowsThroughTurn, sessionTurnRangeForInput } from "./sessionTurnRange.js";
+export type { NDXSessionTurnRange } from "./sessionTurnRange.js";
 export { updateSessionEndTurn, updateSessionStartTurn, updateSessionTitle } from "./updateSession.js";
 export {
   NDX_SESSION_SEARCH_EMBEDDING_DIMENSIONS,

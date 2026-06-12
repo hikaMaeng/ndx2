@@ -7,8 +7,8 @@ export { buildContext, resolveModelInstruction } from "./context/index.js";
 export type { BuiltContext, SessionMetadata } from "./context/index.js";
 export { loadSkills } from "./context/availableSkillsInstructions/loader.js";
 export type { SkillMetadata, SkillScope } from "./context/availableSkillsInstructions/types.js";
-export { compactSessionHistory, initCompactDatabase, listSessionDataForModelContext, readTurnContextUsageStats, recordTurnContextUsage, sessionDataRowsForModelContext, sessionDataRowsFromLatestCompact } from "./compact/index.js";
-export type { NDXCompactContents, NDXCompactReport, NDXCompactSessionHistoryOptions, NDXTurnContextUsageStats } from "./compact/index.js";
+export { appendCompactSessionHistory, compactSessionHistory, initCompactDatabase, listSessionDataForModelContext, readTurnContextUsageStats, rebuildTurnContextUsage, recordTurnContextUsage, sessionDataRowsForModelContext, sessionDataRowsFromLatestCompact } from "./compact/index.js";
+export type { NDXAppendCompactSessionHistoryOptions, NDXCompactContents, NDXCompactReport, NDXCompactSessionHistoryOptions, NDXTurnContextUsageStats } from "./compact/index.js";
 export { calculateContextUsage, calculateDetailedContextUsage, estimateContextTokens, judgeContextAvailability } from "./contextusage/index.js";
 export type { NDXContextAvailability, NDXContextUsage } from "./contextusage/index.js";
 export { initServer } from "./init/index.js";
@@ -36,9 +36,11 @@ export {
   assertModelSupportsAttachments,
   assistantDeltaContents,
   assistantMessageContents,
+  branchSessionFromTurn,
   createSession,
   consumeInlineAttachmentDataIds,
   deleteSession,
+  deleteSessionTurn,
   errorContents,
   getSession,
   initSessionDatabase,
@@ -52,6 +54,8 @@ export {
   sessionDataTitleText,
   sessionDataText,
   sessionDataRowsToModelMessages,
+  sessionRowsThroughTurn,
+  sessionTurnRangeForInput,
   searchSessionHistory,
   sessionSearchText,
   toolCallContents,

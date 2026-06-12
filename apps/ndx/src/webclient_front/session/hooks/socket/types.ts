@@ -2,8 +2,10 @@ import type React from "react";
 import type {
   NDXSessionClientRequestClosedMessage,
   NDXSessionClientRequestMessage,
+  NDXSessionBranchCreatedMessage,
   NDXSessionIterationSummary,
-  NDXSessionSkillListResultMessage
+  NDXSessionSkillListResultMessage,
+  NDXSessionTurnDeletedMessage
 } from "ndx/common/protocol";
 import type { NDXAgentWebMetadataResponse, NDXAgentWebSession, NDXWebClientStateDocument } from "ndx/webclient/common";
 import type { NDXAgentWebContextUsage, SessionUiState, SocketState, TurnFlowState } from "ndx/webclient/front";
@@ -34,6 +36,7 @@ export type UseSessionSocketControllerOptions = {
     applySessionDeleted: (message: NDXSessionDeletedMessage) => void;
     reloadChangedSessionList: (message: NDXSessionListChangedMessage) => void;
     refreshSessions: () => Promise<void>;
+    openProjectSession: (projectName: string, sessionid: string) => void;
     setSessionsByProject: React.Dispatch<React.SetStateAction<Record<string, NDXAgentWebSession[]>>>;
   };
   saveState: (nextState: NDXWebClientStateDocument) => void;
@@ -71,7 +74,11 @@ export type UseSessionSocketControllerOptions = {
 
 export type SessionSocketControllerActions = {
   attachSession: (session: NDXAgentWebSession) => boolean;
+  createBranch: (sessionid: string, inputDataId: string) => boolean;
+  deleteTurn: (sessionid: string, inputDataId: string) => boolean;
   refreshSkillList: () => boolean;
   toggleIterationDetail: (turn: TurnFlowState, iteration: Pick<NDXSessionIterationSummary, "iteration">, open: boolean, userInitiated?: boolean) => void;
   toggleTurnDetail: (turn: TurnFlowState, open: boolean) => void;
 };
+
+export type SessionHistoryMutationMessage = NDXSessionBranchCreatedMessage | NDXSessionTurnDeletedMessage;

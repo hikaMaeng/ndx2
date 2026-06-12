@@ -2,7 +2,7 @@ import React from "react";
 import { AlertTriangle, Menu, X } from "lucide-react";
 import type { NDXSessionIterationSummary } from "ndx/common/protocol";
 import type { NDXAgentWebSession, NDXWebClientProject } from "ndx/webclient/common";
-import type { NDXAgentWebContextUsage, SessionAttachmentDraft, SessionUiState, TurnFlowState } from "ndx/webclient/front";
+import { isPendingUserChatMessage, type NDXAgentWebContextUsage, type SessionAttachmentDraft, type SessionUiState, type TurnFlowState } from "ndx/webclient/front";
 import { RSC } from "../../app/resource";
 import { CotWorkOverlay } from "../cotWork";
 import { RightSidebarRegion, type UpdateSessionUi } from "../rightsidebar";
@@ -35,6 +35,8 @@ type SessionSurfaceProps = {
   onRewriteToggle: () => void;
   onSkillListRefresh: () => void;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+  onUserMessageBranch: (sessionid: string, inputDataId: string) => void;
+  onUserMessageDelete: (sessionid: string, inputDataId: string) => void;
   onTurnToggle: (turn: TurnFlowState, open: boolean) => void;
   onIterationToggle: (turn: TurnFlowState, iteration: Pick<NDXSessionIterationSummary, "iteration">, open: boolean, userInitiated?: boolean) => void;
   updateSessionUi: UpdateSessionUi;
@@ -64,6 +66,8 @@ export function SessionSurface({
   onRewriteToggle,
   onSkillListRefresh,
   onSubmit,
+  onUserMessageBranch,
+  onUserMessageDelete,
   onTurnToggle,
   onIterationToggle,
   updateSessionUi,
@@ -73,6 +77,7 @@ export function SessionSurface({
   const surfaceCompactRunning = Boolean(ui.compactRunning);
   const surfaceModelLabel = ui.selectedModel.model.trim() || t[RSC.SESSION_MODEL_SELECT_PLACEHOLDER] || "모델 선택";
   const surfaceContextUsage: NDXAgentWebContextUsage | undefined = session ? ui.reportedContextUsage : undefined;
+  const historyMutationDisabled = Boolean(surfaceAgentRunning || surfaceCompactRunning || session?.isrunning || submitPending || interruptPending);
   const suffix = surfaceKey.replace(/[^a-z0-9_-]/giu, "-");
   const attachments = ui.chatAttachments.map(({ id, name, mimeType, size, previewUrl }: SessionAttachmentDraft) => ({ id, name, mimeType, size, previewUrl }));
   const surfaceTitle = session ? (session.title || session.sessionid) : surfaceKey.startsWith("draft:") ? t[RSC.SESSION_PAGE_NEW_DRAFT_TITLE_TEXT] : surfaceKey;
@@ -111,7 +116,7 @@ export function SessionSurface({
                 {ui.chatMessages.map((message) => (
                   <React.Fragment key={message.id}>
                     <li className={message.role === "user" ? "ndx-wrap-anywhere max-w-[85%] min-w-0 overflow-hidden justify-self-end rounded-lg bg-zinc-100 px-4 py-3 text-sm leading-6 text-zinc-950" : "ndx-wrap-anywhere max-w-[92%] min-w-0 overflow-hidden justify-self-start rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm leading-6 text-zinc-300"}>
-                      {message.role === "assistant" ? <AssistantChatMessage text={message.text} copyEnabled={!message.id.startsWith("pending-") && !message.id.startsWith("stream:") && message.text.trim().length > 0} /> : <UserChatMessage text={message.text} attachments={message.attachments} />}
+                      {message.role === "assistant" ? <AssistantChatMessage text={message.text} copyEnabled={!message.id.startsWith("pending-") && !message.id.startsWith("stream:") && message.text.trim().length > 0} /> : <UserChatMessage text={message.text} attachments={message.attachments} pending={isPendingUserChatMessage(message)} actionsDisabled={historyMutationDisabled} onBranch={session && !isPendingUserChatMessage(message) ? () => onUserMessageBranch(session.sessionid, message.id) : undefined} onDelete={session && !isPendingUserChatMessage(message) ? () => onUserMessageDelete(session.sessionid, message.id) : undefined} />}
                     </li>
                     {message.role === "user" ? ui.turnFlows.filter((turn) => turn.inputDataId === message.id).map((turn) => <li key={turn.id} className="w-full"><TurnFlow turns={[turn]} onTurnToggle={onTurnToggle} onIterationToggle={onIterationToggle} /></li>) : null}
                   </React.Fragment>

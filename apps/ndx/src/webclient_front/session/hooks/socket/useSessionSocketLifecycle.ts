@@ -76,6 +76,8 @@ export function useSessionSocketLifecycle(options: UseSessionSocketControllerOpt
       onSidebarItem: handlers.onSidebarItem,
       onTurnDetail: handlers.onTurnDetail,
       onIterationDetail: handlers.onIterationDetail,
+      onTurnDeleted: handlers.onTurnDeleted,
+      onBranchCreated: handlers.onBranchCreated,
       onClientRequest,
       onClientRequestClosed,
       onUnhandledMessage: (message) => applyProjectSocketMessage(message, {

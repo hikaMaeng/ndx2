@@ -4,6 +4,7 @@ import {
   NDX_PROJECT_NEGOTIATED,
   NDX_PROJECT_NEGOTIATION_REQUIRED,
   NDX_PROTOCOL_ERROR,
+  NDX_SESSION_BRANCH_CREATED,
   NDX_SESSION_CREATED,
   NDX_SESSION_EVENT,
   NDX_SESSION_HISTORY_SUMMARY_RESULT,
@@ -14,6 +15,7 @@ import {
   NDX_SESSION_SKILL_LIST_RESULT,
   NDX_SESSION_SIDEBAR_ITEM,
   NDX_SESSION_TURN_DETAIL_RESULT,
+  NDX_SESSION_TURN_DELETED,
   NDX_SESSION_READY,
   isNDXSocketServerMessage,
   type NDXSocketServerMessage,
@@ -21,6 +23,7 @@ import {
   type NDXProjectNegotiatedMessage,
   type NDXProtocolErrorMessage,
   type NDXSessionAttachedMessage,
+  type NDXSessionBranchCreatedMessage,
   type NDXSessionCreatedMessage,
   type NDXSessionEventMessage,
   type NDXSessionHistorySummaryResultMessage,
@@ -33,10 +36,11 @@ import {
   type NDXSessionSkillListResultMessage,
   type NDXSessionSidebarItemMessage,
   type NDXSessionReadyMessage,
-  type NDXSessionTurnDetailResultMessage
+  type NDXSessionTurnDetailResultMessage,
+  type NDXSessionTurnDeletedMessage
 } from "ndx/common/protocol";
 import { type NDXAgentWebMetadataResponse, type NDXWebClientProject, type NDXWebClientStateDocument } from "ndx/webclient/common";
-import { selectSocketUserid, sessionAccountSelectMessage, sessionAttachMessage, sessionClientResponseMessage, sessionCreateMessage, sessionHistorySummaryMessage, sessionInputMessage, sessionInterruptMessage, sessionIterationDetailMessage, sessionProjectConfigureMessage, sessionSkillListMessage, sessionSocketUrl, sessionTurnDetailMessage, stateAfterSessionReady, type SocketState } from "ndx/webclient/front";
+import { selectSocketUserid, sessionAccountSelectMessage, sessionAttachMessage, sessionBranchCreateMessage, sessionClientResponseMessage, sessionCreateMessage, sessionHistorySummaryMessage, sessionInputMessage, sessionInterruptMessage, sessionIterationDetailMessage, sessionProjectConfigureMessage, sessionSkillListMessage, sessionSocketUrl, sessionTurnDeleteMessage, sessionTurnDetailMessage, stateAfterSessionReady, type SocketState } from "ndx/webclient/front";
 import { RSC } from "../resource";
 
 export type SessionSocketClient = {
@@ -50,6 +54,8 @@ export type SessionSocketClient = {
   requestHistorySummary: (sessionid: string) => boolean;
   requestTurnDetail: (sessionid: string, inputDataId: string) => boolean;
   requestIterationDetail: (sessionid: string, inputDataId: string, iteration: number) => boolean;
+  deleteTurn: (sessionid: string, inputDataId: string) => boolean;
+  createBranch: (sessionid: string, inputDataId: string) => boolean;
   sendClientResponse: (input: Omit<NDXSessionClientResponseMessage, "type" | "language">) => boolean;
   close: () => void;
 };
@@ -71,6 +77,8 @@ export type SessionSocketOptions = {
   onSidebarItem: (message: NDXSessionSidebarItemMessage) => void;
   onTurnDetail: (message: NDXSessionTurnDetailResultMessage) => void;
   onIterationDetail: (message: NDXSessionIterationDetailResultMessage) => void;
+  onTurnDeleted: (message: NDXSessionTurnDeletedMessage) => void;
+  onBranchCreated: (message: NDXSessionBranchCreatedMessage) => void;
   onClientRequest: (message: NDXSessionClientRequestMessage) => void;
   onClientRequestClosed: (message: NDXSessionClientRequestClosedMessage) => void;
   onUnhandledMessage?: (message: NDXSocketServerMessage) => boolean;
@@ -192,6 +200,16 @@ export function openSessionSocket(options: SessionSocketOptions): SessionSocketC
       return;
     }
 
+    if (message.type === NDX_SESSION_TURN_DELETED) {
+      options.onTurnDeleted(message);
+      return;
+    }
+
+    if (message.type === NDX_SESSION_BRANCH_CREATED) {
+      options.onBranchCreated(message);
+      return;
+    }
+
     if (message.type === NDX_SESSION_CLIENT_REQUEST) {
       options.onClientRequest(message);
       return;
@@ -286,6 +304,20 @@ export function openSessionSocket(options: SessionSocketOptions): SessionSocketC
         return false;
       }
       socket.send(JSON.stringify(sessionIterationDetailMessage(sessionid, inputDataId, iteration, options.getState().locale)));
+      return true;
+    },
+    deleteTurn: (sessionid, inputDataId) => {
+      if (socket.readyState !== WebSocket.OPEN) {
+        return false;
+      }
+      socket.send(JSON.stringify(sessionTurnDeleteMessage(sessionid, inputDataId, options.getState().locale)));
+      return true;
+    },
+    createBranch: (sessionid, inputDataId) => {
+      if (socket.readyState !== WebSocket.OPEN) {
+        return false;
+      }
+      socket.send(JSON.stringify(sessionBranchCreateMessage(sessionid, inputDataId, options.getState().locale)));
       return true;
     },
     sendClientResponse: (input) => {

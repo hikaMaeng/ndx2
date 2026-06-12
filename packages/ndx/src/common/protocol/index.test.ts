@@ -4,6 +4,7 @@ import {
   NDX_ACCOUNT_SELECT,
   NDX_PROJECT_CONFIGURE,
   NDX_SESSION_ATTACH,
+  NDX_SESSION_BRANCH_CREATE,
   NDX_SESSION_CREATE,
   NDX_SESSION_DELETE,
   NDX_SESSION_HISTORY_SUMMARY,
@@ -13,6 +14,7 @@ import {
   NDX_SESSION_RENAME,
   NDX_SESSION_SIDEBAR_ITEM,
   NDX_SESSION_TURN_DETAIL,
+  NDX_SESSION_TURN_DELETE,
   NDX_SIDEBAR_ITEM,
   NDX_TURNCARD_ARTIFACT,
   NDX_TURNCARD_SKILL,
@@ -22,8 +24,10 @@ import {
   isNDXClientId,
   isNDXProjectConfigureMessage,
   isNDXSessionAttachMessage,
+  isNDXSessionBranchCreateMessage,
   isNDXSessionCreateMessage,
   isNDXSessionDeleteMessage,
+  isNDXSessionTurnDeleteMessage,
   isNDXSessionHistorySummaryMessage,
   isNDXSessionIterationDetailMessage,
   isNDXSessionClientResponseMessage,
@@ -243,6 +247,41 @@ test("session delete requires the owner, project identity, and session id", () =
       userid: "ndev",
       projectName: "",
       sessionid: "019e2783-4512-70d0-b75b-40200d1d4fe8"
+    }),
+    false
+  );
+});
+
+test("session turn delete and branch create require session id and input data id", () => {
+  assert.equal(
+    isNDXSessionTurnDeleteMessage({
+      type: NDX_SESSION_TURN_DELETE,
+      sessionid: "019e2783-4512-70d0-b75b-40200d1d4fe8",
+      inputDataId: "12"
+    }),
+    true
+  );
+  assert.equal(
+    isNDXSessionTurnDeleteMessage({
+      type: NDX_SESSION_TURN_DELETE,
+      sessionid: "019e2783-4512-70d0-b75b-40200d1d4fe8",
+      inputDataId: ""
+    }),
+    false
+  );
+  assert.equal(
+    isNDXSessionBranchCreateMessage({
+      type: NDX_SESSION_BRANCH_CREATE,
+      sessionid: "019e2783-4512-70d0-b75b-40200d1d4fe8",
+      inputDataId: "12"
+    }),
+    true
+  );
+  assert.equal(
+    isNDXSessionBranchCreateMessage({
+      type: NDX_SESSION_BRANCH_CREATE,
+      sessionid: "",
+      inputDataId: "12"
     }),
     false
   );

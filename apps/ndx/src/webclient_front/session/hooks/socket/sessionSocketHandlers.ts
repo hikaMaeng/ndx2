@@ -2,22 +2,25 @@ import type React from "react";
 import {
   NDX_TURN_EVENT,
   type NDXSessionAttachedMessage,
+  type NDXSessionBranchCreatedMessage,
   type NDXSessionCreatedMessage,
   type NDXSessionEventMessage,
   type NDXSessionHistorySummaryResultMessage,
   type NDXSessionIterationDetailResultMessage,
   type NDXSessionSidebarItemMessage,
   type NDXSessionSkillListResultMessage,
-  type NDXSessionTurnDetailResultMessage
+  type NDXSessionTurnDetailResultMessage,
+  type NDXSessionTurnDeletedMessage
 } from "ndx/common/protocol";
 import {
   applyIterationDetail,
   applyProtocolEventToSessionUiState,
-  chatMessageFromSessionEvent,
+  chatMessagesFromHistorySummary,
   interruptWasAccepted,
   mergeRestoredChatMessages,
   mergeRestoredTurnFlows,
   mergeTurnSummary,
+  withoutPendingUserChatMessages,
   type NDXAgentWebContextUsage
 } from "ndx/webclient/front";
 import { RSC } from "../../../app/resource";
@@ -30,6 +33,8 @@ export type SessionSocketHandlers = {
   onSidebarItem: (message: NDXSessionSidebarItemMessage) => void;
   onTurnDetail: (message: NDXSessionTurnDetailResultMessage) => void;
   onIterationDetail: (message: NDXSessionIterationDetailResultMessage) => void;
+  onTurnDeleted: (message: NDXSessionTurnDeletedMessage) => void;
+  onBranchCreated: (message: NDXSessionBranchCreatedMessage) => void;
   onSessionEvent: (message: NDXSessionEventMessage) => void;
   onSessionCreated: (message: NDXSessionCreatedMessage) => void;
   onSessionAttached: (message: NDXSessionAttachedMessage) => void;
@@ -89,7 +94,7 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
     }
     pendingActionsRef.current = next;
     setPendingActions(next);
-    updateSessionUi(activeUiKeyRef.current ?? activeSessionIdRef.current ?? "session", (current) => ({ ...current, pendingInitialRequest: undefined, pendingAttachRequest: undefined, agentRunning: false }));
+    updateSessionUi(activeUiKeyRef.current ?? activeSessionIdRef.current ?? "session", (current) => ({ ...current, pendingInitialRequest: undefined, pendingAttachRequest: undefined, agentRunning: false, chatMessages: withoutPendingUserChatMessages(current.chatMessages) }));
     setActiveSessionError(message);
     setSessionNotice(message);
   };
@@ -109,10 +114,7 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
     if (message.sessionid !== activeSessionIdRef.current) return;
     updateContextUsage(message.contextUsage);
     setCotWork(undefined);
-    setChatMessages((current) => mergeRestoredChatMessages(current, message.visibleEvents.flatMap((event) => {
-      const chatMessage = chatMessageFromSessionEvent(event);
-      return chatMessage ? [chatMessage] : [];
-    })));
+    setChatMessages((current) => mergeRestoredChatMessages(current, chatMessagesFromHistorySummary(message.visibleEvents, message.turns)));
     setTurnFlows((current) => mergeRestoredTurnFlows(current, message.turns));
   };
 
@@ -135,6 +137,64 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
   const onIterationDetail = (message: NDXSessionIterationDetailResultMessage) => {
     if (message.sessionid !== activeSessionIdRef.current) return;
     setTurnFlows((turns) => applyIterationDetail(turns, message));
+  };
+
+  const onTurnDeleted = (message: NDXSessionTurnDeletedMessage) => {
+    finishAction(`session-turn-delete:${message.sessionid}:${message.inputDataId}`);
+    const deletedIds = new Set(message.deletedDataIds);
+    updateSessionUi(message.sessionid, (current) => ({
+      ...current,
+      notice: "세션 턴을 삭제했습니다.",
+      chatMessages: current.chatMessages.filter((item) => !deletedIds.has(item.id)),
+      turnFlows: current.turnFlows.filter((turn) => turn.inputDataId !== message.inputDataId && !deletedIds.has(turn.inputDataId))
+    }));
+    if (message.sessionid === activeSessionIdRef.current) {
+      socketRef.current?.requestHistorySummary(message.sessionid);
+    }
+    void project.refreshSessions();
+  };
+
+  const onBranchCreated = (message: NDXSessionBranchCreatedMessage) => {
+    finishAction(`session-branch:${message.sourceSessionid}:${message.inputDataId}`);
+    const session = message.session;
+    project.setSessionsByProject((current) => ({
+      ...current,
+      [session.projectname]: [
+        {
+          sessionid: session.sessionid,
+          userid: session.userid,
+          title: session.title,
+          lastupdated: session.lastupdated,
+          mode: session.mode,
+          path: session.path,
+          projectname: session.projectname,
+          model: session.model,
+          isrunning: session.isrunning
+        },
+        ...(current[session.projectname] ?? []).filter((item) => item.sessionid !== session.sessionid)
+      ]
+    }));
+    const nextAttached = new Set(attachedSessionIdsRef.current);
+    nextAttached.add(session.sessionid);
+    attachedSessionIdsRef.current = nextAttached;
+    setAttachedSessionIds(nextAttached);
+    activeSessionIdRef.current = session.sessionid;
+    activeUiKeyRef.current = session.sessionid;
+    draftSessionProjectIdRef.current = undefined;
+    setDraftSessionProjectId(undefined);
+    setActiveSessionId(session.sessionid);
+    updateSessionUi(session.sessionid, (current) => ({
+      ...rightSidebarCleared(current),
+      agentRunning: false,
+      notice: "분기 세션을 생성했습니다.",
+      sessionError: "",
+      chatMessages: [],
+      turnFlows: []
+    }));
+    project.openProjectSession(session.projectname, session.sessionid);
+    socketRef.current?.requestHistorySummary(session.sessionid);
+    socketRef.current?.requestSkillList(session.sessionid);
+    void project.refreshSessions();
   };
 
   const onSessionEvent = (message: NDXSessionEventMessage) => {
@@ -264,6 +324,9 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
       if (action.startsWith("session-delete:")) {
         next.delete(action);
       }
+      if (action.startsWith("session-turn-delete:") || action.startsWith("session-branch:")) {
+        next.delete(action);
+      }
       if (action.startsWith("session-rename:")) {
         next.delete(action);
         renameFailed = true;
@@ -271,7 +334,7 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
     }
     pendingActionsRef.current = next;
     setPendingActions(next);
-    updateActiveUi((current) => ({ ...current, pendingInitialRequest: undefined, pendingAttachRequest: undefined, sessionError: message.error, notice: message.error }));
+    updateActiveUi((current) => ({ ...current, pendingInitialRequest: undefined, pendingAttachRequest: undefined, chatMessages: withoutPendingUserChatMessages(current.chatMessages), sessionError: message.error, notice: message.error }));
     if (hadSessionRequest) {
       setAgentRunning(false);
     }
@@ -286,6 +349,8 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
     onSidebarItem,
     onTurnDetail,
     onIterationDetail,
+    onTurnDeleted,
+    onBranchCreated,
     onSessionEvent,
     onSessionCreated,
     onSessionAttached,

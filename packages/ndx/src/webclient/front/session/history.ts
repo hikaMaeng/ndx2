@@ -1,13 +1,67 @@
 import { NDX_TURN_EVENT, type NDXSessionEventMessage, type NDXSessionIterationDetailResultMessage, type NDXSessionIterationSummary, type NDXSessionTurnSummary } from "ndx/common/protocol";
-import { sessionDataToChatMessage, type ChatMessage } from "./chat.js";
+import { sessionDataToChatMessage, visibleUserRequestText, type ChatMessage } from "./chat.js";
 import { applyTurnEvent, type TurnBatchState, type TurnFlowState } from "./turn/index.js";
 
 export function chatMessageFromSessionEvent(message: NDXSessionEventMessage): ChatMessage | undefined {
+  if (message.event === NDX_TURN_EVENT.CompactCompleted && message.contents && typeof message.contents === "object" && (message.contents as { kind?: unknown }).kind === "compact") {
+    const text = (message.contents as { text?: unknown }).text;
+    return typeof text === "string" && text.trim()
+      ? { id: message.dataid, role: "assistant", text, attachments: [] }
+      : undefined;
+  }
   if (message.event !== NDX_TURN_EVENT.InputRecorded && message.event !== NDX_TURN_EVENT.AssistantRecorded) {
     return undefined;
   }
   const rowType = message.event === NDX_TURN_EVENT.AssistantRecorded ? "assistant" : "user";
   return sessionDataToChatMessage({ dataid: message.dataid, sessionid: message.sessionid, type: rowType, contents: message.contents, createdat: message.createdat });
+}
+
+export function chatMessagesFromHistorySummary(visibleEvents: NDXSessionEventMessage[], turns: NDXSessionTurnSummary[]): ChatMessage[] {
+  const visibleMessages = new Map(visibleEvents.flatMap((event) => {
+    const message = chatMessageFromSessionEvent(event);
+    return message ? [[message.id, message] as const] : [];
+  }));
+  const used = new Set<string>();
+  const messages: ChatMessage[] = [];
+  const firstTurnCreatedAt = turns[0]?.createdat;
+
+  for (const event of visibleEvents) {
+    if (!firstTurnCreatedAt || event.createdat >= firstTurnCreatedAt) continue;
+    const message = visibleMessages.get(event.dataid);
+    if (message) {
+      messages.push(message);
+      used.add(message.id);
+    }
+  }
+
+  for (const turn of turns) {
+    const input = visibleMessages.get(turn.inputDataId) ?? {
+      id: turn.inputDataId,
+      role: "user" as const,
+      text: visibleUserRequestText(turn.title),
+      attachments: []
+    };
+    messages.push(input);
+    used.add(input.id);
+
+    for (const event of visibleEvents) {
+      if (event.event !== NDX_TURN_EVENT.AssistantRecorded || used.has(event.dataid)) continue;
+      if (event.createdat < turn.createdat || event.createdat > turn.updatedat) continue;
+      const message = visibleMessages.get(event.dataid);
+      if (!message) continue;
+      messages.push(message);
+      used.add(message.id);
+    }
+  }
+
+  for (const event of visibleEvents) {
+    const message = visibleMessages.get(event.dataid);
+    if (message && !used.has(message.id)) {
+      messages.push(message);
+      used.add(message.id);
+    }
+  }
+  return messages;
 }
 
 export function mergeRestoredChatMessages(current: ChatMessage[], restored: ChatMessage[]): ChatMessage[] {

@@ -28,7 +28,7 @@ export type { SocketState } from "./app/socketState.js";
 export { DEFAULT_MODEL, fromModelConfig, normalizeReasoningEffort, toModelConfig } from "./model/config.js";
 export type { ProviderBundle, SelectedModelConfig } from "./model/config.js";
 export { normalizeModalities, optionalNullableNumber, optionalNumber, optionalNumberText, toggleModality } from "./model/form.js";
-export { sessionDataContentsAttachments, sessionDataContentsText, sessionDataToChatMessage, sessionDataToVisibleChatMessage } from "./session/chat.js";
+export { isPendingUserChatMessage, pendingUserChatMessage, sessionDataContentsAttachments, sessionDataContentsText, sessionDataToChatMessage, sessionDataToVisibleChatMessage, withoutPendingUserChatMessages } from "./session/chat.js";
 export type { ChatMessage, ChatMessageAttachment, NDXAgentWebContextUsage } from "./session/chat.js";
 export { encodeAttachments, modelAttachmentInputAccept, modelSupportsAttachmentMimeType } from "./session/attachment.js";
 export type { EncodedAttachment } from "./session/attachment.js";
@@ -39,7 +39,7 @@ export type { RightSidebarGroup } from "./session/rightSidebar.js";
 export { interruptWasAccepted } from "./session/event.js";
 export { PROTOCOL_EVENT_UI_REDUCERS, applyProtocolEventToSessionUiState } from "./session/protocolEventReducer.js";
 export type { ProtocolEventUiText } from "./session/protocolEventReducer.js";
-export { applyIterationDetail, chatMessageFromSessionEvent, mergeRestoredChatMessages, mergeRestoredTurnFlows, mergeTurnSummary, turnFlowFromSummary } from "./session/history.js";
+export { applyIterationDetail, chatMessageFromSessionEvent, chatMessagesFromHistorySummary, mergeRestoredChatMessages, mergeRestoredTurnFlows, mergeTurnSummary, turnFlowFromSummary } from "./session/history.js";
 export {
   applyHistoryRequestedToStore,
   applyRoutedSessionMessageToStore,
@@ -85,7 +85,7 @@ export type {
   SessionSidebarModel,
   SessionViewportModel
 } from "./session/model/index.js";
-export { selectSocketUserid, sessionAccountSelectMessage, sessionAttachMessage, sessionClientResponseMessage, sessionCreateMessage, sessionHistorySummaryMessage, sessionInputMessage, sessionInterruptMessage, sessionIterationDetailMessage, sessionProjectConfigureMessage, sessionSkillListMessage, sessionSocketUrl, sessionTurnDetailMessage, stateAfterSessionReady } from "./session/socketProtocol.js";
+export { selectSocketUserid, sessionAccountSelectMessage, sessionAttachMessage, sessionBranchCreateMessage, sessionClientResponseMessage, sessionCreateMessage, sessionHistorySummaryMessage, sessionInputMessage, sessionInterruptMessage, sessionIterationDetailMessage, sessionProjectConfigureMessage, sessionSkillListMessage, sessionSocketUrl, sessionTurnDeleteMessage, sessionTurnDetailMessage, stateAfterSessionReady } from "./session/socketProtocol.js";
 export { applyTurnEvent, eventContentText, toolCallIdFromCall, toolNameFromCall, toolProgressText } from "./session/turn/index.js";
 export type { TurnBatchState, TurnEventMessage, TurnFlowState, TurnToolState } from "./session/turn/index.js";
 export { projectNameForVSCode } from "./project/path.js";

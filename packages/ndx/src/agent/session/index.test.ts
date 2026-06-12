@@ -24,6 +24,8 @@ import {
   searchSessionHistory,
   sessionSearchText,
   sessionDataRowsToModelMessages,
+  sessionRowsThroughTurn,
+  sessionTurnRangeForInput,
   updateSessionEndTurn,
   updateSessionStartTurn,
   updateSessionTitle
@@ -38,6 +40,16 @@ import type { NDXDatabase } from "../init/index.js";
 
 function modelConfig(model = "gpt-test") {
   return { type: "openai" as const, model, url: "https://example.test", token: "", contextsize: 200_000 };
+}
+
+function dataRow(dataid: string, type: string, contents: unknown): NDXSessionDataRow {
+  return {
+    dataid,
+    sessionid: "018f0000-0000-7000-8000-000000000000",
+    type,
+    contents,
+    createdat: new Date("2026-06-02T00:00:00.000Z")
+  };
 }
 
 async function waitFor(check: () => boolean): Promise<void> {
@@ -218,6 +230,20 @@ test("sessionSearchText indexes only user requests and final assistant messages"
   assert.equal(sessionSearchText({ type: "assistant", contents: { kind: "assistant_message", text: "최종 답변" } }), "최종 답변");
   assert.equal(sessionSearchText({ type: "assistant", contents: { kind: "assistant_delta", content: "중간" } }), undefined);
   assert.equal(sessionSearchText({ type: "assistant", contents: { kind: "tool_result", results: [] } }), undefined);
+});
+
+test("session turn range starts at the selected user row and ends before the next user row", () => {
+  const rows = [
+    dataRow("1", "compact", { kind: "compact", text: "summary", sourceRowCount: 1, createdReason: "test" }),
+    dataRow("2", "user", { kind: "user_message", text: "첫 요청" }),
+    dataRow("3", "assistant", { kind: "assistant_delta", iteration: 1, delta: "중간", content: "중간" }),
+    dataRow("4", "assistant", { kind: "assistant_message", text: "첫 답변" }),
+    dataRow("5", "user", { kind: "user_message", text: "둘째 요청" })
+  ];
+
+  assert.deepEqual(sessionTurnRangeForInput(rows, "2")?.rows.map((row) => row.dataid), ["2", "3", "4"]);
+  assert.deepEqual(sessionRowsThroughTurn(rows, "2")?.map((row) => row.dataid), ["1", "2", "3", "4"]);
+  assert.equal(sessionTurnRangeForInput(rows, "3"), undefined);
 });
 
 test("recordSessionSearchFromSessionData updates embeddings through the active database", async () => {
@@ -785,6 +811,134 @@ test("session data model reconstruction keeps cot_work reminders as durable user
     { role: "user", content: "작업해" },
     { role: "user", content: "cot_work reminder: keep going" }
   ]);
+});
+
+test("session data model reconstruction drops stale cot_work reminders before the latest user request", () => {
+  const messages = sessionDataRowsToModelMessages([
+    {
+      dataid: "1",
+      sessionid: "018f0000-0000-7000-8000-000000000010",
+      type: "user",
+      contents: { kind: "user_message", text: "작업해" },
+      createdat: new Date("2026-05-12T00:00:01.000Z")
+    },
+    {
+      dataid: "2",
+      sessionid: "018f0000-0000-7000-8000-000000000010",
+      type: "system",
+      contents: { kind: "cot_work_reminder", iteration: 2, sourceDataId: "1", text: "stale cot_work reminder" },
+      createdat: new Date("2026-05-12T00:00:02.000Z")
+    },
+    {
+      dataid: "3",
+      sessionid: "018f0000-0000-7000-8000-000000000010",
+      type: "user",
+      contents: { kind: "user_message", text: "이어서 해" },
+      createdat: new Date("2026-05-12T00:00:03.000Z")
+    },
+    {
+      dataid: "4",
+      sessionid: "018f0000-0000-7000-8000-000000000010",
+      type: "system",
+      contents: { kind: "cot_work_reminder", iteration: 2, sourceDataId: "3", text: "current cot_work reminder" },
+      createdat: new Date("2026-05-12T00:00:04.000Z")
+    }
+  ]);
+
+  assert.deepEqual(messages, [
+    { role: "user", content: "작업해" },
+    { role: "user", content: "이어서 해" },
+    { role: "user", content: "current cot_work reminder" }
+  ]);
+});
+
+test("session data model reconstruction hides runtime-control errors from future model context", () => {
+  const messages = sessionDataRowsToModelMessages([
+    {
+      dataid: "1",
+      sessionid: "018f0000-0000-7000-8000-000000000010",
+      type: "user",
+      contents: { kind: "user_message", text: "작업해" },
+      createdat: new Date("2026-05-12T00:00:01.000Z")
+    },
+    {
+      dataid: "2",
+      sessionid: "018f0000-0000-7000-8000-000000000010",
+      type: "assistant",
+      contents: { kind: "error", message: "model response reasoning got stuck analyzing tool-call or transcript state before producing output." },
+      createdat: new Date("2026-05-12T00:00:02.000Z")
+    },
+    {
+      dataid: "3",
+      sessionid: "018f0000-0000-7000-8000-000000000010",
+      type: "assistant",
+      contents: { kind: "error", message: "Turn interrupted during model_request." },
+      createdat: new Date("2026-05-12T00:00:03.000Z")
+    },
+    {
+      dataid: "4",
+      sessionid: "018f0000-0000-7000-8000-000000000010",
+      type: "assistant",
+      contents: { kind: "error", message: "ordinary tool failure summary" },
+      createdat: new Date("2026-05-12T00:00:04.000Z")
+    }
+  ]);
+
+  assert.deepEqual(messages, [
+    { role: "user", content: "작업해" },
+    { role: "assistant", content: "ordinary tool failure summary" }
+  ]);
+});
+
+test("session data model reconstruction suppresses stale invalid tool argument failures", () => {
+  const messages = sessionDataRowsToModelMessages([
+    {
+      dataid: "1",
+      sessionid: "018f0000-0000-7000-8000-000000000010",
+      type: "user",
+      contents: { kind: "user_message", text: "검증해" },
+      createdat: new Date("2026-05-12T00:00:01.000Z")
+    },
+    {
+      dataid: "2",
+      sessionid: "018f0000-0000-7000-8000-000000000010",
+      type: "tool_call",
+      contents: { kind: "tool_call", iteration: 1, toolCalls: [{ type: "function_call", call_id: "bad-call", name: "bash", arguments: "{\"command\":\"yarn\"}" }] },
+      createdat: new Date("2026-05-12T00:00:02.000Z")
+    },
+    {
+      dataid: "3",
+      sessionid: "018f0000-0000-7000-8000-000000000010",
+      type: "assistant",
+      contents: { kind: "tool_result", iteration: 1, results: [{ toolCallId: "bad-call", tool: "bash", success: false, output: "Bad control character in string literal in JSON at position 10" }] },
+      createdat: new Date("2026-05-12T00:00:03.000Z")
+    },
+    {
+      dataid: "4",
+      sessionid: "018f0000-0000-7000-8000-000000000010",
+      type: "tool_call",
+      contents: { kind: "tool_call", iteration: 1, toolCalls: [{ type: "function_call", call_id: "good-call", name: "read_file", arguments: "{\"path\":\"a.ts\"}" }] },
+      createdat: new Date("2026-05-12T00:00:04.000Z")
+    },
+    {
+      dataid: "5",
+      sessionid: "018f0000-0000-7000-8000-000000000010",
+      type: "assistant",
+      contents: { kind: "tool_result", iteration: 1, results: [{ toolCallId: "good-call", tool: "read_file", success: true, output: "file content" }] },
+      createdat: new Date("2026-05-12T00:00:05.000Z")
+    },
+    {
+      dataid: "6",
+      sessionid: "018f0000-0000-7000-8000-000000000010",
+      type: "user",
+      contents: { kind: "user_message", text: "이어서 해" },
+      createdat: new Date("2026-05-12T00:00:06.000Z")
+    }
+  ]);
+
+  assert.equal(messages.some((message) => "call_id" in message && message.call_id === "bad-call"), false);
+  assert.equal(messages.some((message) => "call_id" in message && message.call_id === "good-call"), true);
+  assert.deepEqual(messages.at(-1), { role: "user", content: "이어서 해" });
 });
 
 test("session data model reconstruction exposes preloaded skills as user context without tool output", () => {

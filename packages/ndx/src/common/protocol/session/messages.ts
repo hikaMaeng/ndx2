@@ -12,6 +12,10 @@ export const NDX_SESSION_ATTACH = "session.attach";
 export const NDX_SESSION_ATTACHED = "session.attached";
 export const NDX_SESSION_DELETE = "session.delete";
 export const NDX_SESSION_DELETED = "session.deleted";
+export const NDX_SESSION_TURN_DELETE = "session.turn.delete";
+export const NDX_SESSION_TURN_DELETED = "session.turn.deleted";
+export const NDX_SESSION_BRANCH_CREATE = "session.branch.create";
+export const NDX_SESSION_BRANCH_CREATED = "session.branch.created";
 export const NDX_SESSION_RENAME = "session.rename";
 export const NDX_SESSION_RENAMED = "session.renamed";
 export const NDX_SESSION_LIST_CHANGED = "session.list.changed";
@@ -100,6 +104,43 @@ export type NDXSessionDeletedMessage = {
   sessionid: string;
   userid: string;
   projectname: string;
+};
+
+export type NDXSessionTurnDeleteMessage = {
+  type: typeof NDX_SESSION_TURN_DELETE;
+  sessionid: string;
+  inputDataId: string;
+  language?: NDXAgentLanguage;
+};
+
+export type NDXSessionTurnDeletedMessage = {
+  type: typeof NDX_SESSION_TURN_DELETED;
+  sessionid: string;
+  inputDataId: string;
+  deletedDataIds: string[];
+};
+
+export type NDXSessionBranchCreateMessage = {
+  type: typeof NDX_SESSION_BRANCH_CREATE;
+  sessionid: string;
+  inputDataId: string;
+  language?: NDXAgentLanguage;
+};
+
+export type NDXSessionDataRecordMessage = {
+  dataid: string;
+  sessionid: string;
+  type: string;
+  contents: NDXSessionDataContents | Record<string, unknown> | string;
+  createdat: string;
+};
+
+export type NDXSessionBranchCreatedMessage = {
+  type: typeof NDX_SESSION_BRANCH_CREATED;
+  sourceSessionid: string;
+  inputDataId: string;
+  session: Omit<NDXSessionCreatedMessage, "type" | "initialInputAccepted">;
+  compact: NDXSessionDataRecordMessage;
 };
 
 export type NDXSessionRenameMessage = {
@@ -491,6 +532,36 @@ export function isNDXSessionDeleteMessage(value: unknown): value is NDXSessionDe
     message.projectName.trim().length > 0 &&
     typeof message.sessionid === "string" &&
     message.sessionid.trim().length > 0
+  );
+}
+
+export function isNDXSessionTurnDeleteMessage(value: unknown): value is NDXSessionTurnDeleteMessage {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const message = value as { type?: unknown; sessionid?: unknown; inputDataId?: unknown };
+  return (
+    message.type === NDX_SESSION_TURN_DELETE &&
+    typeof message.sessionid === "string" &&
+    message.sessionid.trim().length > 0 &&
+    typeof message.inputDataId === "string" &&
+    message.inputDataId.trim().length > 0
+  );
+}
+
+export function isNDXSessionBranchCreateMessage(value: unknown): value is NDXSessionBranchCreateMessage {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const message = value as { type?: unknown; sessionid?: unknown; inputDataId?: unknown };
+  return (
+    message.type === NDX_SESSION_BRANCH_CREATE &&
+    typeof message.sessionid === "string" &&
+    message.sessionid.trim().length > 0 &&
+    typeof message.inputDataId === "string" &&
+    message.inputDataId.trim().length > 0
   );
 }
 

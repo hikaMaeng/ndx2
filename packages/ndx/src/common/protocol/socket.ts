@@ -15,6 +15,7 @@ import {
 import { NDX_PROTOCOL_ERROR, type NDXProtocolErrorMessage } from "./error/index.js";
 import {
   NDX_SESSION_ATTACHED,
+  NDX_SESSION_BRANCH_CREATED,
   NDX_SESSION_CLIENT_REQUEST,
   NDX_SESSION_CLIENT_REQUEST_CLOSED,
   NDX_SESSION_CREATED,
@@ -28,8 +29,11 @@ import {
   NDX_SESSION_SIDEBAR_ITEM,
   NDX_SESSION_SKILL_LIST_RESULT,
   NDX_SESSION_TURN_DETAIL_RESULT,
+  NDX_SESSION_TURN_DELETED,
   type NDXSessionAttachMessage,
   type NDXSessionAttachedMessage,
+  type NDXSessionBranchCreateMessage,
+  type NDXSessionBranchCreatedMessage,
   type NDXSessionClientRequestClosedMessage,
   type NDXSessionClientRequestMessage,
   type NDXSessionClientResponseMessage,
@@ -52,7 +56,9 @@ import {
   type NDXSessionSkillListMessage,
   type NDXSessionSkillListResultMessage,
   type NDXSessionTurnDetailMessage,
-  type NDXSessionTurnDetailResultMessage
+  type NDXSessionTurnDetailResultMessage,
+  type NDXSessionTurnDeleteMessage,
+  type NDXSessionTurnDeletedMessage
 } from "./session/index.js";
 
 export type NDXSocketServerMessage =
@@ -63,6 +69,7 @@ export type NDXSocketServerMessage =
   | NDXProtocolErrorMessage
   | NDXSessionReadyMessage
   | NDXSessionCreatedMessage
+  | NDXSessionBranchCreatedMessage
   | NDXSessionAttachedMessage
   | NDXSessionEventMessage
   | NDXSessionHistorySummaryResultMessage
@@ -74,6 +81,7 @@ export type NDXSocketServerMessage =
   | NDXSessionClientRequestClosedMessage
   | NDXSessionDeletedMessage
   | NDXSessionRenamedMessage
+  | NDXSessionTurnDeletedMessage
   | NDXSessionListChangedMessage;
 
 export type NDXSocketClientMessage =
@@ -84,6 +92,8 @@ export type NDXSocketClientMessage =
   | NDXSessionInputMessage
   | NDXSessionInterruptMessage
   | NDXSessionDeleteMessage
+  | NDXSessionTurnDeleteMessage
+  | NDXSessionBranchCreateMessage
   | NDXSessionRenameMessage
   | NDXSessionHistorySummaryMessage
   | NDXSessionTurnDetailMessage
@@ -99,6 +109,7 @@ const NDX_SOCKET_SERVER_MESSAGE_TYPES = new Set<string>([
   NDX_PROTOCOL_ERROR,
   NDX_SESSION_READY,
   NDX_SESSION_CREATED,
+  NDX_SESSION_BRANCH_CREATED,
   NDX_SESSION_ATTACHED,
   NDX_SESSION_EVENT,
   NDX_SESSION_HISTORY_SUMMARY_RESULT,
@@ -110,6 +121,7 @@ const NDX_SOCKET_SERVER_MESSAGE_TYPES = new Set<string>([
   NDX_SESSION_CLIENT_REQUEST_CLOSED,
   NDX_SESSION_DELETED,
   NDX_SESSION_RENAMED,
+  NDX_SESSION_TURN_DELETED,
   NDX_SESSION_LIST_CHANGED
 ]);
 

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { NDX_SESSION_EVENT, NDX_TURN_EVENT } from "ndx/common/protocol";
 import type { ChatMessage } from "./chat.js";
-import { chatMessageFromSessionEvent, mergeRestoredChatMessages, mergeRestoredTurnFlows, mergeTurnSummary } from "./history.js";
+import { chatMessageFromSessionEvent, chatMessagesFromHistorySummary, mergeRestoredChatMessages, mergeRestoredTurnFlows, mergeTurnSummary } from "./history.js";
 import type { TurnFlowState } from "./turn/index.js";
 
 test("history restore does not erase live chat messages when a stale empty summary arrives", () => {
@@ -37,6 +37,84 @@ test("history chat projection ignores interrupt diagnostics", () => {
     contents: { kind: "interrupt", requestedAt: "2026-06-03T14:50:45.679Z", interrupt: { accepted: false } } as Record<string, unknown>,
     createdat: "2026-06-03T14:50:45.699Z"
   }), undefined);
+});
+
+test("history chat projection displays a durable compact row as a branch summary message", () => {
+  const message = chatMessageFromSessionEvent({
+    type: NDX_SESSION_EVENT,
+    sessionid: "session-1",
+    event: NDX_TURN_EVENT.CompactCompleted,
+    dataid: "1",
+    contents: { kind: "compact", text: "분기 전 대화 요약", sourceRowCount: 4, createdReason: "branch" },
+    createdat: "2026-06-02T00:00:00.000Z"
+  });
+
+  assert.deepEqual(message, {
+    id: "1",
+    role: "assistant",
+    text: "분기 전 대화 요약",
+    attachments: []
+  });
+});
+
+test("history summary keeps a leading compact message before later turns", () => {
+  const messages = chatMessagesFromHistorySummary([
+    {
+      type: NDX_SESSION_EVENT,
+      sessionid: "session-1",
+      event: NDX_TURN_EVENT.CompactCompleted,
+      dataid: "1",
+      contents: { kind: "compact", text: "분기 전 대화 요약", sourceRowCount: 4, createdReason: "branch" },
+      createdat: "2026-06-02T00:00:00.000Z"
+    },
+    {
+      type: NDX_SESSION_EVENT,
+      sessionid: "session-1",
+      event: NDX_TURN_EVENT.InputRecorded,
+      dataid: "2",
+      contents: { kind: "user_message", text: "다음 요청" },
+      createdat: "2026-06-02T00:00:01.000Z"
+    }
+  ], [{
+    inputDataId: "2",
+    sessionid: "session-1",
+    title: "다음 요청",
+    status: "running",
+    createdat: "2026-06-02T00:00:01.000Z",
+    updatedat: "2026-06-02T00:00:01.000Z",
+    iterations: []
+  }]);
+
+  assert.deepEqual(messages.map((item) => ({ id: item.id, role: item.role, text: item.text })), [
+    { id: "1", role: "assistant", text: "분기 전 대화 요약" },
+    { id: "2", role: "user", text: "다음 요청" }
+  ]);
+});
+
+test("history summary restores a missing user row before the final assistant message", () => {
+  const messages = chatMessagesFromHistorySummary([
+    {
+      type: NDX_SESSION_EVENT,
+      sessionid: "session-1",
+      event: NDX_TURN_EVENT.AssistantRecorded,
+      dataid: "assistant-1",
+      contents: { kind: "assistant_message", text: "배포 완료입니다." },
+      createdat: "2026-06-02T00:00:02.000Z"
+    }
+  ], [{
+    inputDataId: "input-1",
+    sessionid: "session-1",
+    title: "[[NDX SKILL_web-deploy-docker]] apps/tetris\ntest1",
+    status: "completed",
+    createdat: "2026-06-02T00:00:00.000Z",
+    updatedat: "2026-06-02T00:00:02.000Z",
+    iterations: [{ iteration: 1, eventCount: 2, hasAssistantText: false, hasTools: true }]
+  }]);
+
+  assert.deepEqual(messages.map((message) => ({ id: message.id, role: message.role, text: message.text })), [
+    { id: "input-1", role: "user", text: "[[NDX SKILL_web-deploy-docker]] apps/tetris\ntest1" },
+    { id: "assistant-1", role: "assistant", text: "배포 완료입니다." }
+  ]);
 });
 
 test("history restore does not erase live turn flow when a stale empty summary arrives", () => {

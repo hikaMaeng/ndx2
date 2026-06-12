@@ -21,10 +21,11 @@ type SessionHistoryTurn = {
 
 export async function buildSessionHistorySummary(database: NDXDatabase, session: NDXSessionRow) {
   const turns = await listSessionHistoryTurns(database, session.sessionid);
+  const leadingCompactEvents = await listLeadingCompactEvents(database, session.sessionid);
   const parts = await buildTurnMessageParts(database, session);
   const tools = toolSchemas(await listAvailableTools({ userHome: serverContainerUserHome(), projectHome: toServerProjectPath(session.path) }));
   return {
-    visibleEvents: turns.flatMap((turn) => turn.finalEvent ? [turn.inputEvent, turn.finalEvent] : [turn.inputEvent]),
+    visibleEvents: [...leadingCompactEvents, ...turns.flatMap((turn) => turn.finalEvent ? [turn.inputEvent, turn.finalEvent] : [turn.inputEvent])],
     turns: turns.map((turn) => ({ ...turn.summary, iterations: [] })),
     contextUsage: calculateDetailedContextUsage(
       [parts.developer, parts.user, ...parts.history].filter((message) => {
@@ -36,6 +37,21 @@ export async function buildSessionHistorySummary(database: NDXDatabase, session:
       tools
     )
   };
+}
+
+async function listLeadingCompactEvents(database: NDXDatabase, sessionid: string): Promise<NDXSessionEventMessage[]> {
+  const rows = await listSessionData(database, sessionid);
+  const events: NDXSessionEventMessage[] = [];
+  for (const row of rows) {
+    if (row.type === "user") {
+      break;
+    }
+    const event = rowToSessionEvent(row);
+    if (event?.event === NDX_TURN_EVENT.CompactCompleted && event.contents && typeof event.contents === "object" && (event.contents as { kind?: unknown }).kind === "compact") {
+      events.push(event);
+    }
+  }
+  return events;
 }
 
 export async function buildSessionTurnDetail(database: NDXDatabase, sessionid: string, inputDataId: string) {

@@ -1,8 +1,22 @@
 import React from "react";
-import { ChevronLeft, ChevronRight, Copy, ExternalLink, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Copy, ExternalLink, GitBranch, LoaderCircle, Trash2, X } from "lucide-react";
 import type { ChatMessageAttachment } from "ndx/webclient/front";
 
-export function UserChatMessage({ text, attachments }: { text: string; attachments: ChatMessageAttachment[] }) {
+export function UserChatMessage({
+  text,
+  attachments,
+  pending = false,
+  actionsDisabled = false,
+  onBranch,
+  onDelete
+}: {
+  text: string;
+  attachments: ChatMessageAttachment[];
+  pending?: boolean;
+  actionsDisabled?: boolean;
+  onBranch?: () => void;
+  onDelete?: () => void;
+}) {
   const imageAttachments = attachments.filter((attachment) => attachment.kind === "image" && attachment.url);
   const [previewIndex, setPreviewIndex] = React.useState<number>();
   const [copyStatus, setCopyStatus] = React.useState("");
@@ -28,27 +42,15 @@ export function UserChatMessage({ text, attachments }: { text: string; attachmen
 
   return (
     <>
-      <div className="group/user-message grid gap-3" data-testid="user-chat-message">
-        <div className="flex items-start gap-2">
-          <div className="min-w-0 flex-1">
-            {text ? <p className="ndx-wrap-anywhere whitespace-pre-wrap">{text}</p> : null}
-          </div>
-          {text ? (
-            <button
-              type="button"
-              className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-zinc-600 opacity-0 transition hover:bg-zinc-200 hover:text-zinc-950 focus:opacity-100 group-hover/user-message:opacity-100"
-              aria-label="사용자 메시지 텍스트 복사"
-              title={copyStatus || "텍스트 복사"}
-              onClick={() => {
-                void navigator.clipboard.writeText(text).then(() => {
-                  setCopyStatus("복사됨");
-                  window.setTimeout(() => setCopyStatus(""), 1200);
-                });
-              }}
-            >
-              <Copy aria-hidden="true" className="h-3.5 w-3.5" />
-            </button>
+      <div className="grid gap-3" data-testid="user-chat-message">
+        <div className="min-w-0">
+          {pending ? (
+            <div className="mb-2 flex items-center gap-2 text-xs font-medium text-zinc-600">
+              <LoaderCircle aria-label="요청 처리 중" className="h-3.5 w-3.5 animate-spin" />
+              <span>요청 처리 중...</span>
+            </div>
           ) : null}
+          {text ? <p className={`ndx-wrap-anywhere whitespace-pre-wrap ${pending ? "text-zinc-700" : ""}`}>{text}</p> : null}
         </div>
         {attachments.length > 0 ? (
           <ul className="flex flex-wrap gap-2" aria-label="첨부 이미지와 파일">
@@ -67,6 +69,48 @@ export function UserChatMessage({ text, attachments }: { text: string; attachmen
               </li>
             ))}
           </ul>
+        ) : null}
+        {text && !pending ? (
+          <div className="flex justify-end gap-1.5 border-t border-zinc-300/70 pt-2">
+            {onBranch ? (
+              <button
+                type="button"
+                className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-zinc-600 transition hover:bg-zinc-200 hover:text-zinc-950 disabled:cursor-not-allowed disabled:opacity-40"
+                aria-label="이 사용자 요청까지 세션 분기 생성"
+                title="세션 분기"
+                disabled={actionsDisabled}
+                onClick={onBranch}
+              >
+                <GitBranch aria-hidden="true" className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-zinc-600 transition hover:bg-zinc-200 hover:text-zinc-950"
+              aria-label="사용자 메시지 텍스트 복사"
+              title={copyStatus || "텍스트 복사"}
+              onClick={() => {
+                void navigator.clipboard.writeText(text).then(() => {
+                  setCopyStatus("복사됨");
+                  window.setTimeout(() => setCopyStatus(""), 1200);
+                });
+              }}
+            >
+              <Copy aria-hidden="true" className="h-3.5 w-3.5" />
+            </button>
+            {onDelete ? (
+              <button
+                type="button"
+                className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-zinc-600 transition hover:bg-red-100 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+                aria-label="이 사용자 요청의 턴 삭제"
+                title="턴 삭제"
+                disabled={actionsDisabled}
+                onClick={onDelete}
+              >
+                <Trash2 aria-hidden="true" className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
+          </div>
         ) : null}
       </div>
       {previewAttachment?.url ? (

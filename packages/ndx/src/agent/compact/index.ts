@@ -39,6 +39,10 @@ export type NDXCompactSessionHistoryOptions = {
   contextRows?: NDXSessionDataRow[];
 };
 
+export type NDXAppendCompactSessionHistoryOptions = {
+  previousCompact?: NDXSessionDataRow;
+};
+
 export async function initCompactDatabase(database: NDXDatabase): Promise<void> {
   await database.query(`
 CREATE TABLE IF NOT EXISTS turncontextusage (
@@ -118,6 +122,18 @@ export async function compactSessionHistory(
   const sourceRows = previousCompactDataId
     ? contextRows.filter((row) => String(row.dataid) !== previousCompactDataId)
     : contextRows;
+  return appendCompactSessionHistory(database, session, report, sourceRows, model, { previousCompact });
+}
+
+export async function appendCompactSessionHistory(
+  database: NDXDatabase,
+  session: NDXSessionRow,
+  report: NDXCompactReport,
+  sourceRows: NDXSessionDataRow[],
+  model: NDXModelConfig = session.model,
+  options: NDXAppendCompactSessionHistoryOptions = {}
+): Promise<{ row: NDXSessionDataRow; text: string; sourceRows: NDXSessionDataRow[]; previousCompact?: NDXSessionDataRow }> {
+  const previousCompact = options.previousCompact;
   const text = await summarizeCompactHistory(model, previousCompact, sourceRows);
   const row = await appendSessionData(database, session.sessionid, "compact", compactContents({
     text,
@@ -128,6 +144,43 @@ export async function compactSessionHistory(
     createdReason: report.reason
   }));
   return { row, text, sourceRows, previousCompact };
+}
+
+export async function rebuildTurnContextUsage(database: NDXDatabase): Promise<void> {
+  await database.query(`
+WITH aggregate AS (
+  SELECT COUNT(*)::bigint AS turncount, COALESCE(SUM(turn_tokens), 0)::bigint AS tokens
+  FROM (
+    SELECT input.dataid, COALESCE(SUM(CEIL(OCTET_LENGTH(row.contents::text)::numeric / 4)), 0)::bigint AS turn_tokens
+    FROM sessiondata input
+    LEFT JOIN LATERAL (
+      SELECT MIN(next_input.dataid) AS next_dataid
+      FROM sessiondata next_input
+      WHERE next_input.sessionid = input.sessionid
+        AND next_input.type = 'user'
+        AND next_input.dataid > input.dataid
+    ) next_user ON true
+    JOIN sessiondata row ON row.sessionid = input.sessionid
+      AND row.dataid >= input.dataid
+      AND (next_user.next_dataid IS NULL OR row.dataid < next_user.next_dataid)
+    WHERE input.type = 'user'
+    GROUP BY input.dataid
+  ) turns
+),
+upsert AS (
+  UPDATE turncontextusage
+  SET
+    turncount = aggregate.turncount,
+    tokens = aggregate.tokens,
+    avgtokens = CASE WHEN aggregate.turncount > 0 THEN CEIL(aggregate.tokens::numeric / aggregate.turncount)::bigint ELSE 0 END
+  FROM aggregate
+  RETURNING 1
+)
+INSERT INTO turncontextusage (turncount, tokens, avgtokens)
+SELECT aggregate.turncount, aggregate.tokens, CASE WHEN aggregate.turncount > 0 THEN CEIL(aggregate.tokens::numeric / aggregate.turncount)::bigint ELSE 0 END
+FROM aggregate
+WHERE NOT EXISTS (SELECT 1 FROM upsert);
+`);
 }
 
 export async function recordTurnContextUsage(database: NDXDatabase, input: NDXSessionDataRow, assistant: NDXSessionDataRow): Promise<void> {
