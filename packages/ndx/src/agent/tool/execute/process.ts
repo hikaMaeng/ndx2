@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { readNDXWebSearchSettings } from "../../../common/settings/index.js";
@@ -164,7 +165,7 @@ export async function runToolProcess(
       await stdoutLineTask.catch((error) => {
         invalidProtocolLines.push(error instanceof Error ? error.message : String(error));
       });
-      resolve(finalizeToolResult({
+      resolve(await finalizeToolResult({
         tool: tool.name,
         callId,
         startedAtDate,
@@ -176,7 +177,8 @@ export async function runToolProcess(
         stdoutText,
         stderrText,
         exitCode: code,
-        signal
+        signal,
+        rawOutputRoot: options.projectHome ?? options.cwd ?? process.cwd()
       }));
     });
   });
@@ -216,7 +218,11 @@ async function collectStdoutLine(
   let parsed: unknown;
   try {
     parsed = JSON.parse(line) as unknown;
-  } catch {
+  } catch (error) {
+    if (line.trimStart().startsWith("{")) {
+      invalidProtocolLines.push(`invalid tool protocol JSON: ${error instanceof Error ? error.message : String(error)}\n${line}`);
+      return;
+    }
     legacyStdoutLines.push(line);
     return;
   }
@@ -252,7 +258,7 @@ function normalizeToolProcessEvent(value: unknown): NDXToolProcessEvent | undefi
   return undefined;
 }
 
-function finalizeToolResult(input: {
+async function finalizeToolResult(input: {
   tool: string;
   callId?: string;
   startedAtDate: Date;
@@ -265,21 +271,28 @@ function finalizeToolResult(input: {
   stderrText: string;
   exitCode: number | null;
   signal: NodeJS.Signals | null;
-}): NDXToolExecutionResult {
+  rawOutputRoot: string;
+}): Promise<NDXToolExecutionResult> {
+  const rawOutputPath = await writeRawOutputArtifact({ ...input, outputText: toolOutputTextForArtifact(input) });
+  const toolTransportError = input.invalidProtocolLines.length > 0
+    ? "invalid_tool_protocol"
+    : rawOutputPath
+      ? "output_sanitized_control_characters"
+      : undefined;
   if (input.terminatingStatus) {
-    return buildResult(input.tool, input.callId, input.startedAtDate, input.terminatingStatus, false, input.stderrText.trimEnd(), undefined, undefined, input.events, input.stdoutText, input.stderrText, input.exitCode, input.signal);
+    return buildResult(input.tool, input.callId, input.startedAtDate, input.terminatingStatus, false, input.stderrText.trimEnd(), undefined, undefined, input.events, input.stdoutText, input.stderrText, input.exitCode, input.signal, undefined, toolTransportError, rawOutputPath);
   }
   if (input.invalidProtocolLines.length > 0 && (input.events.length > 0 || input.legacyStdoutLines.length === 0)) {
-    return buildResult(input.tool, input.callId, input.startedAtDate, "protocol_error", false, input.invalidProtocolLines.join("\n"), undefined, undefined, input.events, input.stdoutText, input.stderrText, input.exitCode, input.signal);
+    return buildResult(input.tool, input.callId, input.startedAtDate, "protocol_error", false, input.invalidProtocolLines.join("\n"), undefined, undefined, input.events, input.stdoutText, input.stderrText, input.exitCode, input.signal, "invalid tool protocol output", "invalid_tool_protocol", rawOutputPath);
   }
   if (input.finalEvent?.type === "result") {
-    return buildResult(input.tool, input.callId, input.startedAtDate, "success", true, stringifyOutput(input.finalEvent.output), input.finalEvent.output, input.finalEvent.effects, input.events, input.stdoutText, input.stderrText, input.exitCode, input.signal);
+    return buildResult(input.tool, input.callId, input.startedAtDate, "success", true, stringifyOutput(input.finalEvent.output), input.finalEvent.output, input.finalEvent.effects, input.events, input.stdoutText, input.stderrText, input.exitCode, input.signal, undefined, toolTransportError, rawOutputPath);
   }
   if (input.finalEvent?.type === "error") {
-    return buildResult(input.tool, input.callId, input.startedAtDate, "failed", false, stringifyOutput(input.finalEvent.output ?? input.finalEvent.message), input.finalEvent.output, input.finalEvent.effects, input.events, input.stdoutText, input.stderrText, input.exitCode, input.signal, input.finalEvent.message);
+    return buildResult(input.tool, input.callId, input.startedAtDate, "failed", false, stringifyOutput(input.finalEvent.output ?? input.finalEvent.message), input.finalEvent.output, input.finalEvent.effects, input.events, input.stdoutText, input.stderrText, input.exitCode, input.signal, input.finalEvent.message, toolTransportError, rawOutputPath);
   }
   const legacyOutput = [input.legacyStdoutLines.join("\n").trimEnd(), input.stderrText.trimEnd()].filter(Boolean).join("\n");
-  return buildResult(input.tool, input.callId, input.startedAtDate, input.exitCode === 0 ? "success" : "failed", input.exitCode === 0, legacyOutput, legacyOutput, undefined, input.events, input.stdoutText, input.stderrText, input.exitCode, input.signal);
+  return buildResult(input.tool, input.callId, input.startedAtDate, input.exitCode === 0 ? "success" : "failed", input.exitCode === 0, legacyOutput, legacyOutput, undefined, input.events, input.stdoutText, input.stderrText, input.exitCode, input.signal, undefined, toolTransportError, rawOutputPath);
 }
 
 function buildResult(
@@ -288,7 +301,7 @@ function buildResult(
   startedAtDate: Date,
   status: NDXToolExecutionStatus,
   success: boolean,
-  output: string,
+  outputText: string,
   outputValue: unknown,
   effects: NDXToolExecutionResult["effects"],
   events: NDXToolProcessEvent[],
@@ -296,9 +309,12 @@ function buildResult(
   stderrText: string,
   exitCode?: number | null,
   signal?: NodeJS.Signals | null,
-  error?: string
+  error?: string,
+  toolTransportError?: string,
+  rawOutputPath?: string
 ): NDXToolExecutionResult {
   const endedAtDate = new Date();
+  const output = sanitizeToolOutputText(appendToolTransportMetadata(outputText, toolTransportError, rawOutputPath));
   return {
     tool,
     callId,
@@ -306,13 +322,15 @@ function buildResult(
     success,
     output,
     outputValue,
+    ...(toolTransportError ? { tool_transport_error: toolTransportError } : {}),
+    ...(rawOutputPath ? { raw_output_path: rawOutputPath } : {}),
     ...(effects && effects.length > 0 ? { effects } : {}),
     events,
-    stdoutText,
-    stderrText,
+    stdoutText: sanitizeToolOutputText(stdoutText),
+    stderrText: sanitizeToolOutputText(stderrText),
     exitCode,
     signal,
-    error,
+    error: error ? sanitizeToolOutputText(error) : undefined,
     startedAt: startedAtDate.toISOString(),
     endedAt: endedAtDate.toISOString(),
     durationMs: endedAtDate.getTime() - startedAtDate.getTime()
@@ -337,6 +355,78 @@ function stringifyOutput(value: unknown): string {
   } catch {
     return String(value);
   }
+}
+
+function appendToolTransportMetadata(output: string, toolTransportError: string | undefined, rawOutputPath: string | undefined): string {
+  if (!toolTransportError && !rawOutputPath) return output;
+  const details = [
+    toolTransportError ? `tool_transport_error: ${toolTransportError}` : "",
+    rawOutputPath ? `raw_output_path: ${rawOutputPath}` : ""
+  ].filter(Boolean).join("\n");
+  return [output.trimEnd(), details].filter(Boolean).join("\n\n");
+}
+
+export function sanitizeToolOutputText(value: string): string {
+  return value
+    .replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1B\\))/g, "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .replace(/\x00/g, "")
+    .replace(/[\x01-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+}
+
+function hasUnsafeToolOutput(value: string): boolean {
+  return sanitizeToolOutputText(value) !== value;
+}
+
+async function writeRawOutputArtifact(input: {
+  tool: string;
+  callId?: string;
+  outputText: string;
+  stdoutText: string;
+  stderrText: string;
+  rawOutputRoot: string;
+  invalidProtocolLines: string[];
+}): Promise<string | undefined> {
+  if (!input.outputText && !input.stdoutText && !input.stderrText) return undefined;
+  if (!hasUnsafeToolOutput(input.outputText) && !hasUnsafeToolOutput(input.stdoutText) && !hasUnsafeToolOutput(input.stderrText) && input.invalidProtocolLines.length === 0) return undefined;
+
+  const directory = path.join(input.rawOutputRoot, ".ndx", "tool-output", input.tool);
+  const nameParts = [
+    new Date().toISOString().replace(/[:.]/g, "-"),
+    input.callId ? input.callId.replace(/[^A-Za-z0-9_.-]/g, "_") : "no-call-id"
+  ];
+  const rawOutputPath = path.join(directory, `${nameParts.join("-")}.log`);
+  try {
+    await fs.mkdir(directory, { recursive: true });
+    await fs.writeFile(rawOutputPath, [
+      "output:",
+      input.outputText,
+      "",
+      "stdout:",
+      input.stdoutText,
+      "",
+      "stderr:",
+      input.stderrText
+    ].join("\n"), "utf8");
+    return rawOutputPath;
+  } catch {
+    return undefined;
+  }
+}
+
+function toolOutputTextForArtifact(input: {
+  terminatingStatus?: "cancelled" | "timeout";
+  finalEvent?: Extract<NDXToolProcessEvent, { type: "result" | "error" }>;
+  legacyStdoutLines: string[];
+  invalidProtocolLines: string[];
+  stderrText: string;
+}): string {
+  if (input.terminatingStatus) return input.stderrText.trimEnd();
+  if (input.invalidProtocolLines.length > 0) return input.invalidProtocolLines.join("\n");
+  if (input.finalEvent?.type === "result") return stringifyOutput(input.finalEvent.output);
+  if (input.finalEvent?.type === "error") return stringifyOutput(input.finalEvent.output ?? input.finalEvent.message);
+  return [input.legacyStdoutLines.join("\n").trimEnd(), input.stderrText.trimEnd()].filter(Boolean).join("\n");
 }
 
 function terminateProcessGroup(pid: number | undefined, signal: NodeJS.Signals) {

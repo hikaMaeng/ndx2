@@ -58,13 +58,7 @@ export function createCotWorkTimingTracker(): NDXCotWorkTimingTracker {
   return {
     update,
     complete() {
-      if (!latestContents || latestContents.steps.every((step) => step.status === "completed")) {
-        return latestContents;
-      }
-      return update({
-        ...latestContents,
-        steps: latestContents.steps.map((step) => ({ ...step, status: "completed" }))
-      });
+      return latestContents ? update(latestContents) : undefined;
     }
   };
 }

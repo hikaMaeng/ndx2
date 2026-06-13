@@ -64,7 +64,7 @@ test("cot work timing starts a newly in-progress step at zero when a previous st
   }
 });
 
-test("cot work timing completes every unfinished step at turn completion", () => {
+test("cot work timing preserves unfinished step status at turn completion", () => {
   const originalNow = Date.now;
   let now = 1_000;
   Date.now = () => now;
@@ -82,8 +82,8 @@ test("cot work timing completes every unfinished step at turn completion", () =>
     now = 46_000;
     const completed = timing.complete();
 
-    assert.deepEqual(completed?.steps.map((step) => step.status), ["completed", "completed", "completed"]);
-    assert.deepEqual(completed?.steps.map((step) => step.elapsed), ["00:00", "00:45", "00:45"]);
+    assert.deepEqual(completed?.steps.map((step) => step.status), ["completed", "in_progress", "pending"]);
+    assert.deepEqual(completed?.steps.map((step) => step.elapsed), ["00:00", "00:45", "00:00"]);
     assert.equal(completed?.totalElapsed, "00:45");
   } finally {
     Date.now = originalNow;

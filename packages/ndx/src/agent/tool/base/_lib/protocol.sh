@@ -1,5 +1,5 @@
 json_quote() {
-  perl -0pe 'BEGIN { print "\"" } s/\\/\\\\/g; s/"/\\"/g; s/\n/\\n/g; s/\r/\\r/g; s/\t/\\t/g; END { print "\"" }'
+  perl -0pe 'BEGIN { print "\"" } s/\\/\\\\/g; s/"/\\"/g; s/\x08/\\b/g; s/\f/\\f/g; s/\n/\\n/g; s/\r/\\r/g; s/\t/\\t/g; s/([\x00-\x07\x0B\x0E-\x1F])/sprintf("\\u%04x", ord($1))/eg; END { print "\"" }'
 }
 
 emit_progress() {

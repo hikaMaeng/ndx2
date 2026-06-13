@@ -100,6 +100,8 @@ export type NDXToolExecutionResult = {
   success: boolean;
   output: string;
   outputValue?: unknown;
+  tool_transport_error?: string;
+  raw_output_path?: string;
   effects?: NDXToolResultEffect[];
   events: NDXToolProcessEvent[];
   stdoutText: string;
