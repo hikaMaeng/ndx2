@@ -36,6 +36,8 @@ export { createSessionUiState } from "./session/uiState.js";
 export type { PendingRequest, SessionAttachmentDraft, SessionUiState } from "./session/uiState.js";
 export { groupRightSidebarItems, upsertRightSidebarItem } from "./session/rightSidebar.js";
 export type { RightSidebarGroup } from "./session/rightSidebar.js";
+export { sessionTranscriptItems } from "./session/transcript.js";
+export type { SessionTranscriptItem } from "./session/transcript.js";
 export { interruptWasAccepted } from "./session/event.js";
 export { PROTOCOL_EVENT_UI_REDUCERS, applyProtocolEventToSessionUiState } from "./session/protocolEventReducer.js";
 export type { ProtocolEventUiText } from "./session/protocolEventReducer.js";

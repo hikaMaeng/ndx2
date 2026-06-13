@@ -110,6 +110,18 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
     setPendingActions(next);
   };
 
+  const clearSessionRequestActions = (sessionid: string) => {
+    setPendingActions((current) => {
+      const next = new Set(current);
+      next.delete("session-submit");
+      next.delete("session-interrupt");
+      next.delete(`session-submit:${sessionid}`);
+      next.delete(`session-interrupt:${sessionid}`);
+      pendingActionsRef.current = next;
+      return next;
+    });
+  };
+
   const onHistorySummary = (message: NDXSessionHistorySummaryResultMessage) => {
     if (message.sessionid !== activeSessionIdRef.current) return;
     updateContextUsage(message.contextUsage);
@@ -202,20 +214,13 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
     liveSessionIdsRef.current.add(message.sessionid);
     const isActiveSessionEvent = message.sessionid === activeSessionIdRef.current;
     if (message.event === NDX_TURN_EVENT.AssistantRecorded || message.event === NDX_TURN_EVENT.TurnEnd) {
-      finishAction(`session-submit:${message.sessionid}`);
-      finishAction("session-submit");
+      clearSessionRequestActions(message.sessionid);
     }
     if (message.event === NDX_TURN_EVENT.InterruptCompleted) {
-      finishAction(`session-interrupt:${message.sessionid}`);
-      finishAction(`session-submit:${message.sessionid}`);
-      finishAction("session-interrupt");
-      finishAction("session-submit");
+      clearSessionRequestActions(message.sessionid);
     }
     if (message.event === NDX_TURN_EVENT.Interrupted && !interruptWasAccepted(message.contents)) {
-      finishAction(`session-interrupt:${message.sessionid}`);
-      finishAction(`session-submit:${message.sessionid}`);
-      finishAction("session-interrupt");
-      finishAction("session-submit");
+      clearSessionRequestActions(message.sessionid);
     }
 
     updateSessionUi(message.sessionid, (current) => {

@@ -2,7 +2,7 @@ import React from "react";
 import { AlertTriangle, Menu, X } from "lucide-react";
 import type { NDXSessionIterationSummary } from "ndx/common/protocol";
 import type { NDXAgentWebSession, NDXWebClientProject } from "ndx/webclient/common";
-import { isPendingUserChatMessage, type NDXAgentWebContextUsage, type SessionAttachmentDraft, type SessionUiState, type TurnFlowState } from "ndx/webclient/front";
+import { isPendingUserChatMessage, sessionTranscriptItems, type NDXAgentWebContextUsage, type SessionAttachmentDraft, type SessionUiState, type TurnFlowState } from "ndx/webclient/front";
 import { RSC } from "../../app/resource";
 import { CotWorkOverlay } from "../cotWork";
 import { RightSidebarRegion, type UpdateSessionUi } from "../rightsidebar";
@@ -81,6 +81,7 @@ export function SessionSurface({
   const suffix = surfaceKey.replace(/[^a-z0-9_-]/giu, "-");
   const attachments = ui.chatAttachments.map(({ id, name, mimeType, size, previewUrl }: SessionAttachmentDraft) => ({ id, name, mimeType, size, previewUrl }));
   const surfaceTitle = session ? (session.title || session.sessionid) : surfaceKey.startsWith("draft:") ? t[RSC.SESSION_PAGE_NEW_DRAFT_TITLE_TEXT] : surfaceKey;
+  const transcript = sessionTranscriptItems(ui.chatMessages, ui.turnFlows);
   const chatScrollRef = React.useRef<HTMLElement | null>(null);
 
   React.useEffect(() => {
@@ -113,15 +114,17 @@ export function SessionSurface({
               </div>
               {!session ? <p className="text-center text-sm text-zinc-500">{t[RSC.SESSION_PAGE_NEW_DRAFT_DESCRIPTION_TEXT]}</p> : null}
               <ol className="grid min-w-0 gap-4" aria-label={t[RSC.SESSION_PAGE_MESSAGES_LABEL]}>
-                {ui.chatMessages.map((message) => (
-                  <React.Fragment key={message.id}>
-                    <li className={message.role === "user" ? "ndx-wrap-anywhere max-w-[85%] min-w-0 overflow-hidden justify-self-end rounded-lg bg-zinc-100 px-4 py-3 text-sm leading-6 text-zinc-950" : "ndx-wrap-anywhere max-w-[92%] min-w-0 overflow-hidden justify-self-start rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm leading-6 text-zinc-300"}>
+                {transcript.map((item) => {
+                  if (item.kind === "turn") {
+                    return <li key={item.turn.id} className="w-full"><TurnFlow turns={[item.turn]} onTurnToggle={onTurnToggle} onIterationToggle={onIterationToggle} /></li>;
+                  }
+                  const message = item.message;
+                  return (
+                    <li key={message.id} className={message.role === "user" ? "ndx-wrap-anywhere max-w-[85%] min-w-0 overflow-hidden justify-self-end rounded-lg bg-zinc-100 px-4 py-3 text-sm leading-6 text-zinc-950" : "ndx-wrap-anywhere max-w-[92%] min-w-0 overflow-hidden justify-self-start rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm leading-6 text-zinc-300"}>
                       {message.role === "assistant" ? <AssistantChatMessage text={message.text} copyEnabled={!message.id.startsWith("pending-") && !message.id.startsWith("stream:") && message.text.trim().length > 0} /> : <UserChatMessage text={message.text} attachments={message.attachments} pending={isPendingUserChatMessage(message)} actionsDisabled={historyMutationDisabled} onBranch={session && !isPendingUserChatMessage(message) ? () => onUserMessageBranch(session.sessionid, message.id) : undefined} onDelete={session && !isPendingUserChatMessage(message) ? () => onUserMessageDelete(session.sessionid, message.id) : undefined} />}
                     </li>
-                    {message.role === "user" ? ui.turnFlows.filter((turn) => turn.inputDataId === message.id).map((turn) => <li key={turn.id} className="w-full"><TurnFlow turns={[turn]} onTurnToggle={onTurnToggle} onIterationToggle={onIterationToggle} /></li>) : null}
-                  </React.Fragment>
-                ))}
-                {ui.turnFlows.filter((turn) => !ui.chatMessages.some((message) => message.id === turn.inputDataId)).map((turn) => <li key={turn.id} className="w-full"><TurnFlow turns={[turn]} onTurnToggle={onTurnToggle} onIterationToggle={onIterationToggle} /></li>)}
+                  );
+                })}
               </ol>
             </section>
           ) : null}

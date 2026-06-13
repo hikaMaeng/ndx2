@@ -7,7 +7,7 @@ import {
   type NDXSessionEventMessage,
   type NDXTurnEventName
 } from "ndx/common/protocol";
-import { sessionDataContentsText, sessionDataToChatMessage } from "./chat.js";
+import { sessionDataContentsText, sessionDataToChatMessage, withoutPendingUserChatMessages } from "./chat.js";
 import { interruptWasAccepted } from "./event.js";
 import { upsertRightSidebarItem } from "./rightSidebar.js";
 import { applyTurnEvent } from "./turn/index.js";
@@ -54,8 +54,8 @@ export const PROTOCOL_EVENT_UI_REDUCERS = {
   [NDX_TURN_EVENT.Interrupted]: interruptedEvent,
   [NDX_TURN_EVENT.InterruptCompleted]: interruptCompletedEvent,
   [NDX_TURN_EVENT.Failed]: failedEvent,
-  [NDX_TURN_EVENT.HookComplete]: runningEvent,
-  [NDX_TURN_EVENT.HookFailed]: runningEvent
+  [NDX_TURN_EVENT.HookComplete]: hookDiagnosticEvent,
+  [NDX_TURN_EVENT.HookFailed]: hookDiagnosticEvent
 } satisfies Record<NDXTurnEventName, ProtocolEventUiReducer>;
 
 export function applyProtocolEventToSessionUiState(current: SessionUiState, message: NDXSessionEventMessage, text: ProtocolEventUiText): SessionUiState {
@@ -164,7 +164,8 @@ function cotWorkSidebarItems(contents: NDXCotWorkContents): NDXSidebarItem[] {
 function rowMessageEvent(current: SessionUiState, message: NDXSessionEventMessage, text: ProtocolEventUiText): SessionUiState {
   const rowType = message.event === NDX_TURN_EVENT.AssistantRecorded ? "assistant" : "user";
   const nextMessage = sessionDataToChatMessage({ dataid: message.dataid, sessionid: message.sessionid, type: rowType, contents: message.contents, createdat: message.createdat });
-  const nextMessages = current.chatMessages.filter((item) => item.id !== "empty" && item.id !== nextMessage.id && (message.event !== NDX_TURN_EVENT.AssistantRecorded || item.id !== `stream:${message.sessionid}`));
+  const currentMessages = message.event === NDX_TURN_EVENT.InputRecorded || message.event === NDX_TURN_EVENT.AssistantRecorded ? withoutPendingUserChatMessages(current.chatMessages) : current.chatMessages;
+  const nextMessages = currentMessages.filter((item) => item.id !== "empty" && item.id !== nextMessage.id && (message.event !== NDX_TURN_EVENT.AssistantRecorded || item.id !== `stream:${message.sessionid}`));
   return {
     ...withContextAndTurn(current, message),
     agentRunning: message.event === NDX_TURN_EVENT.InputRecorded,
@@ -180,7 +181,16 @@ function turnEndEvent(current: SessionUiState, message: NDXSessionEventMessage, 
     reportedContextUsage: contextUsageForUi(current, message.contextUsage),
     agentRunning: false,
     compactRunning: false,
-    notice: text.requestStored
+    cotWork: undefined,
+    notice: text.requestStored,
+    chatMessages: withoutPendingUserChatMessages(current.chatMessages)
+  };
+}
+
+function hookDiagnosticEvent(current: SessionUiState, message: NDXSessionEventMessage, text: ProtocolEventUiText): SessionUiState {
+  return {
+    ...withContextAndTurn(current, message),
+    notice: current.agentRunning ? text.operationInProgress : current.notice
   };
 }
 
@@ -199,7 +209,8 @@ function interruptedEvent(current: SessionUiState, message: NDXSessionEventMessa
     cotWork: undefined,
     agentRunning: false,
     compactRunning: false,
-    notice: text.interruptStored
+    notice: text.interruptStored,
+    chatMessages: withoutPendingUserChatMessages(current.chatMessages)
   };
 }
 
@@ -209,7 +220,8 @@ function interruptCompletedEvent(current: SessionUiState, message: NDXSessionEve
     cotWork: undefined,
     agentRunning: false,
     compactRunning: false,
-    notice: text.interruptStored
+    notice: text.interruptStored,
+    chatMessages: withoutPendingUserChatMessages(current.chatMessages)
   };
 }
 
@@ -220,6 +232,7 @@ function failedEvent(current: SessionUiState, message: NDXSessionEventMessage): 
     agentRunning: false,
     compactRunning: false,
     notice: messageText,
-    sessionError: messageText
+    sessionError: messageText,
+    chatMessages: withoutPendingUserChatMessages(current.chatMessages)
   };
 }

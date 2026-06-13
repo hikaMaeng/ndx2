@@ -60,11 +60,40 @@ test("rejected interrupt clears stale interrupt pending notice", () => {
   assert.equal(next.turnFlows[0]?.status, "completed");
 });
 
+test("input recorded replaces a pending user request message", () => {
+  const current = {
+    ...createSessionUiState(),
+    agentRunning: true,
+    chatMessages: [
+      { id: "pending-user:1", role: "user" as const, text: "원본 요청", attachments: [] }
+    ]
+  };
+  const message: NDXSessionEventMessage = {
+    type: NDX_SESSION_EVENT,
+    sessionid: "session-1",
+    event: NDX_TURN_EVENT.InputRecorded,
+    dataid: "input-1",
+    contents: { kind: "user_message", text: "변환된 요청" },
+    createdat: "2026-06-03T14:50:45.699Z"
+  };
+
+  const next = applyProtocolEventToSessionUiState(current, message, text);
+
+  assert.deepEqual(next.chatMessages.map((item) => ({ id: item.id, role: item.role, text: item.text })), [
+    { id: "input-1", role: "user", text: "변환된 요청" }
+  ]);
+  assert.equal(next.agentRunning, true);
+  assert.equal(next.turnFlows[0]?.inputDataId, "input-1");
+});
+
 test("turn end clears runtime state without creating a new turn card", () => {
   const current = {
     ...createSessionUiState(),
     agentRunning: true,
     compactRunning: true,
+    chatMessages: [
+      { id: "pending-user:1", role: "user" as const, text: "다음 요청", attachments: [] }
+    ],
     turnFlows: [{
       id: "turn:session-1:input-1",
       inputDataId: "input-1",
@@ -90,8 +119,69 @@ test("turn end clears runtime state without creating a new turn card", () => {
 
   assert.equal(next.agentRunning, false);
   assert.equal(next.compactRunning, false);
+  assert.deepEqual(next.chatMessages, []);
   assert.equal(next.turnFlows.length, 1);
   assert.equal(next.turnFlows[0]?.id, "turn:session-1:input-1");
+  assert.equal(next.turnFlows[0]?.status, "completed");
+});
+
+test("assistant recorded clears stale optimistic user request message", () => {
+  const current = {
+    ...createSessionUiState(),
+    agentRunning: true,
+    chatMessages: [
+      { id: "input-1", role: "user" as const, text: "요청", attachments: [] },
+      { id: "pending-user:1", role: "user" as const, text: "요청 처리 중", attachments: [] }
+    ]
+  };
+  const message: NDXSessionEventMessage = {
+    type: NDX_SESSION_EVENT,
+    sessionid: "session-1",
+    event: NDX_TURN_EVENT.AssistantRecorded,
+    dataid: "assistant-1",
+    contents: { kind: "assistant_message", text: "완료" },
+    createdat: "2026-06-03T14:50:45.699Z"
+  };
+
+  const next = applyProtocolEventToSessionUiState(current, message, text);
+
+  assert.equal(next.agentRunning, false);
+  assert.deepEqual(next.chatMessages.map((item) => ({ id: item.id, role: item.role, text: item.text })), [
+    { id: "input-1", role: "user", text: "요청" },
+    { id: "assistant-1", role: "assistant", text: "완료" }
+  ]);
+});
+
+test("hook diagnostics do not resurrect a completed turn as running", () => {
+  const current = {
+    ...createSessionUiState(),
+    agentRunning: false,
+    notice: "request stored",
+    turnFlows: [{
+      id: "turn:session-1:input-1",
+      inputDataId: "input-1",
+      sessionid: "session-1",
+      title: "done",
+      status: "completed" as const,
+      collapsed: true,
+      createdAt: "2026-06-03T14:50:40.000Z",
+      updatedAt: "2026-06-03T14:50:44.000Z",
+      batches: []
+    }]
+  };
+  const message: NDXSessionEventMessage = {
+    type: NDX_SESSION_EVENT,
+    sessionid: "session-1",
+    event: NDX_TURN_EVENT.HookComplete,
+    dataid: "hook:session-1:turn.end",
+    contents: { event: "turn.end", count: 1 },
+    createdat: "2026-06-03T14:50:45.699Z"
+  };
+
+  const next = applyProtocolEventToSessionUiState(current, message, text);
+
+  assert.equal(next.agentRunning, false);
+  assert.equal(next.notice, "request stored");
   assert.equal(next.turnFlows[0]?.status, "completed");
 });
 
