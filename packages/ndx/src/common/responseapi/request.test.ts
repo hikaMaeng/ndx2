@@ -481,6 +481,53 @@ test("requestModelResponse reports empty event streams without rereading the bod
   }
 });
 
+test("requestModelResponse retries provider tool-call parse stream failures", async () => {
+  let requestCount = 0;
+  const debugEvents: Array<{ event: string; context: Record<string, unknown> }> = [];
+  const server = http.createServer((_request, response) => {
+    requestCount += 1;
+    response.writeHead(200, { "Content-Type": "text/event-stream" });
+    if (requestCount === 1) {
+      response.end(`data: ${JSON.stringify({
+        type: "error",
+        error: {
+          message: "Failed to parse tool call: Unexpected end of content.",
+          type: "internal_error",
+          code: "unknown"
+        }
+      })}\n\n`);
+      return;
+    }
+    response.end(`data: ${JSON.stringify({ type: "response.output_text.delta", delta: "retry ok" })}\n\n`);
+  });
+
+  await new Promise<void>((resolve) => {
+    server.listen(0, "127.0.0.1", () => resolve());
+  });
+  const address = server.address();
+  assert(address && typeof address === "object");
+
+  try {
+    const response = await requestModelResponse(
+      { model: "test-model", url: `http://127.0.0.1:${address.port}/v1`, token: "" },
+      [{ role: "user", content: "도구 호출을 다시 만들어라" }],
+      [],
+      {
+        async onDebug(event, context) {
+          debugEvents.push({ event, context });
+        }
+      }
+    );
+
+    assert.equal(response.content, "retry ok");
+    assert.equal(requestCount, 2);
+    assert.ok(debugEvents.some((entry) => entry.event === "responseapi.request.retry"));
+  } finally {
+    server.close();
+    await once(server, "close");
+  }
+});
+
 test("requestModelResponse keeps native tool request shape on empty stream retries", async () => {
   const requests: Array<{ input?: unknown; tools?: unknown }> = [];
   const server = http.createServer((request, response) => {

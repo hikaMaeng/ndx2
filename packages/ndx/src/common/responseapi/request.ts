@@ -243,6 +243,10 @@ export async function requestModelResponse(
             requestTimeoutMs
           });
           lastError = error;
+          if (isProviderToolCallParseFailure(error) && attempt < MAX_TRANSIENT_ATTEMPTS) {
+            await waitBeforeRetry(attempt, requestEvents);
+            continue;
+          }
           if (isProviderInputParseFailure(error)) {
             shouldTryAlternativeInput = true;
             rememberRejectedProviderInputMode(compatibilityKey, requestEntry.inputMode);
@@ -459,6 +463,11 @@ function isRetryableError(error: unknown): boolean {
 function isProviderInputParseFailure(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return /model response failed: Failed to parse input at pos 0:/i.test(message);
+}
+
+function isProviderToolCallParseFailure(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /model response failed: Failed to parse tool call/i.test(message);
 }
 
 function modelInferenceBody(model: ResponseModelConfig): { reasoning?: { effort: ProviderReasoningEffort }; temperature?: number; top_p?: number; top_k?: number; min_p?: number } {
