@@ -91,6 +91,63 @@ test("history summary keeps a leading compact message before later turns", () =>
   ]);
 });
 
+test("history summary renders branch source input before compact as a non-mutable user message", () => {
+  const messages = chatMessagesFromHistorySummary([
+    {
+      type: NDX_SESSION_EVENT,
+      sessionid: "session-1",
+      event: NDX_TURN_EVENT.InputRecorded,
+      dataid: "branch-source:1:42",
+      contents: { kind: "user_message", text: "원본 사용자 요청" },
+      createdat: "2026-06-02T00:00:00.000Z"
+    },
+    {
+      type: NDX_SESSION_EVENT,
+      sessionid: "session-1",
+      event: NDX_TURN_EVENT.CompactCompleted,
+      dataid: "1",
+      contents: { kind: "compact", text: "분기 전 대화 요약", sourceRowCount: 4, createdReason: "branch" },
+      createdat: "2026-06-02T00:00:00.000Z"
+    },
+    {
+      type: NDX_SESSION_EVENT,
+      sessionid: "session-1",
+      event: NDX_TURN_EVENT.InputRecorded,
+      dataid: "2",
+      contents: { kind: "user_message", text: "분기 후 요청" },
+      createdat: "2026-06-02T00:00:01.000Z"
+    }
+  ], [{
+    inputDataId: "2",
+    sessionid: "session-1",
+    title: "분기 후 요청",
+    status: "running",
+    createdat: "2026-06-02T00:00:01.000Z",
+    updatedat: "2026-06-02T00:00:01.000Z",
+    iterations: []
+  }]);
+
+  assert.deepEqual(messages.map((item) => ({ id: item.id, role: item.role, text: item.text, historyActionsDisabled: item.historyActionsDisabled })), [
+    { id: "branch-source:1:42", role: "user", text: "원본 사용자 요청", historyActionsDisabled: true },
+    { id: "1", role: "assistant", text: "분기 전 대화 요약", historyActionsDisabled: undefined },
+    { id: "2", role: "user", text: "분기 후 요청", historyActionsDisabled: undefined }
+  ]);
+});
+
+test("history projection marks synthetic branch source input as non-mutable", () => {
+  const message = chatMessageFromSessionEvent({
+    type: NDX_SESSION_EVENT,
+    sessionid: "session-1",
+    event: NDX_TURN_EVENT.InputRecorded,
+    dataid: "branch-source:1:42",
+    contents: { kind: "user_message", text: "원본 사용자 요청" },
+    createdat: "2026-06-02T00:00:00.000Z"
+  });
+
+  assert.equal(message?.role, "user");
+  assert.equal(message?.historyActionsDisabled, true);
+});
+
 test("history summary restores a missing user row before the final assistant message", () => {
   const messages = chatMessagesFromHistorySummary([
     {

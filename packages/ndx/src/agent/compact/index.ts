@@ -15,6 +15,7 @@ export type NDXCompactContents = {
   sourceEndDataId?: string;
   sourceRowCount: number;
   createdReason: string;
+  sourceInput?: { dataId: string; text: string };
 };
 
 export type NDXCompactReport = {
@@ -41,6 +42,7 @@ export type NDXCompactSessionHistoryOptions = {
 
 export type NDXAppendCompactSessionHistoryOptions = {
   previousCompact?: NDXSessionDataRow;
+  sourceInput?: { dataId: string; text: string };
 };
 
 export async function initCompactDatabase(database: NDXDatabase): Promise<void> {
@@ -141,7 +143,8 @@ export async function appendCompactSessionHistory(
     sourceStartDataId: sourceRows[0] ? String(sourceRows[0].dataid) : undefined,
     sourceEndDataId: sourceRows.at(-1) ? String(sourceRows.at(-1)?.dataid) : undefined,
     sourceRowCount: sourceRows.length,
-    createdReason: report.reason
+    createdReason: report.reason,
+    ...(options.sourceInput ? { sourceInput: options.sourceInput } : {})
   }));
   return { row, text, sourceRows, previousCompact };
 }

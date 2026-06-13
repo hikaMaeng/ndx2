@@ -41,6 +41,7 @@ export async function branchSessionFromTurn(database: NDXDatabase, sessionid: st
   try {
     const { previousCompact, sourceRows } = compactSourceForRows(rowsThroughTurn);
     const sourceTokens = rowsThroughTurn.reduce((total, row) => total + estimateContextTokens(sessionDataText(row) ?? JSON.stringify(row.contents ?? "")), 0);
+    const sourceInputText = sessionDataText(turnRange.input) ?? sessionDataTitleText(turnRange.input) ?? "Branched session";
     const compact = await appendCompactSessionHistory(
       database,
       session,
@@ -57,7 +58,7 @@ export async function branchSessionFromTurn(database: NDXDatabase, sessionid: st
       },
       sourceRows,
       session.model,
-      { previousCompact }
+      { previousCompact, sourceInput: { dataId: String(turnRange.input.dataid), text: sourceInputText } }
     );
     await database.query(`UPDATE "session" SET lastupdated = now() WHERE sessionid = $1;`, [session.sessionid]);
     return { sourceSession, session, compact: compact.row, inputDataId };

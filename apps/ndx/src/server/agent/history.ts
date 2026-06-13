@@ -1,4 +1,4 @@
-import { NDX_TURN_EVENT, type NDXSessionEventMessage, type NDXSessionIterationSummary, type NDXSessionTurnSummary } from "ndx/common";
+import { NDX_SESSION_EVENT, NDX_TURN_EVENT, type NDXSessionEventMessage, type NDXSessionIterationSummary, type NDXSessionTurnSummary } from "ndx/common";
 import {
   buildTurnMessageParts,
   calculateDetailedContextUsage,
@@ -21,7 +21,7 @@ type SessionHistoryTurn = {
 
 export async function buildSessionHistorySummary(database: NDXDatabase, session: NDXSessionRow) {
   const turns = await listSessionHistoryTurns(database, session.sessionid);
-  const leadingCompactEvents = await listLeadingCompactEvents(database, session.sessionid);
+  const leadingCompactEvents = await listLeadingCompactEvents(database, session);
   const parts = await buildTurnMessageParts(database, session);
   const tools = toolSchemas(await listAvailableTools({ userHome: serverContainerUserHome(), projectHome: toServerProjectPath(session.path) }));
   return {
@@ -39,8 +39,8 @@ export async function buildSessionHistorySummary(database: NDXDatabase, session:
   };
 }
 
-async function listLeadingCompactEvents(database: NDXDatabase, sessionid: string): Promise<NDXSessionEventMessage[]> {
-  const rows = await listSessionData(database, sessionid);
+async function listLeadingCompactEvents(database: NDXDatabase, session: NDXSessionRow): Promise<NDXSessionEventMessage[]> {
+  const rows = await listSessionData(database, session.sessionid);
   const events: NDXSessionEventMessage[] = [];
   for (const row of rows) {
     if (row.type === "user") {
@@ -48,10 +48,43 @@ async function listLeadingCompactEvents(database: NDXDatabase, sessionid: string
     }
     const event = rowToSessionEvent(row);
     if (event?.event === NDX_TURN_EVENT.CompactCompleted && event.contents && typeof event.contents === "object" && (event.contents as { kind?: unknown }).kind === "compact") {
+      const sourceInputEvent = branchSourceInputEvent(session, row);
+      if (sourceInputEvent) {
+        events.push(sourceInputEvent);
+      }
       events.push(event);
     }
   }
   return events;
+}
+
+function branchSourceInputEvent(session: NDXSessionRow, compactRow: NDXSessionDataRow): NDXSessionEventMessage | undefined {
+  if (!compactRow.contents || typeof compactRow.contents !== "object") return undefined;
+  const compact = compactRow.contents as { createdReason?: unknown; sourceInput?: unknown };
+  if (compact.createdReason !== "branch") return undefined;
+  let text: string | undefined;
+  let sourceDataId = String(compactRow.dataid);
+  if (compact.sourceInput && typeof compact.sourceInput === "object") {
+    const sourceInput = compact.sourceInput as { dataId?: unknown; text?: unknown };
+    if (typeof sourceInput.text === "string" && sourceInput.text.trim()) {
+      text = sourceInput.text;
+    }
+    if (typeof sourceInput.dataId === "string" && sourceInput.dataId.trim()) {
+      sourceDataId = sourceInput.dataId;
+    }
+  }
+  if (!text) {
+    text = session.title.startsWith("🚩") ? session.title.slice("🚩".length).trim() : undefined;
+  }
+  if (!text) return undefined;
+  return {
+    type: NDX_SESSION_EVENT,
+    sessionid: session.sessionid,
+    event: NDX_TURN_EVENT.InputRecorded,
+    dataid: `branch-source:${compactRow.dataid}:${sourceDataId}`,
+    contents: { kind: "user_message", text },
+    createdat: compactRow.createdat.toISOString()
+  };
 }
 
 export async function buildSessionTurnDetail(database: NDXDatabase, sessionid: string, inputDataId: string) {

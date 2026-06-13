@@ -6,6 +6,7 @@ export type ChatMessage = {
   role: "user" | "assistant" | "system";
   text: string;
   attachments: ChatMessageAttachment[];
+  historyActionsDisabled?: boolean;
 };
 
 export type ChatMessageAttachment = NDXSessionAttachmentReference & {

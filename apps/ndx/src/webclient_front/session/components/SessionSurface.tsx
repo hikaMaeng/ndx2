@@ -119,9 +119,10 @@ export function SessionSurface({
                     return <li key={item.turn.id} className="w-full"><TurnFlow turns={[item.turn]} onTurnToggle={onTurnToggle} onIterationToggle={onIterationToggle} /></li>;
                   }
                   const message = item.message;
+                  const userHistoryActionsDisabled = historyMutationDisabled || Boolean(message.historyActionsDisabled);
                   return (
                     <li key={message.id} className={message.role === "user" ? "ndx-wrap-anywhere max-w-[85%] min-w-0 overflow-hidden justify-self-end rounded-lg bg-zinc-100 px-4 py-3 text-sm leading-6 text-zinc-950" : "ndx-wrap-anywhere max-w-[92%] min-w-0 overflow-hidden justify-self-start rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm leading-6 text-zinc-300"}>
-                      {message.role === "assistant" ? <AssistantChatMessage text={message.text} copyEnabled={!message.id.startsWith("pending-") && !message.id.startsWith("stream:") && message.text.trim().length > 0} /> : <UserChatMessage text={message.text} attachments={message.attachments} pending={isPendingUserChatMessage(message)} actionsDisabled={historyMutationDisabled} onBranch={session && !isPendingUserChatMessage(message) ? () => onUserMessageBranch(session.sessionid, message.id) : undefined} onDelete={session && !isPendingUserChatMessage(message) ? () => onUserMessageDelete(session.sessionid, message.id) : undefined} />}
+                      {message.role === "assistant" ? <AssistantChatMessage text={message.text} copyEnabled={!message.id.startsWith("pending-") && !message.id.startsWith("stream:") && message.text.trim().length > 0} /> : <UserChatMessage text={message.text} attachments={message.attachments} pending={isPendingUserChatMessage(message)} actionsDisabled={userHistoryActionsDisabled} onBranch={session && !isPendingUserChatMessage(message) && !message.historyActionsDisabled ? () => onUserMessageBranch(session.sessionid, message.id) : undefined} onDelete={session && !isPendingUserChatMessage(message) && !message.historyActionsDisabled ? () => onUserMessageDelete(session.sessionid, message.id) : undefined} />}
                     </li>
                   );
                 })}

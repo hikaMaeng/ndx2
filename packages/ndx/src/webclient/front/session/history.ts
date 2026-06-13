@@ -3,6 +3,7 @@ import { sessionDataToChatMessage, visibleUserRequestText, type ChatMessage } fr
 import { applyTurnEvent, type TurnBatchState, type TurnFlowState } from "./turn/index.js";
 
 export function chatMessageFromSessionEvent(message: NDXSessionEventMessage): ChatMessage | undefined {
+  const historyActionsDisabled = message.dataid.startsWith("branch-source:");
   if (message.event === NDX_TURN_EVENT.CompactCompleted && message.contents && typeof message.contents === "object" && (message.contents as { kind?: unknown }).kind === "compact") {
     const text = (message.contents as { text?: unknown }).text;
     return typeof text === "string" && text.trim()
@@ -13,7 +14,8 @@ export function chatMessageFromSessionEvent(message: NDXSessionEventMessage): Ch
     return undefined;
   }
   const rowType = message.event === NDX_TURN_EVENT.AssistantRecorded ? "assistant" : "user";
-  return sessionDataToChatMessage({ dataid: message.dataid, sessionid: message.sessionid, type: rowType, contents: message.contents, createdat: message.createdat });
+  const chatMessage = sessionDataToChatMessage({ dataid: message.dataid, sessionid: message.sessionid, type: rowType, contents: message.contents, createdat: message.createdat });
+  return historyActionsDisabled ? { ...chatMessage, historyActionsDisabled } : chatMessage;
 }
 
 export function chatMessagesFromHistorySummary(visibleEvents: NDXSessionEventMessage[], turns: NDXSessionTurnSummary[]): ChatMessage[] {
