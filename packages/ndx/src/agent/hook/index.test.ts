@@ -12,6 +12,7 @@ import { runTurnEndHook, systemHooks as turnEndHooks } from "./turn.end/index.js
 import { runModelRespondingHook, systemHooks as modelRespondingHooks } from "./turn.model.responding/index.js";
 import { runTurnRequestReceivedHook, systemHooks as turnRequestReceivedHooks } from "./turn.request.received/index.js";
 import { runToolResultsCollectedHook, systemHooks as toolResultsCollectedHooks } from "./turn.tool.results.collected/index.js";
+import { createContextLimitHook } from "./base/contextLimit/index.js";
 import type { NDXDatabase, NDXSessionRow } from "../session/types.js";
 
 const database: NDXDatabase = {
@@ -148,6 +149,44 @@ test("turn context prepared hooks report in-place stable prefix mutation as diag
   });
 
   assert.match(result.result.effect.diagnostics?.join("\n") ?? "", /turn\.context\.prepared hook changed stable model-request prefix/);
+});
+
+test("context prepared context limit uses messages after earlier hook effects", async () => {
+  const hookDatabase: NDXDatabase = {
+    async query(text) {
+      if (/FROM turncontextusage/i.test(text)) {
+        return { rows: [{ turncount: "0", tokens: "0", avgtokens: "0" }], rowCount: 1, command: "", oid: 0, fields: [] } as never;
+      }
+      return { rows: [], rowCount: 0, command: "", oid: 0, fields: [] } as never;
+    },
+    async close() {}
+  };
+  const result = await runTurnContextPreparedHook(createNDXHookRuntime({
+    [NDX_TURN_EVENT.ContextPrepared]: [
+      {
+        kind: "code",
+        name: "append-large-message",
+        source: "system",
+        run() {
+          return { appendMessages: [{ role: "user", content: "x".repeat(500) }] };
+        }
+      },
+      createContextLimitHook({
+        name: "test.context_limit",
+        phase: "iteration",
+        endTurn: true
+      })
+    ]
+  }, {}), {
+    ...baseContext,
+    database: hookDatabase,
+    session: { ...session, model: { ...session.model, contextsize: 120 } },
+    contextUsage: { tokens: 1, messageTokens: 1, toolDefinitionTokens: 0, percent: 1, contextsize: 120 },
+    sessionDataRows: [{ dataid: "1", sessionid: session.sessionid, type: "user", contents: { kind: "user_message", text: "hello" }, createdat: new Date() }]
+  });
+
+  assert.equal(result.compact?.endTurn, true);
+  assert.ok((result.compact?.report.tokens ?? 0) > 1);
 });
 
 test("stopturn effect stops later executors in the same event plan", async () => {

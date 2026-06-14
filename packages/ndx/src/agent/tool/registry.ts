@@ -47,7 +47,7 @@ export async function listAvailableTools(options: NDXToolRegistryOptions = {}): 
 }
 
 export function toolSchemas(tools: NDXResolvedTool[]): Record<string, unknown>[] {
-  return tools.map((tool) => tool.schema);
+  return tools.filter((tool) => !(tool.source === "builtin" && tool.name === "edit")).map((tool) => tool.schema);
 }
 
 export function resolveBuiltinToolRoot(): string {

@@ -59,7 +59,10 @@ export const PROTOCOL_EVENT_UI_REDUCERS = {
 } satisfies Record<NDXTurnEventName, ProtocolEventUiReducer>;
 
 export function applyProtocolEventToSessionUiState(current: SessionUiState, message: NDXSessionEventMessage, text: ProtocolEventUiText): SessionUiState {
-  return PROTOCOL_EVENT_UI_REDUCERS[message.event](current, message, text);
+  const next = PROTOCOL_EVENT_UI_REDUCERS[message.event](current, message, text);
+  return typeof message.sessionState?.isrunning === "boolean"
+    ? { ...next, agentRunning: message.sessionState.isrunning }
+    : next;
 }
 
 function contextUsageForUi(current: SessionUiState, usage?: NDXAgentWebContextUsage) {
@@ -117,15 +120,10 @@ function modelProgressEvent(current: SessionUiState, message: NDXSessionEventMes
 }
 
 function assistantStreamEvent(current: SessionUiState, message: NDXSessionEventMessage, text: ProtocolEventUiText): SessionUiState {
-  const streamId = `stream:${message.sessionid}`;
   return {
     ...withContextAndTurn(current, message),
     agentRunning: true,
-    notice: text.operationInProgress,
-    chatMessages: [
-      ...current.chatMessages.filter((item) => item.id !== "empty" && item.id !== streamId),
-      { id: streamId, role: "assistant", text: sessionDataContentsText(message.contents) ?? JSON.stringify(message.contents), attachments: [] }
-    ]
+    notice: text.operationInProgress
   };
 }
 

@@ -62,9 +62,9 @@ must copy that tree to `/app/dist/server/base`.
 Do not copy it to `/app/dist/server/basetools`. Function tools such as
 `session_history` are bundled into server JavaScript and can still appear when
 the process-tool directory is missing. That partial tool list is a broken
-runtime: `bash`, `read_file`, `grep_search`, `edit`, and `loadSkill` disappear,
-which can make the model overuse `session_history` because the normal current
-workspace tools were never exposed.
+runtime: `bash`, `read_file`, `grep_search`, `edit`, `edit_lines`, and
+`loadSkill` disappear, which can make the model overuse `session_history`
+because the normal current workspace tools were never exposed.
 
 `apps/ndx/src/server/docker.test.ts` guards this Dockerfile path contract.
 
@@ -81,6 +81,21 @@ Built-in filesystem tools resolve relative paths from `NDX_PROJECT_HOME`, but
 container absolute paths are valid when they stay under `NDX_USER_HOME`. They
 must reject paths outside that virtual root. Tools run inside the application
 container and must not expect Windows host paths to exist as physical paths.
+
+`read_file` returns both the legacy `content` string and a `lines` array whose
+items carry 1-based file line numbers. `edit_lines` consumes those line numbers
+as a 1-based inclusive range and replaces that range with its stdin
+`replacement`. When `expected_text` is supplied, `edit_lines` must fail if the
+current selected range differs from that text. The legacy builtin `edit` process
+tool remains installed for compatibility but is excluded from model-facing tool
+schemas.
+
+`grep_search` executes `pattern` as a JavaScript `RegExp` source with
+case-insensitive matching. Its returned `matches`, `count`, and `truncated`
+fields count matching lines across all searched files, not per-file grep hits.
+Default project-root traversal skips generated/runtime directories such as
+`dist`, `build`, `coverage`, `volume`, and `.ndx/tool-output`; an explicitly
+selected root directory is still searchable.
 
 ## Stdout Event Protocol
 

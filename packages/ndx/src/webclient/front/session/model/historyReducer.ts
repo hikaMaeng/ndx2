@@ -5,7 +5,7 @@ import type {
 } from "ndx/common/protocol";
 import {
   applyIterationDetail,
-  chatMessageFromSessionEvent,
+  chatMessagesFromHistorySummary,
   mergeRestoredChatMessages,
   mergeRestoredTurnFlows,
   mergeTurnSummary
@@ -21,10 +21,7 @@ export function applySessionHistorySummary(model: SessionInstanceModel, message:
     },
     history: {
       ...model.history,
-      messages: mergeRestoredChatMessages(model.history.messages, message.visibleEvents.flatMap((event) => {
-        const chatMessage = chatMessageFromSessionEvent(event);
-        return chatMessage ? [chatMessage] : [];
-      })),
+      messages: mergeRestoredChatMessages(model.history.messages, chatMessagesFromHistorySummary(message.visibleEvents, message.turns)),
       turns: mergeRestoredTurnFlows(model.history.turns, message.turns)
     },
     runtime: {

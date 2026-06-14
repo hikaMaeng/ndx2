@@ -73,7 +73,7 @@ export function SessionSurface({
   updateSessionUi,
 }: SessionSurfaceProps) {
   const surfaceHasChat = Boolean(session || project);
-  const surfaceAgentRunning = Boolean(ui.agentRunning);
+  const surfaceAgentRunning = Boolean(ui.agentRunning || session?.isrunning);
   const surfaceCompactRunning = Boolean(ui.compactRunning);
   const surfaceModelLabel = ui.selectedModel.model.trim() || t[RSC.SESSION_MODEL_SELECT_PLACEHOLDER] || "모델 선택";
   const surfaceContextUsage: NDXAgentWebContextUsage | undefined = session ? ui.reportedContextUsage : undefined;

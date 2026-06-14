@@ -14,6 +14,7 @@ export type NDXSessionSearchRow = {
   tokenlength: number;
   similarity?: number | null;
   rank?: number | null;
+  lexical_score?: number | null;
   projectname?: string;
   path?: string;
   title?: string;
@@ -55,6 +56,7 @@ export type NDXSessionHistorySearchResult = {
     score?: {
       similarity?: number;
       rank?: number;
+      lexical?: number;
     };
   }>;
 };
@@ -243,6 +245,8 @@ LIMIT $${limitIndex};
     return result.rows;
   }
 
+  values.push(sessionSearchLexicalTerms(query));
+  const lexicalTermsIndex = values.length;
   values.push(limit);
   const limitIndex = values.length;
   const result = await database.query<NDXSessionSearchRow>(
@@ -255,13 +259,23 @@ WITH scoped AS (
 ),
 ranked AS (
 	  SELECT dataid::text AS dataid, sessionid::text AS sessionid, type, createdat, "text" AS text, tokenlength, projectname, title,
-         ts_rank_cd(fts, websearch_to_tsquery(ndx_sessionsearch_regconfig(), $${queryIndex})) AS rank
+         ts_rank_cd(fts, websearch_to_tsquery(ndx_sessionsearch_regconfig(), $${queryIndex})) AS rank,
+         CASE
+           WHEN cardinality($${lexicalTermsIndex}::text[]) = 0 THEN 0::double precision
+           ELSE (
+             SELECT count(*)::double precision / cardinality($${lexicalTermsIndex}::text[])::double precision
+             FROM unnest($${lexicalTermsIndex}::text[]) AS query_term(value)
+             WHERE lower("text") LIKE '%' || query_term.value || '%'
+           )
+         END AS lexical_score
   FROM scoped
 )
 SELECT *
 FROM ranked
 WHERE rank >= 0.05
-ORDER BY rank DESC, createdat DESC, dataid DESC
+   OR lexical_score >= 0.2
+ORDER BY (LEAST(rank * 2, 0.65) + lexical_score * 0.35) DESC,
+         rank DESC, lexical_score DESC, createdat DESC, dataid DESC
 LIMIT $${limitIndex};
 `,
     values
@@ -280,10 +294,11 @@ function formatSessionHistoryRows(rows: NDXSessionSearchRow[]): NDXSessionHistor
     createdat: row.createdat instanceof Date ? row.createdat.toISOString() : String(row.createdat),
     text: row.text,
     tokenlength: Number(row.tokenlength ?? 0),
-    ...((typeof row.similarity === "number" || typeof row.rank === "number") ? {
+    ...((typeof row.similarity === "number" || typeof row.rank === "number" || typeof row.lexical_score === "number") ? {
       score: {
         ...(typeof row.similarity === "number" ? { similarity: row.similarity } : {}),
-        ...(typeof row.rank === "number" ? { rank: row.rank } : {})
+        ...(typeof row.rank === "number" ? { rank: row.rank } : {}),
+        ...(typeof row.lexical_score === "number" ? { lexical: row.lexical_score } : {})
       }
     } : {})
   }));

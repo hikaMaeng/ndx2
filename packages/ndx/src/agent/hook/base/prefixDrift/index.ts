@@ -1,4 +1,5 @@
 import type { NDXHookCodeExecutor, NDXHookEffect } from "../../index.js";
+import { modelRequestMessageText } from "../../../contextusage/index.js";
 import type { ResponseInputItem } from "ndx/common/responseapi";
 
 export type NDXModelRequestPrefixDrift = {
@@ -12,53 +13,76 @@ export type NDXModelRequestPrefixDrift = {
   nextPreview?: string;
 };
 
+export type NDXModelRequestPrefixSnapshot = string[];
+
+const sessionModelRequestPrefixPreviews = new Map<string, NDXModelRequestPrefixSnapshot>();
+
 export const prefixDriftAuditHook: NDXHookCodeExecutor = {
   kind: "code",
   name: "system.turn.model.request.prefix_drift_audit",
   source: "system",
   run(context): NDXHookEffect {
-    const drift = inspectModelRequestPrefix(context.previousModelRequestMessages, context.messages ?? []);
+    const drift = inspectModelRequestPrefix(context.previousModelRequestStablePrefix, context.messages ?? []);
     return drift ? { prefixDrifts: [drift], diagnostics: [drift.message] } : { type: "noeffect" };
   }
 };
 
-export function cloneModelRequestMessages(messages: ResponseInputItem[]): ResponseInputItem[] {
-  return JSON.parse(JSON.stringify(messages)) as ResponseInputItem[];
+export function snapshotModelRequestStablePrefix(messages: ResponseInputItem[]): NDXModelRequestPrefixSnapshot {
+  return messages.slice(0, stablePrefixLength(messages)).map((message) => modelRequestMessageText(message));
 }
 
-export function inspectModelRequestPrefix(previous: ResponseInputItem[] | undefined, next: ResponseInputItem[], label = "model request"): NDXModelRequestPrefixDrift | undefined {
-  if (!previous || previous.length === 0) {
+export function readSessionModelRequestPrefixPreview(sessionid: string): NDXModelRequestPrefixSnapshot | undefined {
+  const snapshot = sessionModelRequestPrefixPreviews.get(sessionid);
+  return snapshot ? [...snapshot] : undefined;
+}
+
+export function rememberSessionModelRequestPrefixPreview(sessionid: string, messages: ResponseInputItem[]): NDXModelRequestPrefixSnapshot | undefined {
+  const snapshot = snapshotModelRequestStablePrefix(messages);
+  if (snapshot.length === 0) {
+    sessionModelRequestPrefixPreviews.delete(sessionid);
     return undefined;
   }
-  const prefixLength = stablePrefixLength(previous);
-  if (next.length < prefixLength) {
+  sessionModelRequestPrefixPreviews.set(sessionid, snapshot);
+  return [...snapshot];
+}
+
+export function clearSessionModelRequestPrefixPreview(sessionid: string): void {
+  sessionModelRequestPrefixPreviews.delete(sessionid);
+}
+
+export function inspectModelRequestPrefix(previousStablePrefix: NDXModelRequestPrefixSnapshot | undefined, next: ResponseInputItem[], label = "model request"): NDXModelRequestPrefixDrift | undefined {
+  if (!previousStablePrefix || previousStablePrefix.length === 0) {
+    return undefined;
+  }
+  const nextStablePrefix = snapshotModelRequestStablePrefix(next);
+  if (nextStablePrefix.length < previousStablePrefix.length) {
     return {
       label,
       message: `${label} removed stable model-request prefix messages.`,
-      previousMessageCount: previous.length,
+      previousMessageCount: previousStablePrefix.length,
       nextMessageCount: next.length,
-      stablePrefixLength: prefixLength
+      stablePrefixLength: previousStablePrefix.length
     };
   }
-  for (let index = 0; index < prefixLength; index += 1) {
-    if (stableMessageKey(previous[index]) !== stableMessageKey(next[index])) {
+  for (let index = 0; index < previousStablePrefix.length; index += 1) {
+    if (previousStablePrefix[index] !== nextStablePrefix[index]) {
       return {
         label,
         message: `${label} changed stable model-request prefix message ${index + 1}.`,
         messageIndex: index,
-        previousMessageCount: previous.length,
+        previousMessageCount: previousStablePrefix.length,
         nextMessageCount: next.length,
-        stablePrefixLength: prefixLength,
-        previousPreview: previewMessage(previous[index]),
-        nextPreview: previewMessage(next[index])
+        stablePrefixLength: previousStablePrefix.length,
+        previousPreview: previewMessageKey(previousStablePrefix[index]),
+        nextPreview: previewMessageKey(nextStablePrefix[index])
       };
     }
   }
   return undefined;
 }
 
-export function inspectContextPreparedMessagesPrefix(before: ResponseInputItem[], after: ResponseInputItem[]): NDXModelRequestPrefixDrift | undefined {
-  return inspectModelRequestPrefix(before, after, "turn.context.prepared hook");
+export function inspectContextPreparedMessagesPrefix(beforeStablePrefix: NDXModelRequestPrefixSnapshot, after: ResponseInputItem[]): NDXModelRequestPrefixDrift | undefined {
+  return inspectModelRequestPrefix(beforeStablePrefix, after, "turn.context.prepared hook");
 }
 
 function stablePrefixLength(messages: ResponseInputItem[]): number {
@@ -79,11 +103,6 @@ function hasOneRequestAttachmentPayload(message: ResponseInputItem): boolean {
   });
 }
 
-function stableMessageKey(message: ResponseInputItem | undefined): string {
-  return JSON.stringify(message ?? null);
-}
-
-function previewMessage(message: ResponseInputItem | undefined): string {
-  const text = stableMessageKey(message);
-  return text.length > 500 ? `${text.slice(0, 500)}...` : text;
+function previewMessageKey(text: string | undefined): string {
+  return text && text.length > 500 ? `${text.slice(0, 500)}...` : text ?? "null";
 }

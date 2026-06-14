@@ -70,6 +70,19 @@ payload="$(
   printf '%s' "$file_path" | json_quote
   printf ',"offset":%s,"line_count":%s,"returned_line_count":%s,"truncated":%s,"content":' "${offset:-0}" "$line_count" "$returned_line_count" "$truncated"
   json_quote <"$content_file"
+  printf ',"lines":'
+  awk -v offset="${offset:-0}" '
+    function q(s) {
+      gsub(/\\/,"\\\\",s); gsub(/"/,"\\\"",s); gsub(/\t/,"\\t",s); gsub(/\r/,"\\r",s);
+      return "\"" s "\"";
+    }
+    BEGIN { printf "["; }
+    {
+      if (NR > 1) printf ",";
+      printf "{\"line\":%d,\"text\":%s}", offset + NR, q($0);
+    }
+    END { printf "]"; }
+  ' "$content_file"
   printf '}'
 )"
 emit_result_json "$payload"

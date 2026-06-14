@@ -26,8 +26,14 @@ that row as model-visible history instead of treating it as a one-request-only
 append. One-request-only appends are reserved for provider payload mechanics such
 as attachment bytes that are already represented durably by stable references.
 Final provider-visible message assembly is owned by
-`packages/ndx/src/agent/turnloop/model-call/finalMessages`. It runs an ordered
-policy pipeline over durable rows, then appends one-request attachment payloads.
+`packages/ndx/src/agent/turnloop/model-call/finalMessages`. Its public entry is
+`index.ts` function `prepareFinalModelRequestMessagesForCall`. That function
+owns the non-exported ordered final-message policy list and runs it over durable
+rows. It also owns the non-exported row-projection policy order. `messages/`
+and `rows/` own only the individual policy implementations, while row handling
+still routes each row through an ordered projection-policy array instead of a
+single switch-like projector. The result is then combined with one-request
+attachment payloads.
 The pipeline may suppress stale runtime-control noise that would otherwise be
 replayed into a later user request, including old `cot_work_reminder` rows,
 runtime-control error rows, and invalid tool-call/tool-output pairs from before
@@ -119,10 +125,17 @@ decisions do not use stale average-turn data.
 
 Compaction can happen before the current user input is recorded. In that case
 only previous history is compacted, then the user input is appended normally so
-the turn semantics are preserved. If an iteration reaches the limit after tool
-results or hook output, compaction is allowed to end the current turn; the turn
-loop records a final assistant message explaining that the turn ended because
-history was compacted.
+the turn semantics are preserved.
+
+If an iteration reaches the limit after the current input has already produced
+tool results or hook output, compaction must not blur that just-finished turn.
+The compact source window ends before the current input row. The turn loop then
+appends a `compact_replay` row after the compact row with the current input
+turn's model-visible rows. Browser history ignores `compact_replay`, but model
+context reconstruction expands it in place using the normal user/tool/result
+row projections. The turn loop records a final assistant message explaining
+that the turn ended because history was compacted, and session-server request
+handling may start a fresh continuation turn after that terminal turn.
 
 `turncontextusage` stores one global aggregate row:
 
@@ -136,6 +149,22 @@ The table is initialized from existing `sessiondata` during server startup.
 After each final assistant row, the built-in `turn.model.responding` hook
 launches a detached shell update against PostgreSQL so the model-response path
 does not wait for aggregate maintenance.
+
+Context-window usage is estimated from the model request shape that will be
+sent to the Responses-compatible provider, including role labels, tool-call
+continuation records, and tool definitions. When the running agent process has
+a previous model-request stable-prefix preview for the same session, usage
+calculation reuses that preview for the matching prefix and estimates only the
+new suffix. The preview is a non-authoritative in-memory optimization for
+accounting and prefix-drift auditing; PostgreSQL `sessiondata` remains the
+source of truth for context reconstruction, and stale previews are ignored when
+they do not match the reconstructed prefix.
+
+Automatic compaction reserves output budget and an expected next-turn budget.
+Observed average turn size may reduce that expected budget when turns are
+small, but it is capped by the default context-size percentage so a past
+exceptionally large tool-heavy turn cannot force early compaction for unrelated
+later turns.
 
 `sessionsearch` stores the searchable text projection of selected
 `sessiondata` rows:
@@ -152,11 +181,9 @@ does not wait for aggregate maintenance.
 | `hnsw` | `vector(256)`. Stores the first 256 dimensions of `embedding` for the HNSW cosine index. |
 | `tokenlength` | Token count derived from `fts`. |
 
-The turn loop invokes built-in session-search hooks after the durable
-`sessiondata` row is written. `turn.request.received` handles the user input
-row after the request has been normalized and appended; `turn.model.responding`
-handles the final assistant row after the final response has been appended. The
-hooks insert only two model-visible row kinds:
+The turn loop invokes built-in session-search hooks from `turn.end` after the
+durable input and final assistant `sessiondata` rows are written. The hooks
+insert only two model-visible row kinds:
 
 1. `user_message` rows written when a user request arrives;
 2. `assistant_message` rows written for the final user-facing answer.
@@ -295,11 +322,15 @@ tools inside the internal rewrite loop for current workspace facts, but
 session-history enrichment is not delegated to the model as a tool decision.
 
 `session_history` is a function tool over `sessionsearch`. It supports three
-scopes: all NDX sessions, all sessions in one project, and one session. SQL
-narrows the scope first, then ranking is applied. With embedding settings, the
-tool embeds the query and prioritizes cosine similarity while still exposing
-Korean FTS rank. Without embedding settings or when query embedding fails, it
-uses `ts_rank_cd` over `fts`. With no query, it lists recent rows in scope.
+scopes: all NDX sessions, all sessions in one project, and one session. Omitted
+scope defaults to the current project because prior coding work usually spans
+multiple sessions in one repository. SQL narrows the scope first, then ranking
+is applied. With embedding settings, the tool embeds the query and prioritizes
+cosine similarity while still exposing Korean FTS rank and lexical substring
+matches. Without embedding settings or when query embedding fails, it uses
+`ts_rank_cd` over `fts` plus the same lexical substring fallback so code
+identifier prefixes such as `NextPiecePre` can match stored text containing
+`NextPiecePreview`. With no query, it lists recent rows in scope.
 It is not a repository inspection or code search tool; current files must be
 inspected through process tools such as `glob`, `grep_search`, `read_file`,
 `edit`, or `bash`.

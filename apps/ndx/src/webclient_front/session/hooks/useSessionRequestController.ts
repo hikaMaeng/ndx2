@@ -1,12 +1,13 @@
 import React from "react";
 import type { NDXAgentWebSession, NDXWebClientProject } from "ndx/webclient/common";
-import { createProjectSession, encodeAttachments, modelSupportsAttachmentMimeType, toModelConfig, type SelectedModelConfig, type SessionAttachmentDraft, type SessionUiState } from "ndx/webclient/front";
+import { createProjectSession, encodeAttachments, modelSupportsAttachmentMimeType, pendingUserChatMessage, toModelConfig, withoutPendingUserChatMessages, type SelectedModelConfig, type SessionAttachmentDraft, type SessionUiState } from "ndx/webclient/front";
 import type { SessionSocketClient } from "../socket/sessionSocket";
 import { RSC } from "../../app/resource";
 import { rightSidebarCleared } from "../rightsidebar/state";
 
 type UseSessionRequestControllerOptions = {
   activeProject?: NDXWebClientProject;
+  activeSession?: NDXAgentWebSession;
   activeSessionId?: string;
   activeUiKey?: string;
   activeUiKeyRef: React.MutableRefObject<string | undefined>;
@@ -27,7 +28,6 @@ type UseSessionRequestControllerOptions = {
   attachedSessionIdsRef: React.MutableRefObject<Set<string>>;
   sessionUiManagerRef: React.MutableRefObject<{ promoteToSession: (sessionid: string, previousKey: string) => void; snapshot: Record<string, SessionUiState> }>;
   sessionsByProject: Record<string, NDXAgentWebSession[]>;
-  setActiveSessionError: (message: string) => void;
   setActiveSessionId: React.Dispatch<React.SetStateAction<string | undefined>>;
   setAgentRunning: (running: boolean) => void;
   setAutoScrollEnabled: (enabled: boolean) => void;
@@ -46,6 +46,7 @@ type UseSessionRequestControllerOptions = {
 
 export function useSessionRequestController({
   activeProject,
+  activeSession,
   activeSessionId,
   activeUiKey,
   activeUiKeyRef,
@@ -66,7 +67,6 @@ export function useSessionRequestController({
   attachedSessionIdsRef,
   sessionUiManagerRef,
   sessionsByProject,
-  setActiveSessionError,
   setActiveSessionId,
   setAgentRunning,
   setAutoScrollEnabled,
@@ -88,7 +88,10 @@ export function useSessionRequestController({
   const submitChatRequest = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const socket = getSocket();
-    if (agentRunning) {
+    if (agentRunning && activeSession?.isrunning === false && activeSessionId) {
+      updateSessionUi(activeSessionId, (current) => ({ ...current, agentRunning: false, compactRunning: false, cotWork: undefined }));
+    }
+    if (activeSession?.isrunning === true || (agentRunning && activeSession?.isrunning !== false)) {
       const sessionid = activeSessionId;
       if (!sessionid) return;
       if (!attachedSessionIdsRef.current.has(sessionid)) {
@@ -140,7 +143,19 @@ export function useSessionRequestController({
       setSessionNotice(t[RSC.APP_STATUS_NO_ACTIVE_PROJECT_ALERT]);
       return;
     }
+    if (!draftProject && !activeSessionId) {
+      finishAction(sessionSubmitActionKey);
+      setAgentRunning(false);
+      setSessionNotice(t[RSC.APP_STATUS_NO_ACTIVE_PROJECT_ALERT]);
+      return;
+    }
     setAutoScrollEnabled(true);
+    updateActiveUi((current) => ({
+      ...current,
+      agentRunning: true,
+      notice: t[RSC.APP_STATUS_OPERATION_IN_PROGRESS_STATUS] || "응답 수신 중...",
+      chatMessages: [...withoutPendingUserChatMessages(current.chatMessages), pendingUserChatMessage(text || "첨부 요청")]
+    }));
     let activeSubmitActionKey = sessionSubmitActionKey;
     const finishSubmitAction = () => finishAction(activeSubmitActionKey);
 
@@ -150,6 +165,18 @@ export function useSessionRequestController({
       const sendMessage = (sessionid: string, attachSessionRow?: NDXAgentWebSession) => {
         const model = toModelConfig(selectedModel);
         if (attachedSessionIdsRef.current.has(sessionid) && getSocket()?.sendInput(sessionid, requestText, model, encodedAttachments)) {
+          setSessionsByProject((current) => {
+            let changed = false;
+            const next = Object.fromEntries(Object.entries(current).map(([projectName, sessions]) => [
+              projectName,
+              sessions.map((session) => {
+                if (session.sessionid !== sessionid || session.isrunning) return session;
+                changed = true;
+                return { ...session, isrunning: true };
+              })
+            ]));
+            return changed ? next : current;
+          });
           updateSessionUi(sessionid, (current) => rightSidebarCleared({ ...current, agentRunning: true, cotWork: undefined }));
           return;
         }
@@ -161,7 +188,7 @@ export function useSessionRequestController({
           updateSessionUi(sessionid, (current) => ({ ...current, pendingAttachRequest: undefined }));
         }
         finishSubmitAction();
-        setAgentRunning(false);
+        updateSessionUi(sessionid, (current) => ({ ...current, agentRunning: false, chatMessages: withoutPendingUserChatMessages(current.chatMessages) }));
         setSessionNotice(t[RSC.APP_STATUS_SOCKET_REQUIRED_ALERT]);
       };
 
@@ -199,27 +226,21 @@ export function useSessionRequestController({
         }).catch((error) => {
           const message = error instanceof Error && error.message ? error.message : t[RSC.APP_STATUS_STATE_UNAVAILABLE_ALERT];
           finishSubmitAction();
-          setAgentRunning(false);
-          setActiveSessionError(message);
-          setSessionNotice(message);
+          updateActiveUi((current) => ({ ...current, agentRunning: false, chatMessages: withoutPendingUserChatMessages(current.chatMessages), sessionError: message, notice: message }));
         });
         return;
       }
 
       if (!activeSessionId) {
         finishSubmitAction();
-        setAgentRunning(false);
-        setSessionNotice(t[RSC.APP_STATUS_NO_ACTIVE_PROJECT_ALERT]);
+        updateActiveUi((current) => ({ ...current, agentRunning: false, chatMessages: withoutPendingUserChatMessages(current.chatMessages), notice: t[RSC.APP_STATUS_NO_ACTIVE_PROJECT_ALERT] }));
         return;
       }
-
       sendMessage(activeSessionId);
     })().catch((error) => {
       const message = error instanceof Error && error.message ? error.message : t[RSC.APP_STATUS_STATE_UNAVAILABLE_ALERT];
       finishSubmitAction();
-      setAgentRunning(false);
-      setActiveSessionError(message);
-      setSessionNotice(message);
+      updateActiveUi((current) => ({ ...current, agentRunning: false, chatMessages: withoutPendingUserChatMessages(current.chatMessages), sessionError: message, notice: message }));
       setChatInput(text);
       setChatAttachments(pendingAttachments);
     });

@@ -23,7 +23,6 @@ import {
   runSessionTurn,
   searchSessionHistory,
   sessionSearchText,
-  sessionDataRowsToModelMessages,
   sessionRowsThroughTurn,
   sessionTurnRangeForInput,
   updateSessionEndTurn,
@@ -31,9 +30,10 @@ import {
   updateSessionTitle
 } from "./index.js";
 import { sessionDataRowsForModelContext } from "../compact/index.js";
+import { prepareFinalModelRequestMessagesForCall } from "../turnloop/model-call/finalMessages/index.js";
 import { writeSessionAttachments } from "./attachments.js";
 import { createNDXHookRuntime } from "../hook/index.js";
-import { requestRuntimeTurnInterrupt } from "../turnloop/index.js";
+import { NDX_COMPACT_CONTINUATION_REQUEST_TEXT, requestRuntimeTurnInterrupt, runAgentTurnWithCompactContinuation } from "../turnloop/index.js";
 import { NDX_TURN_EVENT } from "../../common/protocol/index.js";
 import type { NDXSessionDataRow, NDXSessionRow } from "./index.js";
 import type { NDXDatabase } from "../init/index.js";
@@ -50,6 +50,17 @@ function dataRow(dataid: string, type: string, contents: unknown): NDXSessionDat
     contents,
     createdat: new Date("2026-06-02T00:00:00.000Z")
   };
+}
+
+function buildTestHistoryMessages(rows: NDXSessionDataRow[]) {
+  return prepareFinalModelRequestMessagesForCall({
+    parts: {
+      developer: { role: "system", content: "" },
+      user: { role: "user", content: "" },
+      historyRows: rows
+    },
+    omitBaseMessages: true
+  });
 }
 
 async function waitFor(check: () => boolean): Promise<void> {
@@ -332,7 +343,7 @@ test("searchSessionHistory narrows by project before FTS ranking when embeddings
   assert.equal(result.results[0].score?.rank, 0.2);
   assert.match(queries[0].text, /WHERE s\.projectname = \$1/);
   assert.match(queries[0].text, /websearch_to_tsquery\(ndx_sessionsearch_regconfig\(\), \$2\)/);
-  assert.deepEqual(queries[0].values, ["018f0000-0000-7000-8000-000000000001", "검색", 5]);
+  assert.deepEqual(queries[0].values, ["018f0000-0000-7000-8000-000000000001", "검색", ["검색"], 5]);
 });
 
 test("searchSessionHistory uses 256-dimension hnsw vector while preserving embedding settings", async () => {
@@ -681,6 +692,161 @@ test("runSessionTurn appends user first, rebuilds history from sessiondata, call
   }
 });
 
+test("runAgentTurnWithCompactContinuation preserves the compact-ending turn and starts a continuation turn", async () => {
+  const projectPath = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-session-compact-continuation-"));
+  const seenModelMessages: Array<Array<{ role?: string; content?: unknown; type?: unknown; call_id?: unknown }>> = [];
+  let responseIndex = 0;
+  const modelServer = http.createServer((request, response) => {
+    let body = "";
+    request.on("data", (chunk) => {
+      body += String(chunk);
+    });
+    request.on("end", () => {
+      const payload = JSON.parse(body) as { input?: unknown };
+      if (Array.isArray(payload.input)) {
+        seenModelMessages.push(payload.input as Array<{ role?: string; content?: unknown; type?: unknown; call_id?: unknown }>);
+      } else if (typeof payload.input === "string") {
+        seenModelMessages.push([{ role: "text", content: payload.input }]);
+      }
+      const text = responseIndex === 0 ? "older compact summary" : "continued response";
+      responseIndex += 1;
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.end(JSON.stringify({ output: [{ type: "message", content: [{ type: "output_text", text }] }] }));
+    });
+  });
+
+  await new Promise<void>((resolve) => {
+    modelServer.listen(0, "127.0.0.1", () => resolve());
+  });
+  const address = modelServer.address();
+  assert(address && typeof address === "object");
+
+  const session: NDXSessionRow = {
+    sessionid: "018f0000-0000-7000-8000-000000000099",
+    userid: "ndev",
+    title: "",
+    mode: "none",
+    path: projectPath,
+    projectname: "project-1",
+    model: { ...modelConfig("test-model"), url: `http://127.0.0.1:${address.port}/v1` },
+    isrunning: false,
+    turnphase: "idle",
+    interruptrequested: false,
+    interruptrequestedat: null,
+    interruptcompletedat: null,
+    lastupdated: new Date("2026-05-12T00:00:00.000Z")
+  };
+  const rows: NDXSessionDataRow[] = [
+    {
+      dataid: "1",
+      sessionid: session.sessionid,
+      type: "user",
+      contents: { kind: "user_message", text: "오래된 요청" },
+      createdat: new Date("2026-05-12T00:00:01.000Z")
+    },
+    {
+      dataid: "2",
+      sessionid: session.sessionid,
+      type: "assistant",
+      contents: { kind: "assistant_message", text: "오래된 답변" },
+      createdat: new Date("2026-05-12T00:00:02.000Z")
+    }
+  ];
+  const database: NDXDatabase = {
+    async query(text, values) {
+      if (/SET\s+model = COALESCE/i.test(text)) {
+        session.isrunning = true;
+        session.turnphase = "starting";
+        if (values?.[1]) {
+          session.model = JSON.parse(String(values[1]));
+        }
+        return { rows: [session], rowCount: 1 } as never;
+      }
+      if (/SET\s+turnphase = \$2/i.test(text)) {
+        session.turnphase = String(values?.[1]);
+        return { rows: [session], rowCount: 1 } as never;
+      }
+      if (/FROM "session"/i.test(text) && /WHERE sessionid = \$1/i.test(text)) {
+        return { rows: [session], rowCount: 1 } as never;
+      }
+      if (/INSERT INTO sessiondata/i.test(text)) {
+        const row = {
+          dataid: String(rows.length + 1),
+          sessionid: String(values?.[0]),
+          type: String(values?.[1]),
+          contents: JSON.parse(String(values?.[2])),
+          createdat: new Date(`2026-05-12T00:00:${String(rows.length + 1).padStart(2, "0")}.000Z`)
+        };
+        rows.push(row);
+        return { rows: [row], rowCount: 1 } as never;
+      }
+      if (/FROM sessiondata/i.test(text)) {
+        return { rows: [...rows], rowCount: rows.length } as never;
+      }
+      if (/SET\s+isrunning = false/i.test(text)) {
+        session.isrunning = false;
+        session.turnphase = "idle";
+        return { rows: [session], rowCount: 1 } as never;
+      }
+      if (/UPDATE "session"/i.test(text)) {
+        return { rows: [session], rowCount: 1 } as never;
+      }
+      return { rows: [], rowCount: 0 } as never;
+    },
+    async close() {}
+  };
+  let compactRequested = false;
+
+  try {
+    await runAgentTurnWithCompactContinuation(database, session, { text: "현재 작업" }, undefined, {
+      hooks: createNDXHookRuntime({
+        [NDX_TURN_EVENT.ContextPrepared]: [{
+          kind: "code",
+          name: "test.context.compact_once",
+          source: "system",
+          run(context) {
+            if (compactRequested || context.requestText !== "현재 작업") {
+              return { type: "noeffect" };
+            }
+            compactRequested = true;
+            return {
+              compact: {
+                endTurn: true,
+                report: {
+                  phase: "iteration",
+                  reason: "test_limit",
+                  tokens: 950,
+                  contextsize: 1000,
+                  percent: 95,
+                  remainingTokens: 50,
+                  requiredTokens: 100,
+                  averageTurnTokens: 50,
+                  outputReserveTokens: 50
+                }
+              }
+            };
+          }
+        }]
+      }, {})
+    });
+
+    const compact = rows.find((row) => row.type === "compact");
+    const replay = rows.find((row) => row.contents && typeof row.contents === "object" && (row.contents as { kind?: unknown }).kind === "compact_replay");
+    assert.equal((compact?.contents as { sourceEndDataId?: unknown }).sourceEndDataId, "2");
+    assert.equal((replay?.contents as { sourceStartDataId?: unknown }).sourceStartDataId, "3");
+    assert.equal(rows.filter((row) => row.type === "user").at(-1)?.contents && (rows.filter((row) => row.type === "user").at(-1)?.contents as { text?: unknown }).text, NDX_COMPACT_CONTINUATION_REQUEST_TEXT);
+    assert.equal(rows.at(-1)?.contents && (rows.at(-1)?.contents as { text?: unknown }).text, "continued response");
+    const continuationMessages = seenModelMessages.at(-1) ?? [];
+    const continuationJson = JSON.stringify(continuationMessages);
+    assert.match(continuationJson, /현재 작업/);
+    assert.match(continuationJson, /컨텍스트 compact로 직전 턴이 종료되었습니다/);
+  } finally {
+    modelServer.close();
+    await once(modelServer, "close");
+    await fs.rm(projectPath, { recursive: true, force: true });
+  }
+});
+
 test("runSessionTurn sends provider reasoning effort without inserting prompt control rows", async () => {
   const projectPath = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-session-reasoning-control-"));
   const modelInputs: unknown[] = [];
@@ -790,7 +956,7 @@ test("runSessionTurn sends provider reasoning effort without inserting prompt co
 });
 
 test("session data model reconstruction keeps cot_work reminders as durable user history", () => {
-  const messages = sessionDataRowsToModelMessages([
+  const messages = buildTestHistoryMessages([
     {
       dataid: "1",
       sessionid: "018f0000-0000-7000-8000-000000000010",
@@ -815,7 +981,7 @@ test("session data model reconstruction keeps cot_work reminders as durable user
 
 test("session data model reconstruction exposes preloaded skills as user context without tool output", () => {
   const skillText = "<skill>\n<name>demo</name>\n<path>/work/.ndx/skills/demo/SKILL.md</path>\nUse demo workflow.\n</skill>";
-  const messages = sessionDataRowsToModelMessages([
+  const messages = buildTestHistoryMessages([
     {
       dataid: "1",
       sessionid: "018f0000-0000-7000-8000-000000000010",
@@ -840,7 +1006,7 @@ test("session data model reconstruction exposes preloaded skills as user context
 });
 
 test("session data model reconstruction exposes compact summaries as user history", () => {
-  const messages = sessionDataRowsToModelMessages([
+  const messages = buildTestHistoryMessages([
     {
       dataid: "10",
       sessionid: "018f0000-0000-7000-8000-000000000010",
@@ -864,7 +1030,7 @@ test("session data model reconstruction exposes compact summaries as user histor
 });
 
 test("session data model reconstruction exposes reasoning control rows without treating them as user input rows", () => {
-  const messages = sessionDataRowsToModelMessages([
+  const messages = buildTestHistoryMessages([
     {
       dataid: "1",
       sessionid: "018f0000-0000-7000-8000-000000000010",
@@ -903,7 +1069,7 @@ test("session model context rows start at latest compact without manual trimming
 });
 
 test("session data model reconstruction preserves interrupted assistant text after tool iterations", () => {
-  const messages = sessionDataRowsToModelMessages([
+  const messages = buildTestHistoryMessages([
     {
       dataid: "1",
       sessionid: "018f0000-0000-7000-8000-000000000011",
@@ -1212,7 +1378,7 @@ test("runSessionTurn records cancelled tool outputs before completing an interru
       toolCallId: result.toolCallId,
       success: result.success
     })), [{ toolCallId: "call_hang_1", success: false }]);
-    const messages = sessionDataRowsToModelMessages(rows);
+    const messages = buildTestHistoryMessages(rows);
     const toolCallIndex = messages.findIndex((message) => {
       const record = message as Record<string, unknown>;
       return record.type === "function_call" && record.call_id === "call_hang_1";

@@ -53,7 +53,6 @@ export {
   runSessionTurn,
   sessionDataTitleText,
   sessionDataText,
-  sessionDataRowsToModelMessages,
   sessionRowsThroughTurn,
   sessionTurnRangeForInput,
   searchSessionHistory,
@@ -67,7 +66,7 @@ export {
 } from "./session/index.js";
 export type { NDXSessionDataContents, NDXSessionInputAttachmentData } from "./session/index.js";
 export type { NDXSessionHistoryScope, NDXSessionHistorySearchInput, NDXSessionHistorySearchResult, NDXSessionSearchRow } from "./session/index.js";
-export { buildTurnMessages, buildTurnMessageParts, buildTurnMessagesFromParts, getRuntimeTurnPhase, requestRuntimeTurnInterrupt, runAgentTurn, turnInterruptPolicy } from "./turnloop/index.js";
+export { buildTurnMessages, buildTurnMessageParts, buildTurnMessagesFromParts, getRuntimeTurnPhase, NDX_COMPACT_CONTINUATION_REQUEST_TEXT, requestRuntimeTurnInterrupt, runAgentTurn, runAgentTurnWithCompactContinuation, turnInterruptPolicy } from "./turnloop/index.js";
 export type { NDXTurnInput, NDXTurnLoopEvent, NDXTurnMessageParts } from "./turnloop/index.js";
 export type { NDXTurnInterruptAction, NDXTurnPhase } from "./turnloop/index.js";
 export { DEFAULT_NDX_MAX_MODEL_ITERATIONS, readAgentRuntimeSettings } from "./runtime-settings/index.js";

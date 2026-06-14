@@ -1,6 +1,6 @@
 import type { NDXContextUsage } from "../contextusage/index.js";
 import type { NDXCompactReport } from "../compact/index.js";
-import type { NDXHookCompactEffect, NDXHookRuntime, NDXModelRequestPrefixDrift } from "../hook/index.js";
+import type { NDXHookCompactEffect, NDXHookRuntime, NDXModelRequestPrefixDrift, NDXModelRequestPrefixSnapshot } from "../hook/index.js";
 import type { NDXAgentRuntimeSettings } from "../runtime-settings/index.js";
 import type { NDXModelConfig, NDXSessionDataRow, NDXSessionRow } from "../session/types.js";
 import type { NDXResolvedTool, NDXToolExecutionResult, NDXToolProcessEvent } from "../tool/types.js";
@@ -92,7 +92,7 @@ export type NDXTurnPipelineState = {
   messageParts?: NDXTurnMessageParts;
   currentMessageParts?: NDXTurnMessageParts;
   messages: ResponseInputItem[];
-  lastModelRequestMessages?: ResponseInputItem[];
+  lastModelRequestStablePrefix?: NDXModelRequestPrefixSnapshot;
   availableTools: NDXResolvedTool[];
   modelTools: Record<string, unknown>[];
   inputContextUsage?: NDXContextUsage;

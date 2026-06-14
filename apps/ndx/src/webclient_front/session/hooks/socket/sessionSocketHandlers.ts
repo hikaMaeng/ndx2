@@ -213,14 +213,30 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
     clearSessionError();
     liveSessionIdsRef.current.add(message.sessionid);
     const isActiveSessionEvent = message.sessionid === activeSessionIdRef.current;
+    const interruptRejectedOrStored = message.event === NDX_TURN_EVENT.Interrupted && !interruptWasAccepted(message.contents);
+    const sessionRunningState = message.sessionState?.isrunning;
     if (message.event === NDX_TURN_EVENT.AssistantRecorded || message.event === NDX_TURN_EVENT.TurnEnd) {
       clearSessionRequestActions(message.sessionid);
     }
     if (message.event === NDX_TURN_EVENT.InterruptCompleted) {
       clearSessionRequestActions(message.sessionid);
     }
-    if (message.event === NDX_TURN_EVENT.Interrupted && !interruptWasAccepted(message.contents)) {
+    if (interruptRejectedOrStored) {
       clearSessionRequestActions(message.sessionid);
+    }
+    if (typeof sessionRunningState === "boolean") {
+      project.setSessionsByProject((current) => {
+        let changed = false;
+        const next = Object.fromEntries(Object.entries(current).map(([projectName, sessions]) => [
+          projectName,
+          sessions.map((session) => {
+            if (session.sessionid !== message.sessionid || session.isrunning === sessionRunningState) return session;
+            changed = true;
+            return { ...session, isrunning: sessionRunningState };
+          })
+        ]));
+        return changed ? next : current;
+      });
     }
 
     updateSessionUi(message.sessionid, (current) => {
@@ -234,7 +250,7 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
         requestStored: t[RSC.APP_STATUS_REQUEST_STORED_STATUS]
       });
     });
-    if (!isActiveSessionEvent || message.event === NDX_TURN_EVENT.InputRecorded || message.event === NDX_TURN_EVENT.AssistantRecorded || message.event === NDX_TURN_EVENT.TurnEnd || message.event === NDX_TURN_EVENT.InterruptCompleted || (message.event === NDX_TURN_EVENT.Interrupted && !interruptWasAccepted(message.contents))) {
+    if (!isActiveSessionEvent || message.event === NDX_TURN_EVENT.InputRecorded || message.event === NDX_TURN_EVENT.AssistantRecorded || sessionRunningState === false) {
       void project.refreshSessions();
     }
   };

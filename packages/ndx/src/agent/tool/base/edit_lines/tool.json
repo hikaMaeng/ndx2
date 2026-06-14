@@ -1,0 +1,24 @@
+{
+  "tool": {
+    "command": "bash",
+    "args": ["./index.sh", "{file_path}", "{start_line}", "{end_line}", "{expected_text}"],
+    "stdin": "{replacement}"
+  },
+  "schema": {
+    "type": "function",
+    "name": "edit_lines",
+    "description": "Replaces a 1-based inclusive line range in a file under the NDX virtual root. Use this for multi-line code edits when line numbers are known from read_file or grep_search.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "file_path": { "type": "string", "description": "Path relative to the project root, or a container absolute path under the NDX virtual root. Prefer relative project paths." },
+        "start_line": { "type": "number", "description": "1-based first line to replace." },
+        "end_line": { "type": "number", "description": "1-based last line to replace, inclusive." },
+        "replacement": { "type": "string", "description": "Replacement text for the selected line range. Use an empty string to delete the selected lines." },
+        "expected_text": { "type": "string", "description": "Optional exact text currently expected in the selected line range. When provided, the edit fails if the range changed." }
+      },
+      "required": ["file_path", "start_line", "end_line", "replacement"],
+      "additionalProperties": false
+    }
+  }
+}

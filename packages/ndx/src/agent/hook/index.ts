@@ -9,7 +9,7 @@ import type { NDXContextUsage } from "../contextusage/index.js";
 import type { NDXDatabase, NDXSessionDataRow, NDXSessionRow } from "../session/types.js";
 import type { NDXResolvedTool, NDXToolExecutionResult } from "../tool/types.js";
 import type { NDXAgentLanguage, NDXAgentResourceResolver } from "../../common/resource/index.js";
-import type { NDXModelRequestPrefixDrift } from "./base/prefixDrift/index.js";
+import type { NDXModelRequestPrefixDrift, NDXModelRequestPrefixSnapshot } from "./base/prefixDrift/index.js";
 import type { ResponseInputItem, ResponsePreparedRequest } from "ndx/common/responseapi";
 
 export const NDX_HOOK_EVENT_NAMES = [
@@ -44,7 +44,7 @@ export type NDXHookContext = {
   resource?: NDXAgentResourceResolver;
   iteration?: number;
   messages?: ResponseInputItem[];
-  previousModelRequestMessages?: ResponseInputItem[];
+  previousModelRequestStablePrefix?: NDXModelRequestPrefixSnapshot;
   modelRequest?: ResponsePreparedRequest;
   previousModelRequest?: ResponsePreparedRequest;
   sessionDataRows?: NDXSessionDataRow[];
@@ -107,7 +107,7 @@ export type NDXHookRuntime = {
   plan: NDXHookPlan;
 };
 
-export type { NDXModelRequestPrefixDrift } from "./base/prefixDrift/index.js";
+export type { NDXModelRequestPrefixDrift, NDXModelRequestPrefixSnapshot } from "./base/prefixDrift/index.js";
 
 export type NDXModelRespondingContext =
   | {
@@ -390,7 +390,7 @@ function hookProcessArguments(context: NDXHookContext): Record<string, unknown> 
       projectHome: context.projectHome,
       iteration: context.iteration,
       messages: context.messages,
-      previousModelRequestMessages: context.previousModelRequestMessages,
+      previousModelRequestStablePrefix: context.previousModelRequestStablePrefix,
       modelRequest: context.modelRequest,
       previousModelRequest: context.previousModelRequest,
       availableTools: context.availableTools,

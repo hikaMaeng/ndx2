@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { createSettingsWebEmbeddingModel, createSettingsWebModel, createSettingsWebProvider, deleteSettingsWebModel, getSettingsWebDocument, getSettingsWebEmbeddingSettings, listSettingsWebEmbeddingModel, listSettingsWebModel, listSettingsWebProvider, providerModelEndpointCandidates, syncSettingsWebProviderEmbeddingModels, updateSettingsWebDocument, updateSettingsWebEmbeddingSettings, updateSettingsWebModel, updateSettingsWebProvider } from "./index.js";
+import { createSettingsWebEmbeddingModel, createSettingsWebModel, createSettingsWebProvider, deleteSettingsWebModel, getSettingsWebDocument, getSettingsWebEmbeddingSettings, listSettingsWebEmbeddingModel, listSettingsWebModel, listSettingsWebProvider, providerModelEndpointCandidates, syncSettingsWebProviderEmbeddingModels, syncSettingsWebProviderModels, updateSettingsWebDocument, updateSettingsWebEmbeddingSettings, updateSettingsWebModel, updateSettingsWebProvider } from "./index.js";
 
 test("providerModelEndpointCandidates keeps the configured host unchanged", () => {
   assert.deepEqual(providerModelEndpointCandidates("http://127.0.0.1:12345/v1"), [
@@ -114,6 +114,41 @@ test("settings-backed embedding models filter names and update embeddings in set
     assert.equal(Object.values(settings.models).some((model) => model.name === "text-embedding-3-small"), true);
     assert.equal(Object.values(settings.models).some((model) => model.name === "bge-m3-embedding"), true);
     assert.equal(Object.values(settings.models).some((model) => model.name === "custom-embedding-local"), true);
+  } finally {
+    globalThis.fetch = originalFetch;
+    await fs.rm(userHome, { recursive: true, force: true });
+  }
+});
+
+test("settings-backed provider model sync skips embed models for session model catalog", async () => {
+  const userHome = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-settings-model-sync-"));
+  const settingsPath = path.join(userHome, ".ndx", "settings.json");
+  await fs.mkdir(path.dirname(settingsPath), { recursive: true });
+  await fs.writeFile(settingsPath, JSON.stringify({
+    version: "0.1.41",
+    providers: {
+      local: { type: "openai", key: "secret", url: "http://models.example/v1" }
+    },
+    models: {}
+  }), "utf8");
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () => new Response(JSON.stringify({
+    data: [
+      { id: "qwen3-coder-next" },
+      { id: "qwen3-embed-8b" },
+      { id: "text-embedding-3-small" }
+    ]
+  }), { status: 200, headers: { "Content-Type": "application/json" } })) as typeof fetch;
+
+  try {
+    await syncSettingsWebProviderModels(userHome, { title: "local", type: "openai", url: "http://models.example/v1", token: "secret" });
+
+    const settings = JSON.parse(await fs.readFile(settingsPath, "utf8")) as {
+      models: Record<string, { name?: string }>;
+    };
+    assert.equal(Object.values(settings.models).some((model) => model.name === "qwen3-coder-next"), true);
+    assert.equal(Object.values(settings.models).some((model) => model.name === "qwen3-embed-8b"), false);
+    assert.equal(Object.values(settings.models).some((model) => model.name === "text-embedding-3-small"), false);
   } finally {
     globalThis.fetch = originalFetch;
     await fs.rm(userHome, { recursive: true, force: true });

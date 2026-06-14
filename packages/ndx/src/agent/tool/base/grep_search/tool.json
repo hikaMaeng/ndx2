@@ -1,19 +1,19 @@
 {
   "tool": {
-    "command": "bash",
-    "args": ["./index.sh", "{pattern}", "{path}", "{glob}", "{limit}"]
+    "command": "node",
+    "args": ["./index.mjs", "{pattern}", "{path}", "{glob}", "{limit}"]
   },
   "schema": {
     "type": "function",
     "name": "grep_search",
-    "description": "Searches text files for a regular expression pattern under the NDX virtual root. Prefer project-relative paths like apps/... for project files; never write them as /apps/....",
+    "description": "Searches text files with a JavaScript regular expression under the NDX virtual root. Prefer project-relative paths like apps/... for project files; never write them as /apps/....",
     "parameters": {
       "type": "object",
       "properties": {
-        "pattern": { "type": "string", "description": "JavaScript regular expression pattern." },
+        "pattern": { "type": "string", "description": "JavaScript RegExp source. Alternation like foo|bar and whitespace patterns like class\\s+Name are supported." },
         "path": { "type": "string", "description": "File or directory to search. Defaults to project root. Prefer project-relative paths; absolute paths must stay under the NDX virtual root." },
         "glob": { "type": "string", "description": "Optional glob filter such as *.ts or src/**/*.tsx." },
-        "limit": { "type": "number", "description": "Maximum number of matching lines. Defaults to 100." }
+        "limit": { "type": "number", "description": "Maximum matching lines returned across all files. Defaults to 100." }
       },
       "required": ["pattern"],
       "additionalProperties": false

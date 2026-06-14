@@ -1,5 +1,5 @@
 import { NDX_TURN_EVENT, type NDXSessionEventMessage, type NDXSessionIterationDetailResultMessage, type NDXSessionIterationSummary, type NDXSessionTurnSummary } from "ndx/common/protocol";
-import { sessionDataToChatMessage, visibleUserRequestText, type ChatMessage } from "./chat.js";
+import { isPendingUserChatMessage, sessionDataToChatMessage, visibleUserRequestText, type ChatMessage } from "./chat.js";
 import { applyTurnEvent, type TurnBatchState, type TurnFlowState } from "./turn/index.js";
 
 export function chatMessageFromSessionEvent(message: NDXSessionEventMessage): ChatMessage | undefined {
@@ -71,9 +71,10 @@ export function mergeRestoredChatMessages(current: ChatMessage[], restored: Chat
     return restored;
   }
   const restoredIds = new Set(restored.map((message) => message.id));
+  const restoredUserTexts = new Set(restored.filter((message) => message.role === "user").map((message) => message.text.trim()));
   return [
     ...restored,
-    ...current.filter((message) => message.id !== "empty" && !restoredIds.has(message.id))
+    ...current.filter((message) => message.id !== "empty" && !restoredIds.has(message.id) && !(isPendingUserChatMessage(message) && restoredUserTexts.has(message.text.trim())))
   ];
 }
 

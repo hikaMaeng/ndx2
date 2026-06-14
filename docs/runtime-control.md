@@ -95,6 +95,19 @@ If a user sends another request while the agent loop is active, the request may 
 
 Queued requests are durable events, not process-local memory only.
 
+## Compact Continuation
+
+Iteration-time compaction is a terminal turn outcome. The active turn still
+ends, but the session server can automatically start one fresh continuation
+turn with a fixed continuation request. This keeps turn boundaries explicit
+while avoiding a manual "continue" click when the next requested action is
+unambiguous.
+
+To preserve continuity, iteration compaction summarizes only rows before the
+current input turn. The just-ended turn is appended after the compact row as a
+model-only `compact_replay` row and is expanded during model context assembly.
+Clients do not render `compact_replay` as a duplicate chat message or turn.
+
 ## Interjection
 
 An interjection is a mid-turn user message inserted into the active task turn.

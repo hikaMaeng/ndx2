@@ -1,8 +1,11 @@
 import { assistantReasoningContents } from "../../session/content.js";
 import { appendSessionData } from "../../session/appendSessionData.js";
+import { rememberSessionModelRequestPrefixPreview } from "../../hook/base/prefixDrift/index.js";
 import { runTurnModelRequestHook } from "../../hook/turn.model.request/index.js";
 import { runModelRespondingHook } from "../../hook/turn.model.responding/index.js";
 import { requestModelResponse, type ModelResponse, type ResponseStreamInterrupt } from "ndx/common/responseapi";
+import { prepareFinalModelRequestMessagesForCall } from "./finalMessages/index.js";
+import { calculateDetailedContextUsage } from "../../contextusage/index.js";
 import { NDX_TURN_EVENT } from "../../../common/protocol/index.js";
 import { NDX_AGENT_RESOURCE } from "../../../common/resource/index.js";
 import { summarizeToolName } from "../../tool/index.js";
@@ -17,16 +20,13 @@ export async function callTurnModel(
 ): Promise<void> {
   try {
     const iteration = state.activeIteration || 1;
-    const contextUsage = options.contextUsage ?? state.turnContextUsage(options.finalizingAfterIterationLimit ? "" : undefined, options.finalizingAfterIterationLimit ? [] : undefined);
-    const modelRequestMessages = options.finalizingAfterIterationLimit
-      ? [
-          ...state.messages,
-          {
-            role: "system",
-            content: state.t(NDX_AGENT_RESOURCE.TURN_ITERATION_LIMIT_SYSTEM_MESSAGE, { maxIterations: state.runtimeSettings.maxModelIterations })
-          }
-      ]
-      : state.messages;
+    const modelRequestMessages = prepareFinalModelRequestMessagesForCall({
+      messages: state.messages,
+      finalizingAfterIterationLimit: options.finalizingAfterIterationLimit,
+      iterationLimitMessage: state.t(NDX_AGENT_RESOURCE.TURN_ITERATION_LIMIT_SYSTEM_MESSAGE, { maxIterations: state.runtimeSettings.maxModelIterations })
+    });
+    const modelRequestTools = options.finalizingAfterIterationLimit ? [] : state.modelTools;
+    const contextUsage = calculateDetailedContextUsage(modelRequestMessages, state.runningSession.model.contextsize, "", modelRequestTools, state.lastModelRequestStablePrefix);
     const modelRequestHook = await runTurnModelRequestHook(state.hookRuntime, {
       database: state.database,
       session: state.runningSession,
@@ -38,7 +38,7 @@ export async function callTurnModel(
       resource: state.resource,
       iteration,
       messages: modelRequestMessages,
-      previousModelRequestMessages: state.lastModelRequestMessages,
+      previousModelRequestStablePrefix: state.lastModelRequestStablePrefix,
       availableTools: state.availableTools,
       modelTools: state.modelTools,
       contextUsage
@@ -56,7 +56,7 @@ export async function callTurnModel(
         contextUsage
       });
     }
-    state.lastModelRequestMessages = JSON.parse(JSON.stringify(modelRequestMessages)) as typeof modelRequestMessages;
+    state.lastModelRequestStablePrefix = rememberSessionModelRequestPrefixPreview(state.runningSession.sessionid, modelRequestMessages);
     await state.events.onEvent?.({ type: NDX_TURN_EVENT.ModelRequest, iteration, messages: modelRequestMessages, contextUsage });
     if (options.finalizingAfterIterationLimit) {
       state.database.logger?.warn(NDX_TURN_EVENT.ModelRequest, {
@@ -83,7 +83,7 @@ export async function callTurnModel(
       response = await requestModelResponse(
         state.runningSession.model,
         modelRequestMessages,
-        options.finalizingAfterIterationLimit ? [] : state.modelTools,
+        modelRequestTools,
         {
           signal: state.interrupt.signal,
           onText: async (delta, content, stopModelResponse) => {

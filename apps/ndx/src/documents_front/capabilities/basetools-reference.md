@@ -7,13 +7,20 @@
 | 도구 | 필수 입력 | 용도 | 주의 |
 | --- | --- | --- | --- |
 | `bash` | `command` | shell command 실행 | 파일 읽기/검색/편집은 전용 도구를 우선한다. |
-| `read_file` | `path` | 텍스트 파일 일부 또는 전체 읽기 | `offset`, `limit`으로 범위를 줄일 수 있다. |
-| `grep_search` | `pattern` | 정규식 텍스트 검색 | `glob`, `limit`으로 결과 폭을 제한한다. |
+| `read_file` | `path` | 텍스트 파일 일부 또는 전체 읽기 | `offset`, `limit`으로 범위를 줄일 수 있고 결과에 1-based `lines`가 포함된다. |
+| `grep_search` | `pattern` | JavaScript RegExp 텍스트 검색 | `foo|bar` alternation을 지원한다. `glob`, `limit`으로 결과 폭을 제한한다. |
 | `glob` | `pattern` | 파일 path 검색 | 기본 limit은 100이다. |
-| `edit` | `file_path`, `old_string`, `new_string` | 정확한 문자열 치환 | `replace_all`이 아니면 old string은 정확히 한 번만 매치되어야 한다. |
+| `edit` | `file_path`, `old_string`, `new_string` | legacy 정확한 문자열 치환 | 호환용으로 남아 있지만 model-facing schema에는 노출하지 않는다. |
+| `edit_lines` | `file_path`, `start_line`, `end_line`, `replacement` | 1-based 줄 범위 치환 | 긴 코드 수정에는 `expected_text`로 읽은 범위가 그대로인지 확인한다. |
 | `write_file` | `file_path`, `content` | 전체 파일 쓰기 | parent directory를 만든다. |
 
 모든 path 입력은 project root 상대 경로 또는 NDX virtual root 하위 container absolute path여야 한다. Windows host path를 직접 전달하는 대신 server path mapping을 통해 container path가 정리되어야 한다.
+
+`grep_search`는 기본 대소문자 무시 검색이며 전체 반환 line 수 기준으로
+`limit`을 적용한다. Project root 전체 검색에서는 `.git`, `node_modules`,
+`.yarn`, `.turbo`, `.vite`, `.next`, `dist`, `build`, `coverage`, `volume`,
+`.ndx/tool-output` 같은 생성물/런타임 directory를 건너뛴다. 해당
+directory 자체를 `path`로 명시하면 그 하위는 검색 대상이 될 수 있다.
 
 ## 작업/시각/웹 도구
 
@@ -40,7 +47,7 @@
 | 파일 목록이 필요함 | `glob` |
 | 텍스트 위치를 찾아야 함 | `grep_search` |
 | 특정 파일 일부를 읽어야 함 | `read_file` |
-| 간단한 파일 치환 | `edit` |
+| 줄번호를 아는 파일 수정 | `edit_lines` |
 | 새 파일 전체 작성 | `write_file` |
 | test/build 실행 | `bash` |
 | skill body 필요 | `loadSkill` |

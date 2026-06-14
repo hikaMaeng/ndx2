@@ -18,7 +18,7 @@ Function tool은 process를 spawn하지 않고 TypeScript 함수로 실행되는
 
 ## session_history
 
-`session_history`는 `sessionsearch`를 조회하는 function tool이다. scope는 all/project/session으로 좁힐 수 있고, query가 있으면 vector 또는 FTS 검색으로 ranking한다. 이 도구가 별도 memory store를 만들면 안 된다. 검색 대상은 PostgreSQL projection이어야 한다.
+`session_history`는 `sessionsearch`를 조회하는 function tool이다. scope는 all/project/session으로 좁힐 수 있고, 생략하면 현재 project scope를 사용한다. query가 있으면 vector 또는 FTS 검색으로 ranking하며, 두 경로 모두 코드 식별자 prefix를 찾기 위한 lexical substring fallback을 포함한다. 이 도구가 별도 memory store를 만들면 안 된다. 검색 대상은 PostgreSQL projection이어야 한다.
 
 ## process tool과 다른 점
 

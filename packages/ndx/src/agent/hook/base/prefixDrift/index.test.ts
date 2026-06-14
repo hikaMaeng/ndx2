@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { cloneModelRequestMessages, inspectContextPreparedMessagesPrefix, inspectModelRequestPrefix } from "./index.js";
+import { inspectContextPreparedMessagesPrefix, inspectModelRequestPrefix, readSessionModelRequestPrefixPreview, rememberSessionModelRequestPrefixPreview, snapshotModelRequestStablePrefix } from "./index.js";
 import type { ResponseInputItem } from "ndx/common/responseapi";
 
 test("inspectModelRequestPrefix allows append-only iteration messages", () => {
@@ -15,7 +15,7 @@ test("inspectModelRequestPrefix allows append-only iteration messages", () => {
     { type: "function_call_output", call_id: "call_1", output: "file" }
   ];
 
-  assert.equal(inspectModelRequestPrefix(first, second), undefined);
+  assert.equal(inspectModelRequestPrefix(snapshotModelRequestStablePrefix(first), second), undefined);
 });
 
 test("inspectModelRequestPrefix reports stable prefix rewrites", () => {
@@ -30,15 +30,15 @@ test("inspectModelRequestPrefix reports stable prefix rewrites", () => {
     { role: "user", content: "request" }
   ];
 
-  assert.deepEqual(inspectModelRequestPrefix(first, second), {
+  assert.deepEqual(inspectModelRequestPrefix(snapshotModelRequestStablePrefix(first), second), {
     label: "model request",
     message: "model request changed stable model-request prefix message 2.",
     messageIndex: 1,
     previousMessageCount: 3,
     nextMessageCount: 3,
     stablePrefixLength: 3,
-    previousPreview: "{\"role\":\"user\",\"content\":\"prelude\"}",
-    nextPreview: "{\"role\":\"user\",\"content\":\"prelude changed\"}"
+    previousPreview: "user:\nprelude",
+    nextPreview: "user:\nprelude changed"
   });
 });
 
@@ -58,7 +58,7 @@ test("inspectModelRequestPrefix permits dropping one-request attachment payload 
     { type: "function_call", call_id: "call_1", name: "read_file", arguments: "{}" }
   ];
 
-  assert.equal(inspectModelRequestPrefix(first, second), undefined);
+  assert.equal(inspectModelRequestPrefix(snapshotModelRequestStablePrefix(first), second), undefined);
 });
 
 test("inspectContextPreparedMessagesPrefix reports hook message replacement before stable tail", () => {
@@ -73,13 +73,20 @@ test("inspectContextPreparedMessagesPrefix reports hook message replacement befo
     { role: "user", content: "request" }
   ];
 
-  assert.match(inspectContextPreparedMessagesPrefix(before, after)?.message ?? "", /changed stable model-request prefix/);
+  assert.match(inspectContextPreparedMessagesPrefix(snapshotModelRequestStablePrefix(before), after)?.message ?? "", /changed stable model-request prefix/);
 });
 
-test("cloneModelRequestMessages snapshots later in-place mutation", () => {
+test("snapshotModelRequestStablePrefix snapshots later in-place mutation", () => {
   const messages: ResponseInputItem[] = [{ role: "user", content: "before" }];
-  const clone = cloneModelRequestMessages(messages);
+  const snapshot = snapshotModelRequestStablePrefix(messages);
   messages[0] = { role: "user", content: "after" };
 
-  assert.deepEqual(clone, [{ role: "user", content: "before" }]);
+  assert.deepEqual(snapshot, ["user:\nbefore"]);
+});
+
+test("session model request prefix preview is stored as a defensive copy", () => {
+  const snapshot = rememberSessionModelRequestPrefixPreview("session-1", [{ role: "user", content: "before" }]);
+  snapshot?.push("mutated");
+
+  assert.deepEqual(readSessionModelRequestPrefixPreview("session-1"), ["user:\nbefore"]);
 });

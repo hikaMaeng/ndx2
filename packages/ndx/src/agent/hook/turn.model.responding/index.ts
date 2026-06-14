@@ -1,9 +1,9 @@
-import { modelResponseStreamGuardHook } from "../base/streamGuard/index.js";
+// import { modelResponseStreamGuardHook } from "../base/streamGuard/index.js";
 import { logNDXHookRunResult, runNDXHooks, type NDXHookCodeExecutor, type NDXHookContext, type NDXHookRunResult, type NDXHookRuntime } from "../index.js";
 import { NDX_TURN_EVENT } from "../../../common/protocol/index.js";
 
 export const systemHooks: NDXHookCodeExecutor[] = [
-  modelResponseStreamGuardHook
+  // modelResponseStreamGuardHook
 ];
 
 export async function runModelRespondingHook(

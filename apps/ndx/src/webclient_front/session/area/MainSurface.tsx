@@ -101,7 +101,8 @@ export function MainSurface({
     setTurnFlows,
     surfaceKeys,
     updateActiveUi,
-    updateSessionUi
+    updateSessionUi,
+    upsertSessionModel
   } = sessionUi;
   const activeProject = clientState.projects.find((item) => item.projectName === clientState.activeProjectName);
   const draftProject = clientState.projects.find((item) => item.projectName === draftSessionProjectId);
@@ -241,6 +242,7 @@ export function MainSurface({
   });
   const sessionRequest = useSessionRequestController({
     activeProject,
+    activeSession,
     activeSessionId,
     activeUiKey,
     activeUiKeyRef,
@@ -356,6 +358,9 @@ export function MainSurface({
     }
     if (surface.kind === "project-session") {
       const session = Object.values(sessionsByProject).flat().find((item) => item.sessionid === surface.sessionId);
+      if (session) {
+        upsertSessionModel(session);
+      }
       const cachedSkills = session ? skillsByProjectRef.current[session.projectname] : undefined;
       activeSessionIdRef.current = surface.sessionId;
       activeUiKeyRef.current = surface.sessionId;
@@ -365,7 +370,7 @@ export function MainSurface({
       updateSessionUi(surface.sessionId, (current) => ({
         ...current,
         ...(cachedSkills ? { availableSkills: cachedSkills } : {}),
-        agentRunning: current.chatMessages.length === 0 && current.turnFlows.length === 0 ? Boolean(session?.isrunning) : current.agentRunning
+        agentRunning: session ? Boolean(session.isrunning) : current.agentRunning
       }));
       sessionSocket.refreshSkillList();
       return;

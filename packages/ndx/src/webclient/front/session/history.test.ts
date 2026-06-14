@@ -28,6 +28,18 @@ test("history restore deduplicates durable messages and keeps live stream messag
   ]);
 });
 
+test("history restore removes an optimistic pending user when the durable user row arrives", () => {
+  const restored: ChatMessage[] = [
+    { id: "input-1", role: "user", text: "수정을 이어서 진행해", attachments: [] },
+    { id: "assistant-1", role: "assistant", text: "완료", attachments: [] }
+  ];
+  const live: ChatMessage[] = [
+    { id: "pending-user:1", role: "user", text: "수정을 이어서 진행해", attachments: [] }
+  ];
+
+  assert.deepEqual(mergeRestoredChatMessages(live, restored), restored);
+});
+
 test("history chat projection ignores interrupt diagnostics", () => {
   assert.equal(chatMessageFromSessionEvent({
     type: NDX_SESSION_EVENT,

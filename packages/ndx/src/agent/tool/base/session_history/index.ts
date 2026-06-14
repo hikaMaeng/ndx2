@@ -10,14 +10,14 @@ export function sessionHistoryToolSchema(): Record<string, unknown> {
   return {
     type: "function",
     name: NDX_SESSION_HISTORY_TOOL_NAME,
-    description: "Search prior NDX session history only for explicit history requests, references to earlier/other sessions, or a required prior-session decision. Never use for current workspace exploration, file/code search, implementation discovery, or choosing files to edit; use glob, grep_search, read_file, edit, or bash instead.",
+    description: "Search prior NDX session history only for explicit history requests, references to earlier/other sessions, or a required prior-session decision. Prefer project scope for prior work in the current repository; use session scope only when the user asks about this exact session. Never use for current workspace exploration, file/code search, implementation discovery, or choosing files to edit; use glob, grep_search, read_file, edit, or bash instead.",
     parameters: {
       type: "object",
       properties: {
         scope: {
           type: "string",
           enum: ["all", "project", "session"],
-          description: "Search all NDX sessions, all sessions in one project, or one specific session."
+          description: "Search all NDX sessions, all sessions in one project, or one specific session. Defaults to project scope for the current session project."
         },
         query: {
           type: "string",
@@ -38,7 +38,6 @@ export function sessionHistoryToolSchema(): Record<string, unknown> {
           description: "Maximum rows to return. Defaults to 20."
         }
       },
-      required: ["scope"],
       additionalProperties: false
     }
   };
@@ -69,7 +68,7 @@ export async function executeSessionHistoryTool(
     group: { id: "session-references", title: "세션 참조" },
     key: `session-history:${typeof args.query === "string" && args.query.trim() ? args.query.trim() : "recent"}:${callId ?? NDX_SESSION_HISTORY_TOOL_NAME}`,
     title: typeof args.query === "string" && args.query.trim() ? `세션 검색: ${args.query.trim()}` : "최근 세션 참조",
-    body: `${Array.isArray(result.results) ? result.results.length : 0}개 결과`,
+    body: `${Array.isArray(result.results) ? result.results.length : 0}개 결과 · ${scope.type} · ${result.mode}${result.embedding.configured ? result.embedding.used ? " · embedding" : " · embedding fallback" : ""}`,
     kind: "session_history"
   }, { tool: NDX_SESSION_HISTORY_TOOL_NAME, callId, sessionid: options.sessionid });
   const output = JSON.stringify(result);
@@ -100,6 +99,10 @@ function normalizeSessionHistoryScope(args: Record<string, unknown>, options: ND
   if (args.scope === "session") {
     const sessionid = typeof args.sessionid === "string" && args.sessionid.trim() ? args.sessionid.trim() : options.sessionid ?? options.session?.sessionid;
     return sessionid ? { type: "session", sessionid } : "session scope requires sessionid or a current session.";
+  }
+  if (typeof args.scope === "undefined") {
+    const projectname = options.session?.projectname;
+    return projectname ? { type: "project", projectname } : "project scope requires projectname or a current session project.";
   }
   return "session_history scope must be all, project, or session.";
 }

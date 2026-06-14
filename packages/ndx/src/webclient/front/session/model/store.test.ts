@@ -81,6 +81,41 @@ test("history summary restores visible request and completed turn into the model
   assert.equal(next["session-a"]?.history.turns[0]?.batches[0]?.collapsed, true);
 });
 
+test("history summary synthesizes a missing visible request from the turn summary", () => {
+  const snapshot: SessionModelSnapshot = {
+    "session-a": createSessionModelFromRow(sessionRow("session-a", "project-a"))
+  };
+  const message: NDXSessionHistorySummaryResultMessage = {
+    type: NDX_SESSION_HISTORY_SUMMARY_RESULT,
+    sessionid: "session-a",
+    visibleEvents: [{
+      type: NDX_SESSION_EVENT,
+      sessionid: "session-a",
+      event: NDX_TURN_EVENT.AssistantRecorded,
+      dataid: "assistant-a",
+      contents: { kind: "assistant_message", text: "완료" },
+      createdat: "2026-06-04T00:00:02.000Z"
+    }],
+    turns: [{
+      inputDataId: "input-a",
+      sessionid: "session-a",
+      title: "복원 요청",
+      status: "completed",
+      createdat: "2026-06-04T00:00:00.000Z",
+      updatedat: "2026-06-04T00:00:02.000Z",
+      iterations: [{ iteration: 1, eventCount: 3, hasAssistantText: true, hasTools: false }]
+    }]
+  };
+
+  const next = applyRoutedSessionMessageToStore(snapshot, message, text);
+
+  assert.deepEqual(next["session-a"]?.history.messages.map((item) => ({ id: item.id, role: item.role, text: item.text })), [
+    { id: "input-a", role: "user", text: "복원 요청" },
+    { id: "assistant-a", role: "assistant", text: "완료" }
+  ]);
+  assert.equal(next["session-a"]?.history.turns[0]?.inputDataId, "input-a");
+});
+
 test("sidebar item messages are scoped to one session model", () => {
   const sessionA = createSessionModelFromRow(sessionRow("session-a", "project-a"));
   const sessionB = createSessionModelFromRow(sessionRow("session-b", "project-a"));

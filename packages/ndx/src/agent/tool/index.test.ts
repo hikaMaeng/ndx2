@@ -197,7 +197,8 @@ test("all builtin tool arg templates resolve against their own schema properties
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-tools-"));
   const tools = await listAvailableTools({ userHome: path.join(root, "user"), projectHome: path.join(root, "project") });
 
-  assert.deepEqual(tools.map((tool) => tool.name), ["askUserQuestion", "bash", "cot_work", "edit", "getImage", "glob", "grep_search", "loadSkill", "read_file", "session_history", "web_fetch", "web_search", "write_file"]);
+  assert.deepEqual(tools.map((tool) => tool.name), ["askUserQuestion", "bash", "cot_work", "edit", "edit_lines", "getImage", "glob", "grep_search", "loadSkill", "read_file", "session_history", "web_fetch", "web_search", "write_file"]);
+  assert.deepEqual(toolSchemas(tools).map((schema) => schema.name).filter((name) => name === "edit" || name === "edit_lines"), ["edit_lines"]);
   assert.ok(tools.every((tool) => tool.source === "builtin"));
 });
 
@@ -251,7 +252,7 @@ test("session_history function tool returns structured history search results", 
   assert.equal(output.results[0].text, "이전 결정 본문");
   assert.equal(output.results[0].score?.rank, 0.3);
   assert.match(queries[0].text, /WHERE ss\.sessionid = \$1::uuid/);
-  assert.deepEqual(queries[0].values, ["018f0000-0000-7000-8000-000000000000", "이전 결정", 3]);
+  assert.deepEqual(queries[0].values, ["018f0000-0000-7000-8000-000000000000", "이전 결정", ["이전", "결정"], 3]);
 });
 
 test("tool registry can filter tools by session allowlist", async () => {
@@ -563,6 +564,7 @@ test("builtin file tools read, search, edit, write, and run bash within the NDX 
   await fs.mkdir(path.join(projectHome, "src"), { recursive: true });
   await fs.mkdir(path.join(userHome, ".ndx", "skills", "demo", "references"), { recursive: true });
   await fs.writeFile(path.join(projectHome, "src", "a.ts"), "alpha\nneedle\nomega\n", "utf8");
+  await fs.writeFile(path.join(projectHome, "src", "blank.txt"), "top\n\nbottom\n", "utf8");
   await fs.writeFile(path.join(projectHome, "src", "sample.png"), Buffer.from([1, 2, 3]));
   await fs.writeFile(path.join(userHome, ".ndx", "skills", "demo", "references", "checklist.md"), "global skill reference\n", "utf8");
   const sidebarItems: unknown[] = [];
@@ -577,7 +579,9 @@ test("builtin file tools read, search, edit, write, and run bash within the NDX 
   assert.equal((sidebarItems.at(-1) as { group?: { id?: string; title?: string }; subgroup?: { title?: string }; kind?: string }).subgroup?.title, "src");
   assert.equal((sidebarItems.at(-1) as { group?: { id?: string; title?: string }; subgroup?: { title?: string }; kind?: string }).kind, "file_reference");
   assert.equal(read.events.at(-1)?.type, "result");
-  assert.equal(JSON.parse(read.output).content, "needle");
+  const readOutput = JSON.parse(read.output);
+  assert.equal(readOutput.content, "needle");
+  assert.deepEqual(readOutput.lines, [{ line: 2, text: "needle" }]);
 
   const globalRead = await executeToolCall(
     { name: "read_file", arguments: JSON.stringify({ path: path.join(userHome, ".ndx", "skills", "demo", "references", "checklist.md") }) },
@@ -607,6 +611,33 @@ test("builtin file tools read, search, edit, write, and run bash within the NDX 
   assert.equal(edit.success, true);
   assert.equal(edit.events.at(-1)?.type, "result");
   assert.equal(await fs.readFile(path.join(projectHome, "src", "a.ts"), "utf8"), "alpha\nthread\nomega\n");
+
+  const lineEdit = await executeToolCall(
+    {
+      name: "edit_lines",
+      arguments: JSON.stringify({
+        file_path: "src/a.ts",
+        start_line: 1,
+        end_line: 2,
+        replacement: "first\nsecond",
+        expected_text: "alpha\nthread"
+      })
+    },
+    options
+  );
+  assert.equal(lineEdit.success, true);
+  assert.equal(lineEdit.events.at(-1)?.type, "result");
+  assert.equal(await fs.readFile(path.join(projectHome, "src", "a.ts"), "utf8"), "first\nsecond\nomega\n");
+
+  const blankLineEdit = await executeToolCall(
+    {
+      name: "edit_lines",
+      arguments: JSON.stringify({ file_path: "src/blank.txt", start_line: 2, end_line: 2, replacement: "middle", expected_text: "" })
+    },
+    options
+  );
+  assert.equal(blankLineEdit.success, true);
+  assert.equal(await fs.readFile(path.join(projectHome, "src", "blank.txt"), "utf8"), "top\nmiddle\nbottom\n");
 
   const write = await executeToolCall(
     { name: "write_file", arguments: JSON.stringify({ file_path: "src/b.txt", content: "written" }) },
@@ -660,6 +691,7 @@ test("builtin tools emit protocol errors for invalid runtime situations", async 
     executeToolCall({ name: "glob", arguments: JSON.stringify({ pattern: "", path: "." }) }, { userHome, projectHome }),
     executeToolCall({ name: "grep_search", arguments: JSON.stringify({ pattern: "", path: "." }) }, { userHome, projectHome }),
     executeToolCall({ name: "edit", arguments: JSON.stringify({ file_path: "src/a.ts", old_string: "same", new_string: "other" }) }, { userHome, projectHome }),
+    executeToolCall({ name: "edit_lines", arguments: JSON.stringify({ file_path: "src/a.ts", start_line: 1, end_line: 1, replacement: "other", expected_text: "different" }) }, { userHome, projectHome }),
     executeToolCall({ name: "bash", arguments: JSON.stringify({ command: "exit 7", workdir: "." }) }, { userHome, projectHome })
   ];
 
@@ -668,7 +700,7 @@ test("builtin tools emit protocol errors for invalid runtime situations", async 
     assert.equal(result.success, false);
     assert.equal(result.status, "failed");
     assert.equal(result.events.at(-1)?.type, "error");
-    assert.match(result.output, /required|exist|escapes|matched|exit_code/i);
+    assert.match(result.output, /required|exist|escapes|matched|expected_text|exit_code/i);
   }
 
   const escapedWrite = results[1];

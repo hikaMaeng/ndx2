@@ -13,6 +13,7 @@ import { sessionGrantOwnerTargets, sessionSidebarItemSocketMessage, sessionSocke
 import { sendJson } from "./sendJson.js";
 import type { NDXDatabase, NDXSessionRow } from "ndx/agent";
 import { NDX_SESSION_EVENT, NDX_SESSION_READY, NDX_SESSION_SIDEBAR_ITEM, NDX_TURN_EVENT } from "ndx/common";
+import type { NDXSessionEventMessage } from "ndx/common";
 
 process.env.NDX_CONTAINER_ROOT = os.tmpdir();
 process.env.NDX_ROOT = os.tmpdir();
@@ -734,7 +735,8 @@ test("turn loop socket serialization emits terminal session events for session g
   }, {
     session,
     now: "2026-06-05T00:00:00.000Z",
-    timeKey: 123
+    timeKey: 123,
+    sessionState: { isrunning: false }
   });
 
   assert.equal(messages.length, 1);
@@ -742,6 +744,32 @@ test("turn loop socket serialization emits terminal session events for session g
   assert.equal(messages[0]?.event, NDX_TURN_EVENT.TurnEnd);
   assert.equal(messages[0]?.dataid, "turn-end:session-a:3:123");
   assert.equal((messages[0]?.contents as { kind?: unknown }).kind, "turn_end");
+  assert.deepEqual((messages[0] as NDXSessionEventMessage).sessionState, { isrunning: false });
+});
+
+test("turn loop socket serialization carries authoritative running state from context", () => {
+  const session = turnEventSessionRow("session-a");
+  const messages = sessionSocketMessagesFromTurnLoopEvent({
+    type: NDX_TURN_EVENT.InputRecorded,
+    input: {
+      dataid: "input-1",
+      sessionid: session.sessionid,
+      type: "user",
+      contents: { kind: "user_message", text: "요청" },
+      createdat: new Date("2026-06-05T00:00:00.000Z")
+    },
+    contextUsage: { tokens: 12, messageTokens: 8, toolDefinitionTokens: 4, percent: 1, contextsize: 1000 }
+  }, {
+    session,
+    now: "2026-06-05T00:00:00.000Z",
+    timeKey: 123,
+    sessionState: { isrunning: true }
+  });
+
+  assert.equal(messages.length, 1);
+  assert.equal(messages[0]?.type, NDX_SESSION_EVENT);
+  assert.equal(messages[0]?.event, NDX_TURN_EVENT.InputRecorded);
+  assert.deepEqual((messages[0] as NDXSessionEventMessage).sessionState, { isrunning: true });
 });
 
 test("turn loop socket serialization emits sidebar items without receiver token fields", () => {
@@ -760,7 +788,8 @@ test("turn loop socket serialization emits sidebar items without receiver token 
   }, {
     session,
     now: "2026-06-05T00:00:00.000Z",
-    timeKey: 123
+    timeKey: 123,
+    sessionState: { isrunning: true }
   });
 
   assert.equal(messages.length, 1);

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { NDX_TURN_EVENT } from "../../../common/protocol/index.js";
+import { snapshotModelRequestStablePrefix } from "../base/prefixDrift/index.js";
 import { createNDXHookRuntime } from "../index.js";
 import { runTurnModelRequestHook, systemHooks } from "./index.js";
 import type { NDXDatabase, NDXSessionRow } from "../../session/types.js";
@@ -36,11 +37,11 @@ test("model request system hook reports prefix drift without stopping the turn",
     userHome: "/home/ndx",
     projectHome: "/workspace",
     iteration: 2,
-    previousModelRequestMessages: [
+    previousModelRequestStablePrefix: snapshotModelRequestStablePrefix([
       { role: "system", content: "developer" },
       { role: "user", content: "stable prelude" },
       { role: "user", content: "request" }
-    ],
+    ]),
     messages: [
       { role: "system", content: "developer" },
       { role: "user", content: "changed prelude" },

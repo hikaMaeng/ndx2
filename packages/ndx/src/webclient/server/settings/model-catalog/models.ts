@@ -117,7 +117,7 @@ export async function syncSettingsWebProviderModels(userHome: string, provider: 
   const settings = await readNDXSettingsDocument(userHome);
   const body = await fetchProviderModels(provider);
   const upstreamModels = Array.isArray(body.data)
-    ? body.data.map((item) => (typeof item.id === "string" ? item.id.trim() : "")).filter(Boolean)
+    ? body.data.map((item) => (typeof item.id === "string" ? item.id.trim() : "")).filter((model) => model && !model.toLowerCase().includes("embed"))
     : [];
   settings.models = settings.models ?? {};
   const existing = new Set(

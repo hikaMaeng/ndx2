@@ -219,6 +219,11 @@ export type NDXSessionEventMessage = {
   contents: NDXSessionDataContents | Record<string, unknown> | string;
   createdat: string;
   contextUsage?: NDXSessionEventContextUsage;
+  sessionState?: NDXSessionEventSessionState;
+};
+
+export type NDXSessionEventSessionState = {
+  isrunning: boolean;
 };
 
 export type NDXSessionSidebarItemMessage = {

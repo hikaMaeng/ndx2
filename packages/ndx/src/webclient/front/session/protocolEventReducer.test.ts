@@ -152,6 +152,38 @@ test("assistant recorded clears stale optimistic user request message", () => {
   ]);
 });
 
+test("assistant deltas update the running turn without creating a standalone assistant bubble", () => {
+  const current = applyProtocolEventToSessionUiState({
+    ...createSessionUiState(),
+    chatMessages: [
+      { id: "pending-user:1", role: "user" as const, text: "요청", attachments: [] }
+    ]
+  }, {
+    type: NDX_SESSION_EVENT,
+    sessionid: "session-1",
+    event: NDX_TURN_EVENT.InputRecorded,
+    dataid: "input-1",
+    contents: { kind: "user_message", text: "요청" },
+    createdat: "2026-06-03T14:50:45.699Z"
+  }, text);
+  const message: NDXSessionEventMessage = {
+    type: NDX_SESSION_EVENT,
+    sessionid: "session-1",
+    event: NDX_TURN_EVENT.AssistantDelta,
+    dataid: "stream:session-1:1",
+    contents: { kind: "assistant_delta", iteration: 1, delta: "작성 중", content: "작성 중" },
+    createdat: "2026-06-03T14:50:46.699Z"
+  };
+
+  const next = applyProtocolEventToSessionUiState(current, message, text);
+
+  assert.deepEqual(next.chatMessages.map((item) => ({ id: item.id, role: item.role, text: item.text })), [
+    { id: "input-1", role: "user", text: "요청" }
+  ]);
+  assert.equal(next.turnFlows[0]?.batches[0]?.assistantText, "작성 중");
+  assert.equal(next.agentRunning, true);
+});
+
 test("hook diagnostics do not resurrect a completed turn as running", () => {
   const current = {
     ...createSessionUiState(),
@@ -183,6 +215,48 @@ test("hook diagnostics do not resurrect a completed turn as running", () => {
   assert.equal(next.agentRunning, false);
   assert.equal(next.notice, "request stored");
   assert.equal(next.turnFlows[0]?.status, "completed");
+});
+
+test("server session state overrides display event running projection", () => {
+  const current = {
+    ...createSessionUiState(),
+    agentRunning: false,
+    notice: "request stored",
+    turnFlows: [{
+      id: "turn:session-1:input-1",
+      inputDataId: "input-1",
+      sessionid: "session-1",
+      title: "done",
+      status: "completed" as const,
+      collapsed: true,
+      createdAt: "2026-06-03T14:50:40.000Z",
+      updatedAt: "2026-06-03T14:50:44.000Z",
+      batches: []
+    }]
+  };
+  const message: NDXSessionEventMessage = {
+    type: NDX_SESSION_EVENT,
+    sessionid: "session-1",
+    event: NDX_TURN_EVENT.CotWork,
+    dataid: "cot-work:session-1:1:cot_work:2",
+    contents: {
+      kind: "cot_work",
+      steps: [
+        { task: "Inspect", status: "completed", elapsedMs: 1_000 },
+        { task: "Deploy", status: "completed", elapsedMs: 2_000 }
+      ],
+      totalElapsed: "00:03"
+    },
+    createdat: "2026-06-03T14:50:45.699Z",
+    sessionState: { isrunning: false }
+  };
+
+  const next = applyProtocolEventToSessionUiState(current, message, text);
+
+  assert.equal(next.agentRunning, false);
+  assert.equal(next.cotWork, message.contents);
+  assert.equal(next.notice, "operation in progress");
+  assert.deepEqual(next.rightSidebarItems.map((item) => item.title), ["Inspect", "Deploy"]);
 });
 
 test("cot work events project completed steps into right sidebar items", () => {

@@ -69,6 +69,7 @@ export type {
   NDXSessionDeleteMessage,
   NDXSessionDeletedMessage,
   NDXSessionEventMessage,
+  NDXSessionEventSessionState,
   NDXSessionHistorySummaryMessage,
   NDXSessionHistorySummaryResultMessage,
   NDXSessionInputMessage,

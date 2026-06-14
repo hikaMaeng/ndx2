@@ -4,6 +4,7 @@ import { listSessionDataForModelContext } from "../../compact/index.js";
 import { addInlineAttachmentDataIds, listInlineAttachmentDataIds } from "../../session/runtimeData.js";
 import { updateSessionEndTurn, updateSessionStartTurn } from "../../session/updateSession.js";
 import { calculateDetailedContextUsage } from "../../contextusage/index.js";
+import { readSessionModelRequestPrefixPreview } from "../../hook/base/prefixDrift/index.js";
 import { loadNDXHookRuntime } from "../../hook/index.js";
 import { runTurnRequestReceivedHook } from "../../hook/turn.request.received/index.js";
 import { readAgentRuntimeSettings } from "../../runtime-settings/index.js";
@@ -14,7 +15,6 @@ import { NDX_TURN_EVENT } from "../../../common/protocol/index.js";
 import { beginTurnInterruptScope } from "../base/interrupt/index.js";
 import { buildTurnBaseMessageParts, buildTurnMessagesFromParts } from "../base/context/index.js";
 import { compactTurnContext } from "../base/compact/index.js";
-import { buildFinalSessionMessages } from "../model-call/finalMessages/index.js";
 import { createCotWorkTimingTracker } from "../../tool/base/cot_work/timing.js";
 import { attachContextUsageMeasurement, runTurnEndForState } from "../base/state/index.js";
 import { handleTurnFailure } from "../base/failure/index.js";
@@ -62,6 +62,7 @@ export async function handleUserRequest(
 
   try {
     state.runningSession = await updateSessionStartTurn(database, session.sessionid, model);
+    state.lastModelRequestStablePrefix = readSessionModelRequestPrefixPreview(state.runningSession.sessionid);
     state.language = events.language ?? DEFAULT_NDX_AGENT_LANGUAGE;
     state.resource = events.resource ?? createNDXAgentResourceResolver();
     state.t = (key, values) => state.resource?.(key, { language: state.language ?? DEFAULT_NDX_AGENT_LANGUAGE, values }) ?? String(key);
@@ -75,15 +76,13 @@ export async function handleUserRequest(
     state.modelTools = toolSchemas(state.availableTools);
 
     const preInputRows = await listSessionDataForModelContext(database, state.runningSession.sessionid);
-    const preInputFinalMessages = buildFinalSessionMessages(preInputRows, await listInlineAttachmentDataIds(database, state.runningSession.sessionid));
     const preInputMessages = buildTurnMessagesFromParts({
       ...state.messageParts,
       historyRows: preInputRows,
-      history: preInputFinalMessages.history,
-      inlineAttachments: preInputFinalMessages.inlineAttachments
+      inlineAttachmentDataIds: await listInlineAttachmentDataIds(database, state.runningSession.sessionid)
     });
     state.messages = preInputMessages;
-    const preInputContextUsage = calculateDetailedContextUsage(preInputMessages, state.runningSession.model.contextsize, state.requestText, state.modelTools);
+    const preInputContextUsage = calculateDetailedContextUsage(preInputMessages, state.runningSession.model.contextsize, state.requestText, state.modelTools, state.lastModelRequestStablePrefix);
     const requestReceived = await runTurnRequestReceivedHook(state.hookRuntime, {
       database,
       session: state.runningSession,
@@ -91,6 +90,7 @@ export async function handleUserRequest(
       userHome: state.userHome,
       projectHome: state.projectHome,
       messages: preInputMessages,
+      previousModelRequestStablePrefix: state.lastModelRequestStablePrefix,
       sessionDataRows: preInputRows,
       availableTools: state.availableTools,
       modelTools: state.modelTools,

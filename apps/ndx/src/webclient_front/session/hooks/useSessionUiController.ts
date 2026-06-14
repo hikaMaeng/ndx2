@@ -1,8 +1,26 @@
 import React from "react";
-import { createSessionUiState, DEFAULT_MODEL, NDXWebClientSessionUiManager, type ChatMessage, type NDXAgentWebContextUsage, type SelectedModelConfig, type SessionAttachmentDraft, type SessionUiState, type TurnFlowState } from "ndx/webclient/front";
+import {
+  createDraftSessionModel,
+  createSessionIdentityFromRow,
+  createSessionModelFromRow,
+  createSessionUiState,
+  DEFAULT_MODEL,
+  NDXWebClientSessionUiManager,
+  sessionModelToUiState,
+  sessionModelWithUiState,
+  type ChatMessage,
+  type NDXAgentWebContextUsage,
+  type SelectedModelConfig,
+  type SessionAttachmentDraft,
+  type SessionInstanceModel,
+  type SessionModelSnapshot,
+  type SessionUiState,
+  type TurnFlowState
+} from "ndx/webclient/front";
 import type { NDXCotWorkContents } from "ndx/common/protocol";
+import type { NDXAgentWebSession } from "ndx/webclient/common";
 export function useSessionUiController() {
-  const [sessionUiByKey, setSessionUiByKey] = React.useState<Record<string, SessionUiState>>({});
+  const [sessionModelByKey, setSessionModelByKey] = React.useState<SessionModelSnapshot>({});
   const [activeSessionId, setActiveSessionId] = React.useState<string>();
   const [draftSessionProjectId, setDraftSessionProjectId] = React.useState<string>();
   const sessionUiManagerRef = React.useRef(new NDXWebClientSessionUiManager(createSessionUiState));
@@ -11,6 +29,7 @@ export function useSessionUiController() {
   const draftSessionProjectIdRef = React.useRef<string | undefined>(undefined);
   const draftUiKey = draftSessionProjectId ? `draft:${draftSessionProjectId}` : undefined;
   const activeUiKey = activeSessionId ?? draftUiKey;
+  const sessionUiByKey = React.useMemo(() => sessionUiSnapshot(sessionModelByKey), [sessionModelByKey]);
   const activeUi = activeUiKey ? sessionUiByKey[activeUiKey] ?? createSessionUiState() : undefined;
   const chatInput = activeUi?.chatInput ?? "";
   const chatAttachments = activeUi?.chatAttachments ?? [];
@@ -22,7 +41,7 @@ export function useSessionUiController() {
     if (activeUiKey) {
       sessionUiManagerRef.current.setActiveSession(activeUiKey);
     }
-  }, [sessionUiByKey]);
+  }, [activeUiKey, sessionModelByKey, sessionUiByKey]);
 
   React.useEffect(() => {
     activeSessionIdRef.current = activeSessionId;
@@ -38,10 +57,26 @@ export function useSessionUiController() {
     }
   }, []);
 
+  const setSessionUiByKey: React.Dispatch<React.SetStateAction<Record<string, SessionUiState>>> = (update) => {
+    setSessionModelByKey((current) => {
+      const currentUi = sessionUiSnapshot(current);
+      const nextUi = typeof update === "function" ? update(currentUi) : update;
+      const next: SessionModelSnapshot = {};
+      for (const [key, ui] of Object.entries(nextUi)) {
+        next[key] = sessionModelWithUiState(current[key] ?? modelForUiKey(key), ui);
+      }
+      return next;
+    });
+  };
+
   const updateSessionUi = (key: string, update: (current: SessionUiState) => SessionUiState) => {
-    const manager = sessionUiManagerRef.current;
-    manager.update(key, update);
-    setSessionUiByKey(manager.snapshot);
+    setSessionModelByKey((current) => {
+      const model = current[key] ?? modelForUiKey(key);
+      return {
+        ...current,
+        [key]: sessionModelWithUiState(model, update(sessionModelToUiState(model)))
+      };
+    });
   };
 
   const updateActiveUi = (update: (current: SessionUiState) => SessionUiState) => {
@@ -106,6 +141,24 @@ export function useSessionUiController() {
       return [];
     });
   };
+  const upsertSessionModel = (session: NDXAgentWebSession) => {
+    setSessionModelByKey((current) => {
+      const existing = current[session.sessionid];
+      const next = existing
+        ? {
+          ...existing,
+          key: session.sessionid,
+          identity: createSessionIdentityFromRow(session),
+          metadata: session,
+          runtime: {
+            ...existing.runtime,
+            agentRunning: Boolean(session.isrunning)
+          }
+        }
+        : createSessionModelFromRow(session);
+      return { ...current, [session.sessionid]: next };
+    });
+  };
 
   return {
     addChatAttachments,
@@ -140,6 +193,29 @@ export function useSessionUiController() {
     surfaceKeys,
     removeChatAttachment,
     updateActiveUi,
-    updateSessionUi
+    updateSessionUi,
+    upsertSessionModel
+  };
+}
+
+function sessionUiSnapshot(snapshot: SessionModelSnapshot): Record<string, SessionUiState> {
+  return Object.fromEntries(Object.entries(snapshot).map(([key, model]) => [key, sessionModelToUiState(model)]));
+}
+
+function modelForUiKey(key: string): SessionInstanceModel {
+  if (key.startsWith("draft:")) {
+    return createDraftSessionModel(key.slice("draft:".length));
+  }
+  const placeholder = createDraftSessionModel("");
+  return {
+    ...sessionModelWithUiState(placeholder, createSessionUiState()),
+    key,
+    identity: {
+      kind: "session",
+      key,
+      sessionid: key,
+      userid: "",
+      projectName: ""
+    }
   };
 }

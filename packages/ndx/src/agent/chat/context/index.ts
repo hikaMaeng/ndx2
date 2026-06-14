@@ -2,7 +2,7 @@ import { serverContainerUserHome } from "../../../common/server-path/index.js";
 import type { NDXChatSessionDataRow, NDXChatSessionRow } from "../types.js";
 import type { NDXModelMessage, NDXSessionDataRow } from "../../session/types.js";
 import type { ResponseInputItem } from "ndx/common/responseapi";
-import { buildFinalModelMessagesFromParts, sessionDataRowsToModelMessages } from "../../turnloop/model-call/finalMessages/index.js";
+import { prepareFinalModelRequestMessagesForCall } from "../../turnloop/model-call/finalMessages/index.js";
 
 export type NDXChatTurnMessageParts = {
   developer: NDXModelMessage;
@@ -39,7 +39,14 @@ export function buildChatTurnBaseMessageParts(session: NDXChatSessionRow): NDXCh
 }
 
 export function chatSessionDataRowsToModelMessages(rows: NDXChatSessionDataRow[]): ResponseInputItem[] {
-  return sessionDataRowsToModelMessages(chatSessionDataRowsToSessionDataRows(rows));
+  return prepareFinalModelRequestMessagesForCall({
+    parts: {
+      developer: { role: "system", content: "" },
+      user: { role: "user", content: "" },
+      historyRows: chatSessionDataRowsToSessionDataRows(rows)
+    },
+    omitBaseMessages: true
+  });
 }
 
 export function chatSessionDataRowsToSessionDataRows(rows: NDXChatSessionDataRow[]): NDXSessionDataRow[] {
@@ -53,5 +60,5 @@ export function chatSessionDataRowsToSessionDataRows(rows: NDXChatSessionDataRow
 }
 
 export function buildChatTurnMessagesFromParts(parts: NDXChatTurnMessageParts): ResponseInputItem[] {
-  return buildFinalModelMessagesFromParts({ developer: parts.developer, user: parts.user, history: parts.history });
+  return prepareFinalModelRequestMessagesForCall({ parts: { developer: parts.developer, user: parts.user, history: parts.history } });
 }

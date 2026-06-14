@@ -36,8 +36,7 @@ export { completeSessionInterrupt, requestSessionInterrupt, updateSessionTurnPha
 export { listSession } from "./listSession.js";
 export { listSessionData } from "./listSessionData.js";
 export { addInlineAttachmentDataIds, consumeInlineAttachmentDataIds, listInlineAttachmentDataIds } from "./runtimeData.js";
-export { runSessionTurn, sessionDataRowsToModelMessages } from "./runSessionTurn.js";
-export { sessionDataRowsToModelMessages as sessionRowsToModelMessages } from "./sessionDataRowsToModelMessages.js";
+export { runSessionTurn } from "./runSessionTurn.js";
 export { compactSourceForRows, sessionRowsThroughTurn, sessionTurnRangeForInput } from "./sessionTurnRange.js";
 export type { NDXSessionTurnRange } from "./sessionTurnRange.js";
 export { updateSessionEndTurn, updateSessionStartTurn, updateSessionTitle } from "./updateSession.js";

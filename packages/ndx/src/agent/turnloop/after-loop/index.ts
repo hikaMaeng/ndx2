@@ -3,8 +3,9 @@ import { appendSessionData } from "../../session/appendSessionData.js";
 import { updateSessionEndTurn } from "../../session/updateSession.js";
 import { cotWorkCompletedSidebarItems } from "../../tool/base/cot_work/sidebar.js";
 import { NDX_TURN_EVENT } from "../../../common/protocol/index.js";
+import { compactReplayContents } from "../../compact/index.js";
 import { compactTurnContext } from "../base/compact/index.js";
-import { runTurnEndForState } from "../base/state/index.js";
+import { refreshTurnMessages, runTurnEndForState } from "../base/state/index.js";
 import type { NDXContextUsage } from "../../contextusage/index.js";
 import type { NDXHookCompactEffect } from "../../hook/index.js";
 import type { NDXSessionDataRow } from "../../session/types.js";
@@ -16,9 +17,6 @@ export async function finishAfterLoop(state: NDXActiveTurnPipelineState): Promis
     const assistant = await appendSessionData(state.database, state.runningSession.sessionid, "assistant", assistantMessageContents(state.assistantText));
     const finalContextUsage = state.turnContextUsage(state.assistantText);
     await state.events.onEvent?.({ type: NDX_TURN_EVENT.AssistantRecorded, iteration: state.finalIteration, assistant, contextUsage: finalContextUsage });
-    const endedSession = await updateSessionEndTurn(state.database, state.runningSession.sessionid);
-    await state.events.onEvent?.({ type: NDX_TURN_EVENT.TurnEnd, iteration: state.finalIteration, session: endedSession, contextUsage: finalContextUsage });
-    await runTurnEndForState(state, assistant, state.finalIteration, state.assistantText, finalContextUsage);
     const finalCotWork = state.cotWorkTiming.complete();
     if (finalCotWork) {
       await appendSessionData(state.database, state.runningSession.sessionid, "assistant", finalCotWork);
@@ -39,6 +37,9 @@ export async function finishAfterLoop(state: NDXActiveTurnPipelineState): Promis
         contextUsage: finalContextUsage
       });
     }
+    await runTurnEndForState(state, assistant, state.finalIteration, state.assistantText, finalContextUsage);
+    const endedSession = await updateSessionEndTurn(state.database, state.runningSession.sessionid);
+    await state.events.onEvent?.({ type: NDX_TURN_EVENT.TurnEnd, iteration: state.finalIteration, session: endedSession, contextUsage: finalContextUsage });
   } catch (error) {
     await state.pipeline.handleTurnFailure(state, error);
   }
@@ -51,11 +52,18 @@ export async function finishCompactTurn(
   contextUsage: NDXContextUsage
 ): Promise<void> {
   try {
-    const compactContextUsage = await compactTurnContext(state, compactEffect, contextRows, contextUsage, "");
+    const sourceRows = contextRows.filter((row) => isBeforeDataId(row.dataid, state.input.dataid));
+    const replayRows = contextRows.filter((row) => !isBeforeDataId(row.dataid, state.input.dataid));
+    await compactTurnContext(state, compactEffect, sourceRows, contextUsage, "");
+    if (replayRows.length > 0) {
+      await appendSessionData(state.database, state.runningSession.sessionid, "system", compactReplayContents(replayRows));
+      await refreshTurnMessages(state);
+    }
+    const compactContextUsage = state.turnContextUsage();
     const compactTurnEndText = [
       "컨텍스트 한계에 가까워져 세션 히스토리를 compact했습니다.",
       "이 compact는 이터레이션 중간에 실행되었으므로 현재 턴은 여기서 종료됩니다.",
-      "다음 요청은 새 compact 요약 이후의 히스토리로 이어서 처리됩니다."
+      "직전 턴의 직접 히스토리는 compact 뒤에 보존되며, 세션 서버가 새 턴에서 이어서 처리할 수 있습니다."
     ].join("\n");
     const assistant = await appendSessionData(
       state.database,
@@ -70,4 +78,13 @@ export async function finishCompactTurn(
   } catch (error) {
     await state.pipeline.handleTurnFailure(state, error);
   }
+}
+
+function isBeforeDataId(dataid: string | number, boundary: string | number): boolean {
+  const current = Number(dataid);
+  const target = Number(boundary);
+  if (!Number.isFinite(current) || !Number.isFinite(target)) {
+    return String(dataid) < String(boundary);
+  }
+  return current < target;
 }

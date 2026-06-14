@@ -2,7 +2,7 @@ import { buildContextParts } from "../../../context/index.js";
 import { listSessionDataForModelContext } from "../../../compact/index.js";
 import { listInlineAttachmentDataIds } from "../../../session/runtimeData.js";
 import { serverContainerUserHome, toServerProjectPath } from "../../../../common/server-path/index.js";
-import { buildFinalModelMessagesFromParts, buildFinalSessionMessages } from "../../model-call/finalMessages/index.js";
+import { prepareFinalModelRequestMessagesForCall } from "../../model-call/finalMessages/index.js";
 import type { NDXDatabase, NDXModelMessage, NDXSessionDataRow, NDXSessionRow } from "../../../session/types.js";
 import type { ResponseInputItem } from "ndx/common/responseapi";
 
@@ -12,6 +12,7 @@ export type NDXTurnMessageParts = {
   history: ResponseInputItem[];
   inlineAttachments?: ResponseInputItem[];
   historyRows?: NDXSessionDataRow[];
+  inlineAttachmentDataIds?: Iterable<string>;
 };
 
 export async function buildTurnMessages(database: NDXDatabase, runningSession: NDXSessionRow): Promise<ResponseInputItem[]> {
@@ -23,12 +24,10 @@ export async function buildTurnMessageParts(database: NDXDatabase, runningSessio
   const parts = await buildTurnBaseMessageParts(runningSession);
   const historyRows = await listSessionDataForModelContext(database, runningSession.sessionid);
   const inlineAttachmentDataIds = await listInlineAttachmentDataIds(database, runningSession.sessionid);
-  const finalSessionMessages = buildFinalSessionMessages(historyRows, inlineAttachmentDataIds);
   return {
     ...parts,
     historyRows,
-    history: finalSessionMessages.history,
-    inlineAttachments: finalSessionMessages.inlineAttachments
+    inlineAttachmentDataIds
   };
 }
 
@@ -49,5 +48,5 @@ export async function buildTurnBaseMessageParts(runningSession: NDXSessionRow): 
 }
 
 export function buildTurnMessagesFromParts(parts: NDXTurnMessageParts): ResponseInputItem[] {
-  return buildFinalModelMessagesFromParts(parts);
+  return prepareFinalModelRequestMessagesForCall({ parts });
 }

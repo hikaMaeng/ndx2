@@ -45,6 +45,14 @@ export type NDXAppendCompactSessionHistoryOptions = {
   sourceInput?: { dataId: string; text: string };
 };
 
+export type NDXCompactReplayContents = {
+  kind: "compact_replay";
+  sourceStartDataId?: string;
+  sourceEndDataId?: string;
+  sourceRowCount: number;
+  rows: Array<{ dataid: string; type: string; contents: Record<string, unknown> | string; createdat: string }>;
+};
+
 export async function initCompactDatabase(database: NDXDatabase): Promise<void> {
   await database.query(`
 CREATE TABLE IF NOT EXISTS turncontextusage (
@@ -107,6 +115,21 @@ export function sessionDataRowsForModelContext(rows: NDXSessionDataRow[]): NDXSe
 
 export function compactContents(input: Omit<NDXCompactContents, "kind">): NDXCompactContents {
   return { kind: NDX_COMPACT_CONTENT_KIND, ...input };
+}
+
+export function compactReplayContents(rows: NDXSessionDataRow[]): NDXCompactReplayContents {
+  return {
+    kind: "compact_replay",
+    sourceStartDataId: rows[0] ? String(rows[0].dataid) : undefined,
+    sourceEndDataId: rows.at(-1) ? String(rows.at(-1)?.dataid) : undefined,
+    sourceRowCount: rows.length,
+    rows: rows.map((row) => ({
+      dataid: String(row.dataid),
+      type: row.type,
+      contents: replayContents(row.contents),
+      createdat: row.createdat.toISOString()
+    }))
+  };
 }
 
 export async function compactSessionHistory(
@@ -218,6 +241,16 @@ function findLastCompactIndex(rows: NDXSessionDataRow[]): number {
     }
   }
   return -1;
+}
+
+function replayContents(contents: unknown): Record<string, unknown> | string {
+  if (typeof contents === "string") {
+    return contents;
+  }
+  if (contents && typeof contents === "object" && !Array.isArray(contents)) {
+    return contents as Record<string, unknown>;
+  }
+  return String(contents ?? "");
 }
 
 async function summarizeCompactHistory(model: NDXModelConfig, previousCompact: NDXSessionDataRow | undefined, sourceRows: NDXSessionDataRow[]): Promise<string> {

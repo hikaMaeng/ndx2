@@ -46,7 +46,12 @@
 | `vector` | embeddings 설정과 query embedding 생성이 모두 성공할 때. |
 | `fts` | query가 있지만 embeddings가 없거나 실패했을 때. |
 
-Vector 검색은 similarity와 FTS rank를 함께 사용한다. 4096차원 `embedding`은 원본 보존 필드이고, HNSW cosine index와 similarity 계산은 별도 256차원 `hnsw` 필드에만 적용한다. zero vector row는 similarity 계산에서 제외하고, FTS는 `websearch_to_tsquery(ndx_sessionsearch_regconfig(), query)`를 사용한다.
+Vector 검색은 similarity, FTS rank, lexical substring score를 함께
+사용한다. 4096차원 `embedding`은 원본 보존 필드이고, HNSW cosine index와
+similarity 계산은 별도 256차원 `hnsw` 필드에만 적용한다. zero vector row는
+similarity 계산에서 제외한다. FTS-only 검색도
+`websearch_to_tsquery(ndx_sessionsearch_regconfig(), query)`에 lexical
+substring score를 더해 코드 식별자 prefix 검색을 보완한다.
 
 ## embedding worker
 

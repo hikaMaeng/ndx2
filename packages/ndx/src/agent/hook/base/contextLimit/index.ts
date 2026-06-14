@@ -1,6 +1,6 @@
 import { NDX_TURN_EVENT } from "../../../../common/protocol/index.js";
 import { readTurnContextUsageStats, type NDXCompactReport } from "../../../compact/index.js";
-import { judgeContextAvailability } from "../../../contextusage/index.js";
+import { calculateDetailedContextUsage, judgeContextAvailability } from "../../../contextusage/index.js";
 import type { NDXHookCodeExecutor, NDXHookEffect } from "../../index.js";
 
 export type NDXContextLimitHookInsertionEvent =
@@ -17,11 +17,20 @@ export function createContextLimitHook(input: {
     name: input.name,
     source: "system",
     async run(context): Promise<NDXHookEffect> {
-      if (!context.contextUsage || (context.sessionDataRows ?? []).length === 0) {
+      const contextUsage = context.messages
+        ? calculateDetailedContextUsage(
+            context.messages,
+            context.session.model.contextsize,
+            input.phase === "turn_start" ? context.requestText : "",
+            context.modelTools ?? [],
+            context.previousModelRequestStablePrefix
+          )
+        : context.contextUsage;
+      if (!contextUsage || (context.sessionDataRows ?? []).length === 0) {
         return { type: "noeffect" };
       }
       const averageTurnTokens = (await readTurnContextUsageStats(context.database)).avgtokens || undefined;
-      const availability = judgeContextAvailability(context.contextUsage, { averageTurnTokens });
+      const availability = judgeContextAvailability(contextUsage, { averageTurnTokens });
       if (!availability.shouldCompact) {
         return { type: "noeffect" };
       }
@@ -31,9 +40,9 @@ export function createContextLimitHook(input: {
           report: {
             phase: input.phase,
             reason: availability.reason,
-            tokens: context.contextUsage.tokens,
-            contextsize: context.contextUsage.contextsize,
-            percent: context.contextUsage.percent,
+            tokens: contextUsage.tokens,
+            contextsize: contextUsage.contextsize,
+            percent: contextUsage.percent,
             remainingTokens: availability.remainingTokens,
             requiredTokens: availability.requiredTokens,
             averageTurnTokens: availability.averageTurnTokens,

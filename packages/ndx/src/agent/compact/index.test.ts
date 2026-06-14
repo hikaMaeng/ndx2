@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { QueryResult, QueryResultRow } from "pg";
-import { compactSessionHistory, sessionDataRowsForModelContext, sessionDataRowsFromLatestCompact } from "./index.js";
+import { compactReplayContents, compactSessionHistory, sessionDataRowsForModelContext, sessionDataRowsFromLatestCompact } from "./index.js";
 import type { NDXDatabase, NDXModelConfig, NDXSessionDataRow, NDXSessionRow } from "../session/types.js";
 
 test("sessionDataRowsFromLatestCompact keeps only the latest compact row and following rows", () => {
@@ -87,6 +87,20 @@ test("compactSessionHistory default source rows still start after latest compact
   const compact = await compactSessionHistory(database, session(), compactReport(), modelWithoutProvider());
 
   assert.deepEqual(compact.sourceRows.map((item) => item.dataid), ["2", "3"]);
+});
+
+test("compactReplayContents preserves rows after an iteration compact without making them compact source", () => {
+  const replay = compactReplayContents([
+    row("4", "user", { kind: "user_message", text: "current request" }),
+    row("5", "tool_call", { kind: "tool_call", iteration: 1, toolCalls: [{ type: "function_call", call_id: "call-1", name: "read", arguments: "{}" }] }),
+    row("6", "assistant", { kind: "tool_result", iteration: 1, results: [{ toolCallId: "call-1", tool: "read", success: true, output: "ok" }] })
+  ]);
+
+  assert.equal(replay.kind, "compact_replay");
+  assert.equal(replay.sourceStartDataId, "4");
+  assert.equal(replay.sourceEndDataId, "6");
+  assert.equal(replay.sourceRowCount, 3);
+  assert.deepEqual(replay.rows.map((item) => item.dataid), ["4", "5", "6"]);
 });
 
 function row(dataid: string, type: string, contents: unknown): NDXSessionDataRow {

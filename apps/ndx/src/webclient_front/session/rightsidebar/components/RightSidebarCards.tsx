@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BookOpen, ChevronDown, ChevronRight, FileImage, FilePenLine, FileSearch, FileText, Globe, History, ListChecks, MessageCircleQuestion, Search, Terminal, TextCursorInput } from "lucide-react";
+import { BookOpen, ChevronDown, ChevronUp, FileImage, FilePenLine, FileSearch, FileText, Globe, History, ListChecks, MessageCircleQuestion, Search, Terminal, TextCursorInput } from "lucide-react";
 import type { NDXSidebarItem } from "ndx/common/protocol";
 import { groupRightSidebarItems, type TurnFlowState } from "ndx/webclient/front";
 
@@ -18,24 +18,22 @@ export function RightSidebarCards({ items: explicitItems, turn }: { items?: NDXS
         const listId = `right-sidebar-card-${idPrefix.replace(/[^a-z0-9_-]/giu, "-")}-${group.id.replace(/[^a-z0-9_-]/giu, "-")}`;
         return (
           <section key={group.id} aria-label={group.title} className="h-auto min-w-0 rounded-lg border border-zinc-800 bg-zinc-900/70 p-3" data-testid="right-sidebar-card">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h3 className="truncate text-sm font-semibold text-zinc-100">{group.title}</h3>
-                <p className="mt-1 text-xs text-zinc-500">{group.items.length + group.subgroups.reduce((total, subgroup) => total + subgroup.items.length, 0)}개</p>
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <button
-                  type="button"
-                  className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 p-0 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950"
-                  aria-label={toggleLabel}
-                  aria-expanded={isOpen}
-                  aria-controls={listId}
-                  onClick={() => setOpenGroups((current) => ({ ...current, [`${idPrefix}:${group.id}`]: !isOpen }))}
-                >
-                  {isOpen ? <ChevronDown aria-hidden="true" className="h-4 w-4" /> : <ChevronRight aria-hidden="true" className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
+            <button
+              type="button"
+              className="group flex w-full items-start justify-between gap-3 rounded-md text-left transition-colors hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950"
+              aria-label={toggleLabel}
+              aria-expanded={isOpen}
+              aria-controls={listId}
+              onClick={() => setOpenGroups((current) => ({ ...current, [`${idPrefix}:${group.id}`]: !isOpen }))}
+            >
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-semibold text-zinc-100">{group.title}</span>
+                <span className="mt-1 block text-xs text-zinc-500">{group.items.length + group.subgroups.reduce((total, subgroup) => total + subgroup.items.length, 0)}개</span>
+              </span>
+              <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 p-0 text-sm font-medium text-zinc-400 transition-colors group-hover:bg-zinc-800 group-hover:text-zinc-100">
+                {isOpen ? <ChevronDown aria-hidden="true" className="h-4 w-4" /> : <ChevronUp aria-hidden="true" className="h-4 w-4" />}
+              </span>
+            </button>
             {isOpen ? (
               <div id={listId} className="mt-3 grid gap-3">
                 {group.items.length > 0 ? <SidebarItemList items={group.items} /> : null}
