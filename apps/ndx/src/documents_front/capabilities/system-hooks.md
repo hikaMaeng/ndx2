@@ -50,7 +50,7 @@ Reminder는 다음 내용을 포함한다.
 
 ## stream guard
 
-`turn.model.responding`의 StreamGuard hook은 assistant output text가 나오기 전에 reasoning summary가 너무 길어지면 active model response를 interrupt한다. 제한값은 `/ndx/.ndx/settings.json`의 `hooks.StreamGuard.MAX_REASONING_LENGTH`를 우선 사용하고, 값이 없거나 잘못되면 `240000` characters를 fallback으로 쓴다.
+`turn.model.responding`의 StreamGuard hook은 assistant output text가 나오기 전에 reasoning summary가 너무 길어지거나 반복 루프 신호가 잡히면 active model response를 interrupt한다. 제한값은 `/ndx/.ndx/settings.json`의 `hooks.StreamGuard.MAX_REASONING_LENGTH`를 우선 사용하고, 값이 없거나 잘못되면 `240000` characters를 fallback으로 쓴다. 중단 메시지는 어떤 guard가 걸렸는지와 이유를 포함한다. `hooks.StreamGuard.analysisModel`이 설정된 모델 키로 해석되면, 마지막 reasoning excerpt를 no-tool LLM 분석에 보내 루프 원인 분석 문장을 중단 메시지에 덧붙인다. 모델 설정이 없거나 해석되지 않으면 LLM 분석은 건너뛴다.
 
 ## loop detection
 

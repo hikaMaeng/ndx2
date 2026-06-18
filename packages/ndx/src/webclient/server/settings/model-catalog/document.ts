@@ -50,6 +50,9 @@ export async function updateSettingsWebDocument(userHome: string, input: NDXSett
     const maxReasoningLength = input.hooks.StreamGuard.MAX_REASONING_LENGTH;
     if (typeof maxReasoningLength === "number" && Number.isInteger(maxReasoningLength) && maxReasoningLength > 0) streamGuard.MAX_REASONING_LENGTH = maxReasoningLength;
     else if (maxReasoningLength !== undefined) delete streamGuard.MAX_REASONING_LENGTH;
+    const analysisModel = input.hooks.StreamGuard.analysisModel?.trim() ?? "";
+    if (analysisModel) streamGuard.analysisModel = analysisModel;
+    else if (input.hooks.StreamGuard.analysisModel !== undefined) delete streamGuard.analysisModel;
     settings.hooks.StreamGuard = streamGuard;
   }
   if (input.websearch) {

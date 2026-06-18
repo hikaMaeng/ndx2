@@ -490,6 +490,8 @@ function ToolSettingsTab() {
 
 function HookSettingsTab() {
   const [maxReasoningLength, setMaxReasoningLength] = React.useState("240000");
+  const [analysisModel, setAnalysisModel] = React.useState("");
+  const [modelNames, setModelNames] = React.useState<string[]>([]);
   const [pending, setPending] = React.useState("");
   const [error, setError] = React.useState("");
   const [message, setMessage] = React.useState("");
@@ -497,9 +499,17 @@ function HookSettingsTab() {
   React.useEffect(() => {
     let cancelled = false;
     setPending("load");
-    void getWebSettings().then((settings) => {
-      if (!cancelled) setMaxReasoningLength(String(settings.hooks.StreamGuard.MAX_REASONING_LENGTH));
-    }).catch((reason) => {
+    void (async () => {
+      const [settings, providers] = await Promise.all([getWebSettings(), listWebProviders()]);
+      const names: string[] = [];
+      for (const provider of providers) {
+        names.push(...(await listWebProviderModels(provider.title)).map((model) => model.model));
+      }
+      if (cancelled) return;
+      setMaxReasoningLength(String(settings.hooks.StreamGuard.MAX_REASONING_LENGTH));
+      setAnalysisModel(settings.hooks.StreamGuard.analysisModel);
+      setModelNames([...new Set(names)].sort());
+    })().catch((reason) => {
       if (!cancelled) setError(reason instanceof Error ? reason.message : "훅 설정을 불러오지 못했습니다.");
     }).finally(() => {
       if (!cancelled) setPending("");
@@ -513,8 +523,9 @@ function HookSettingsTab() {
     setPending("save");
     setError("");
     setMessage("");
-    void updateWebSettings({ hooks: { StreamGuard: { MAX_REASONING_LENGTH: Number(maxReasoningLength) } } }).then((response) => {
+    void updateWebSettings({ hooks: { StreamGuard: { MAX_REASONING_LENGTH: Number(maxReasoningLength), analysisModel } } }).then((response) => {
       setMaxReasoningLength(String(response.settings.hooks.StreamGuard.MAX_REASONING_LENGTH));
+      setAnalysisModel(response.settings.hooks.StreamGuard.analysisModel);
       setMessage("훅 설정을 저장했습니다.");
     }).catch((reason) => setError(reason instanceof Error ? reason.message : "훅 설정 저장에 실패했습니다.")).finally(() => setPending(""));
   };
@@ -522,6 +533,12 @@ function HookSettingsTab() {
   return (
     <SettingsFormShell title="훅 설정" description="`hooks` 카테고리 안의 시스템 훅 설정을 편집합니다." pending={pending} error={error} message={message} onSubmit={save}>
       <NumberTextInput label="StreamGuard.MAX_REASONING_LENGTH" value={maxReasoningLength} onChange={setMaxReasoningLength} min={1} />
+      <label className="grid gap-2">
+        <span className="text-sm font-medium text-zinc-200">StreamGuard.analysisModel</span>
+        <span className="text-xs leading-5 text-zinc-500">비우면 규칙 기반 중단 설명만 사용합니다.</span>
+        <input list="stream-guard-analysis-models" className="h-10 rounded-md border border-zinc-700 bg-zinc-950 px-3 text-sm text-zinc-100 outline-none transition-colors placeholder:text-zinc-600 focus:border-emerald-500" disabled={Boolean(pending)} value={analysisModel} onChange={(event) => setAnalysisModel(event.target.value)} placeholder="예: qwen3.6-35b-mp" />
+        <datalist id="stream-guard-analysis-models">{modelNames.map((name) => <option key={name} value={name} />)}</datalist>
+      </label>
     </SettingsFormShell>
   );
 }

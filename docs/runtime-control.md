@@ -80,6 +80,15 @@ intentionally independent of `MAX_REASONING_LENGTH`: they stop local-model
 reasoning loops before the larger hard length fallback is reached, while
 clearing their state as soon as assistant output text or a tool call starts.
 
+When StreamGuard interrupts a response, the interrupt reason includes the guard
+that fired, the fixed-policy reason, and a short detail explaining the observed
+signal. If `/ndx/.ndx/settings.json` sets `hooks.StreamGuard.analysisModel` to a
+model key that resolves through `models` and `providers`, StreamGuard sends the
+latest truncated reasoning excerpt to that model with no tools and appends the
+returned loop analysis to the interrupt message. If the setting is absent, empty,
+or cannot be resolved to a configured model, StreamGuard skips the LLM analysis
+and returns only the fixed guard explanation.
+
 Loop detection during tool-heavy turns is configured under
 `runtime.loopDetectionInterval`. The default is `50`. After tool results are
 collected on iterations divisible by that interval, the system

@@ -97,6 +97,7 @@ export type NDXSettingsDocumentRow = {
   hooks: {
     StreamGuard: {
       MAX_REASONING_LENGTH: number;
+      analysisModel: string;
     };
   };
   websearch: {
@@ -126,6 +127,7 @@ export type NDXSettingsDocumentInput = {
   hooks?: {
     StreamGuard?: {
       MAX_REASONING_LENGTH?: number;
+      analysisModel?: string;
     };
   };
   websearch?: {
@@ -161,6 +163,7 @@ export type NDXAgentRuntimeSettings = {
   hooks?: {
     StreamGuard?: {
       MAX_REASONING_LENGTH: number;
+      analysisModel?: string;
     };
   };
 };
@@ -313,7 +316,8 @@ export function settingsDocumentRow(settings: NDXSettingsDocument): NDXSettingsD
     },
     hooks: {
       StreamGuard: {
-        MAX_REASONING_LENGTH: typeof streamGuard.MAX_REASONING_LENGTH === "number" && Number.isInteger(streamGuard.MAX_REASONING_LENGTH) && streamGuard.MAX_REASONING_LENGTH > 0 ? streamGuard.MAX_REASONING_LENGTH : 240_000
+        MAX_REASONING_LENGTH: typeof streamGuard.MAX_REASONING_LENGTH === "number" && Number.isInteger(streamGuard.MAX_REASONING_LENGTH) && streamGuard.MAX_REASONING_LENGTH > 0 ? streamGuard.MAX_REASONING_LENGTH : 240_000,
+        analysisModel: typeof streamGuard.analysisModel === "string" ? streamGuard.analysisModel : ""
       }
     },
     websearch: {
@@ -461,10 +465,14 @@ function parseHookSettings(value: unknown): NDXAgentRuntimeSettings["hooks"] {
   const streamGuard = (value as { StreamGuard?: unknown }).StreamGuard;
   if (!streamGuard || typeof streamGuard !== "object" || Array.isArray(streamGuard)) return undefined;
   const maxReasoningLength = (streamGuard as { MAX_REASONING_LENGTH?: unknown }).MAX_REASONING_LENGTH;
-  if (typeof maxReasoningLength !== "number" || !Number.isInteger(maxReasoningLength) || maxReasoningLength <= 0) return undefined;
+  const analysisModel = (streamGuard as { analysisModel?: unknown }).analysisModel;
+  const validMaxReasoningLength = typeof maxReasoningLength === "number" && Number.isInteger(maxReasoningLength) && maxReasoningLength > 0;
+  const validAnalysisModel = typeof analysisModel === "string" && analysisModel.trim().length > 0;
+  if (!validMaxReasoningLength && !validAnalysisModel) return undefined;
   return {
     StreamGuard: {
-      MAX_REASONING_LENGTH: maxReasoningLength
+      MAX_REASONING_LENGTH: validMaxReasoningLength ? maxReasoningLength : 240_000,
+      ...(validAnalysisModel ? { analysisModel: analysisModel.trim() } : {})
     }
   };
 }

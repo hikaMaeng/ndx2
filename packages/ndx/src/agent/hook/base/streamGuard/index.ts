@@ -1,4 +1,6 @@
 import { NDX_TURN_EVENT } from "../../../../common/protocol/index.js";
+import { readNDXSettingsDocument, resolveSettingsModelConfig } from "../../../../common/settings/index.js";
+import { requestModelResponse, type ResponseInputItem, type ResponseModelConfig } from "ndx/common/responseapi";
 import { readAgentRuntimeSettings } from "../../../runtime-settings/index.js";
 import type { NDXHookCodeExecutor, NDXHookEffect } from "../../index.js";
 
@@ -13,6 +15,8 @@ const REPEATED_REASONING_DENSITY_MIN_DUPLICATE_COUNT = 3;
 const NO_OUTPUT_REASONING_MAX_ELAPSED_MS = 90_000;
 const NO_OUTPUT_REASONING_MAX_SEQUENCE = 1_000;
 const NO_OUTPUT_REASONING_MAX_CHARS = 8_000;
+const STREAM_GUARD_ANALYSIS_INPUT_CHARS = 12_000;
+const STREAM_GUARD_ANALYSIS_TIMEOUT_MS = 45_000;
 const META_REASONING_MIN_CHARS = 600;
 const META_REASONING_MIN_SIGNAL_COUNT = 4;
 const META_REASONING_SIGNALS = [
@@ -36,6 +40,14 @@ const META_REASONING_SIGNALS = [
 type StreamGuardState = {
   maxReasoningObservedChars: number;
   maxReasoningAllowedChars: number;
+  analysisModel?: string;
+};
+
+type StreamGuardDetection = {
+  code: string;
+  title: string;
+  reason: string;
+  detail: string;
 };
 
 const streamGuardState = new Map<string, StreamGuardState>();
@@ -66,42 +78,26 @@ export const modelResponseStreamGuardHook: NDXHookCodeExecutor = {
     const existingState = streamGuardState.get(key);
     const state = existingState ?? {
       maxReasoningObservedChars: 0,
-      maxReasoningAllowedChars: await readMaxReasoningAllowedChars(context.userHome)
+      ...await readStreamGuardSettings(context.userHome)
     };
     state.maxReasoningObservedChars = Math.max(state.maxReasoningObservedChars, context.modelResponse.summary.length);
     streamGuardState.set(key, state);
 
-    if (hasMetaExecutionReasoning(context.modelResponse.summary)) {
+    const detection = detectStreamGuardStop(context.modelResponse.summary, context.modelResponse.elapsedMs, context.modelResponse.sequence, state);
+    if (detection) {
       streamGuardState.delete(key);
-      return interruptEffect("model response reasoning got stuck analyzing tool-call or transcript state before producing output.");
-    }
-    if (hasRepeatedReasoningParagraph(context.modelResponse.summary)) {
-      streamGuardState.delete(key);
-      return interruptEffect("model response reasoning repeated the same paragraph before producing output.");
-    }
-    if (hasRepeatedReasoningTailBlock(context.modelResponse.summary)) {
-      streamGuardState.delete(key);
-      return interruptEffect("model response reasoning repeated the same text block before producing output.");
-    }
-    if (hasDenseRepeatedReasoning(context.modelResponse.summary)) {
-      streamGuardState.delete(key);
-      return interruptEffect("model response reasoning repeated too densely before producing output.");
-    }
-    if (hasExcessiveNoOutputReasoning(context.modelResponse.summary, context.modelResponse.elapsedMs, context.modelResponse.sequence)) {
-      streamGuardState.delete(key);
-      return interruptEffect("model response reasoning streamed too long before producing output.");
-    }
-    if (state.maxReasoningObservedChars > state.maxReasoningAllowedChars) {
-      streamGuardState.delete(key);
-      return interruptEffect(`model response reasoning exceeded ${state.maxReasoningAllowedChars} characters before producing output.`);
+      return interruptEffect(context, detection, state.analysisModel, context.modelResponse.summary);
     }
     return { type: "noeffect" };
   }
 };
 
-async function readMaxReasoningAllowedChars(userHome: string): Promise<number> {
+async function readStreamGuardSettings(userHome: string): Promise<Pick<StreamGuardState, "maxReasoningAllowedChars" | "analysisModel">> {
   const settings = await readAgentRuntimeSettings(userHome);
-  return settings.hooks?.StreamGuard?.MAX_REASONING_LENGTH ?? MAX_REASONING_CHARS;
+  return {
+    maxReasoningAllowedChars: settings.hooks?.StreamGuard?.MAX_REASONING_LENGTH ?? MAX_REASONING_CHARS,
+    ...(settings.hooks?.StreamGuard?.analysisModel ? { analysisModel: settings.hooks.StreamGuard.analysisModel } : {})
+  };
 }
 
 function hasRepeatedReasoningParagraph(summary: string): boolean {
@@ -182,11 +178,156 @@ function hasExcessiveNoOutputReasoning(summary: string, elapsedMs: number, seque
     summary.length >= NO_OUTPUT_REASONING_MAX_CHARS;
 }
 
-function interruptEffect(reason: string): NDXHookEffect {
+function detectStreamGuardStop(summary: string, elapsedMs: number, sequence: number, state: StreamGuardState): StreamGuardDetection | undefined {
+  if (hasMetaExecutionReasoning(summary)) {
+    return {
+      code: "meta_execution_reasoning",
+      title: "meta execution reasoning",
+      reason: "model response reasoning got stuck analyzing tool-call or transcript state before producing output.",
+      detail: "The reasoning matched multiple meta-execution signals such as transcript/tool-call/json-control analysis instead of progressing the task."
+    };
+  }
+  if (hasRepeatedReasoningParagraph(summary)) {
+    return {
+      code: "repeated_paragraph",
+      title: "repeated reasoning paragraph",
+      reason: "model response reasoning repeated the same paragraph before producing output.",
+      detail: "After whitespace normalization, the same non-empty paragraph appeared more than once before any assistant output text."
+    };
+  }
+  if (hasRepeatedReasoningTailBlock(summary)) {
+    return {
+      code: "repeated_tail_block",
+      title: "repeated reasoning tail block",
+      reason: "model response reasoning repeated the same text block before producing output.",
+      detail: "The latest normalized reasoning tail block already appeared earlier in the same reasoning stream."
+    };
+  }
+  if (hasDenseRepeatedReasoning(summary)) {
+    return {
+      code: "dense_repeated_reasoning",
+      title: "dense repeated reasoning",
+      reason: "model response reasoning repeated too densely before producing output.",
+      detail: `The latest ${REPEATED_REASONING_DENSITY_RECENT_CHARS} characters contained too many repeated 10-token shingles.`
+    };
+  }
+  if (hasExcessiveNoOutputReasoning(summary, elapsedMs, sequence)) {
+    return {
+      code: "excessive_no_output_reasoning",
+      title: "excessive no-output reasoning",
+      reason: "model response reasoning streamed too long before producing output.",
+      detail: `The response streamed reasoning for ${elapsedMs}ms across ${sequence} stream events and ${summary.length} reasoning characters without assistant output.`
+    };
+  }
+  if (state.maxReasoningObservedChars > state.maxReasoningAllowedChars) {
+    return {
+      code: "max_reasoning_length",
+      title: "max reasoning length",
+      reason: `model response reasoning exceeded ${state.maxReasoningAllowedChars} characters before producing output.`,
+      detail: `The largest observed reasoning summary was ${state.maxReasoningObservedChars} characters, exceeding hooks.StreamGuard.MAX_REASONING_LENGTH=${state.maxReasoningAllowedChars}.`
+    };
+  }
+  return undefined;
+}
+
+async function interruptEffect(
+  context: Readonly<Parameters<NDXHookCodeExecutor["run"]>[0]>,
+  detection: StreamGuardDetection,
+  analysisModel: string | undefined,
+  reasoningSummary: string
+): Promise<NDXHookEffect> {
+  const analysis = analysisModel ? await analyzeReasoningLoop(context, analysisModel, detection, reasoningSummary) : undefined;
+  const reason = streamGuardInterruptMessage(detection, analysis);
   return {
     type: "noeffect",
     interruptModelResponse: true,
     interruptReason: reason,
-    diagnostics: [reason]
+    diagnostics: [
+      `stream_guard.stop=${detection.code}`,
+      `stream_guard.reason=${detection.reason}`,
+      ...(analysisModel ? [`stream_guard.analysis_model=${analysisModel}`] : []),
+      ...(analysis?.diagnostic ? [analysis.diagnostic] : [])
+    ]
   };
+}
+
+async function analyzeReasoningLoop(
+  context: Readonly<Parameters<NDXHookCodeExecutor["run"]>[0]>,
+  requestedModel: string,
+  detection: StreamGuardDetection,
+  reasoningSummary: string
+): Promise<{ text?: string; diagnostic?: string }> {
+  try {
+    const settings = await readNDXSettingsDocument(context.userHome);
+    const resolved = resolveSettingsModelConfig(settings, requestedModel, context.session.model.contextsize);
+    if (!resolved) {
+      return { diagnostic: `stream_guard.analysis_model_unresolved=${requestedModel}` };
+    }
+    const analysisModelConfig: ResponseModelConfig = {
+      model: resolved.model.model,
+      url: resolved.model.url,
+      token: resolved.model.token,
+      requestTimeoutMs: STREAM_GUARD_ANALYSIS_TIMEOUT_MS,
+      ...(resolved.model.reasoningEffort ? { reasoningEffort: resolved.model.reasoningEffort } : {}),
+      ...(typeof resolved.model.temperature === "number" ? { temperature: resolved.model.temperature } : {}),
+      ...(typeof resolved.model.topP === "number" ? { topP: resolved.model.topP } : {}),
+      ...(typeof resolved.model.topK === "number" ? { topK: resolved.model.topK } : {}),
+      ...(typeof resolved.model.minP === "number" ? { minP: resolved.model.minP } : {})
+    };
+    const response = await requestModelResponse(
+      analysisModelConfig,
+      streamGuardAnalysisMessages(detection, reasoningSummary),
+      [],
+      {
+        onDebug: async (event, detail) => {
+          context.database.logger?.debug(event, {
+            sessionid: context.session.sessionid,
+            hook: "system.turn.model.responding.stream_guard.analysis",
+            model: resolved.model.model,
+            ...detail
+          });
+        }
+      }
+    );
+    const text = response.content.trim();
+    return text ? { text: text.slice(0, 2_000), diagnostic: `stream_guard.analysis_model=settings.models.${resolved.key}` } : { diagnostic: `stream_guard.analysis_empty=settings.models.${resolved.key}` };
+  } catch (error) {
+    return { diagnostic: `stream_guard.analysis_failed=${error instanceof Error ? error.message : String(error)}` };
+  }
+}
+
+function streamGuardAnalysisMessages(detection: StreamGuardDetection, reasoningSummary: string): ResponseInputItem[] {
+  return [
+    {
+      role: "system",
+      content: [
+        "You analyze why a coding agent model entered a reasoning loop.",
+        "Return Korean prose only, 2-4 concise sentences.",
+        "Do not quote the full reasoning. Do not recommend implementation steps.",
+        "Explain the likely loop mechanism in practical terms, like whether it kept re-evaluating strategy, replayed the same paragraph, analyzed tool plumbing, or failed to commit to a next action."
+      ].join("\n")
+    },
+    {
+      role: "user",
+      content: JSON.stringify({
+        stream_guard_stop: {
+          code: detection.code,
+          reason: detection.reason,
+          detail: detection.detail
+        },
+        latest_reasoning_excerpt: reasoningSummary.slice(-STREAM_GUARD_ANALYSIS_INPUT_CHARS)
+      })
+    }
+  ];
+}
+
+function streamGuardInterruptMessage(detection: StreamGuardDetection, analysis?: { text?: string }): string {
+  return [
+    "StreamGuard interrupted the model response before assistant output.",
+    "",
+    `Guard: ${detection.title}`,
+    `Reason: ${detection.reason}`,
+    `Detail: ${detection.detail}`,
+    ...(analysis?.text ? ["", "Loop analysis:", analysis.text] : [])
+  ].join("\n");
 }

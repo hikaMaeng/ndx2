@@ -168,7 +168,7 @@ test("settings document row edits runtime tool hook websearch and other settings
     },
     runtime: { maxModelIterations: 500 },
     tools: { prompt_rewrite: { model: "old-model" } },
-    hooks: { StreamGuard: { MAX_REASONING_LENGTH: 240000 } },
+    hooks: { StreamGuard: { MAX_REASONING_LENGTH: 240000, analysisModel: "old-loop-judge" } },
     websearch: { provider: "tavily", apiKey: "old" },
     permissions: { defaultMode: "danger-full-access" }
   }), "utf8");
@@ -183,7 +183,7 @@ test("settings document row edits runtime tool hook websearch and other settings
       defaultModelKey: "rewrite",
       runtime: { maxModelIterations: 750, loopDetectionInterval: 0 },
       tools: { prompt_rewrite: { model: "rewrite-model" } },
-      hooks: { StreamGuard: { MAX_REASONING_LENGTH: 12345 } },
+      hooks: { StreamGuard: { MAX_REASONING_LENGTH: 12345, analysisModel: "loop-judge" } },
       websearch: {
         provider: "custom",
         apiKey: "",
@@ -199,7 +199,7 @@ test("settings document row edits runtime tool hook websearch and other settings
       model?: string;
       runtime?: { maxModelIterations?: number; loopDetectionInterval?: number };
       tools?: { prompt_rewrite?: { model?: string } };
-      hooks?: { StreamGuard?: { MAX_REASONING_LENGTH?: number } };
+      hooks?: { StreamGuard?: { MAX_REASONING_LENGTH?: number; analysisModel?: string } };
       websearch?: { provider?: string; apiKey?: string; baseUrl?: string; method?: string; queryParam?: string; providers?: unknown };
       permissions?: unknown;
       extra?: unknown;
@@ -207,7 +207,7 @@ test("settings document row edits runtime tool hook websearch and other settings
     assert.equal(settings.model, "rewrite");
     assert.deepEqual(settings.runtime, { maxModelIterations: 750, loopDetectionInterval: 0 });
     assert.deepEqual(settings.tools, { prompt_rewrite: { model: "rewrite-model" } });
-    assert.deepEqual(settings.hooks, { StreamGuard: { MAX_REASONING_LENGTH: 12345 } });
+    assert.deepEqual(settings.hooks, { StreamGuard: { MAX_REASONING_LENGTH: 12345, analysisModel: "loop-judge" } });
     assert.deepEqual(settings.websearch, {
       provider: "custom",
       baseUrl: "https://search.example/api",

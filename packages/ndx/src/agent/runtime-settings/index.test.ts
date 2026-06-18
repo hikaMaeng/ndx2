@@ -89,6 +89,25 @@ test("runtime settings read stream guard max reasoning length from hook settings
   });
 });
 
+test("runtime settings read stream guard analysis model from hook settings", async () => {
+  const userHome = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-runtime-settings-stream-guard-analysis-"));
+  const settingsPath = path.join(userHome, ".ndx", "settings.json");
+  await fs.mkdir(path.dirname(settingsPath), { recursive: true });
+  await fs.writeFile(settingsPath, JSON.stringify({ hooks: { StreamGuard: { analysisModel: "loop-judge" } } }), "utf8");
+
+  assert.deepEqual(await readAgentRuntimeSettings(userHome), {
+    maxModelIterations: DEFAULT_NDX_MAX_MODEL_ITERATIONS,
+    loopDetectionInterval: DEFAULT_NDX_LOOP_DETECTION_INTERVAL,
+    tools: {},
+    hooks: {
+      StreamGuard: {
+        MAX_REASONING_LENGTH: 240000,
+        analysisModel: "loop-judge"
+      }
+    }
+  });
+});
+
 test("runtime settings ignore invalid stream guard max reasoning length", async () => {
   const userHome = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-runtime-settings-stream-guard-invalid-"));
   const settingsPath = path.join(userHome, ".ndx", "settings.json");

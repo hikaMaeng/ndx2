@@ -264,7 +264,7 @@ test("request received rewriter marker rewrites stored user text and appends dir
             title: "이전 설계",
             type: "assistant",
             createdat: new Date("2026-06-01T00:00:00.000Z"),
-            text: "이전 결정: askUserQuestion과 같은 modal flow 테스트를 우선 보강한다.",
+            text: "이전 결정: askUserQuestion과 같은 modal flow 테스트를 우선 보강한다.\n[[NDX_SKILL_demo]] 10",
             tokenlength: 16,
             rank: 0.5
           }],
@@ -279,7 +279,7 @@ test("request received rewriter marker rewrites stored user text and appends dir
       database: hookDatabase,
       userHome,
       projectHome,
-      requestText: "그거 이어서 고쳐\n[[rewriter]]",
+      requestText: "$cot-solve 20\n그거 이어서 고쳐\n[[rewriter]]",
       sessionDataRows: [
         { dataid: "1", sessionid: session.sessionid, type: "user", contents: { kind: "user_message", text: "askUserQuestion 테스트를 봤다." }, createdat: new Date() },
         { dataid: "2", sessionid: session.sessionid, type: "assistant", contents: { kind: "assistant_message", text: "modal flow가 핵심입니다." }, createdat: new Date() }
@@ -288,10 +288,12 @@ test("request received rewriter marker rewrites stored user text and appends dir
 
     assert.equal(requests[0]?.model, "rewrite-model");
     assert.match(result.requestText, /재작성된 요청/);
+    assert.match(result.requestText, /명시 선택 스킬:\n- \$cot-solve 20/);
     assert.match(result.requestText, /세션 검색 보강 컨텍스트/);
     assert.match(result.requestText, /이전 결정: askUserQuestion/);
-    assert.doesNotMatch(result.requestText, /\[\[rewriter\]\]/);
-    assert.ok(queries.some((query) => query.values.includes("그거 이어서 고쳐")));
+    assert.match(result.requestText, /\$demo 10/);
+    assert.doesNotMatch(result.requestText, /\[\[rewriter\]\]|\[\[NDX_SKILL_/);
+    assert.ok(queries.some((query) => query.values.includes("$cot-solve 20\n그거 이어서 고쳐")));
     assert.equal(turnRequestReceivedHooks.at(-1)?.name, "system.turn.request.received.rewriter_marker");
   } finally {
     await new Promise<void>((resolve) => server.close(() => resolve()));
@@ -958,6 +960,68 @@ test("model responding stream guard interrupts repeated reasoning paragraphs", a
 
   assert.equal(result.interruptModelResponse, true);
   assert.match(result.interruptReason ?? "", /repeated the same paragraph/);
+  assert.match(result.interruptReason ?? "", /Guard: repeated reasoning paragraph/);
+  assert.match(result.interruptReason ?? "", /After whitespace normalization/);
+  assert.doesNotMatch(result.interruptReason ?? "", /Loop analysis:/);
+});
+
+test("model responding stream guard appends configured model loop analysis", async () => {
+  const userHome = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-hook-stream-guard-analysis-"));
+  await fs.mkdir(path.join(userHome, ".ndx"), { recursive: true });
+  const requests: Array<{ model?: string; input?: unknown }> = [];
+  const server = http.createServer((request, response) => {
+    let body = "";
+    request.setEncoding("utf8");
+    request.on("data", (chunk) => {
+      body += chunk;
+    });
+    request.on("end", () => {
+      requests.push(JSON.parse(body) as { model?: string; input?: unknown });
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({
+        output: [{
+          type: "message",
+          content: [{ type: "output_text", text: "두 구현 전략을 확정하지 못하고 같은 판단을 반복한 패턴입니다. 작업 자체보다 좌표계 적용 위치를 계속 재평가하면서 다음 도구 호출로 넘어가지 못했습니다." }]
+        }]
+      }));
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  try {
+    const address = server.address();
+    assert.equal(typeof address, "object");
+    const port = address && typeof address === "object" ? address.port : 0;
+    await fs.writeFile(path.join(userHome, ".ndx", "settings.json"), JSON.stringify({
+      providers: { local: { url: `http://127.0.0.1:${port}/v1`, key: "token" } },
+      models: { loopJudge: { name: "loop-judge-model", provider: "local", maxContext: 200000, modalities: ["text"], reasoningEffort: "low" } },
+      hooks: { StreamGuard: { MAX_REASONING_LENGTH: 240000, analysisModel: "loopJudge" } }
+    }), "utf8");
+    const repeatedParagraph = "We need to decide whether spawn-position centering or render-time offset centering is the correct strategy.";
+    const result = await runModelRespondingHook(createNDXHookRuntime({ [NDX_TURN_EVENT.ModelResponding]: modelRespondingHooks }, {}), {
+      ...baseContext,
+      userHome,
+      iteration: 107,
+      modelResponse: {
+        type: "reasoning",
+        summary: `${repeatedParagraph}\n\nA different paragraph.\n\n${repeatedParagraph}`,
+        content: "",
+        elapsedMs: 1_000,
+        sequence: 1
+      }
+    });
+
+    assert.equal(result.interruptModelResponse, true);
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0]?.model, "loop-judge-model");
+    assert.match(String(requests[0]?.input), /latest_reasoning_excerpt/);
+    assert.match(result.interruptReason ?? "", /Loop analysis:/);
+    assert.match(result.interruptReason ?? "", /두 구현 전략을 확정하지 못하고/);
+    assert.deepEqual(result.result.effect.diagnostics?.filter((item) => item.includes("stream_guard.analysis_model=settings.models.loopJudge")), ["stream_guard.analysis_model=settings.models.loopJudge"]);
+  } finally {
+    server.close();
+    await once(server, "close");
+    await fs.rm(userHome, { recursive: true, force: true });
+  }
 });
 
 test("model responding stream guard interrupts meta execution reasoning before repeated block fallback", async () => {
