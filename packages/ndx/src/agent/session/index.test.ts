@@ -238,6 +238,10 @@ test("appendSessionData promotes only user message text to title when attachment
 
 test("sessionSearchText indexes only user requests and final assistant messages", () => {
   assert.equal(sessionSearchText({ type: "user", contents: { kind: "user_message", text: "질문" } }), "질문");
+  assert.equal(
+    sessionSearchText({ type: "user", contents: { kind: "user_message", text: "[[NDX_THINKING_low]]\n작업해\n[[NDX_SKILL_cot-solve]] 20\n[[rewriter]]" } }),
+    "작업해\n$cot-solve 20"
+  );
   assert.equal(sessionSearchText({ type: "assistant", contents: { kind: "assistant_message", text: "최종 답변" } }), "최종 답변");
   assert.equal(sessionSearchText({ type: "assistant", contents: { kind: "assistant_delta", content: "중간" } }), undefined);
   assert.equal(sessionSearchText({ type: "assistant", contents: { kind: "tool_result", results: [] } }), undefined);
@@ -948,6 +952,100 @@ test("runSessionTurn sends provider reasoning effort without inserting prompt co
     const input = String(modelInputs[0]);
     assert.ok(input.indexOf("이전 답변") < input.indexOf("새 질문"));
     assert.doesNotMatch(input, /<ndx_thinking_level>deep<\/ndx_thinking_level>/);
+  } finally {
+    modelServer.close();
+    await once(modelServer, "close");
+    await fs.rm(projectPath, { recursive: true, force: true });
+  }
+});
+
+test("runSessionTurn updates the session model before requesting the provider", async () => {
+  const projectPath = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-session-model-update-"));
+  const modelBodies: Array<{ model?: unknown; reasoning?: unknown }> = [];
+  const modelServer = http.createServer((request, response) => {
+    let body = "";
+    request.on("data", (chunk) => {
+      body += String(chunk);
+    });
+    request.on("end", () => {
+      const payload = JSON.parse(body) as { model?: unknown; reasoning?: unknown };
+      modelBodies.push({ model: payload.model, reasoning: payload.reasoning });
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.end(JSON.stringify({ output: [{ type: "message", content: [{ type: "output_text", text: "완료" }] }] }));
+    });
+  });
+
+  await new Promise<void>((resolve) => {
+    modelServer.listen(0, "127.0.0.1", () => resolve());
+  });
+  const address = modelServer.address();
+  assert(address && typeof address === "object");
+
+  const session: NDXSessionRow = {
+    sessionid: "018f0000-0000-7000-8000-000000000011",
+    userid: "ndev",
+    title: "",
+    mode: "none",
+    path: projectPath,
+    projectname: "project-1",
+    model: { ...modelConfig("old-model"), url: `http://127.0.0.1:${address.port}/v1`, reasoningEffort: "low" },
+    isrunning: false,
+    turnphase: "idle",
+    interruptrequested: false,
+    interruptrequestedat: null,
+    interruptcompletedat: null,
+    lastupdated: new Date("2026-05-12T00:00:00.000Z")
+  };
+  const nextModel = { ...modelConfig("new-model"), url: `http://127.0.0.1:${address.port}/v1`, reasoningEffort: "high" as const };
+  const rows: NDXSessionDataRow[] = [];
+  const database: NDXDatabase = {
+    async query(text, values) {
+      if (/SET\s+model = COALESCE/i.test(text)) {
+        session.isrunning = true;
+        session.turnphase = "starting";
+        if (values?.[1]) {
+          session.model = JSON.parse(String(values[1]));
+        }
+        return { rows: [session], rowCount: 1 } as never;
+      }
+      if (/SET\s+turnphase = \$2/i.test(text)) {
+        session.turnphase = String(values?.[1]);
+        return { rows: [session], rowCount: 1 } as never;
+      }
+      if (/FROM "session"/i.test(text) && /WHERE sessionid = \$1/i.test(text)) {
+        return { rows: [session], rowCount: 1 } as never;
+      }
+      if (/INSERT INTO sessiondata/i.test(text)) {
+        const row = {
+          dataid: String(rows.length + 1),
+          sessionid: String(values?.[0]),
+          type: String(values?.[1]),
+          contents: JSON.parse(String(values?.[2])),
+          createdat: new Date(`2026-05-12T00:00:${String(rows.length + 1).padStart(2, "0")}.000Z`)
+        };
+        rows.push(row);
+        return { rows: [row], rowCount: 1 } as never;
+      }
+      if (/FROM sessiondata/i.test(text)) {
+        return { rows: [...rows], rowCount: rows.length } as never;
+      }
+      if (/SET\s+isrunning = false/i.test(text)) {
+        session.isrunning = false;
+        session.turnphase = "idle";
+        return { rows: [session], rowCount: 1 } as never;
+      }
+      return { rows: [], rowCount: 0 } as never;
+    },
+    async close() {}
+  };
+
+  try {
+    await runSessionTurn(database, session, { text: "새 모델로 처리" }, nextModel);
+
+    assert.equal(session.model.model, "new-model");
+    assert.equal(session.model.reasoningEffort, "high");
+    assert.equal(modelBodies[0]?.model, "new-model");
+    assert.deepEqual(modelBodies[0]?.reasoning, { effort: "high" });
   } finally {
     modelServer.close();
     await once(modelServer, "close");

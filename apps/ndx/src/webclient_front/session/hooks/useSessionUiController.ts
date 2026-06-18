@@ -6,13 +6,16 @@ import {
   createSessionUiState,
   DEFAULT_MODEL,
   NDXWebClientSessionUiManager,
+  applyRoutedSessionMessageToStore,
   sessionModelToUiState,
   sessionModelWithUiState,
   type ChatMessage,
   type NDXAgentWebContextUsage,
+  type ProtocolEventUiText,
   type SelectedModelConfig,
   type SessionAttachmentDraft,
   type SessionInstanceModel,
+  type SessionModelRoutedMessage,
   type SessionModelSnapshot,
   type SessionUiState,
   type TurnFlowState
@@ -83,6 +86,9 @@ export function useSessionUiController() {
     const key = activeUiKeyRef.current;
     if (!key) return;
     updateSessionUi(key, update);
+  };
+  const applyRoutedSessionMessage = (message: SessionModelRoutedMessage, text: ProtocolEventUiText) => {
+    setSessionModelByKey((current) => applyRoutedSessionMessageToStore(current, message, text));
   };
 
   const setChatInput = (value: string) => updateActiveUi((current) => ({ ...current, chatInput: value }));
@@ -192,6 +198,7 @@ export function useSessionUiController() {
     setTurnFlows,
     surfaceKeys,
     removeChatAttachment,
+    applyRoutedSessionMessage,
     updateActiveUi,
     updateSessionUi,
     upsertSessionModel

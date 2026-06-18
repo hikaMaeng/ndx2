@@ -1,11 +1,13 @@
 import React from "react";
 import { ChevronLeft, ChevronRight, Copy, ExternalLink, GitBranch, LoaderCircle, Trash2, X } from "lucide-react";
 import type { ChatMessageAttachment } from "ndx/webclient/front";
+import { MarkdownMessage } from "./MarkdownMessage";
 
 export function UserChatMessage({
   text,
   attachments,
   pending = false,
+  pendingLabel = "요청 처리 중...",
   actionsDisabled = false,
   onBranch,
   onDelete
@@ -13,6 +15,7 @@ export function UserChatMessage({
   text: string;
   attachments: ChatMessageAttachment[];
   pending?: boolean;
+  pendingLabel?: string;
   actionsDisabled?: boolean;
   onBranch?: () => void;
   onDelete?: () => void;
@@ -46,11 +49,11 @@ export function UserChatMessage({
         <div className="min-w-0">
           {pending ? (
             <div className="mb-2 flex items-center gap-2 text-xs font-medium text-zinc-600">
-              <LoaderCircle aria-label="요청 처리 중" className="h-3.5 w-3.5 animate-spin" />
-              <span>요청 처리 중...</span>
+              <LoaderCircle aria-label={pendingLabel} className="h-3.5 w-3.5 animate-spin" />
+              <span>{pendingLabel}</span>
             </div>
           ) : null}
-          {text ? <p className={`ndx-wrap-anywhere whitespace-pre-wrap ${pending ? "text-zinc-700" : ""}`}>{text}</p> : null}
+          {text ? pending ? <p className="ndx-wrap-anywhere whitespace-pre-wrap text-zinc-700">{text}</p> : <MarkdownMessage text={text} tone="user" /> : null}
         </div>
         {attachments.length > 0 ? (
           <ul className="flex flex-wrap gap-2" aria-label="첨부 이미지와 파일">

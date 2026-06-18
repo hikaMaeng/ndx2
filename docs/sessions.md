@@ -78,6 +78,12 @@ still only receives the final `NDXModelConfig` payload. The socket server owns
 agent execution; the web client only requests session lists, creates sessions,
 selects accounts, and opens socket connections.
 
+When an existing session receives `session.input` with a model config, the
+socket server treats that config as the session's new active model for the turn.
+It updates PostgreSQL `session.model` before reconstructing context or calling
+the provider, so model name, endpoint, context size, and `reasoningEffort` take
+effect for that request and later turns.
+
 All session-history mutations use the session socket protocol, not web-only HTTP
 routes. A client with a session grant may request `session.turn.delete` for a
 specific user input `dataid`, or `session.branch.create` to create a new session
@@ -87,11 +93,14 @@ while the source session is running, compacting, interrupting, or carrying a
 pending interrupt request.
 
 `session.branch.create` copies the source session account, project, mode, and
-model config, creates a new session, and stores one initial `compact`
+model config, creates a new session, and then stores one initial `compact`
 `sessiondata` row summarizing source history through the selected turn. The new
 session title is the selected user request title with a leading `🚩`. The
 requesting socket receives a grant for the new session before the
-`session.branch.created` response is sent.
+`session.branch.created` response is sent. Because branch compaction can be
+slow, `session.branch.created` may be sent with `compactStatus: "running"`
+before the initial `compact` row exists; the socket then emits
+`turn.compact.started` and `turn.compact.completed` events for the new session.
 
 For a new project session with a first request, the browser sends that request
 inside `session.create.initialInput`. The socket server validates the target

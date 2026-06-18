@@ -140,7 +140,8 @@ export type NDXSessionBranchCreatedMessage = {
   sourceSessionid: string;
   inputDataId: string;
   session: Omit<NDXSessionCreatedMessage, "type" | "initialInputAccepted">;
-  compact: NDXSessionDataRecordMessage;
+  compactStatus?: "running" | "completed";
+  compact?: NDXSessionDataRecordMessage;
 };
 
 export type NDXSessionRenameMessage = {

@@ -11,6 +11,7 @@ export enum RSC {
   SESSION_COMPOSER_INTERRUPT_PENDING_STATUS = "session.composer.interrupt.pending.status",
   SESSION_COMPOSER_MODEL_CHOOSE_BUTTON = "session.composer.model.choose.button",
   SESSION_COMPOSER_REQUEST_PENDING_STATUS = "session.composer.request.pending.status",
+  SESSION_COMPOSER_REWRITE_PENDING_STATUS = "session.composer.rewrite.pending.status",
   SESSION_COMPOSER_REWRITE_OFF_BUTTON = "session.composer.rewrite.off.button",
   SESSION_COMPOSER_REWRITE_ON_BUTTON = "session.composer.rewrite.on.button",
   SESSION_COMPOSER_REWRITE_UNAVAILABLE_STATUS = "session.composer.rewrite.unavailable.status",

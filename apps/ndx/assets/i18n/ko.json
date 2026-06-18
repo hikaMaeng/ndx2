@@ -81,6 +81,7 @@
   "session.composer.interrupt.button": "에이전트 정지",
   "session.composer.interrupt.pending.status": "인터럽트 요청 중",
   "session.composer.request.pending.status": "요청 기록 중",
+  "session.composer.rewrite.pending.status": "프롬프트 재작성 중...",
   "session.composer.idle.status": "입력 대기",
   "session.composer.running.status": "에이전트 실행 중",
   "session.composer.rewrite.on.button": "Rewrite 켜기",

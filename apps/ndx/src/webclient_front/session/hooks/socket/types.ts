@@ -1,4 +1,5 @@
 import type React from "react";
+import type { ProtocolEventUiText, SessionModelRoutedMessage } from "ndx/webclient/front";
 import type {
   NDXSessionClientRequestClosedMessage,
   NDXSessionClientRequestMessage,
@@ -68,6 +69,7 @@ export type UseSessionSocketControllerOptions = {
   stateRef: React.MutableRefObject<NDXWebClientStateDocument>;
   t: Record<string, string>;
   onSkillListReceived: (projectName: string, skills: NDXSessionSkillListResultMessage["skills"]) => void;
+  applyRoutedSessionMessage: (message: SessionModelRoutedMessage, text: ProtocolEventUiText) => void;
   updateActiveUi: (update: (current: SessionUiState) => SessionUiState) => void;
   updateSessionUi: (key: string, update: (current: SessionUiState) => SessionUiState) => void;
 };

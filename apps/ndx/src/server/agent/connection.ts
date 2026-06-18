@@ -41,10 +41,12 @@ import {
 import type { NDXAskUserQuestionRequest, NDXAskUserQuestionResponse, NDXSessionAttachMessage, NDXSessionBranchCreateMessage, NDXSessionClientRequestClosedMessage, NDXSessionCreateInitialInput, NDXSessionCreateMessage, NDXSessionDeleteMessage, NDXSessionEventMessage, NDXSessionRenameMessage, NDXSessionSidebarItemMessage, NDXSessionSkillListMessage, NDXSessionTurnDeleteMessage } from "ndx/common/protocol";
 import {
   appendSessionData,
-  branchSessionFromTurn,
+  compactBranchSession,
   createSession,
+  createBranchSessionFromTurn,
   deleteSession,
   deleteSessionTurn,
+  estimateContextTokens,
   getSession,
   getRuntimeTurnPhase,
   interruptContents,
@@ -54,6 +56,7 @@ import {
   requestSessionInterrupt,
   assertModelSupportsAttachments,
   userMessageContents,
+  sessionDataText,
   sessionDataTitleText,
   updateSessionTitle,
   writeSessionAttachments,
@@ -61,6 +64,7 @@ import {
   type NDXModelConfig,
   type NDXSessionDataRow,
   type NDXSessionRow,
+  type NDXBranchSessionStartResult,
   type NDXTurnLoopEvent,
   runAgentTurnWithCompactContinuation
 } from "ndx/agent";
@@ -839,7 +843,7 @@ async function createSessionBranchFromSocket(
 
   let branch;
   try {
-    branch = await branchSessionFromTurn(database, grant.sessionid, message.inputDataId);
+    branch = await createBranchSessionFromTurn(database, grant.sessionid, message.inputDataId);
   } catch (error) {
     logger?.warn("agent.socket.protocol.session_branch_create.failed", { clientid: client.clientid, sessionid: message.sessionid, error });
     await sendJson(client, { type: NDX_PROTOCOL_ERROR, error: error instanceof Error ? error.message : "세션 분기를 생성하지 못했습니다." });
@@ -861,10 +865,60 @@ async function createSessionBranchFromSocket(
     sourceSessionid: branch.sourceSession.sessionid,
     inputDataId: branch.inputDataId,
     session: toSocketSession(branch.session),
-    compact: toSocketSessionData(branch.compact)
+    compactStatus: "running"
   });
+  await sendBranchCompactEvent(connectedClients, branch, "started", logger);
   await broadcastSessionListChanged(connectedClients, branch.session.userid, branch.session.projectname, logger);
-  logger?.info("agent.socket.protocol.session_branch_create.complete", { clientid: client.clientid, sourceSessionid: branch.sourceSession.sessionid, sessionid: branch.session.sessionid });
+  void finishBranchSessionCompact(client, branch, connectedClients, database, logger);
+  logger?.info("agent.socket.protocol.session_branch_create.accepted", { clientid: client.clientid, sourceSessionid: branch.sourceSession.sessionid, sessionid: branch.session.sessionid });
+}
+
+async function finishBranchSessionCompact(
+  client: SessionClientState,
+  branch: NDXBranchSessionStartResult,
+  connectedClients: Map<string, SessionClientState>,
+  database: NDXDatabase,
+  logger?: NDXLogger
+) {
+  try {
+    const completed = await compactBranchSession(database, branch);
+    await sendBranchCompactEvent(connectedClients, branch, "completed", logger, completed.compact);
+    await broadcastSessionListChanged(connectedClients, branch.session.userid, branch.session.projectname, logger);
+    logger?.info("agent.socket.protocol.session_branch_create.complete", { clientid: client.clientid, sourceSessionid: branch.sourceSession.sessionid, sessionid: branch.session.sessionid });
+  } catch (error) {
+    logger?.warn("agent.socket.protocol.session_branch_compact.failed", { clientid: client.clientid, sourceSessionid: branch.sourceSession.sessionid, sessionid: branch.session.sessionid, error });
+    await sendJson(client, { type: NDX_PROTOCOL_ERROR, error: error instanceof Error ? error.message : "분기 세션 compact를 완료하지 못했습니다." });
+    await broadcastSessionListChanged(connectedClients, branch.session.userid, branch.session.projectname, logger);
+  }
+}
+
+async function sendBranchCompactEvent(
+  connectedClients: Map<string, SessionClientState>,
+  branch: NDXBranchSessionStartResult,
+  phase: "started" | "completed",
+  logger?: NDXLogger,
+  compact?: NDXSessionDataRow
+) {
+  const report = branch.report;
+  const contextUsage = {
+    tokens: report.tokens,
+    messageTokens: report.tokens,
+    toolDefinitionTokens: 0,
+    percent: report.percent,
+    contextsize: report.contextsize
+  };
+  const targets = sessionGrantOwnerTargets(connectedClients, branch.session.sessionid);
+  const message = phase === "started"
+    ? sessionEventSocketMessage(branch.session, NDX_TURN_EVENT.CompactStarted, `branch-compact-start:${branch.session.sessionid}:${branch.inputDataId}`, { kind: "compact_started", ...report }, new Date().toISOString(), contextUsage, { isrunning: true })
+    : sessionEventSocketMessage(branch.session, NDX_TURN_EVENT.CompactCompleted, String(compact?.dataid ?? `branch-compact-complete:${branch.session.sessionid}:${branch.inputDataId}`), {
+      kind: "compact_completed",
+      ...report,
+      compactDataId: String(compact?.dataid ?? ""),
+      sourceRowCount: branch.sourceRows.length,
+      summaryTokens: compact ? estimateContextTokens(sessionDataText(compact) ?? JSON.stringify(compact.contents ?? "")) : 0
+    }, compact?.createdat.toISOString() ?? new Date().toISOString(), contextUsage, { isrunning: false });
+  await Promise.all(targets.map((target) => sendJson(target.client, message)));
+  logger?.debug("agent.socket.session_branch.compact_event.sent", { sessionid: branch.session.sessionid, event: message.event, count: targets.length });
 }
 
 async function broadcastSessionListChanged(

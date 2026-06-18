@@ -13,18 +13,12 @@ import {
   type NDXSessionTurnDeletedMessage
 } from "ndx/common/protocol";
 import {
-  applyIterationDetail,
-  applyProtocolEventToSessionUiState,
-  chatMessagesFromHistorySummary,
   interruptWasAccepted,
-  mergeRestoredChatMessages,
-  mergeRestoredTurnFlows,
-  mergeTurnSummary,
   withoutPendingUserChatMessages,
   type NDXAgentWebContextUsage
 } from "ndx/webclient/front";
 import { RSC } from "../../../app/resource";
-import { applyRightSidebarItemMessage, rightSidebarCleared } from "../../rightsidebar/state";
+import { rightSidebarCleared } from "../../rightsidebar/state";
 import type { SessionSocketControllerActions, UseSessionSocketControllerOptions } from "./types";
 
 export type SessionSocketHandlers = {
@@ -50,6 +44,7 @@ type SessionSocketHandlerRuntime = {
 
 export function createSessionSocketHandlers(options: UseSessionSocketControllerOptions, runtime: SessionSocketHandlerRuntime): SessionSocketHandlers {
   const {
+    applyRoutedSessionMessage,
     activeSession,
     activeSessionIdRef,
     activeUi,
@@ -125,9 +120,7 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
   const onHistorySummary = (message: NDXSessionHistorySummaryResultMessage) => {
     if (message.sessionid !== activeSessionIdRef.current) return;
     updateContextUsage(message.contextUsage);
-    setCotWork(undefined);
-    setChatMessages((current) => mergeRestoredChatMessages(current, chatMessagesFromHistorySummary(message.visibleEvents, message.turns)));
-    setTurnFlows((current) => mergeRestoredTurnFlows(current, message.turns));
+    applyRoutedSessionMessage(message, eventText());
   };
 
   const onSkillList = (message: NDXSessionSkillListResultMessage) => {
@@ -137,18 +130,17 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
   };
 
   const onSidebarItem = (message: NDXSessionSidebarItemMessage) => {
-    applyRightSidebarItemMessage(updateSessionUi, message);
+    applyRoutedSessionMessage(message, eventText());
   };
 
   const onTurnDetail = (message: NDXSessionTurnDetailResultMessage) => {
     if (message.sessionid !== activeSessionIdRef.current || !message.turn) return;
-    const turn = message.turn;
-    setTurnFlows((turns) => mergeTurnSummary(turns, turn));
+    applyRoutedSessionMessage(message, eventText());
   };
 
   const onIterationDetail = (message: NDXSessionIterationDetailResultMessage) => {
     if (message.sessionid !== activeSessionIdRef.current) return;
-    setTurnFlows((turns) => applyIterationDetail(turns, message));
+    applyRoutedSessionMessage(message, eventText());
   };
 
   const onTurnDeleted = (message: NDXSessionTurnDeletedMessage) => {
@@ -169,6 +161,7 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
   const onBranchCreated = (message: NDXSessionBranchCreatedMessage) => {
     finishAction(`session-branch:${message.sourceSessionid}:${message.inputDataId}`);
     const session = message.session;
+    const compactRunning = message.compactStatus === "running";
     project.setSessionsByProject((current) => ({
       ...current,
       [session.projectname]: [
@@ -197,14 +190,17 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
     setActiveSessionId(session.sessionid);
     updateSessionUi(session.sessionid, (current) => ({
       ...rightSidebarCleared(current),
-      agentRunning: false,
-      notice: "분기 세션을 생성했습니다.",
+      agentRunning: compactRunning,
+      compactRunning,
+      notice: compactRunning ? "분기 세션 compact 진행 중..." : "분기 세션을 생성했습니다.",
       sessionError: "",
       chatMessages: [],
       turnFlows: []
     }));
     project.openProjectSession(session.projectname, session.sessionid);
-    socketRef.current?.requestHistorySummary(session.sessionid);
+    if (!compactRunning) {
+      socketRef.current?.requestHistorySummary(session.sessionid);
+    }
     socketRef.current?.requestSkillList(session.sessionid);
     void project.refreshSessions();
   };
@@ -239,17 +235,10 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
       });
     }
 
-    updateSessionUi(message.sessionid, (current) => {
-      return applyProtocolEventToSessionUiState(current, message, {
-        compactCompleted: "세션 히스토리 compact 완료",
-        compactStarted: "세션 히스토리 compact 진행 중...",
-        interruptPending: t[RSC.SESSION_COMPOSER_INTERRUPT_PENDING_STATUS],
-        interruptStored: t[RSC.APP_STATUS_INTERRUPT_STORED_STATUS],
-        operationInProgress: t[RSC.APP_STATUS_OPERATION_IN_PROGRESS_STATUS] || "응답 수신 중...",
-        prefixDrift: "Prefix drift warning",
-        requestStored: t[RSC.APP_STATUS_REQUEST_STORED_STATUS]
-      });
-    });
+    applyRoutedSessionMessage(message, eventText());
+    if (isActiveSessionEvent && message.event === NDX_TURN_EVENT.CompactCompleted && message.contents && typeof message.contents === "object" && (message.contents as { kind?: unknown; reason?: unknown }).kind === "compact_completed" && (message.contents as { reason?: unknown }).reason === "branch") {
+      socketRef.current?.requestHistorySummary(message.sessionid);
+    }
     if (!isActiveSessionEvent || message.event === NDX_TURN_EVENT.InputRecorded || message.event === NDX_TURN_EVENT.AssistantRecorded || sessionRunningState === false) {
       void project.refreshSessions();
     }
@@ -311,6 +300,16 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
     setAgentRunning(false);
     setNotice(t[RSC.APP_STATUS_SOCKET_REQUIRED_ALERT]);
   };
+
+  const eventText = () => ({
+    compactCompleted: "세션 히스토리 compact 완료",
+    compactStarted: "세션 히스토리 compact 진행 중...",
+    interruptPending: t[RSC.SESSION_COMPOSER_INTERRUPT_PENDING_STATUS],
+    interruptStored: t[RSC.APP_STATUS_INTERRUPT_STORED_STATUS],
+    operationInProgress: t[RSC.APP_STATUS_OPERATION_IN_PROGRESS_STATUS] || "응답 수신 중...",
+    prefixDrift: "Prefix drift warning",
+    requestStored: t[RSC.APP_STATUS_REQUEST_STORED_STATUS]
+  });
 
   const onSessionAttached = (message: NDXSessionAttachedMessage) => {
     clearSessionError();

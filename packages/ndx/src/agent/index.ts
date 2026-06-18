@@ -37,7 +37,9 @@ export {
   assistantDeltaContents,
   assistantMessageContents,
   branchSessionFromTurn,
+  compactBranchSession,
   createSession,
+  createBranchSessionFromTurn,
   consumeInlineAttachmentDataIds,
   deleteSession,
   deleteSessionTurn,
@@ -64,7 +66,7 @@ export {
   updateSessionTitle,
   writeSessionAttachments
 } from "./session/index.js";
-export type { NDXSessionDataContents, NDXSessionInputAttachmentData } from "./session/index.js";
+export type { NDXBranchSessionResult, NDXBranchSessionStartResult, NDXSessionDataContents, NDXSessionInputAttachmentData } from "./session/index.js";
 export type { NDXSessionHistoryScope, NDXSessionHistorySearchInput, NDXSessionHistorySearchResult, NDXSessionSearchRow } from "./session/index.js";
 export { buildTurnMessages, buildTurnMessageParts, buildTurnMessagesFromParts, getRuntimeTurnPhase, NDX_COMPACT_CONTINUATION_REQUEST_TEXT, requestRuntimeTurnInterrupt, runAgentTurn, runAgentTurnWithCompactContinuation, turnInterruptPolicy } from "./turnloop/index.js";
 export type { NDXTurnInput, NDXTurnLoopEvent, NDXTurnMessageParts } from "./turnloop/index.js";

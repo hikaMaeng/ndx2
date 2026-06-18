@@ -1,0 +1,42 @@
+{
+  "status": "passed",
+  "mode": "smoke",
+  "startedAt": "2026-06-14T13:39:48.659Z",
+  "testedUrl": "http://127.0.0.1:5174/",
+  "finalUrl": "http://127.0.0.1:5174/",
+  "title": "NDX vibe",
+  "mainPresent": true,
+  "documentStatus": 200,
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 404 (File not found)",
+    "Failed to load resource: the server responded with a status of 404 (File not found)",
+    "Failed to load resource: the server responded with a status of 404 (File not found)",
+    "Failed to load resource: the server responded with a status of 404 (File not found)",
+    "Failed to load resource: the server responded with a status of 404 (File not found)",
+    "Failed to load resource: the server responded with a status of 404 (File not found)",
+    "Failed to load resource: the server responded with a status of 404 (File not found)",
+    "Failed to load resource: the server responded with a status of 404 (File not found)"
+  ],
+  "pageErrors": [
+    "Failed to load translation for en: 404"
+  ],
+  "screenshots": [
+    "/mnt/f/dev/ndx2/test/20260614/223948_headless-browser-test/screenshots/smoke.png"
+  ],
+  "trace": "/mnt/f/dev/ndx2/test/20260614/223948_headless-browser-test/trace.zip",
+  "steps": [
+    {
+      "action": "goto",
+      "status": "passed"
+    },
+    {
+      "action": "assertRole",
+      "status": "passed"
+    },
+    {
+      "action": "screenshot",
+      "status": "passed"
+    }
+  ],
+  "finishedAt": "2026-06-14T13:40:55.287Z"
+}

@@ -150,10 +150,13 @@ export function useSessionRequestController({
       return;
     }
     setAutoScrollEnabled(true);
+    const pendingNotice = rewriteEnabled
+      ? t[RSC.SESSION_COMPOSER_REWRITE_PENDING_STATUS] || "프롬프트 재작성 중..."
+      : t[RSC.APP_STATUS_OPERATION_IN_PROGRESS_STATUS] || "응답 수신 중...";
     updateActiveUi((current) => ({
       ...current,
       agentRunning: true,
-      notice: t[RSC.APP_STATUS_OPERATION_IN_PROGRESS_STATUS] || "응답 수신 중...",
+      notice: pendingNotice,
       chatMessages: [...withoutPendingUserChatMessages(current.chatMessages), pendingUserChatMessage(text || "첨부 요청")]
     }));
     let activeSubmitActionKey = sessionSubmitActionKey;

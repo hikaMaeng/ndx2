@@ -81,6 +81,7 @@
   "session.composer.interrupt.button": "Stop agent",
   "session.composer.interrupt.pending.status": "Requesting interrupt",
   "session.composer.request.pending.status": "Recording request",
+  "session.composer.rewrite.pending.status": "Rewriting prompt...",
   "session.composer.idle.status": "Waiting for input",
   "session.composer.running.status": "Agent running",
   "session.composer.rewrite.on.button": "Turn Rewrite on",

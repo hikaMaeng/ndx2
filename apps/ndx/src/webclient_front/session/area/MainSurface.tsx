@@ -1,7 +1,34 @@
 import React from "react";
 import type { NDXSessionSkillSummary } from "ndx/common/protocol";
-import type { NDXAgentWebChatSession, NDXAgentWebMetadataResponse, NDXAgentWebSession, NDXWebClientStateDocument, NDXAgentWebSessionData } from "ndx/webclient/common";
-import { appendChatSessionMessageStream, createChatSession, createSessionUiState, DEFAULT_MODEL, fromModelConfig, listChatSessionData, sessionDataContentsText, sessionDataToChatMessage, sessionDataToVisibleChatMessage, toModelConfig, type ChatMessage, type SelectedModelConfig, type SessionUiState, type SocketState } from "ndx/webclient/front";
+import type { NDXAgentWebChatSession, NDXAgentWebMetadataResponse, NDXAgentWebSession, NDXWebClientStateDocument } from "ndx/webclient/common";
+import {
+  appendChatSessionMessageStream,
+  applyChatRequestCompleted,
+  applyChatRequestFailed,
+  applyChatRequestStarted,
+  applyChatSessionLoaded,
+  applyChatStreamProgress,
+  chatDraftModelKey,
+  chatFolderModelKey,
+  chatModelToUiState,
+  chatModelWithUiState,
+  chatSessionModelKey,
+  createChatDraftModel,
+  createChatFolderModel,
+  createChatSession,
+  createChatSessionModel,
+  createSessionUiState,
+  DEFAULT_MODEL,
+  ensureChatModel,
+  listChatSessionData,
+  setChatModelSelectedModel,
+  toModelConfig,
+  type ChatModelSnapshot,
+  type SelectedModelConfig,
+  type SessionUiState,
+  type SocketState,
+  updateChatModel
+} from "ndx/webclient/front";
 import type { WebClientBridge } from "../../app/bridge/WebClientBridge";
 import { useBridgeModals, useBridgePendingActions, useBridgeProjectSessionDeleteRequest, useBridgeProjectSessions, useBridgeSurface } from "../../app/bridge/WebClientBridge";
 import { RSC } from "../../app/resource";
@@ -62,9 +89,7 @@ export function MainSurface({
   const [attachedSessionIds, setAttachedSessionIds] = React.useState<Set<string>>(new Set());
   const [skillsByProject, setSkillsByProject] = React.useState<Record<string, NDXSessionSkillSummary[]>>({});
   const skillsByProjectRef = React.useRef<Record<string, NDXSessionSkillSummary[]>>({});
-  const [chatUiByKey, setChatUiByKey] = React.useState<Record<string, SessionUiState>>({});
-  const [chatSessionByKey, setChatSessionByKey] = React.useState<Record<string, NDXAgentWebChatSession>>({});
-  const [chatSelectedModelByKey, setChatSelectedModelByKey] = React.useState<Record<string, SelectedModelConfig>>({});
+  const [chatModelByKey, setChatModelByKey] = React.useState<ChatModelSnapshot>({});
   const [rewriteEnabledBySession, setRewriteEnabledBySession] = React.useState<Record<string, boolean>>(() => loadRewriteEnabledBySession());
   const socketRef = React.useRef<SessionSocketClient | null>(null);
   const attachedSessionIdsRef = React.useRef<Set<string>>(new Set());
@@ -100,6 +125,7 @@ export function MainSurface({
     setSessionUiByKey,
     setTurnFlows,
     surfaceKeys,
+    applyRoutedSessionMessage,
     updateActiveUi,
     updateSessionUi,
     upsertSessionModel
@@ -131,46 +157,33 @@ export function MainSurface({
   const modelDialog = useModelDialogController({ activeSession, selectedModel, setSelectedModel, setNotice, t });
   const askUserQuestion = useAskUserQuestionController({ getSocket: () => socketRef.current, t });
   const chatSurfaceKey = surface.kind === "chat-draft"
-    ? `chat-draft:${surface.folderId}`
+    ? chatDraftModelKey(surface.folderId)
     : surface.kind === "chat-session"
-      ? `chat:${surface.sessionId}`
+      ? chatSessionModelKey(surface.sessionId)
       : surface.kind === "chat-folder"
-        ? `chat-folder:${surface.folderId}`
+        ? chatFolderModelKey(surface.folderId)
         : undefined;
-  const chatUi = chatSurfaceKey ? chatUiByKey[chatSurfaceKey] ?? createSessionUiState() : createSessionUiState();
-  const chatSession = chatSurfaceKey ? chatSessionByKey[chatSurfaceKey] : undefined;
-  const chatSelectedModel = chatSurfaceKey ? chatSelectedModelByKey[chatSurfaceKey] ?? DEFAULT_MODEL : DEFAULT_MODEL;
+  const chatModel = chatSurfaceKey ? chatModelByKey[chatSurfaceKey] : undefined;
+  const chatUi = chatModel ? chatModelToUiState(chatModel) : createSessionUiState();
+  const chatSession = chatModel?.metadata;
+  const chatSelectedModel = chatModel?.composer.selectedModel ?? DEFAULT_MODEL;
   const setChatSelectedModel = (update: SelectedModelConfig | ((current: SelectedModelConfig) => SelectedModelConfig)) => {
     if (!chatSurfaceKey) return;
-    setChatSelectedModelByKey((current) => ({
-      ...current,
-      [chatSurfaceKey]: typeof update === "function" ? update(current[chatSurfaceKey] ?? DEFAULT_MODEL) : update
-    }));
+    setChatModelByKey((current) => {
+      const ensured = ensureChatModel(current, chatSurfaceKey);
+      const model = ensured[chatSurfaceKey];
+      if (!model) return ensured;
+      const nextModel = typeof update === "function" ? update(model.composer.selectedModel) : update;
+      return { ...ensured, [chatSurfaceKey]: setChatModelSelectedModel(model, nextModel) };
+    });
   };
   const updateChatUi = (key: string, update: (current: SessionUiState) => SessionUiState) => {
-    setChatUiByKey((current) => ({ ...current, [key]: update(current[key] ?? createSessionUiState()) }));
+    setChatModelByKey((current) => {
+      const ensured = ensureChatModel(current, key);
+      const model = ensured[key];
+      return model ? { ...ensured, [key]: chatModelWithUiState(model, update(chatModelToUiState(model))) } : ensured;
+    });
   };
-  const chatRowsToMessages = (rows: NDXAgentWebSessionData[]): ChatMessage[] => rows.flatMap((row) => {
-    if (row.type === "user") return [sessionDataToChatMessage(row)];
-    if (!row.contents || typeof row.contents !== "object") {
-      const visible = sessionDataToVisibleChatMessage(row);
-      return visible ? [visible] : [];
-    }
-    const kind = (row.contents as { kind?: unknown }).kind;
-    if (kind === "assistant_message" || kind === "error") {
-      const visible = sessionDataToVisibleChatMessage(row);
-      return visible ? [visible] : [];
-    }
-    if (kind === "assistant_reasoning") {
-      const text = sessionDataContentsText(row.contents);
-      return text ? [{ id: row.dataid, role: "assistant", text, attachments: [] }] : [];
-    }
-    if (kind === "assistant_delta") {
-      const text = sessionDataContentsText(row.contents);
-      return text ? [{ id: row.dataid, role: "assistant", text, attachments: [] }] : [];
-    }
-    return [];
-  });
   const hasPendingAction = (key: string) => pendingActions.has(key);
   const startAction = (key: string) => bridge.startAction(key);
   const finishAction = (key: string) => bridge.finishAction(key);
@@ -237,6 +250,7 @@ export function MainSurface({
     stateRef,
     t,
     onSkillListReceived: applySkillList,
+    applyRoutedSessionMessage,
     updateActiveUi,
     updateSessionUi
   });
@@ -394,7 +408,7 @@ export function MainSurface({
     }
     if (surface.kind === "chat-folder" || surface.kind === "chat-session" || surface.kind === "chat-draft") {
       activeSessionIdRef.current = undefined;
-      activeUiKeyRef.current = surface.kind === "chat-draft" ? `chat-draft:${surface.folderId}` : surface.kind === "chat-session" ? `chat:${surface.sessionId}` : undefined;
+      activeUiKeyRef.current = surface.kind === "chat-draft" ? chatDraftModelKey(surface.folderId) : surface.kind === "chat-session" ? chatSessionModelKey(surface.sessionId) : undefined;
       draftSessionProjectIdRef.current = undefined;
       setActiveSessionId(undefined);
       setDraftSessionProjectId(undefined);
@@ -404,27 +418,27 @@ export function MainSurface({
       setCotWork(undefined);
       setReportedContextUsage(undefined);
       if (surface.kind === "chat-draft") {
-        updateChatUi(`chat-draft:${surface.folderId}`, (current) => ({ ...current, notice: "모델을 선택하고 메시지를 입력하세요.", sessionError: "" }));
-      }
-      if (surface.kind === "chat-session") {
-        const key = `chat:${surface.sessionId}`;
-        updateChatUi(key, (current) => ({ ...current, notice: "채팅 세션을 불러왔습니다.", sessionError: "" }));
-        void listChatSessionData(surface.sessionId).then((body) => {
-          if (body.chatSession?.model) {
-            setChatSelectedModelByKey((current) => ({ ...current, [key]: fromModelConfig(body.chatSession!.model) }));
-          }
-          if (body.chatSession) {
-            setChatSessionByKey((current) => ({ ...current, [key]: body.chatSession! }));
-          }
-          setChatUiByKey((current) => ({
+        const key = chatDraftModelKey(surface.folderId);
+        setChatModelByKey((current) => {
+          const model = current[key] ?? createChatDraftModel(surface.folderId);
+          return {
             ...current,
             [key]: {
-              ...(current[key] ?? createSessionUiState()),
-              agentRunning: Boolean(body.chatSession?.isrunning),
-              notice: body.chatSession?.isrunning ? "응답 수신 중..." : "채팅 세션을 불러왔습니다.",
-              chatMessages: chatRowsToMessages(body.data)
+              ...model,
+              runtime: { ...model.runtime, notice: "모델을 선택하고 메시지를 입력하세요.", error: "" }
             }
-          }));
+          };
+        });
+      }
+      if (surface.kind === "chat-session") {
+        const key = chatSessionModelKey(surface.sessionId);
+        updateChatUi(key, (current) => ({ ...current, notice: "채팅 세션을 불러왔습니다.", sessionError: "" }));
+        void listChatSessionData(surface.sessionId).then((body) => {
+          if (!body.chatSession) return;
+          setChatModelByKey((current) => {
+            const model = current[key] ?? createChatSessionModel(body.chatSession!);
+            return { ...current, [key]: applyChatSessionLoaded(model, body.chatSession!, body.data) };
+          });
         }).catch((error) => {
           updateChatUi(key, (current) => ({ ...current, sessionError: error instanceof Error ? error.message : "채팅 기록을 불러오지 못했습니다." }));
         });
@@ -470,73 +484,52 @@ export function MainSurface({
         updateChatUi(key, (current) => ({ ...current, notice: "모델을 먼저 선택하세요." }));
         return;
       }
-      const optimisticUserMessage: ChatMessage = { id: `pending-user:${Date.now()}`, role: "user", text, attachments: [] };
-      const pendingAssistantMessage: ChatMessage = { id: "pending-assistant", role: "assistant", text: "응답 생성 중...", attachments: [] };
-      updateChatUi(key, (current) => ({ ...current, chatInput: "", agentRunning: true, notice: "응답 생성 중...", sessionError: "", chatMessages: [...current.chatMessages, optimisticUserMessage, pendingAssistantMessage] }));
+      setChatModelByKey((current) => {
+        const model = current[key] ?? (surface.kind === "chat-draft" ? createChatDraftModel(surface.folderId) : createChatFolderModel(""));
+        return { ...current, [key]: applyChatRequestStarted(model, text) };
+      });
       let requestUiKey = key;
       void (async () => {
         const model = toModelConfig(chatSelectedModel);
         const session: Pick<NDXAgentWebChatSession, "chatsessionid"> & Partial<NDXAgentWebChatSession> = surface.kind === "chat-draft"
           ? await createChatSession(surface.folderId, { model, title: text.slice(0, 80) })
           : { chatsessionid: surface.sessionId };
-        const nextKey = `chat:${session.chatsessionid}`;
+        const nextKey = chatSessionModelKey(session.chatsessionid);
         requestUiKey = nextKey;
-        if ("folderid" in session && session.folderid) {
-          setChatSessionByKey((current) => ({ ...current, [nextKey]: session as NDXAgentWebChatSession }));
-        }
-        setChatSelectedModelByKey((current) => ({ ...current, [key]: chatSelectedModel, [nextKey]: chatSelectedModel }));
-        setChatUiByKey((current) => ({
-          ...current,
-          [key]: { ...(current[key] ?? createSessionUiState()), agentRunning: true },
-          [nextKey]: {
-            ...(current[key] ?? createSessionUiState()),
-            chatInput: "",
-            agentRunning: true,
-            notice: "응답 생성 중...",
-            sessionError: "",
-            chatMessages: [...((current[key] ?? createSessionUiState()).chatMessages.length > 0 ? (current[key] ?? createSessionUiState()).chatMessages : [optimisticUserMessage, pendingAssistantMessage])]
-          }
-        }));
+        setChatModelByKey((current) => {
+          const source = current[key] ?? (surface.kind === "chat-draft" ? createChatDraftModel(surface.folderId) : createChatFolderModel(""));
+          const next = { ...current, [key]: { ...source, runtime: { ...source.runtime, agentRunning: true } } };
+          next[nextKey] = {
+            ...source,
+            key: nextKey,
+            identity: "folderid" in session && session.folderid
+              ? { kind: "session", key: nextKey, sessionId: session.chatsessionid, folderId: session.folderid, userid: session.userid }
+              : { kind: "session", key: nextKey, sessionId: session.chatsessionid },
+            metadata: "folderid" in session && session.folderid ? session as NDXAgentWebChatSession : source.metadata,
+            composer: { ...source.composer, input: "", selectedModel: chatSelectedModel },
+            runtime: { agentRunning: true, notice: "응답 생성 중...", error: "" }
+          };
+          return next;
+        });
         if (surface.kind === "chat-draft") {
           bridge.openChatSession(surface.folderId, session.chatsessionid);
         }
         window.dispatchEvent(new Event("ndx-chat-refresh"));
         const body = await appendChatSessionMessageStream(session.chatsessionid, { text, model }, (streamEvent) => {
-          if (streamEvent.kind === "assistant_delta" || streamEvent.kind === "assistant_reasoning") {
-            const streamText = streamEvent.kind === "assistant_delta" ? streamEvent.text : streamEvent.text ?? sessionDataContentsText(streamEvent.contents) ?? "";
-            if (!streamText.trim()) return;
-            setChatUiByKey((current) => ({
-              ...current,
-              [nextKey]: {
-                ...(current[nextKey] ?? current[key] ?? createSessionUiState()),
-                agentRunning: true,
-                notice: "응답 수신 중...",
-                chatMessages: [
-                  ...(current[nextKey] ?? current[key] ?? createSessionUiState()).chatMessages.filter((message) => message.id !== "pending-assistant" && message.id !== `stream:${session.chatsessionid}`),
-                  { id: `stream:${session.chatsessionid}`, role: "assistant", text: streamText, attachments: [] }
-                ]
-              }
-            }));
+          if (streamEvent.kind === "assistant_delta") {
+            if (!streamEvent.text.trim()) return;
+            setChatModelByKey((current) => updateChatModel(current, nextKey, applyChatStreamProgress));
           }
         });
-        setChatSessionByKey((current) => ({ ...current, [nextKey]: body.session }));
-        setChatSelectedModelByKey((current) => ({ ...current, [nextKey]: fromModelConfig(body.session.model) }));
-        setChatUiByKey((current) => ({
-          ...current,
-          [nextKey]: {
-            ...(current[nextKey] ?? current[key] ?? createSessionUiState()),
-            agentRunning: false,
-            notice: "응답이 완료되었습니다.",
-            chatInput: "",
-            sessionError: "",
-            chatMessages: chatRowsToMessages(body.data)
-          }
-        }));
+        setChatModelByKey((current) => {
+          const source = current[nextKey] ?? current[key] ?? createChatSessionModel(body.session);
+          return { ...current, [nextKey]: applyChatRequestCompleted(source, body.session, body.data) };
+        });
         window.dispatchEvent(new Event("ndx-chat-refresh"));
         finishAction(chatSubmitActionKey);
       })().catch((error) => {
         finishAction(chatSubmitActionKey);
-        updateChatUi(requestUiKey, (current) => ({ ...current, agentRunning: false, chatInput: text, sessionError: error instanceof Error ? error.message : "채팅 요청이 실패했습니다.", notice: "" }));
+        setChatModelByKey((current) => updateChatModel(current, requestUiKey, (model) => applyChatRequestFailed(model, text, error instanceof Error ? error.message : "채팅 요청이 실패했습니다.")));
       });
     };
     return (

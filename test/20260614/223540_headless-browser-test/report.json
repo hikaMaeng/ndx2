@@ -1,0 +1,31 @@
+{
+  "status": "failed",
+  "mode": "smoke",
+  "startedAt": "2026-06-14T13:35:40.569Z",
+  "testedUrl": "http://127.0.0.1:5173/",
+  "finalUrl": "http://127.0.0.1:5173/",
+  "title": "NDX vibe",
+  "mainPresent": false,
+  "documentStatus": 200,
+  "consoleErrors": [
+    "Failed to load module script: Expected a JavaScript-or-Wasm module script but the server responded with a MIME type of \"text/html\". Strict MIME type checking is enforced for module scripts per HTML spec.",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "pageErrors": [],
+  "screenshots": [
+    "/mnt/f/dev/ndx2/test/20260614/223540_headless-browser-test/screenshots/failure-2-assertRole.png"
+  ],
+  "trace": "/mnt/f/dev/ndx2/test/20260614/223540_headless-browser-test/trace.zip",
+  "steps": [
+    {
+      "action": "goto",
+      "status": "passed"
+    },
+    {
+      "action": "assertRole",
+      "status": "failed",
+      "error": "locator.waitFor: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('main').first() to be visible\u001b[22m\n"
+    }
+  ],
+  "finishedAt": "2026-06-14T13:35:58.477Z"
+}

@@ -59,6 +59,13 @@ export function sessionDataToVisibleChatMessage(data: NDXAgentWebSessionData): C
   return kind === "assistant_message" || kind === "error" ? sessionDataToChatMessage(data) : undefined;
 }
 
+export function chatMessagesFromSessionDataRows(rows: NDXAgentWebSessionData[]): ChatMessage[] {
+  return rows.flatMap((row) => {
+    const message = sessionDataToVisibleChatMessage(row);
+    return message ? [message] : [];
+  });
+}
+
 export function sessionDataContentsText(contents: unknown): string | undefined {
   if (typeof contents === "string") {
     return contents;

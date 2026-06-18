@@ -1,5 +1,6 @@
 import { readAgentRuntimeSettings, type NDXAgentRuntimeSettings } from "../runtime-settings/index.js";
 import { serverContainerUserHome, serverWorkspaceProjectPath } from "../../common/server-path/index.js";
+import { normalizeInternalRequestMarkers } from "./requestText.js";
 import type { NDXDatabase, NDXSessionDataRow } from "./types.js";
 
 export const NDX_SESSION_SEARCH_EMBEDDING_DIMENSIONS = 4096;
@@ -94,7 +95,7 @@ export function sessionSearchText(row: Pick<NDXSessionDataRow, "type" | "content
   }
   const contents = row.contents as { kind?: unknown; text?: unknown };
   if (row.type === "user" && contents.kind === "user_message" && typeof contents.text === "string" && contents.text.trim()) {
-    return contents.text.trim();
+    return normalizeInternalRequestMarkers(contents.text);
   }
   if (row.type === "assistant" && contents.kind === "assistant_message" && typeof contents.text === "string" && contents.text.trim()) {
     return contents.text.trim();

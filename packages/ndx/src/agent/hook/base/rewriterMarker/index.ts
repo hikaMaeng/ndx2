@@ -2,6 +2,7 @@ import { readNDXSettingsDocument, resolveSettingsModelConfig } from "../../../..
 import { requestModelResponse, responseToolCallId, type ResponseInputItem } from "ndx/common/responseapi";
 import { searchSessionHistory } from "../../../session/sessionSearch.js";
 import { sessionDataText } from "../../../session/content.js";
+import { normalizeInternalRequestMarkers } from "../../../session/requestText.js";
 import { failedWithoutProcess, runToolProcess } from "../../../tool/execute/process.js";
 import { listAvailableTools, summarizeToolName, toolSchemas } from "../../../tool/index.js";
 import type { NDXModelConfig, NDXSessionDataRow } from "../../../session/types.js";
@@ -31,10 +32,11 @@ export const rewriterMarkerHook: NDXHookCodeExecutor = {
       return { type: "noeffect", replaceRequestText: context.requestText };
     }
     REWRITER_MARKER_PATTERN.lastIndex = 0;
-    const originalPrompt = context.requestText.replace(REWRITER_MARKER_PATTERN, "").trim();
+    const originalPrompt = normalizeInternalRequestMarkers(context.requestText.replace(REWRITER_MARKER_PATTERN, ""));
     if (!originalPrompt) {
       return { type: "noeffect", replaceRequestText: "" };
     }
+    const selectedSkillCommands = selectedSkillCommandsFromPrompt(originalPrompt);
 
     const diagnostics: string[] = [];
     try {
@@ -97,7 +99,8 @@ export const rewriterMarkerHook: NDXHookCodeExecutor = {
       }
 
       const parsed = parseJsonObject(finalText) as RewriterOutput;
-      const rewrittenBase = typeof parsed.rewritten_prompt === "string" && parsed.rewritten_prompt.trim() ? parsed.rewritten_prompt.trim() : originalPrompt;
+      const rewrittenText = typeof parsed.rewritten_prompt === "string" && parsed.rewritten_prompt.trim() ? parsed.rewritten_prompt : originalPrompt;
+      const rewrittenBase = preserveSelectedSkillCommands(normalizeInternalRequestMarkers(rewrittenText), selectedSkillCommands);
       const rewritten = appendSessionSearchContext(rewrittenBase, sessionHistory.project.results);
       return {
         type: "noeffect",
@@ -195,7 +198,11 @@ function appendSessionSearchContext(
   const selected = results
     .filter((result) => result.text.trim())
     .slice(0, 5)
-    .map((result, index) => `${index + 1}. ${[result.title, result.type, result.createdat].filter(Boolean).join(" / ")}\n${result.text.trim().slice(0, 1200)}`);
+    .map((result, index) => {
+      const text = normalizeInternalRequestMarkers(result.text);
+      return text ? `${index + 1}. ${[result.title, result.type, result.createdat].filter(Boolean).join(" / ")}\n${text.slice(0, 1200)}` : "";
+    })
+    .filter(Boolean);
   if (selected.length === 0) {
     return prompt;
   }
@@ -216,7 +223,8 @@ function compactCurrentSessionHistory(rows: NDXSessionDataRow[]): Array<{ role: 
     const kind = (row.contents as { kind?: unknown }).kind;
     if (row.type === "user" && kind === "user_message") {
       const text = sessionDataText(row);
-      if (text?.trim()) history.push({ role: "user", text: text.trim().slice(0, 2000) });
+      const normalized = text ? normalizeInternalRequestMarkers(text) : "";
+      if (normalized) history.push({ role: "user", text: normalized.slice(0, 2000) });
     }
     if (row.type === "assistant" && (kind === "assistant_message" || kind === "error")) {
       const text = sessionDataText(row);
@@ -224,6 +232,30 @@ function compactCurrentSessionHistory(rows: NDXSessionDataRow[]): Array<{ role: 
     }
   }
   return history.slice(-16);
+}
+
+function selectedSkillCommandsFromPrompt(prompt: string): string[] {
+  const commands = new Set<string>();
+  for (const line of prompt.split(/\r\n|\n|\r/)) {
+    const match = line.trim().match(/^\$([A-Za-z0-9][A-Za-z0-9._-]*)(?:\s+(.+))?$/);
+    if (!match) continue;
+    const command = `$${match[1]}${match[2]?.trim() ? ` ${match[2].trim()}` : ""}`;
+    commands.add(command);
+  }
+  return [...commands];
+}
+
+function preserveSelectedSkillCommands(prompt: string, commands: string[]): string {
+  const missing = commands.filter((command) => !prompt.includes(command));
+  if (missing.length === 0) {
+    return prompt;
+  }
+  return [
+    "명시 선택 스킬:",
+    ...missing.map((command) => `- ${command}`),
+    "",
+    prompt.trim()
+  ].join("\n");
 }
 
 function toolArguments(toolCall: unknown): Record<string, unknown> {

@@ -2,6 +2,7 @@ import React from "react";
 import { ChevronDown, CircleAlert, Pencil, Plus, RefreshCw, Send, Trash2, X } from "lucide-react";
 import type { NDXAgentWebModel } from "ndx/webclient/common";
 import { createWebProvider, createWebProviderModel, deleteWebProvider, deleteWebProviderModel, listWebProviderModels, listWebProviders, normalizeModalities, normalizeReasoningEffort, optionalNullableNumber, optionalNumber, optionalNumberText, readProviderModelNames, syncWebProviderModels, toggleModality, updateWebProviderModel, type ProviderBundle, type SelectedModelConfig, type SessionUiState } from "ndx/webclient/front";
+import { AssistantChatMessage } from "../../session/components/AssistantChatMessage";
 
 type ChatSurfaceProps = {
   title: string;
@@ -46,7 +47,9 @@ export function ChatSurface({
             <ol className="grid min-w-0 gap-4" aria-label="채팅 메시지">
               {ui.chatMessages.map((message) => (
                 <li key={message.id} className={message.role === "user" ? "ndx-wrap-anywhere max-w-[85%] min-w-0 overflow-hidden justify-self-end rounded-lg bg-zinc-100 px-4 py-3 text-sm leading-6 text-zinc-950" : "ndx-wrap-anywhere max-w-[92%] min-w-0 overflow-hidden justify-self-start rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm leading-6 text-zinc-300"}>
-                  <div className="whitespace-pre-wrap break-words">{message.text}</div>
+                  {message.role === "assistant"
+                    ? <AssistantChatMessage text={message.text} copyEnabled={!message.id.startsWith("pending-") && !message.id.startsWith("stream:") && message.text.trim().length > 0} />
+                    : <div className="whitespace-pre-wrap break-words">{message.text}</div>}
                 </li>
               ))}
             </ol>

@@ -114,8 +114,11 @@ Session history can also be compacted as the first row of a branched session.
 `session.branch.create` is a session socket command that summarizes source
 history through a selected user turn with the same compact package used by
 automatic context compaction, then inserts that summary as the new session's
-initial `compact` row. The branch compact row is model-visible history and is
-also shown as the first restored message in clients.
+initial `compact` row. The branch session row and socket grant are created
+before this summary completes so clients can move to the branch immediately and
+show `compactRunning` progress from `turn.compact.started` /
+`turn.compact.completed`. The branch compact row is model-visible history and
+is also shown as the first restored message in clients after completion.
 
 `session.turn.delete` is a session socket command that deletes one full turn:
 the selected `user` row and every following `sessiondata` row before the next
@@ -320,6 +323,12 @@ rewritten prompt, not the raw marker-bearing request. No `prompt_rewrite`
 tool-call or tool-result rows are created. The hook may use read/search/web/bash
 tools inside the internal rewrite loop for current workspace facts, but
 session-history enrichment is not delegated to the model as a tool decision.
+The rewriter must not reintroduce internal client markers such as
+`[[NDX_SKILL_*]]`, `[[NDX_THINKING_*]]`, or `[[rewriter]]` through the rewritten
+prompt or appended session-search context. Explicit selected skills are already
+preloaded by the earlier request-received skill marker hook; if the rewrite
+model omits the visible `$skill` command, the rewriter preserves that display
+command in the durable user row without restoring the internal marker syntax.
 
 `session_history` is a function tool over `sessionsearch`. It supports three
 scopes: all NDX sessions, all sessions in one project, and one session. Omitted

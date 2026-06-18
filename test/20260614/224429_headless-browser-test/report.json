@@ -1,0 +1,46 @@
+{
+  "status": "passed",
+  "mode": "scenario",
+  "testedUrl": "http://127.0.0.1:5174/",
+  "finalUrl": "http://127.0.0.1:5174/",
+  "title": "NDX vibe",
+  "prompts": [
+    "마포구 공덕동의 모든 브랜드 패스트푸드점을 조사해",
+    "주가종목을 분석하여 지난 3일간 20%이상 오른 주식 3개만 찾아내"
+  ],
+  "screenshots": [
+    "/mnt/f/dev/ndx2/test/20260614/224429_headless-browser-test/screenshots/app-open.png",
+    "/mnt/f/dev/ndx2/test/20260614/224429_headless-browser-test/screenshots/chat-session-open.png",
+    "/mnt/f/dev/ndx2/test/20260614/224429_headless-browser-test/screenshots/prompt-1-food.png",
+    "/mnt/f/dev/ndx2/test/20260614/224429_headless-browser-test/screenshots/prompt-2-stock.png"
+  ],
+  "trace": "/mnt/f/dev/ndx2/test/20260614/224429_headless-browser-test/trace.zip",
+  "consoleErrors": [],
+  "pageErrors": [],
+  "steps": [
+    {
+      "name": "open app",
+      "status": "passed"
+    },
+    {
+      "name": "open mocked chat session",
+      "status": "passed"
+    },
+    {
+      "name": "submit prompt: 마포구 공덕동의 모든 브랜드 패스트푸드점을 조사해",
+      "status": "passed"
+    },
+    {
+      "name": "submit prompt: 주가종목을 분석하여 지난 3일간 20%이상 오른 주식 3개만 찾아내",
+      "status": "passed"
+    },
+    {
+      "name": "verify hidden intermediate stream/tool rows",
+      "status": "passed"
+    },
+    {
+      "name": "verify markdown rendered",
+      "status": "passed"
+    }
+  ]
+}

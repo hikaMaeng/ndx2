@@ -27,6 +27,7 @@ export enum RSC {
   PROJECT_SIDEBAR_SESSION_DELETE_PENDING_STATUS = "project.sidebar.session.delete.pending.status",
   PROJECT_SIDEBAR_SESSION_DELETED_ALERT = "project.sidebar.session.deleted.alert",
   SESSION_COMPOSER_INTERRUPT_PENDING_STATUS = "session.composer.interrupt.pending.status",
+  SESSION_COMPOSER_REWRITE_PENDING_STATUS = "session.composer.rewrite.pending.status",
   SESSION_COMPOSER_ATTACHMENT_IMAGE_ONLY_STATUS = "session.composer.attachment.imageOnly.status",
   SESSION_COMPOSER_ATTACHMENT_FILE_ONLY_STATUS = "session.composer.attachment.fileOnly.status",
   SESSION_COMPOSER_ATTACHMENT_UNSUPPORTED_STATUS = "session.composer.attachment.unsupported.status",

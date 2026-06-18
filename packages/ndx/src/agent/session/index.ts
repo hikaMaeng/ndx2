@@ -27,8 +27,8 @@ export {
 export type { NDXSessionDataContents, NDXToolResultContents } from "../../common/protocol/index.js";
 export { createSession } from "./createSession.js";
 export { deleteSession } from "./deleteSession.js";
-export { branchSessionFromTurn } from "./branchSession.js";
-export type { NDXBranchSessionResult } from "./branchSession.js";
+export { branchSessionFromTurn, compactBranchSession, createBranchSessionFromTurn } from "./branchSession.js";
+export type { NDXBranchSessionResult, NDXBranchSessionStartResult } from "./branchSession.js";
 export { deleteSessionTurn } from "./deleteSessionTurn.js";
 export type { NDXDeleteSessionTurnResult } from "./deleteSessionTurn.js";
 export { getSession } from "./getSession.js";
