@@ -1,7 +1,8 @@
 import React from "react";
 import type { NDXAgentWebChatFolder, NDXAgentWebChatSession } from "ndx/webclient/common";
-import { createChatFolder, deleteChatFolder, deleteChatSession, listChatFolders, listChatSessions, updateChatFolder, updateChatSession } from "ndx/webclient/front";
+import { createChatFolder, deleteChatFolder, deleteChatSession, getChatMenuModel, listChatFolders, listChatSessions, updateChatFolder, updateChatSession } from "ndx/webclient/front";
 import type { WebClientBridge } from "../../../app/bridge/WebClientBridge";
+import { useModel } from "../../../model/useModel";
 
 type UseChatControllerOptions = {
   bridge?: WebClientBridge;
@@ -11,14 +12,15 @@ type UseChatControllerOptions = {
 };
 
 export function useChatController({ bridge, finishAction, startAction, setNotice }: UseChatControllerOptions) {
-  const [folders, setFolders] = React.useState<NDXAgentWebChatFolder[]>([]);
-  const [sessionsByFolder, setSessionsByFolder] = React.useState<Record<string, NDXAgentWebChatSession[]>>({});
+  const model = getChatMenuModel();
+  const folders = useModel(model.folders).value;
+  const sessionsByFolder = useModel(model.sessionsByFolder).value;
 
   const refreshChat = async () => {
     const nextFolders = (await listChatFolders()).folders;
-    setFolders(nextFolders);
+    model.folders.set(nextFolders);
     const entries = await Promise.all(nextFolders.map(async (folder) => [folder.folderid, (await listChatSessions(folder.folderid)).sessions] as const));
-    setSessionsByFolder(Object.fromEntries(entries));
+    model.sessionsByFolder.set(Object.fromEntries(entries));
   };
 
   React.useEffect(() => {

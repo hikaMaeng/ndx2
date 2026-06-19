@@ -2,6 +2,16 @@ export const webclientFrontDomain = Object.freeze({
   surface: "webclient",
   runtime: "front"
 });
+export { Emitter } from "./model/Emitter.js";
+export type { Unsubscribe } from "./model/Emitter.js";
+export { SliceModel } from "./model/SliceModel.js";
+export type { ModelUpdate } from "./model/SliceModel.js";
+export { WebClientBridge } from "./app/model.js";
+export type { WebClientBridgeSnapshot, WebClientModalCommand, WebClientModalRequest, WebClientProjectApi, WebClientSurface } from "./app/model.js";
+export { WebClientAppShellModel, getWebClientAppShellModel } from "./app/shellModel.js";
+export { ChatMenuModel, ProjectMenuModel, getChatMenuModel, getProjectMenuModel } from "./menu/model.js";
+export { SettingsSurfaceModel, getSettingsSlice, getSettingsSurfaceModel } from "./settings/model.js";
+export type { LocalDirectoryHandleModel, LocalFileHandleModel, LocalFolderSnapshotModel, SettingsStateSetter, SettingsTab } from "./settings/model.js";
 export { getMetadata, getWebClientState, listWorkspaceDirectories, putWebClientState } from "./api/app.js";
 export { listWebSelfcheck, listWebSelfcheckCandidates, listWebSelfcheckCursors, listWebSelfcheckRuns, runWebSelfcheck, updateWebSelfcheckStatus } from "./api/selfcheck.js";
 export { createProjectSession, createUser, createWebProject, createWebProvider, createWebProviderEmbeddingModel, createWebProviderModel, deleteWebProject, deleteWebProvider, deleteWebProviderModel, getWebEmbeddingSettings, getWebSettings, listProjectSessions, listUsers, listWebProjects, listWebProviderEmbeddingModels, listWebProviderModels, listWebProviders, openWebProjectInVSCode, readProviderModelNames, syncWebProviderEmbeddingModels, syncWebProviderModels, updateProjectUser, updateWebEmbeddingSettings, updateWebProvider, updateWebProviderModel, updateWebSettings } from "./api/project.js";
@@ -39,6 +49,7 @@ export {
   updateChatModel
 } from "./chat/model.js";
 export type { ChatInstanceModel, ChatModelSnapshot } from "./chat/model.js";
+export { ChatSurfaceModelStore, getChatSurfaceModelStore } from "./chat/liveStore.js";
 export { requestJson } from "./api/request.js";
 export { loadTranslation } from "./i18n/translation.js";
 export type { Translation } from "./i18n/translation.js";
@@ -54,6 +65,7 @@ export { encodeAttachments, modelAttachmentInputAccept, modelSupportsAttachmentM
 export type { EncodedAttachment } from "./session/attachment.js";
 export { createSessionUiState } from "./session/uiState.js";
 export type { PendingRequest, SessionAttachmentDraft, SessionUiState } from "./session/uiState.js";
+export { WebClientSessionSurfaceModel, getWebClientSessionSurfaceModel } from "./session/surfaceModel.js";
 export { groupRightSidebarItems, upsertRightSidebarItem } from "./session/rightSidebar.js";
 export type { RightSidebarGroup } from "./session/rightSidebar.js";
 export { sessionTranscriptItems } from "./session/transcript.js";
@@ -90,7 +102,9 @@ export {
   promoteDraftSessionModel,
   sessionModelToUiState,
   sessionModelWithUiState,
-  updateSessionModel
+  updateSessionModel,
+  WebClientSessionModelStore,
+  getWebClientSessionModelStore
 } from "./session/model/index.js";
 export type {
   SessionCapabilitiesModel,

@@ -20,6 +20,8 @@ import {
   createSessionUiState,
   DEFAULT_MODEL,
   ensureChatModel,
+  getChatSurfaceModelStore,
+  getWebClientSessionSurfaceModel,
   listChatSessionData,
   setChatModelSelectedModel,
   toModelConfig,
@@ -45,6 +47,7 @@ import { useSessionSocketController } from "../hooks/useSessionSocketController"
 import { useSessionUiController } from "../hooks/useSessionUiController";
 import { useModelDialogController } from "../modals/useModelDialogController";
 import type { SessionSocketClient } from "../socket/sessionSocket";
+import { useModel } from "../../model/useModel";
 
 const SESSION_REWRITE_STORAGE_KEY = "ndx.session.rewrite.enabled";
 
@@ -85,12 +88,18 @@ export function MainSurface({
   const pendingActions = useBridgePendingActions(bridge);
   const sessionsByProject = useBridgeProjectSessions(bridge);
   const pendingActionsRef = React.useRef<Set<string>>(pendingActions);
-  const [socketState, setSocketState] = React.useState<SocketState>("idle");
-  const [attachedSessionIds, setAttachedSessionIds] = React.useState<Set<string>>(new Set());
-  const [skillsByProject, setSkillsByProject] = React.useState<Record<string, NDXSessionSkillSummary[]>>({});
+  const sessionSurface = getWebClientSessionSurfaceModel(loadRewriteEnabledBySession());
+  const socketState = useModel(sessionSurface.socketState).value;
+  const attachedSessionIds = useModel(sessionSurface.attachedSessionIds).value;
+  const skillsByProject = useModel(sessionSurface.skillsByProject).value;
   const skillsByProjectRef = React.useRef<Record<string, NDXSessionSkillSummary[]>>({});
-  const [chatModelByKey, setChatModelByKey] = React.useState<ChatModelSnapshot>({});
-  const [rewriteEnabledBySession, setRewriteEnabledBySession] = React.useState<Record<string, boolean>>(() => loadRewriteEnabledBySession());
+  const chatStore = useModel(getChatSurfaceModelStore());
+  const chatModelByKey = chatStore.snapshot;
+  const setChatModelByKey = (update: ChatModelSnapshot | ((current: ChatModelSnapshot) => ChatModelSnapshot)) => chatStore.setSnapshot(update);
+  const rewriteEnabledBySession = useModel(sessionSurface.rewriteEnabledBySession).value;
+  const setSocketState = (update: React.SetStateAction<SocketState>) => sessionSurface.socketState.set(update);
+  const setAttachedSessionIds = (update: React.SetStateAction<Set<string>>) => sessionSurface.attachedSessionIds.set(update);
+  const setSkillsByProject = (update: React.SetStateAction<Record<string, NDXSessionSkillSummary[]>>) => sessionSurface.skillsByProject.set(update);
   const socketRef = React.useRef<SessionSocketClient | null>(null);
   const attachedSessionIdsRef = React.useRef<Set<string>>(new Set());
   const sessionUi = useSessionUiController();
@@ -290,14 +299,7 @@ export function MainSurface({
     updateSessionUi
   });
   const toggleSessionRewrite = (sessionid: string) => {
-    setRewriteEnabledBySession((current) => {
-      const next = { ...current, [sessionid]: !current[sessionid] };
-      if (!next[sessionid]) {
-        delete next[sessionid];
-      }
-      saveRewriteEnabledBySession(next);
-      return next;
-    });
+    saveRewriteEnabledBySession(sessionSurface.toggleRewrite(sessionid));
   };
   const mutateUserTurnAvailable = (sessionid: string) => {
     const ui = sessionUiByKey[sessionid];

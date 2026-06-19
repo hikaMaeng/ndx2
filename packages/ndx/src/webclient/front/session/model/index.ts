@@ -30,3 +30,4 @@ export type { SessionInstanceModel, SessionModelSnapshot } from "./types.js";
 export { sessionModelToUiState, sessionModelWithUiState } from "./uiAdapter.js";
 export type { SessionViewportModel } from "./viewport.js";
 export { createSessionViewportModel } from "./viewport.js";
+export { WebClientSessionModelStore, getWebClientSessionModelStore } from "./liveStore.js";

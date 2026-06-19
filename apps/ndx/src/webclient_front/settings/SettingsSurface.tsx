@@ -1,8 +1,9 @@
 import React from "react";
 import { Bot, Braces, CheckCircle2, ClipboardCheck, Database, Download, FileCode2, FolderOpen, FolderSearch, Gauge, Menu, Pencil, Plus, RefreshCw, RotateCw, Save, Search, ShieldCheck, Trash2, Undo2, Wrench, X } from "lucide-react";
 import type { NDXAgentModelFolderPatchDraftResponse, NDXAgentModelFolderPatchManifest, NDXAgentWebEmbeddingSettings, NDXAgentWebModel, NDXAgentWebProvider, NDXAgentWebSelfcheck, NDXAgentWebSelfcheckCandidate, NDXAgentWebSelfcheckCursor, NDXAgentWebSelfcheckRun, NDXAgentWebSelfcheckStatus, NDXAgentWebSettingsDocument } from "ndx/webclient/common";
-import { createWebProvider, createWebProviderEmbeddingModel, deleteWebProvider, deleteWebProviderModel, getWebEmbeddingSettings, getWebSettings, listWebProviderEmbeddingModels, listWebProviderModels, listWebProviders, listWebSelfcheck, listWebSelfcheckCandidates, listWebSelfcheckCursors, listWebSelfcheckRuns, runWebSelfcheck, syncWebProviderEmbeddingModels, updateWebEmbeddingSettings, updateWebProvider, updateWebSettings, updateWebSelfcheckStatus } from "ndx/webclient/front";
+import { createWebProvider, createWebProviderEmbeddingModel, deleteWebProvider, deleteWebProviderModel, getSettingsSlice, getSettingsSurfaceModel, getWebEmbeddingSettings, getWebSettings, listWebProviderEmbeddingModels, listWebProviderModels, listWebProviders, listWebSelfcheck, listWebSelfcheckCandidates, listWebSelfcheckCursors, listWebSelfcheckRuns, runWebSelfcheck, syncWebProviderEmbeddingModels, updateWebEmbeddingSettings, updateWebProvider, updateWebSettings, updateWebSelfcheckStatus } from "ndx/webclient/front";
 import { draftModelFolderPatch } from "./modelPatchApi";
+import { useModel } from "../model/useModel";
 
 type SettingsSurfaceProps = {
   menuLabel: string;
@@ -42,19 +43,37 @@ type ProviderEditDraft = {
   token: string;
 };
 
+function useSettingsState<T>(key: string, initial: T): [T, (update: React.SetStateAction<T>) => void] {
+  const slice = useModel(getSettingsSlice(key, initial));
+  return [slice.value, (update) => slice.set(update)];
+}
+
 export function SettingsSurface({ menuLabel, onOpenMenu }: SettingsSurfaceProps) {
-  const [activeTab, setActiveTab] = React.useState<SettingsTab>("modelCatalog");
-  const [modelFolder, setModelFolder] = React.useState<LocalFolderSnapshot | undefined>();
-  const [targetFolderName, setTargetFolderName] = React.useState("");
-  const [targetHandle, setTargetHandle] = React.useState<LocalDirectoryHandle | undefined>();
-  const [publisher, setPublisher] = React.useState("local");
-  const [baseModelKey, setBaseModelKey] = React.useState("");
-  const [aliasModelKey, setAliasModelKey] = React.useState("");
-  const [template, setTemplate] = React.useState("");
-  const [draft, setDraft] = React.useState<NDXAgentModelFolderPatchDraftResponse | undefined>();
-  const [pending, setPending] = React.useState<"model" | "target" | "draft" | "write" | "restore" | "">("");
-  const [error, setError] = React.useState("");
-  const [message, setMessage] = React.useState("");
+  const settingsModel = getSettingsSurfaceModel();
+  const activeTab = useModel(settingsModel.activeTab).value;
+  const modelFolder = useModel(settingsModel.modelFolder).value as LocalFolderSnapshot | undefined;
+  const targetFolderName = useModel(settingsModel.targetFolderName).value;
+  const targetHandle = useModel(settingsModel.targetHandle).value as LocalDirectoryHandle | undefined;
+  const publisher = useModel(settingsModel.publisher).value;
+  const baseModelKey = useModel(settingsModel.baseModelKey).value;
+  const aliasModelKey = useModel(settingsModel.aliasModelKey).value;
+  const template = useModel(settingsModel.template).value;
+  const draft = useModel(settingsModel.draft).value;
+  const pending = useModel(settingsModel.pending).value;
+  const error = useModel(settingsModel.error).value;
+  const message = useModel(settingsModel.message).value;
+  const setActiveTab = (update: React.SetStateAction<SettingsTab>) => settingsModel.activeTab.set(update);
+  const setModelFolder = (update: React.SetStateAction<LocalFolderSnapshot | undefined>) => settingsModel.modelFolder.set(update);
+  const setTargetFolderName = (update: React.SetStateAction<string>) => settingsModel.targetFolderName.set(update);
+  const setTargetHandle = (update: React.SetStateAction<LocalDirectoryHandle | undefined>) => settingsModel.targetHandle.set(update);
+  const setPublisher = (update: React.SetStateAction<string>) => settingsModel.publisher.set(update);
+  const setBaseModelKey = (update: React.SetStateAction<string>) => settingsModel.baseModelKey.set(update);
+  const setAliasModelKey = (update: React.SetStateAction<string>) => settingsModel.aliasModelKey.set(update);
+  const setTemplate = (update: React.SetStateAction<string>) => settingsModel.template.set(update);
+  const setDraft = (update: React.SetStateAction<NDXAgentModelFolderPatchDraftResponse | undefined>) => settingsModel.draft.set(update);
+  const setPending = (update: React.SetStateAction<"model" | "target" | "draft" | "write" | "restore" | "">) => settingsModel.pending.set(update);
+  const setError = (update: React.SetStateAction<string>) => settingsModel.error.set(update);
+  const setMessage = (update: React.SetStateAction<string>) => settingsModel.message.set(update);
   const hasDirectoryPicker = typeof window !== "undefined" && typeof (window as Window & { showDirectoryPicker?: unknown }).showDirectoryPicker === "function";
 
   const selectModelFolder = () => {
@@ -302,12 +321,12 @@ function SettingsTabButton({ active, icon, label, onClick }: { active: boolean; 
 }
 
 function ModelCatalogSettingsTab() {
-  const [settings, setSettings] = React.useState<NDXAgentWebSettingsDocument | undefined>();
-  const [bundles, setBundles] = React.useState<EmbeddingProviderBundle[]>([]);
-  const [defaultModelKey, setDefaultModelKey] = React.useState("");
-  const [pending, setPending] = React.useState("");
-  const [error, setError] = React.useState("");
-  const [message, setMessage] = React.useState("");
+  const [settings, setSettings] = useSettingsState<NDXAgentWebSettingsDocument | undefined>("modelCatalog.settings", undefined);
+  const [bundles, setBundles] = useSettingsState<EmbeddingProviderBundle[]>("modelCatalog.bundles", []);
+  const [defaultModelKey, setDefaultModelKey] = useSettingsState("modelCatalog.defaultModelKey", "");
+  const [pending, setPending] = useSettingsState("modelCatalog.pending", "");
+  const [error, setError] = useSettingsState("modelCatalog.error", "");
+  const [message, setMessage] = useSettingsState("modelCatalog.message", "");
 
   const refresh = React.useCallback(async () => {
     const [nextSettings, providers] = await Promise.all([getWebSettings(), listWebProviders()]);
@@ -389,12 +408,12 @@ function ModelCatalogSettingsTab() {
 }
 
 function RuntimeSettingsTab() {
-  const [settings, setSettings] = React.useState<NDXAgentWebSettingsDocument | undefined>();
-  const [maxModelIterations, setMaxModelIterations] = React.useState("500");
-  const [loopDetectionInterval, setLoopDetectionInterval] = React.useState("50");
-  const [pending, setPending] = React.useState("");
-  const [error, setError] = React.useState("");
-  const [message, setMessage] = React.useState("");
+  const [settings, setSettings] = useSettingsState<NDXAgentWebSettingsDocument | undefined>("runtime.settings", undefined);
+  const [maxModelIterations, setMaxModelIterations] = useSettingsState("runtime.maxModelIterations", "500");
+  const [loopDetectionInterval, setLoopDetectionInterval] = useSettingsState("runtime.loopDetectionInterval", "50");
+  const [pending, setPending] = useSettingsState("runtime.pending", "");
+  const [error, setError] = useSettingsState("runtime.error", "");
+  const [message, setMessage] = useSettingsState("runtime.message", "");
 
   React.useEffect(() => {
     let cancelled = false;
@@ -441,11 +460,11 @@ function RuntimeSettingsTab() {
 }
 
 function ToolSettingsTab() {
-  const [promptRewriteModel, setPromptRewriteModel] = React.useState("");
-  const [modelNames, setModelNames] = React.useState<string[]>([]);
-  const [pending, setPending] = React.useState("");
-  const [error, setError] = React.useState("");
-  const [message, setMessage] = React.useState("");
+  const [promptRewriteModel, setPromptRewriteModel] = useSettingsState("tools.promptRewriteModel", "");
+  const [modelNames, setModelNames] = useSettingsState<string[]>("tools.modelNames", []);
+  const [pending, setPending] = useSettingsState("tools.pending", "");
+  const [error, setError] = useSettingsState("tools.error", "");
+  const [message, setMessage] = useSettingsState("tools.message", "");
 
   React.useEffect(() => {
     let cancelled = false;
@@ -491,12 +510,12 @@ function ToolSettingsTab() {
 }
 
 function HookSettingsTab() {
-  const [maxReasoningLength, setMaxReasoningLength] = React.useState("240000");
-  const [analysisModel, setAnalysisModel] = React.useState("");
-  const [modelNames, setModelNames] = React.useState<string[]>([]);
-  const [pending, setPending] = React.useState("");
-  const [error, setError] = React.useState("");
-  const [message, setMessage] = React.useState("");
+  const [maxReasoningLength, setMaxReasoningLength] = useSettingsState("hooks.maxReasoningLength", "240000");
+  const [analysisModel, setAnalysisModel] = useSettingsState("hooks.analysisModel", "");
+  const [modelNames, setModelNames] = useSettingsState<string[]>("hooks.modelNames", []);
+  const [pending, setPending] = useSettingsState("hooks.pending", "");
+  const [error, setError] = useSettingsState("hooks.error", "");
+  const [message, setMessage] = useSettingsState("hooks.message", "");
 
   React.useEffect(() => {
     let cancelled = false;
@@ -546,22 +565,22 @@ function HookSettingsTab() {
 }
 
 function SelfcheckSettingsTab() {
-  const [enabled, setEnabled] = React.useState(false);
-  const [model, setModel] = React.useState("");
-  const [savedModel, setSavedModel] = React.useState("");
-  const [modelKeys, setModelKeys] = React.useState<string[]>([]);
-  const [defaultIntervalMs, setDefaultIntervalMs] = React.useState("300000");
-  const [defaultBatchSize, setDefaultBatchSize] = React.useState("100");
-  const [maxLlmAnalysesPerRun, setMaxLlmAnalysesPerRun] = React.useState("20");
-  const [maxEvidenceChars, setMaxEvidenceChars] = React.useState("12000");
-  const [selfchecks, setSelfchecks] = React.useState<NDXAgentWebSelfcheck[]>([]);
-  const [candidates, setCandidates] = React.useState<NDXAgentWebSelfcheckCandidate[]>([]);
-  const [cursors, setCursors] = React.useState<NDXAgentWebSelfcheckCursor[]>([]);
-  const [runs, setRuns] = React.useState<NDXAgentWebSelfcheckRun[]>([]);
-  const [statusFilter, setStatusFilter] = React.useState("");
-  const [pending, setPending] = React.useState("");
-  const [error, setError] = React.useState("");
-  const [message, setMessage] = React.useState("");
+  const [enabled, setEnabled] = useSettingsState("selfcheck.enabled", false);
+  const [model, setModel] = useSettingsState("selfcheck.model", "");
+  const [savedModel, setSavedModel] = useSettingsState("selfcheck.savedModel", "");
+  const [modelKeys, setModelKeys] = useSettingsState<string[]>("selfcheck.modelKeys", []);
+  const [defaultIntervalMs, setDefaultIntervalMs] = useSettingsState("selfcheck.defaultIntervalMs", "300000");
+  const [defaultBatchSize, setDefaultBatchSize] = useSettingsState("selfcheck.defaultBatchSize", "100");
+  const [maxLlmAnalysesPerRun, setMaxLlmAnalysesPerRun] = useSettingsState("selfcheck.maxLlmAnalysesPerRun", "20");
+  const [maxEvidenceChars, setMaxEvidenceChars] = useSettingsState("selfcheck.maxEvidenceChars", "12000");
+  const [selfchecks, setSelfchecks] = useSettingsState<NDXAgentWebSelfcheck[]>("selfcheck.selfchecks", []);
+  const [candidates, setCandidates] = useSettingsState<NDXAgentWebSelfcheckCandidate[]>("selfcheck.candidates", []);
+  const [cursors, setCursors] = useSettingsState<NDXAgentWebSelfcheckCursor[]>("selfcheck.cursors", []);
+  const [runs, setRuns] = useSettingsState<NDXAgentWebSelfcheckRun[]>("selfcheck.runs", []);
+  const [statusFilter, setStatusFilter] = useSettingsState("selfcheck.statusFilter", "");
+  const [pending, setPending] = useSettingsState("selfcheck.pending", "");
+  const [error, setError] = useSettingsState("selfcheck.error", "");
+  const [message, setMessage] = useSettingsState("selfcheck.message", "");
 
   const refresh = React.useCallback(async () => {
     const [settings, providers, nextSelfchecks, nextCandidates, nextCursors, nextRuns] = await Promise.all([
@@ -755,15 +774,15 @@ function SelfcheckSettingsTab() {
 }
 
 function WebSearchSettingsTab() {
-  const [provider, setProvider] = React.useState("duckduckgo");
-  const [apiKey, setApiKey] = React.useState("");
-  const [baseUrl, setBaseUrl] = React.useState("");
-  const [method, setMethod] = React.useState("");
-  const [queryParam, setQueryParam] = React.useState("");
-  const [providersJson, setProvidersJson] = React.useState("{}");
-  const [pending, setPending] = React.useState("");
-  const [error, setError] = React.useState("");
-  const [message, setMessage] = React.useState("");
+  const [provider, setProvider] = useSettingsState("websearch.provider", "duckduckgo");
+  const [apiKey, setApiKey] = useSettingsState("websearch.apiKey", "");
+  const [baseUrl, setBaseUrl] = useSettingsState("websearch.baseUrl", "");
+  const [method, setMethod] = useSettingsState("websearch.method", "");
+  const [queryParam, setQueryParam] = useSettingsState("websearch.queryParam", "");
+  const [providersJson, setProvidersJson] = useSettingsState("websearch.providersJson", "{}");
+  const [pending, setPending] = useSettingsState("websearch.pending", "");
+  const [error, setError] = useSettingsState("websearch.error", "");
+  const [message, setMessage] = useSettingsState("websearch.message", "");
 
   React.useEffect(() => {
     let cancelled = false;
@@ -824,11 +843,11 @@ function WebSearchSettingsTab() {
 }
 
 function OtherSettingsTab() {
-  const [version, setVersion] = React.useState("");
-  const [otherJson, setOtherJson] = React.useState("{}");
-  const [pending, setPending] = React.useState("");
-  const [error, setError] = React.useState("");
-  const [message, setMessage] = React.useState("");
+  const [version, setVersion] = useSettingsState("other.version", "");
+  const [otherJson, setOtherJson] = useSettingsState("other.otherJson", "{}");
+  const [pending, setPending] = useSettingsState("other.pending", "");
+  const [error, setError] = useSettingsState("other.error", "");
+  const [message, setMessage] = useSettingsState("other.message", "");
 
   React.useEffect(() => {
     let cancelled = false;
@@ -870,18 +889,18 @@ function OtherSettingsTab() {
 }
 
 function EmbeddingModelSettingsTab() {
-  const [bundles, setBundles] = React.useState<EmbeddingProviderBundle[]>([]);
-  const [embeddings, setEmbeddings] = React.useState<NDXAgentWebEmbeddingSettings | undefined>();
-  const [providerFormOpen, setProviderFormOpen] = React.useState(false);
-  const [providerTitle, setProviderTitle] = React.useState("");
-  const [providerUrl, setProviderUrl] = React.useState("");
-  const [providerToken, setProviderToken] = React.useState("");
-  const [editProvider, setEditProvider] = React.useState<ProviderEditDraft | undefined>();
-  const [modelProvider, setModelProvider] = React.useState("");
-  const [modelName, setModelName] = React.useState("");
-  const [pending, setPending] = React.useState("");
-  const [error, setError] = React.useState("");
-  const [message, setMessage] = React.useState("");
+  const [bundles, setBundles] = useSettingsState<EmbeddingProviderBundle[]>("embedding.bundles", []);
+  const [embeddings, setEmbeddings] = useSettingsState<NDXAgentWebEmbeddingSettings | undefined>("embedding.embeddings", undefined);
+  const [providerFormOpen, setProviderFormOpen] = useSettingsState("embedding.providerFormOpen", false);
+  const [providerTitle, setProviderTitle] = useSettingsState("embedding.providerTitle", "");
+  const [providerUrl, setProviderUrl] = useSettingsState("embedding.providerUrl", "");
+  const [providerToken, setProviderToken] = useSettingsState("embedding.providerToken", "");
+  const [editProvider, setEditProvider] = useSettingsState<ProviderEditDraft | undefined>("embedding.editProvider", undefined);
+  const [modelProvider, setModelProvider] = useSettingsState("embedding.modelProvider", "");
+  const [modelName, setModelName] = useSettingsState("embedding.modelName", "");
+  const [pending, setPending] = useSettingsState("embedding.pending", "");
+  const [error, setError] = useSettingsState("embedding.error", "");
+  const [message, setMessage] = useSettingsState("embedding.message", "");
   const locked = Boolean(pending);
 
   const refresh = React.useCallback(async () => {
