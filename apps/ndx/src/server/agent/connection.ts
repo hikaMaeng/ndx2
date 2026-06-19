@@ -683,7 +683,7 @@ async function sendSkillListFromSocket(
   logger?: NDXLogger,
   resource: NDXAgentResourceResolver = createNDXAgentResourceResolver()
 ) {
-  let projectName = client.projectName;
+  let projectName = message.projectName ?? client.projectName;
   if (message.sessionid) {
     const grant = await requireSessionGrant(client, message.sessionid, logger, resource);
     if (!grant) {
@@ -695,7 +695,17 @@ async function sendSkillListFromSocket(
     await sendJson(client, { type: NDX_PROTOCOL_ERROR, error: resource(NDX_AGENT_RESOURCE.PROTOCOL_SKILL_LIST_PROJECT_REQUIRED_ERROR, { language: client.language }) });
     return;
   }
-  const projectHome = serverWorkspaceProjectPath(projectName);
+  let projectHome: string;
+  try {
+    projectHome = serverWorkspaceProjectPath(projectName);
+    const stat = await fs.stat(projectHome).catch(() => undefined);
+    if (!stat?.isDirectory()) {
+      throw new Error(`Project not found: ${projectName}`);
+    }
+  } catch {
+    await sendJson(client, { type: NDX_PROTOCOL_ERROR, error: resource(NDX_AGENT_RESOURCE.PROTOCOL_PROJECT_PATH_OUTSIDE_WORKSPACE_ERROR, { language: client.language }) });
+    return;
+  }
   const skills = await loadSkills({ userHome: serverContainerUserHome(), projectHome, cwd: projectHome });
   await sendJson(client, {
     type: NDX_SESSION_SKILL_LIST_RESULT,

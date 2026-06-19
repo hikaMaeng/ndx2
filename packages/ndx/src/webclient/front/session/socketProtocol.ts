@@ -85,8 +85,8 @@ export function sessionInterruptMessage(sessionid: string, language: NDXWebClien
   return { type: NDX_SESSION_INTERRUPT, sessionid, language };
 }
 
-export function sessionSkillListMessage(sessionid: string | undefined, language: NDXWebClientStateDocument["locale"]): NDXSessionSkillListMessage {
-  return { type: NDX_SESSION_SKILL_LIST, ...(sessionid ? { sessionid } : {}), language };
+export function sessionSkillListMessage(sessionid: string | undefined, projectName: string | undefined, language: NDXWebClientStateDocument["locale"]): NDXSessionSkillListMessage {
+  return { type: NDX_SESSION_SKILL_LIST, ...(sessionid ? { sessionid } : {}), ...(projectName ? { projectName } : {}), language };
 }
 
 export function sessionHistorySummaryMessage(sessionid: string, language: NDXWebClientStateDocument["locale"]): NDXSessionHistorySummaryMessage {

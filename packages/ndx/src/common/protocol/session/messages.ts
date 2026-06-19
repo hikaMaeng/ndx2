@@ -197,6 +197,7 @@ export type NDXSessionSkillSummary = {
 export type NDXSessionSkillListMessage = {
   type: typeof NDX_SESSION_SKILL_LIST;
   sessionid?: string;
+  projectName?: string;
   language?: NDXAgentLanguage;
 };
 
@@ -436,10 +437,11 @@ export function isNDXSessionSkillListMessage(value: unknown): value is NDXSessio
     return false;
   }
 
-  const message = value as { type?: unknown; sessionid?: unknown };
+  const message = value as { type?: unknown; sessionid?: unknown; projectName?: unknown };
   return (
     message.type === NDX_SESSION_SKILL_LIST &&
-    (message.sessionid === undefined || (typeof message.sessionid === "string" && message.sessionid.trim().length > 0))
+    (message.sessionid === undefined || (typeof message.sessionid === "string" && message.sessionid.trim().length > 0)) &&
+    (message.projectName === undefined || (typeof message.projectName === "string" && message.projectName.trim().length > 0))
   );
 }
 

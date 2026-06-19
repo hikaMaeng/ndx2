@@ -112,6 +112,12 @@ async function discoverSkillFiles(root: string): Promise<string[]> {
       throw error;
     }
 
+    const skillEntry = entries.find((entry) => entry.isFile() && entry.name === "SKILL.md");
+    if (skillEntry) {
+      files.push(path.posix.join(current.directory, skillEntry.name));
+      continue;
+    }
+
     for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
       if (entry.name.startsWith(".")) {
         continue;
@@ -120,8 +126,6 @@ async function discoverSkillFiles(root: string): Promise<string[]> {
       const entryPath = path.posix.join(current.directory, entry.name);
       if (entry.isDirectory()) {
         queue.push({ directory: entryPath, depth: current.depth + 1 });
-      } else if (entry.isFile() && entry.name === "SKILL.md") {
-        files.push(entryPath);
       }
     }
   }

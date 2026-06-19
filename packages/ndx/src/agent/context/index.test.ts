@@ -337,6 +337,26 @@ test("buildContext injects available skills section when skills exist", async ()
   });
 });
 
+test("available skills do not scan nested assets under a skill directory", async () => {
+  await withTempDir(async (dir) => {
+    const userHome = path.join(dir, "home");
+    const projectHome = path.join(dir, "project");
+    const scaffoldSkillDirectory = path.join(userHome, ".ndx", "skills", "web-service-scaffold");
+    await writeSkill(scaffoldSkillDirectory, "web-service-scaffold", "scaffold root skill");
+    await writeSkill(path.join(scaffoldSkillDirectory, "assets", "baseline", "skills", "companion"), "companion", "nested asset should not be listed");
+
+    const skills = await buildAvailableSkillsInstructions({
+      cwd: projectHome,
+      userHome,
+      projectHome,
+      model: modelConfig("unknown-local-model"),
+    });
+
+    assert.match(skills, /- web-service-scaffold: scaffold root skill/);
+    assert.doesNotMatch(skills, /companion|nested asset should not be listed/);
+  });
+});
+
 test("available skills apply user system and project skillignore after all loading", async () => {
   await withTempDir(async (dir) => {
     const userHome = path.join(dir, "home");

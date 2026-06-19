@@ -4,6 +4,7 @@ import type { UseSessionSocketControllerOptions, SessionSocketControllerActions 
 export function useSessionSocketCommands({
   activeSessionIdRef,
   attachedSessionIdsRef,
+  draftSessionProjectIdRef,
   setTurnFlows,
   socketRef,
   socketState
@@ -23,7 +24,8 @@ export function useSessionSocketCommands({
 
   const refreshSkillList = () => {
     const sessionid = activeSessionIdRef.current;
-    return Boolean(socketRef.current?.requestSkillList(sessionid && attachedSessionIdsRef.current.has(sessionid) ? sessionid : undefined));
+    const attachedSessionid = sessionid && attachedSessionIdsRef.current.has(sessionid) ? sessionid : undefined;
+    return Boolean(socketRef.current?.requestSkillList(attachedSessionid, attachedSessionid ? undefined : draftSessionProjectIdRef.current));
   };
 
   const deleteTurn: SessionSocketControllerActions["deleteTurn"] = (sessionid, inputDataId) => {

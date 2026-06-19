@@ -481,6 +481,46 @@ test("session websocket lists skills for the negotiated project", async () => {
   }
 });
 
+test("session websocket lists skills for a draft project target", async () => {
+  const projectPath = await createWorkspaceProjectPath();
+  const projectName = path.basename(projectPath);
+  const skillPath = path.join(projectPath, ".ndx", "skills", "draft-demo", "SKILL.md");
+  const server = http.createServer();
+  const socketServer = attachSessionSocketServer(server, {
+    database: createDatabase(),
+    heartbeatIntervalMs: 60_000
+  });
+
+  try {
+    await fs.mkdir(path.dirname(skillPath), { recursive: true });
+    await fs.writeFile(skillPath, "---\nname: draft-demo\ndescription: draft project skill\n---\nUse draft workflow.\n", "utf8");
+    const port = await listenOnRandomPort(server);
+    const socket = new WebSocket(`ws://127.0.0.1:${port}/session?clientid=018f90d0-75cb-7d37-bfc9-6f9d0bb60cf6`);
+    const messages: Buffer[] = [];
+    socket.on("message", (data) => {
+      messages.push(Buffer.from(data as Buffer));
+    });
+    await once(socket, "open");
+
+    await waitForMessages(messages, 1);
+    socket.send(JSON.stringify({ type: "account.select", userid: "ndev" }));
+    await waitForMessages(messages, 3);
+    socket.send(JSON.stringify({ type: "session.skill.list", projectName }));
+    await waitForMessages(messages, 4);
+
+    const result = JSON.parse(messages[3].toString()) as { type: string; projectName: string; skills: Array<{ name: string; description: string; scope: string }> };
+    assert.equal(result.type, "session.skill.list.result");
+    assert.equal(result.projectName, projectName);
+    assert.deepEqual(result.skills, [{ name: "draft-demo", description: "draft project skill", scope: "repo" }]);
+
+    socket.terminate();
+  } finally {
+    closeSocketServer(socketServer);
+    await closeServer(server);
+    await fs.rm(projectPath, { recursive: true, force: true });
+  }
+});
+
 test("session sidebar turn events map to dedicated socket messages", () => {
   const message = sessionSidebarItemSocketMessage(
     { sessionid: "session-1" },

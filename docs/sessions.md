@@ -130,7 +130,10 @@ Clients do not own session truth. If a client has no prior messages, it requests
 The session web client may request the current project's skill list over the
 session socket with `session.skill.list`. The socket server resolves skills from
 the same user, repo, plugin, system, and `.skillignore` rules used by the model
-context builder.
+context builder. Existing sessions should request by `sessionid`; draft session
+surfaces that do not have a `sessionid` yet may include `projectName` so the
+server can resolve repository-local skills for the selected workspace project
+before the first session row exists.
 
 The composer renders `$` skill mentions with a textarea-backed mention control.
 Internally selected skills are sent in the user request as

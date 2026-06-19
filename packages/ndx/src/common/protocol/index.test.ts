@@ -13,6 +13,7 @@ import {
   NDX_SESSION_CLIENT_RESPONSE,
   NDX_SESSION_RENAME,
   NDX_SESSION_SIDEBAR_ITEM,
+  NDX_SESSION_SKILL_LIST,
   NDX_SESSION_TURN_DETAIL,
   NDX_SESSION_TURN_DELETE,
   NDX_SIDEBAR_ITEM,
@@ -32,6 +33,7 @@ import {
   isNDXSessionIterationDetailMessage,
   isNDXSessionClientResponseMessage,
   isNDXSessionRenameMessage,
+  isNDXSessionSkillListMessage,
   isNDXSessionTurnDetailMessage,
   parseNDXSidebarItem,
   parseNDXTurnCardItem,
@@ -333,6 +335,13 @@ test("session staged history requests require session id and target ids", () => 
     isNDXSessionIterationDetailMessage({ type: NDX_SESSION_ITERATION_DETAIL, sessionid: "session-1", inputDataId: "10", iteration: 0 }),
     false
   );
+});
+
+test("session skill list request accepts draft project target", () => {
+  assert.equal(isNDXSessionSkillListMessage({ type: NDX_SESSION_SKILL_LIST }), true);
+  assert.equal(isNDXSessionSkillListMessage({ type: NDX_SESSION_SKILL_LIST, sessionid: "session-1" }), true);
+  assert.equal(isNDXSessionSkillListMessage({ type: NDX_SESSION_SKILL_LIST, projectName: "project-1" }), true);
+  assert.equal(isNDXSessionSkillListMessage({ type: NDX_SESSION_SKILL_LIST, projectName: "" }), false);
 });
 
 test("turn card parser accepts skill progress payloads by marker prefix", () => {

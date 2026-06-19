@@ -50,7 +50,7 @@ export type SessionSocketClient = {
   createSession: (input: Omit<NDXSessionCreateMessage, "type" | "language">) => boolean;
   sendInput: (sessionid: string, text: string, model: NDXSessionModelConfig, attachments?: Array<{ name: string; mimeType: string; size: number; data: string }>) => boolean;
   sendInterrupt: (sessionid: string) => boolean;
-  requestSkillList: (sessionid?: string) => boolean;
+  requestSkillList: (sessionid?: string, projectName?: string) => boolean;
   requestHistorySummary: (sessionid: string) => boolean;
   requestTurnDetail: (sessionid: string, inputDataId: string) => boolean;
   requestIterationDetail: (sessionid: string, inputDataId: string, iteration: number) => boolean;
@@ -156,7 +156,7 @@ export function openSessionSocket(options: SessionSocketOptions): SessionSocketC
       sessionReady = true;
       options.setSocketState("connected");
       options.setState(stateAfterSessionReady(options.getState(), ready, new Date().toISOString()));
-      socket.send(JSON.stringify(sessionSkillListMessage(undefined, options.getState().locale)));
+      socket.send(JSON.stringify(sessionSkillListMessage(undefined, undefined, options.getState().locale)));
       return;
     }
 
@@ -278,11 +278,11 @@ export function openSessionSocket(options: SessionSocketOptions): SessionSocketC
       socket.send(JSON.stringify(sessionInterruptMessage(sessionid, options.getState().locale)));
       return true;
     },
-    requestSkillList: (sessionid) => {
+    requestSkillList: (sessionid, projectName) => {
       if (socket.readyState !== WebSocket.OPEN) {
         return false;
       }
-      socket.send(JSON.stringify(sessionSkillListMessage(sessionid, options.getState().locale)));
+      socket.send(JSON.stringify(sessionSkillListMessage(sessionid, projectName, options.getState().locale)));
       return true;
     },
     requestHistorySummary: (sessionid) => {
