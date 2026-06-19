@@ -6,9 +6,6 @@ import {
 } from "ndx/agent/session";
 import { calculateDetailedContextUsage } from "ndx/agent/contextusage";
 import type { NDXDatabase } from "ndx/agent/init";
-import { listAvailableTools, toolSchemas } from "ndx/agent/tool";
-import { buildTurnMessageParts } from "ndx/agent/turnloop";
-import { serverContainerUserHome, toServerProjectPath } from "ndx/common/server-path";
 import { sessionDataToSessionEvent, type NDXAgentWebSessionData } from "ndx/webclient/common";
 
 type SessionHistoryTurn = {
@@ -21,22 +18,27 @@ type SessionHistoryTurn = {
 export async function buildSessionHistorySummary(database: NDXDatabase, session: NDXSessionRow) {
   const turns = await listSessionHistoryTurns(database, session.sessionid);
   const leadingCompactEvents = await listLeadingCompactEvents(database, session);
-  const parts = await buildTurnMessageParts(database, session);
-  const tools = toolSchemas(await listAvailableTools({ userHome: serverContainerUserHome(), projectHome: toServerProjectPath(session.path) }));
+  const visibleEvents = [...leadingCompactEvents, ...turns.flatMap((turn) => turn.finalEvent ? [turn.inputEvent, turn.finalEvent] : [turn.inputEvent])];
   return {
-    visibleEvents: [...leadingCompactEvents, ...turns.flatMap((turn) => turn.finalEvent ? [turn.inputEvent, turn.finalEvent] : [turn.inputEvent])],
+    visibleEvents,
     turns: turns.map((turn) => ({ ...turn.summary, iterations: [] })),
     activeCotWork: activeCotWorkFromTurns(turns),
-    contextUsage: calculateDetailedContextUsage(
-      [parts.developer, parts.user, ...parts.history].filter((message) => {
-        if (!("content" in message)) return true;
-        return typeof message.content === "string" ? message.content.trim().length > 0 : Array.isArray(message.content) ? message.content.length > 0 : true;
-      }),
-      session.model.contextsize,
-      "",
-      tools
-    )
+    contextUsage: historySummaryContextUsage(session, leadingCompactEvents, turns)
   };
+}
+
+function historySummaryContextUsage(session: NDXSessionRow, leadingCompactEvents: NDXSessionEventMessage[], turns: SessionHistoryTurn[]) {
+  const historyMessages = [...leadingCompactEvents, ...turns.flatMap((turn) => turn.events)]
+    .map((event) => ({
+      role: event.event === NDX_TURN_EVENT.InputRecorded ? "user" as const : "assistant" as const,
+      content: eventText(event.contents) || JSON.stringify(event.contents ?? "")
+    }))
+    .filter((message) => message.content.trim().length > 0);
+  return calculateDetailedContextUsage([
+    { role: "system", content: "" },
+    { role: "user", content: "" },
+    ...historyMessages
+  ], Number.isFinite(session.model.contextsize) ? session.model.contextsize : 0);
 }
 
 function activeCotWorkFromTurns(turns: SessionHistoryTurn[]): NDXCotWorkContents | undefined {

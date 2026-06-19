@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  browserRandomId,
   createSessionUiState,
   DEFAULT_MODEL,
   getWebClientSessionModelStore,
@@ -50,7 +51,7 @@ export function useSessionUiController() {
     store.setChatAttachments((current) => [
       ...current,
       ...files.slice(0, Math.max(0, 8 - current.length)).map((file) => ({
-        id: crypto.randomUUID(),
+        id: browserRandomId(),
         file,
         name: file.name || "clipboard-attachment",
         mimeType: file.type || "application/octet-stream",

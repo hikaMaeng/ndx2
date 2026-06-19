@@ -1,4 +1,5 @@
 import { createInitialWebClientState, makeLocalProject, normalizeWebClientState } from "ndx/webclient/common";
+import { browserRandomId } from "./browserId.js";
 
 const CLIENT_ID_STORAGE_KEY = "ndx.agent.web.clientid";
 const STATE_CACHE_STORAGE_KEY = "ndx.agent.web.state.cache";
@@ -10,7 +11,7 @@ export function readOrCreateClientId() {
     return existing;
   }
 
-  const clientid = crypto.randomUUID();
+  const clientid = browserRandomId();
   localStorage.setItem(CLIENT_ID_STORAGE_KEY, clientid);
   return clientid;
 }

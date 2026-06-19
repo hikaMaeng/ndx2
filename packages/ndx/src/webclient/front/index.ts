@@ -128,3 +128,4 @@ export { projectNameForVSCode } from "./project/path.js";
 export { applyProjectSocketMessage, handleProjectSocketMessage, projectSessionDeleteMessage, projectSessionRenameMessage } from "./project/socketProtocol.js";
 export type { NDXSessionDeletedMessage, NDXSessionListChangedMessage, NDXSessionRenamedMessage, ProjectSessionSocketInput, ProjectSocketHandlers, ProjectSocketMessage } from "./project/socketProtocol.js";
 export { cacheClientState, readCachedState, readOrCreateClientId } from "./storage/clientStateCache.js";
+export { browserRandomId } from "./storage/browserId.js";
