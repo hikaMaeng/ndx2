@@ -10,6 +10,7 @@ export const NDX_COMPACT_CONTENT_KIND = "compact" as const;
 export type NDXCompactContents = {
   kind: typeof NDX_COMPACT_CONTENT_KIND;
   text: string;
+  fallbackReason?: string;
   previousCompactDataId?: string;
   sourceStartDataId?: string;
   sourceEndDataId?: string;
@@ -43,6 +44,7 @@ export type NDXCompactSessionHistoryOptions = {
 export type NDXAppendCompactSessionHistoryOptions = {
   previousCompact?: NDXSessionDataRow;
   sourceInput?: { dataId: string; text: string };
+  fallbackMode?: "append" | "throw";
 };
 
 export type NDXCompactReplayContents = {
@@ -138,7 +140,7 @@ export async function compactSessionHistory(
   report: NDXCompactReport,
   model: NDXModelConfig = session.model,
   options: NDXCompactSessionHistoryOptions = {}
-): Promise<{ row: NDXSessionDataRow; text: string; sourceRows: NDXSessionDataRow[]; previousCompact?: NDXSessionDataRow }> {
+): Promise<{ row: NDXSessionDataRow; text: string; sourceRows: NDXSessionDataRow[]; previousCompact?: NDXSessionDataRow; fallbackReason?: string }> {
   const rows = await listSessionData(database, session.sessionid);
   const lastCompactIndex = findLastCompactIndex(rows);
   const previousCompact = lastCompactIndex >= 0 ? rows[lastCompactIndex] : undefined;
@@ -157,11 +159,15 @@ export async function appendCompactSessionHistory(
   sourceRows: NDXSessionDataRow[],
   model: NDXModelConfig = session.model,
   options: NDXAppendCompactSessionHistoryOptions = {}
-): Promise<{ row: NDXSessionDataRow; text: string; sourceRows: NDXSessionDataRow[]; previousCompact?: NDXSessionDataRow }> {
+): Promise<{ row: NDXSessionDataRow; text: string; sourceRows: NDXSessionDataRow[]; previousCompact?: NDXSessionDataRow; fallbackReason?: string }> {
   const previousCompact = options.previousCompact;
-  const text = await summarizeCompactHistory(model, previousCompact, sourceRows);
+  const summary = await summarizeCompactHistory(model, previousCompact, sourceRows);
+  if (summary.fallbackReason && options.fallbackMode === "throw") {
+    throw new Error(`이전 히스토리 compact 생성에 실패했습니다: ${summary.fallbackReason}`);
+  }
   const row = await appendSessionData(database, session.sessionid, "compact", compactContents({
-    text,
+    text: summary.text,
+    ...(summary.fallbackReason ? { fallbackReason: summary.fallbackReason } : {}),
     previousCompactDataId: previousCompact ? String(previousCompact.dataid) : undefined,
     sourceStartDataId: sourceRows[0] ? String(sourceRows[0].dataid) : undefined,
     sourceEndDataId: sourceRows.at(-1) ? String(sourceRows.at(-1)?.dataid) : undefined,
@@ -169,7 +175,7 @@ export async function appendCompactSessionHistory(
     createdReason: report.reason,
     ...(options.sourceInput ? { sourceInput: options.sourceInput } : {})
   }));
-  return { row, text, sourceRows, previousCompact };
+  return { row, text: summary.text, sourceRows, previousCompact, fallbackReason: summary.fallbackReason };
 }
 
 export async function rebuildTurnContextUsage(database: NDXDatabase): Promise<void> {
@@ -253,11 +259,11 @@ function replayContents(contents: unknown): Record<string, unknown> | string {
   return String(contents ?? "");
 }
 
-async function summarizeCompactHistory(model: NDXModelConfig, previousCompact: NDXSessionDataRow | undefined, sourceRows: NDXSessionDataRow[]): Promise<string> {
+async function summarizeCompactHistory(model: NDXModelConfig, previousCompact: NDXSessionDataRow | undefined, sourceRows: NDXSessionDataRow[]): Promise<{ text: string; fallbackReason?: string }> {
   const previous = previousCompact ? compactText(previousCompact) : undefined;
   const transcript = compactTranscript(sourceRows, Math.max(4096, Math.floor(model.contextsize * 0.55)));
   if (!previous && !transcript.trim()) {
-    return "No prior conversation content was available for compaction.";
+    return { text: "No prior conversation content was available for compaction." };
   }
   const messages: ResponseInputItem[] = [
     {
@@ -280,9 +286,14 @@ async function summarizeCompactHistory(model: NDXModelConfig, previousCompact: N
   try {
     const response = await requestModelResponse(model, messages, []);
     const text = response.content.trim();
-    return text || fallbackCompactSummary(previous, transcript);
-  } catch {
-    return fallbackCompactSummary(previous, transcript);
+    return text
+      ? { text }
+      : { text: fallbackCompactSummary(previous, transcript), fallbackReason: "compact model returned an empty response" };
+  } catch (error) {
+    return {
+      text: fallbackCompactSummary(previous, transcript),
+      fallbackReason: error instanceof Error && error.message.trim() ? error.message : "compact model request failed"
+    };
   }
 }
 

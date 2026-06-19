@@ -49,6 +49,27 @@ test("chatMessagesFromSessionDataRows hides assistant stream internals", () => {
   ]);
 });
 
+test("sessionDataContentsText labels compact fallback as fallback instead of success summary", () => {
+  const text = sessionDataContentsText({
+    kind: "compact_completed",
+    phase: "turn_start",
+    reason: "branch",
+    compactDataId: "10",
+    sourceRowCount: 3,
+    summaryTokens: 120,
+    fallbackReason: "model not loaded",
+    tokens: 1000,
+    contextsize: 8192,
+    percent: 12,
+    remainingTokens: 7192,
+    requiredTokens: 0,
+    averageTurnTokens: 0,
+    outputReserveTokens: 0
+  });
+
+  assert.equal(text, "compact fallback completed: model not loaded\n3 source rows preserved in 120 tokens");
+});
+
 function row(dataid: string, type: NDXAgentWebSessionData["type"], contents: NDXAgentWebSessionData["contents"]): NDXAgentWebSessionData {
   return {
     dataid,

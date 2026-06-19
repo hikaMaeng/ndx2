@@ -101,6 +101,9 @@ requesting socket receives a grant for the new session before the
 slow, `session.branch.created` may be sent with `compactStatus: "running"`
 before the initial `compact` row exists; the socket then emits
 `turn.compact.started` and `turn.compact.completed` events for the new session.
+If the compact model request fails, the branch session is not deleted. Instead
+the socket emits `turn.failed` on the new session and records an assistant
+`error` row explaining that prior-history compaction failed.
 
 For a new project session with a first request, the browser sends that request
 inside `session.create.initialInput`. The socket server validates the target

@@ -119,6 +119,10 @@ before this summary completes so clients can move to the branch immediately and
 show `compactRunning` progress from `turn.compact.started` /
 `turn.compact.completed`. The branch compact row is model-visible history and
 is also shown as the first restored message in clients after completion.
+If model compaction fails, the branch session remains durable and idle, no
+fallback transcript is recorded as a successful branch compact, and the session
+receives an assistant `error` row plus `turn.failed` so clients can tell the
+user that previous-history compaction failed.
 
 `session.turn.delete` is a session socket command that deletes one full turn:
 the selected `user` row and every following `sessiondata` row before the next

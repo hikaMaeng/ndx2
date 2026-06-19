@@ -46,6 +46,7 @@ import {
   createBranchSessionFromTurn,
   deleteSession,
   deleteSessionTurn,
+  errorContents,
   getSession,
   interruptContents,
   completeSessionInterrupt,
@@ -54,6 +55,7 @@ import {
   userMessageContents,
   sessionDataText,
   sessionDataTitleText,
+  updateSessionEndTurn,
   updateSessionTitle,
   writeSessionAttachments,
   type NDXModelConfig,
@@ -454,7 +456,7 @@ const TURN_LOOP_EVENT_SOCKET_SERIALIZERS: TurnLoopEventSocketSerializerMap = {
   [NDX_TURN_EVENT.InputRecorded]: (event, context) => [sessionEventSocketMessage(context.session, event.type, String(event.input.dataid), socketSessionEventContents(event.input.contents), event.input.createdat.toISOString(), event.contextUsage, context.sessionState)],
   [NDX_TURN_EVENT.ContextReady]: (event, context) => [sessionEventSocketMessage(context.session, event.type, `context-ready:${context.session.sessionid}:${context.timeKey}`, { kind: "context_ready", messageCount: event.messageCount }, context.now, event.contextUsage, context.sessionState)],
   [NDX_TURN_EVENT.CompactStarted]: (event, context) => [sessionEventSocketMessage(context.session, event.type, `compact-start:${context.session.sessionid}:${context.timeKey}`, { kind: "compact_started", ...event.report }, context.now, event.contextUsage, context.sessionState)],
-  [NDX_TURN_EVENT.CompactCompleted]: (event, context) => [sessionEventSocketMessage(context.session, event.type, String(event.compact.dataid), { kind: "compact_completed", ...event.report, compactDataId: String(event.compact.dataid), sourceRowCount: event.sourceRowCount, summaryTokens: event.summaryTokens }, event.compact.createdat.toISOString(), event.contextUsage, context.sessionState)],
+  [NDX_TURN_EVENT.CompactCompleted]: (event, context) => [sessionEventSocketMessage(context.session, event.type, String(event.compact.dataid), { kind: "compact_completed", ...event.report, compactDataId: String(event.compact.dataid), sourceRowCount: event.sourceRowCount, summaryTokens: event.summaryTokens, ...compactFallbackReason(event.compact) }, event.compact.createdat.toISOString(), event.contextUsage, context.sessionState)],
   [NDX_TURN_EVENT.ModelRequest]: (event, context) => [sessionEventSocketMessage(context.session, event.type, `model:${context.session.sessionid}:${event.iteration}`, { kind: "model_request", iteration: event.iteration, messageCount: event.messages.length }, context.now, event.contextUsage, context.sessionState)],
   [NDX_TURN_EVENT.PrefixDrift]: (event, context) => [sessionEventSocketMessage(context.session, event.type, `prefix-drift:${context.session.sessionid}:${event.iteration}:${context.timeKey}`, { kind: "prefix_drift", iteration: event.iteration, ...event.drift }, context.now, event.contextUsage, context.sessionState)],
   [NDX_TURN_EVENT.ModelProgress]: (event, context) => [sessionEventSocketMessage(context.session, event.type, `model-progress:${context.session.sessionid}:${event.iteration}:${Math.floor(event.elapsedMs / event.intervalMs)}`, { kind: "model_progress", iteration: event.iteration, elapsedMs: event.elapsedMs, intervalMs: event.intervalMs, message: event.message }, context.now, event.contextUsage, context.sessionState)],
@@ -889,9 +891,36 @@ async function finishBranchSessionCompact(
     logger?.info("agent.socket.protocol.session_branch_create.complete", { clientid: client.clientid, sourceSessionid: branch.sourceSession.sessionid, sessionid: branch.session.sessionid });
   } catch (error) {
     logger?.warn("agent.socket.protocol.session_branch_compact.failed", { clientid: client.clientid, sourceSessionid: branch.sourceSession.sessionid, sessionid: branch.session.sessionid, error });
-    await sendJson(client, { type: NDX_PROTOCOL_ERROR, error: error instanceof Error ? error.message : "분기 세션 compact를 완료하지 못했습니다." });
+    const message = error instanceof Error && error.message.trim()
+      ? error.message
+      : "이전 히스토리 compact 생성에 실패했습니다.";
+    await sendBranchCompactFailedEvent(connectedClients, branch, message, database, logger);
     await broadcastSessionListChanged(connectedClients, branch.session.userid, branch.session.projectname, logger);
   }
+}
+
+async function sendBranchCompactFailedEvent(
+  connectedClients: Map<string, SessionClientState>,
+  branch: NDXBranchSessionStartResult,
+  message: string,
+  database: NDXDatabase,
+  logger?: NDXLogger
+) {
+  const session = await updateSessionEndTurn(database, branch.session.sessionid).catch(() => branch.session);
+  const contents = errorContents(message);
+  const row = await appendSessionData(database, branch.session.sessionid, "assistant", contents);
+  const report = branch.report;
+  const contextUsage = {
+    tokens: report.tokens,
+    messageTokens: report.tokens,
+    toolDefinitionTokens: 0,
+    percent: report.percent,
+    contextsize: report.contextsize
+  };
+  const event = sessionEventSocketMessage(session, NDX_TURN_EVENT.Failed, String(row.dataid), contents, row.createdat.toISOString(), contextUsage, { isrunning: false });
+  const targets = sessionGrantOwnerTargets(connectedClients, branch.session.sessionid);
+  await Promise.all(targets.map((target) => sendJson(target.client, event)));
+  logger?.debug("agent.socket.session_branch.compact_failed_event.sent", { sessionid: branch.session.sessionid, count: targets.length });
 }
 
 async function sendBranchCompactEvent(
@@ -917,10 +946,19 @@ async function sendBranchCompactEvent(
       ...report,
       compactDataId: String(compact?.dataid ?? ""),
       sourceRowCount: branch.sourceRows.length,
-      summaryTokens: compact ? estimateContextTokens(sessionDataText(compact) ?? JSON.stringify(compact.contents ?? "")) : 0
+      summaryTokens: compact ? estimateContextTokens(sessionDataText(compact) ?? JSON.stringify(compact.contents ?? "")) : 0,
+      ...compactFallbackReason(compact)
     }, compact?.createdat.toISOString() ?? new Date().toISOString(), contextUsage, { isrunning: false });
   await Promise.all(targets.map((target) => sendJson(target.client, message)));
   logger?.debug("agent.socket.session_branch.compact_event.sent", { sessionid: branch.session.sessionid, event: message.event, count: targets.length });
+}
+
+function compactFallbackReason(compact: NDXSessionDataRow | undefined): { fallbackReason?: string } {
+  if (!compact?.contents || typeof compact.contents !== "object") {
+    return {};
+  }
+  const fallbackReason = (compact.contents as { fallbackReason?: unknown }).fallbackReason;
+  return typeof fallbackReason === "string" && fallbackReason.trim() ? { fallbackReason } : {};
 }
 
 async function broadcastSessionListChanged(

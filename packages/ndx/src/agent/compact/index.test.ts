@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { QueryResult, QueryResultRow } from "pg";
-import { compactReplayContents, compactSessionHistory, sessionDataRowsForModelContext, sessionDataRowsFromLatestCompact } from "./index.js";
+import { appendCompactSessionHistory, compactReplayContents, compactSessionHistory, sessionDataRowsForModelContext, sessionDataRowsFromLatestCompact } from "./index.js";
 import type { NDXDatabase, NDXModelConfig, NDXSessionDataRow, NDXSessionRow } from "../session/types.js";
 
 test("sessionDataRowsFromLatestCompact keeps only the latest compact row and following rows", () => {
@@ -75,6 +75,8 @@ test("compactSessionHistory uses supplied model context rows as compact source r
   assert.equal((compact.row.contents as { sourceStartDataId?: string }).sourceStartDataId, "2");
   assert.equal((compact.row.contents as { sourceEndDataId?: string }).sourceEndDataId, "4");
   assert.equal((compact.row.contents as { sourceRowCount?: number }).sourceRowCount, 3);
+  assert.equal(typeof compact.fallbackReason, "string");
+  assert.equal(typeof (compact.row.contents as { fallbackReason?: unknown }).fallbackReason, "string");
 });
 
 test("compactSessionHistory default source rows still start after latest compact", async () => {
@@ -87,6 +89,20 @@ test("compactSessionHistory default source rows still start after latest compact
   const compact = await compactSessionHistory(database, session(), compactReport(), modelWithoutProvider());
 
   assert.deepEqual(compact.sourceRows.map((item) => item.dataid), ["2", "3"]);
+});
+
+test("appendCompactSessionHistory throw fallback mode surfaces compact model failure without appending", async () => {
+  const rows: NDXSessionDataRow[] = [
+    row("1", "user", { kind: "user_message", text: "branch this" }),
+    row("2", "assistant", { kind: "assistant_message", text: "done" })
+  ];
+  const database = memorySessionDataDatabase(rows);
+
+  await assert.rejects(
+    appendCompactSessionHistory(database, session(), compactReport(), rows, modelWithoutProvider(), { fallbackMode: "throw" }),
+    /이전 히스토리 compact 생성에 실패했습니다/
+  );
+  assert.deepEqual(rows.map((item) => item.dataid), ["1", "2"]);
 });
 
 test("compactReplayContents preserves rows after an iteration compact without making them compact source", () => {

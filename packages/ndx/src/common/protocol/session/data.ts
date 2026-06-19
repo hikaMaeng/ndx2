@@ -19,10 +19,10 @@ export type NDXSessionDataContents =
   | { kind: "user_message"; text: string; attachments?: NDXSessionAttachmentReference[] }
   | { kind: "tool_generated_user_message"; text: string; attachments?: NDXSessionAttachmentReference[]; sources?: Array<{ tool: string; toolCallId?: string; iteration?: number }> }
   | { kind: "assistant_message"; text: string }
-  | { kind: "compact"; text: string; previousCompactDataId?: string; sourceStartDataId?: string; sourceEndDataId?: string; sourceRowCount: number; createdReason: string; sourceInput?: { dataId: string; text: string } }
+  | { kind: "compact"; text: string; fallbackReason?: string; previousCompactDataId?: string; sourceStartDataId?: string; sourceEndDataId?: string; sourceRowCount: number; createdReason: string; sourceInput?: { dataId: string; text: string } }
   | { kind: "compact_replay"; sourceStartDataId?: string; sourceEndDataId?: string; sourceRowCount: number; rows: Array<{ dataid: string; type: string; contents: Record<string, unknown> | string; createdat: string }> }
   | { kind: "compact_started"; phase: "turn_start" | "iteration"; reason: string; tokens: number; contextsize: number; percent: number; remainingTokens: number; requiredTokens: number; averageTurnTokens: number; outputReserveTokens: number }
-  | { kind: "compact_completed"; phase: "turn_start" | "iteration"; reason: string; compactDataId: string; sourceRowCount: number; summaryTokens: number; tokens: number; contextsize: number; percent: number; remainingTokens: number; requiredTokens: number; averageTurnTokens: number; outputReserveTokens: number }
+  | { kind: "compact_completed"; phase: "turn_start" | "iteration"; reason: string; compactDataId: string; sourceRowCount: number; summaryTokens: number; fallbackReason?: string; tokens: number; contextsize: number; percent: number; remainingTokens: number; requiredTokens: number; averageTurnTokens: number; outputReserveTokens: number }
   | { kind: "assistant_delta"; iteration: number; delta: string; content: string }
   | { kind: "assistant_reasoning"; iteration: number; summary: string }
   | { kind: "prefix_drift"; iteration: number; label: string; message: string; messageIndex?: number; previousMessageCount: number; nextMessageCount: number; stablePrefixLength: number; previousPreview?: string; nextPreview?: string }

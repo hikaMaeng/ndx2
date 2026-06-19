@@ -103,6 +103,7 @@ export function sessionDataContentsText(contents: unknown): string | undefined {
     averageTurnTokens?: unknown;
     outputReserveTokens?: unknown;
     reason?: unknown;
+    fallbackReason?: unknown;
   };
   if ((payload.kind === "user_message" || payload.kind === "tool_generated_user_message") && typeof payload.text === "string") {
     return visibleUserRequestText(payload.text);
@@ -162,7 +163,10 @@ export function sessionDataContentsText(contents: unknown): string | undefined {
     return typeof payload.message === "string" ? payload.message : "model request still running";
   }
   if (payload.kind === "compact") {
-    return typeof payload.text === "string" ? `compact summary:\n${payload.text}` : "compact summary recorded";
+    const prefix = typeof payload.fallbackReason === "string" && payload.fallbackReason.trim()
+      ? `compact fallback recorded: ${payload.fallbackReason}`
+      : "compact summary";
+    return typeof payload.text === "string" ? `${prefix}:\n${payload.text}` : `${prefix} recorded`;
   }
   if (payload.kind === "compact_started") {
     const percent = typeof payload.percent === "number" ? `${payload.percent}%` : "unknown";
@@ -174,6 +178,9 @@ export function sessionDataContentsText(contents: unknown): string | undefined {
   if (payload.kind === "compact_completed") {
     const rows = typeof payload.sourceRowCount === "number" ? `${payload.sourceRowCount}` : "unknown";
     const summary = typeof payload.summaryTokens === "number" ? `${payload.summaryTokens}` : "unknown";
+    if (typeof payload.fallbackReason === "string" && payload.fallbackReason.trim()) {
+      return `compact fallback completed: ${payload.fallbackReason}\n${rows} source rows preserved in ${summary} tokens`;
+    }
     return `compact completed: ${rows} source rows summarized into ${summary} tokens`;
   }
   if (payload.kind === "tool_batch" && Array.isArray(payload.toolCalls)) {

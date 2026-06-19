@@ -1,7 +1,6 @@
 import { appendCompactSessionHistory, type NDXCompactReport } from "../compact/index.js";
 import { estimateContextTokens } from "../contextusage/index.js";
 import { createSession } from "./createSession.js";
-import { deleteSession } from "./deleteSession.js";
 import { assertSessionHistoryMutationAllowed } from "./deleteSessionTurn.js";
 import { getSession } from "./getSession.js";
 import { listSessionData } from "./listSessionData.js";
@@ -84,12 +83,12 @@ export async function compactBranchSession(database: NDXDatabase, branch: NDXBra
       branch.report,
       branch.sourceRows,
       branch.session.model,
-      { previousCompact: branch.previousCompact, sourceInput: branch.sourceInput }
+      { previousCompact: branch.previousCompact, sourceInput: branch.sourceInput, fallbackMode: "throw" }
     );
     const session = await updateSessionEndTurn(database, branch.session.sessionid);
     return { sourceSession: branch.sourceSession, session, compact: compact.row, inputDataId: branch.inputDataId };
   } catch (error) {
-    await deleteSession(database, branch.session.sessionid).catch(() => undefined);
+    await updateSessionEndTurn(database, branch.session.sessionid).catch(() => undefined);
     throw error;
   }
 }
