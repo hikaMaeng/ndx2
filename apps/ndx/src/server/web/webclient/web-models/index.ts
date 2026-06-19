@@ -18,7 +18,7 @@ import {
   updateSettingsWebModel,
   updateSettingsWebProvider
 } from "ndx/webclient/server";
-import type { NDXDatabase } from "ndx/agent";
+import type { NDXDatabase } from "ndx/agent/init";
 import { NDX_CONTAINER_USER_HOME } from "ndx/common/server-path";
 import {
   NDX_AGENT_WEB_API,

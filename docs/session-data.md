@@ -218,6 +218,35 @@ If `url` is omitted, `local` defaults to `http://127.0.0.1:11434/v1` and
 override the endpoint for the detached worker and the `session_history` query
 embedding path.
 
+## Runtime Selfcheck
+
+`selfcheck` is an LLM-assisted background analysis surface for runtime
+improvement candidates. It reads `sessiondata` and hook audit rows, extracts
+bounded candidates, sends those candidates to the configured selfcheck model,
+and stores manual improvement proposals outside session history.
+
+Selfcheck never rewrites `sessiondata`, never inserts model-visible rows into a
+running session, and never participates in turn context reconstruction. The
+mechanical phase is only a prefilter for suspicious tool or hook outcomes such
+as failed tools, empty or zero-result outputs, hook stops, hook interruptions,
+hook result rewrites, and hook failures. The LLM phase decides whether the
+candidate is actionable and records the recommendation for human review.
+
+Selfcheck tables:
+
+| Table | Contract |
+| --- | --- |
+| `selfcheck` | LLM-produced manual improvement candidates for tools, hooks, prompt/context guidance, settings, docs, or implementation. Rows are deduplicated by subject and fingerprint and keep occurrence counts. |
+| `selfcheck_analysis_candidate` | Mechanical prefilter output waiting for LLM analysis. Candidate state is separate from sessiondata cursor state so LLM failures do not require rescanning history. |
+| `selfcheck_analysis_cursor` | Per-analyzer progress marker. The default analyzers are subject-wide cursors such as `tool:*` and `hook:*`. |
+| `selfcheck_analysis_run` | Scheduler/manual run audit with scanned, candidate, LLM, and selfcheck counts. |
+| `selfcheck_hookrun` | Audit rows for meaningful existing hook runs, including stops, model-response interruptions, request/tool/result replacement, final assistant text, and hook failures. This table does not define a new hook event. |
+
+The selfcheck model is configured in `.ndx/settings.json` under
+`selfcheck.model` and resolves through the existing `models` and `providers`
+settings. Batch size, interval, evidence size, and per-run LLM analysis limits
+also live under `selfcheck`.
+
 ## Chat Session Data
 
 Chat sessions use separate PostgreSQL tables because they are not project-owned

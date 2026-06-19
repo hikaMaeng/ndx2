@@ -102,10 +102,17 @@ const serverAppPath = "apps/ndx/src/server/app.ts";
 const sidebarPath = "apps/ndx/src/webclient_front/menu/components/Sidebar.tsx";
 const stylesPath = "apps/ndx/src/documents_front/styles.css";
 const sourceInventoryPath = "apps/ndx/src/documents_front/reference/source-inventory.md";
+const repositoryInstructionFiles = ["AGENTS.md"];
 
 for (const requiredPath of [catalogPath, assetsPath, coveragePath, documentSitePath, documentMainPath, serverAppPath, sidebarPath, stylesPath, sourceInventoryPath]) {
   if (!exists(requiredPath)) {
     fail(`required file missing: ${requiredPath}`);
+  }
+}
+
+for (const instructionPath of repositoryInstructionFiles) {
+  if (!exists(instructionPath)) {
+    fail(`repository instruction file missing: ${instructionPath}`);
   }
 }
 
@@ -231,6 +238,20 @@ for (const file of markdownFiles) {
     const concretePath = documentedPath.replace(/\/\*.*$/, "");
     if (!exists(concretePath)) {
       fail(`markdown references a missing source path in ${file}: ${documentedPath}`);
+    }
+  }
+}
+
+for (const instructionPath of repositoryInstructionFiles) {
+  const text = read(instructionPath);
+  for (const match of text.matchAll(/`((?:apps|packages|docs)\/[^`]*|(?:apps|packages|docs))`/g)) {
+    const documentedPath = match[1];
+    if (documentedPath.includes("<") || documentedPath.includes(">") || documentedPath.includes("*")) {
+      continue;
+    }
+    const concretePath = documentedPath.replace(/\/$/, "").replace(/\/\*.*$/, "");
+    if (!exists(concretePath)) {
+      fail(`repository instructions reference a missing path in ${instructionPath}: ${documentedPath}`);
     }
   }
 }

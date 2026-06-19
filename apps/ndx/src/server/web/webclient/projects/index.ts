@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import { spawn } from "node:child_process";
 import type express from "express";
 import { NDX_AGENT_RESOURCE, createNDXAgentResourceResolver, type NDXAgentResourceResolver } from "ndx/common";
-import type { NDXDatabase } from "ndx/agent";
+import type { NDXDatabase } from "ndx/agent/init";
 import {
   DEFAULT_NDX_WEB_CLIENT_USERID,
   deleteWebProject,

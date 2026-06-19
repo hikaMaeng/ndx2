@@ -35,6 +35,54 @@
       "types": "./dist/agent/index.d.ts",
       "import": "./dist/agent/index.js"
     },
+    "./agent/account": {
+      "types": "./dist/agent/account/index.d.ts",
+      "import": "./dist/agent/account/index.js"
+    },
+    "./agent/chat": {
+      "types": "./dist/agent/chat/index.d.ts",
+      "import": "./dist/agent/chat/index.js"
+    },
+    "./agent/compact": {
+      "types": "./dist/agent/compact/index.d.ts",
+      "import": "./dist/agent/compact/index.js"
+    },
+    "./agent/context": {
+      "types": "./dist/agent/context/index.d.ts",
+      "import": "./dist/agent/context/index.js"
+    },
+    "./agent/contextusage": {
+      "types": "./dist/agent/contextusage/index.d.ts",
+      "import": "./dist/agent/contextusage/index.js"
+    },
+    "./agent/hook": {
+      "types": "./dist/agent/hook/index.d.ts",
+      "import": "./dist/agent/hook/index.js"
+    },
+    "./agent/init": {
+      "types": "./dist/agent/init/index.d.ts",
+      "import": "./dist/agent/init/index.js"
+    },
+    "./agent/runtime-settings": {
+      "types": "./dist/agent/runtime-settings/index.d.ts",
+      "import": "./dist/agent/runtime-settings/index.js"
+    },
+    "./agent/session": {
+      "types": "./dist/agent/session/index.d.ts",
+      "import": "./dist/agent/session/index.js"
+    },
+    "./agent/selfcheck": {
+      "types": "./dist/agent/selfcheck/index.d.ts",
+      "import": "./dist/agent/selfcheck/index.js"
+    },
+    "./agent/tool": {
+      "types": "./dist/agent/tool/index.d.ts",
+      "import": "./dist/agent/tool/index.js"
+    },
+    "./agent/turnloop": {
+      "types": "./dist/agent/turnloop/index.d.ts",
+      "import": "./dist/agent/turnloop/index.js"
+    },
     "./webclient/common": {
       "types": "./dist/webclient/common/index.d.ts",
       "import": "./dist/webclient/common/index.js"

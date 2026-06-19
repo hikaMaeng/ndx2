@@ -21,6 +21,7 @@ export {
 export type { NDXWebEmbeddingSettingsRow, NDXWebModelRow, NDXWebProviderRow, NDXWebSettingsDocumentInput, NDXWebSettingsDocumentRow } from "./settings/index.js";
 export { analyzeModelFolderPatch, applyModelFolderPatch, draftModelFolderPatch } from "./settings/index.js";
 export type { NDXModelFolderPatchOptions } from "./settings/index.js";
+export { getWebSelfcheck, listWebSelfcheck, listWebSelfcheckCandidates, listWebSelfcheckCursors, listWebSelfcheckRuns, runWebSelfcheck, updateWebSelfcheckStatus } from "./selfcheck/index.js";
 
 export {
   DEFAULT_NDX_WEB_CLIENT_LOCALE,

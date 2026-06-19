@@ -8,7 +8,9 @@ import type { BuiltContext, BuiltContextParts, SessionMetadata } from "./types.j
 import { buildUserInstructions } from "./userInstructions/index.js";
 
 export { resolveModelInstruction } from "./modelInstrcution/index.js";
+export { loadSkills } from "./availableSkillsInstructions/loader.js";
 export type { BuiltContext, BuiltContextParts, SessionMetadata } from "./types.js";
+export type { SkillMetadata, SkillScope } from "./availableSkillsInstructions/types.js";
 
 /** Builds the consolidated developer and user context strings for a session turn. */
 export async function buildContext(sessionMetadata: SessionMetadata): Promise<BuiltContext> {

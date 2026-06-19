@@ -21,6 +21,7 @@ in `apps/ndx`.
 | Agent turn-loop hooks | `packages/ndx/src/agent/hook` | Event-name keyed hook execution plans, built-in system hook arrays, `.ndx/hook/hook.json` loading, and hook effects belong here. |
 | Request markers that rewrite accepted input before persistence | `packages/ndx/src/agent/hook/base/<marker>` registered on `turn.request.received` | Marker policy that changes `requestText` before the user row is appended belongs in a system request-received hook. It must return `replaceRequestText`; the turn loop must not own marker-specific branching. |
 | Session search projection and `session_history` query policy | `packages/ndx/src/agent/session`, `packages/ndx/src/agent/tool/base/session_history` | `sessionsearch` is derived from `sessiondata` and remains agent session authority. Keep row projection/query SQL with session persistence; keep the function-tool adapter and turn-end system hook policy with the `session_history` base tool. The hook event registration stays in `packages/ndx/src/agent/hook`. |
+| Runtime selfcheck analysis of tool and hook history | `packages/ndx/src/agent/selfcheck` for schema, candidate extraction, LLM analysis, cursors, and selfcheck rows; `apps/ndx/src/server` for scheduler lifecycle; `packages/ndx/src/webclient/server/selfcheck` and `apps/ndx/src/server/web/webclient/selfcheck` for API/query wiring; `apps/ndx/src/webclient_front/settings` for the settings viewer | Selfcheck is a background reader of `sessiondata` and hook audit rows. It must not mutate `sessiondata`, reconstruct model-visible turn context, add hook events, or place analysis rows in session history. |
 | Tool executor agent-call messages such as `cot_work` and right-sidebar `session.sidebar_item` | `packages/ndx/src/agent/tool/base/<tool>` for concrete payload creation, `packages/ndx/src/agent/tool/execute/agentcall` for envelope parsing, validation, and routing | Tools emit structured intermediate results but do not own socket transport. Generic routing and common sidebar validation stay in the executor; durable tool-specific rules stay with the base tool folder. `cot_work` live-plan validation, timing policy, and context-prepared reminder hook policy belong under `packages/ndx/src/agent/tool/base/cot_work`, even when the turn loop or hook runner calls them to persist and emit lifecycle records. |
 | Tool-specific runtime argument templates such as skill lists | `packages/ndx/src/agent/tool/base/<tool>` for extraction rules, `packages/ndx/src/agent/tool/base/runtimeArgs.ts` for aggregate registration | Runtime argument values that exist for one tool's purpose are documented and implemented inside that tool folder, not in the generic process executor. |
 | System-owned skill prompts coupled to base tools | `packages/ndx/src/agent/tool/base/<tool>/systemSkill` for the `SKILL.md`, `packages/ndx/src/agent/tool/base/systemSkills.ts` for aggregate registration, and `packages/ndx/src/agent/init` only for copying registered items into `.ndx/system/skills` | These prompts are runtime policy for built-in tools, not generic init assets. Init first copies ordinary bundled assets, then copies the registered system skills into `.ndx/system/skills` with overwrite enabled so prompt policy stays in sync with the owning tool implementation. |
@@ -33,7 +34,7 @@ in `apps/ndx`.
 | Process startup, env read, Express lifecycle, health, static serving, Docker runtime glue | `apps/ndx/src/server` | The repository has one deployable Express server. |
 | Session socket-server transport wiring | `apps/ndx/src/server/agent` | Attaches to the same HTTP server. Persisted state and agent authority stay in `packages/ndx/src/agent`. |
 | Web backend common Express wiring | `apps/ndx/src/server/web/common` | Shared types or middleware for webclient HTTP surfaces. |
-| Webclient backend route registration | `apps/ndx/src/server/web/webclient` | Express route wiring for webclient APIs. Imports `ndx/common`, `ndx/agent`, `ndx/webclient/common`, and `ndx/webclient/server` as needed. Settings route files stay orchestration-only and call `ndx/webclient/server` settings functions. |
+| Webclient backend route registration | `apps/ndx/src/server/web/webclient` | Express route wiring for webclient APIs. Imports `ndx/common`, focused `ndx/agent/*` subpaths, `ndx/webclient/common`, and `ndx/webclient/server` as needed. Settings route files stay orchestration-only and call `ndx/webclient/server` settings functions. |
 | Webclient React shell and composition | `apps/ndx/src/webclient_front` | Uses shadcn/ui, Tailwind, Radix primitives. May import `ndx/common` and `ndx/webclient/common`. |
 | Settings React surface composition | `apps/ndx/src/webclient_front/settings` | Settings UI composition and tab-local form state. Domain parsing and persistence stay in `packages/ndx/src/webclient/server/settings`; reusable browser API helpers stay in `packages/ndx/src/webclient/front`. |
 | Documents React site | `apps/ndx/src/documents_front` | Separate Vite site served under `/docs`; it must not be routed inside the webclient bundle. |
@@ -80,8 +81,8 @@ Disallowed turn-loop edits without explicit user approval:
 ## Hard Boundaries
 
 * Never import from `apps/*` into `packages/*`.
-* Never use relative imports across workspace boundaries. Use workspace package exports such as `ndx/common`, `ndx/agent`, or `ndx/webclient/common`.
-* `apps/ndx/src/webclient_front` must not import `ndx/agent`; it talks to agent authority through webclient protocols and server APIs.
+* Never use relative imports across workspace boundaries. Use workspace package exports such as `ndx/common`, `ndx/agent/session`, `ndx/agent/turnloop`, or `ndx/webclient/common`.
+* `apps/ndx/src/webclient_front` must not import `ndx/agent` or `ndx/agent/*`; it talks to agent authority through webclient protocols and server APIs.
 * `packages/ndx/src/common/protocol` owns the shared wire protocol only: message names, DTOs, event names, and validation/parsing that both the session server and webclient can use without React or webclient UI state.
 * `apps/ndx/src/webclient_front` must route session turn events through `ndx/webclient/front` protocol event reducers. Do not add app-local switch/if chains that mutate `SessionUiState` for individual `NDX_TURN_EVENT` values.
 * `apps/ndx/src/webclient_front` must not own canonical per-session history, running turn, streaming, sidebar, or detail-expansion state. It selects and renders session model snapshots from `packages/ndx/src/webclient/front/session/model`, and may keep only DOM/runtime adjuncts such as actual `File` handles, object URLs, element refs, and modal open state.
@@ -94,6 +95,9 @@ Disallowed turn-loop edits without explicit user approval:
   directly requested or explicitly approved that hook surface expansion. Moving
   an existing hook call to match its documented meaning is allowed; creating a
   new hook to avoid a placement mismatch is not.
+* Selfcheck hook analysis may record the result of an existing hook run in
+  `selfcheck_hookrun`, but that audit row is not a hook event, not
+  model-visible history, and not a new interception point.
 
 ## Abstraction Budget
 

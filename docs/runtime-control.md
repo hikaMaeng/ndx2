@@ -219,6 +219,23 @@ change does not alter the essential turn lifecycle, the turn loop may pass
 typed data to an existing boundary, but the policy must live outside the turn
 loop.
 
+## Selfcheck Scheduler
+
+Runtime selfcheck is a background scheduler, not a turn-loop phase. The app
+server owns the timer lifecycle and calls the agent selfcheck runner. The
+runner reads `sessiondata` and `selfcheck_hookrun`, writes candidates and
+`selfcheck` rows, and uses PostgreSQL advisory locking to avoid overlapping
+runs.
+
+The scheduler is enabled only when `.ndx/settings.json` has
+`selfcheck.enabled=true` and a resolvable `selfcheck.model`. Set
+`NDX_SELFCHECK_SCHEDULER=0` to disable the app-server timer while keeping manual
+settings-menu execution available.
+
+Selfcheck hook audit records may be written after existing hook runs when a hook
+meaningfully changes control flow. This is not a new hook surface: no hook event,
+hook folder, hook runner, or interception point is added for selfcheck.
+
 `runAgentTurn` and `runSessionTurn` are side-effect procedures. After entry,
 they write sessiondata, update session state, and emit socket-facing events;
 callers do not receive a turn result object.

@@ -13,10 +13,10 @@ import {
   updateChatFolderTitle,
   updateChatSessionTitle,
   type NDXChatFolderRow,
-  type NDXChatSessionRow,
-  type NDXDatabase,
-  type NDXModelConfig
-} from "ndx/agent";
+  type NDXChatSessionRow
+} from "ndx/agent/chat";
+import type { NDXDatabase } from "ndx/agent/init";
+import type { NDXModelConfig } from "ndx/agent/session";
 import { NDX_AGENT_RESOURCE, type NDXAgentResourceResolver } from "ndx/common";
 import { NDX_TURN_EVENT } from "ndx/common/protocol";
 import type { NDXLogger } from "ndx/common";

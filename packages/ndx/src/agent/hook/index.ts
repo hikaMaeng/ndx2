@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { runToolProcess } from "../tool/execute/process.js";
+import { recordSelfcheckHookRun } from "../selfcheck/hookRun.js";
 import { systemNDXHookPlan } from "./system.js";
 import { NDX_TURN_EVENT } from "../../common/protocol/index.js";
 import type { NDXCompactReport } from "../compact/index.js";
@@ -197,11 +198,19 @@ export async function runNDXHooks(runtime: NDXHookRuntime | undefined, event: ND
     }
   }
 
-  return {
+  const result = {
     event,
     executions,
     effect: normalizeNDXHookEffect(mergedEffect)
   };
+  await recordSelfcheckHookRun(context.database, context, result).catch((error) => {
+    context.database.logger?.warn("selfcheck.hookrun.record_failed", {
+      sessionid: context.session.sessionid,
+      event,
+      error: error instanceof Error ? error.message : String(error)
+    });
+  });
+  return result;
 }
 
 export function logNDXHookRunResult(database: NDXDatabase, sessionid: string, result: NDXHookRunResult): void {

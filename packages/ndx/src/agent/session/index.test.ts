@@ -6,11 +6,6 @@ import path from "node:path";
 import { once } from "node:events";
 import test from "node:test";
 import {
-  SESSION_TABLE_SQL,
-  SESSION_TABLE_MIGRATION_SQL,
-  SESSIONSEARCH_TABLE_SQL,
-  SESSIONSEARCH_TABLE_MIGRATION_SQL,
-  SESSIONDATA_TABLE_SQL,
   appendSessionData,
   completeSessionInterrupt,
   createSession,
@@ -29,6 +24,13 @@ import {
   updateSessionStartTurn,
   updateSessionTitle
 } from "./index.js";
+import {
+  SESSION_TABLE_SQL,
+  SESSION_TABLE_MIGRATION_SQL,
+  SESSIONSEARCH_TABLE_SQL,
+  SESSIONSEARCH_TABLE_MIGRATION_SQL,
+  SESSIONDATA_TABLE_SQL
+} from "./schema.js";
 import { sessionDataRowsForModelContext } from "../compact/index.js";
 import { prepareFinalModelRequestMessagesForCall } from "../turnloop/model-call/finalMessages/index.js";
 import { writeSessionAttachments } from "./attachments.js";

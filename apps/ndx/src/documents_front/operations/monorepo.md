@@ -32,7 +32,7 @@ NDX 저장소는 Yarn 4 Plug'n'Play와 Turbo를 사용한다. package manager mi
 | --- | --- |
 | packages에서 apps import 금지 | domain이 app wiring에 의존하면 배포/테스트 경계가 깨진다. |
 | cross-package relative import 금지 | workspace export 계약을 우회하지 않는다. |
-| webclient front에서 `ndx/agent` import 금지 | 브라우저가 agent authority를 갖지 않는다. |
+| webclient front에서 `ndx/agent/*` import 금지 | 브라우저가 agent authority를 갖지 않는다. |
 | app은 package export로 import | runtime resolution이 tsconfig alias에만 의존하지 않는다. |
 
 ## 의존성 변경

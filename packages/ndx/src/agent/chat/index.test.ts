@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  CHATFOLDER_TABLE_SQL,
-  CHATSESSIONDATA_TABLE_SQL,
-  CHATSESSION_TABLE_SQL,
   NDX_CHAT_ALLOWED_TOOL_NAMES,
   deleteChatFolder,
   ensureRootChatFolder,
@@ -12,6 +9,11 @@ import {
   listChatSessionData,
   updateChatFolderTitle
 } from "./index.js";
+import {
+  CHATFOLDER_TABLE_SQL,
+  CHATSESSIONDATA_TABLE_SQL,
+  CHATSESSION_TABLE_SQL
+} from "./schema.js";
 import type { NDXDatabase } from "../init/index.js";
 
 test("chat schema defines folder-scoped sessions and append-only history", () => {

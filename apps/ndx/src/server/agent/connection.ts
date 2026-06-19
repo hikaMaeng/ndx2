@@ -46,13 +46,9 @@ import {
   createBranchSessionFromTurn,
   deleteSession,
   deleteSessionTurn,
-  estimateContextTokens,
   getSession,
-  getRuntimeTurnPhase,
   interruptContents,
-  loadSkills,
   completeSessionInterrupt,
-  requestRuntimeTurnInterrupt,
   requestSessionInterrupt,
   assertModelSupportsAttachments,
   userMessageContents,
@@ -60,14 +56,20 @@ import {
   sessionDataTitleText,
   updateSessionTitle,
   writeSessionAttachments,
-  type NDXDatabase,
   type NDXModelConfig,
   type NDXSessionDataRow,
   type NDXSessionRow,
-  type NDXBranchSessionStartResult,
-  type NDXTurnLoopEvent,
-  runAgentTurnWithCompactContinuation
-} from "ndx/agent";
+  type NDXBranchSessionStartResult
+} from "ndx/agent/session";
+import { loadSkills } from "ndx/agent/context";
+import { estimateContextTokens } from "ndx/agent/contextusage";
+import type { NDXDatabase } from "ndx/agent/init";
+import {
+  getRuntimeTurnPhase,
+  requestRuntimeTurnInterrupt,
+  runAgentTurnWithCompactContinuation,
+  type NDXTurnLoopEvent
+} from "ndx/agent/turnloop";
 import type { NDXLogger } from "ndx/common";
 import { serverContainerUserHome, serverWorkspaceProjectPath, toServerProjectPath } from "ndx/common/server-path";
 import type { RawData, WebSocket } from "ws";

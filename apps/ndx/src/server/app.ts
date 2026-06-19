@@ -1,12 +1,14 @@
 import express from "express";
 import { serviceDomain, type NDXLogger } from "ndx/common";
-import { agentServerDomain } from "ndx/agent";
+import { agentServerDomain } from "ndx/agent/init";
+import { readAgentRuntimeSettings } from "ndx/agent/runtime-settings";
+import { runSelfcheckOnce } from "ndx/agent/selfcheck";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { NDXDatabase } from "ndx/agent";
+import type { NDXDatabase } from "ndx/agent/init";
 import type { NDXAgentResourceResolver } from "ndx/common";
-import { NDX_CONTAINER_NDX_HOME } from "ndx/common/server-path";
+import { NDX_CONTAINER_NDX_HOME, NDX_CONTAINER_USER_HOME } from "ndx/common/server-path";
 import { attachSessionRoutes } from "./agent/index.js";
 import { createAgentServerResourceResolver } from "./resource/index.js";
 import { attachAgentWebRoutes } from "./web/webclient/index.js";
@@ -55,6 +57,9 @@ export function createApp(options: CreateAppOptions = {}) {
     logger: options.webLogger,
     resource
   });
+  if (options.database && process.env.NDX_SELFCHECK_SCHEDULER !== "0") {
+    startSelfcheckScheduler(options.database, options.webLogger);
+  }
 
   app.use("/assets/i18n", express.static(path.join(NDX_CONTAINER_NDX_HOME, "i18n")));
   app.use("/assets/i18n", express.static(path.join(bundledAssetsDir, "i18n")));
@@ -69,4 +74,39 @@ export function createApp(options: CreateAppOptions = {}) {
   });
 
   return app;
+}
+
+function startSelfcheckScheduler(database: NDXDatabase, logger?: NDXLogger): void {
+  let running = false;
+  let nextRunAt = 0;
+  const interval = setInterval(() => {
+    void (async () => {
+      if (running || Date.now() < nextRunAt) return;
+      const settings = await readAgentRuntimeSettings(NDX_CONTAINER_USER_HOME);
+      const selfcheck = settings.selfcheck;
+      if (!selfcheck?.enabled || !selfcheck.model) {
+        nextRunAt = Date.now() + 60_000;
+        return;
+      }
+      running = true;
+      nextRunAt = Date.now() + selfcheck.defaultIntervalMs;
+      try {
+        logger?.info("selfcheck.scheduler.run.start", { model: selfcheck.model });
+        await runSelfcheckOnce(database, {
+          userHome: NDX_CONTAINER_USER_HOME,
+          batchSize: selfcheck.defaultBatchSize,
+          maxLlmAnalyses: selfcheck.maxLlmAnalysesPerRun,
+          maxEvidenceChars: selfcheck.maxEvidenceChars
+        });
+        logger?.info("selfcheck.scheduler.run.complete");
+      } catch (error) {
+        logger?.warn("selfcheck.scheduler.run.failed", {
+          error: error instanceof Error ? error.message : String(error)
+        });
+      } finally {
+        running = false;
+      }
+    })();
+  }, 60_000);
+  interval.unref?.();
 }

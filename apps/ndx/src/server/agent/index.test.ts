@@ -11,7 +11,8 @@ import WebSocket from "ws";
 import { acquireAgentServerInstanceLock, attachSessionRoutes, attachSessionSocketServer } from "./index.js";
 import { sessionGrantOwnerTargets, sessionSidebarItemSocketMessage, sessionSocketMessagesFromTurnLoopEvent } from "./connection.js";
 import { sendJson } from "./sendJson.js";
-import type { NDXDatabase, NDXSessionRow } from "ndx/agent";
+import type { NDXDatabase } from "ndx/agent/init";
+import type { NDXSessionRow } from "ndx/agent/session";
 import { NDX_SESSION_EVENT, NDX_SESSION_READY, NDX_SESSION_SIDEBAR_ITEM, NDX_TURN_EVENT } from "ndx/common";
 import type { NDXSessionEventMessage } from "ndx/common";
 

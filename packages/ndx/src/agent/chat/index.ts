@@ -1,12 +1,4 @@
-export {
-  CHATFOLDER_TABLE_INDEX_SQL,
-  CHATFOLDER_TABLE_SQL,
-  CHATSESSIONDATA_TABLE_INDEX_SQL,
-  CHATSESSIONDATA_TABLE_SQL,
-  CHATSESSION_TABLE_INDEX_SQL,
-  CHATSESSION_TABLE_SQL,
-  initChatDatabase
-} from "./schema.js";
+export { initChatDatabase } from "./schema.js";
 export {
   createChatFolder,
   deleteChatFolder,

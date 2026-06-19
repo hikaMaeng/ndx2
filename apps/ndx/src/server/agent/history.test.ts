@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { NDXDatabase, NDXSessionDataRow, NDXSessionRow } from "ndx/agent";
+import type { NDXDatabase } from "ndx/agent/init";
+import type { NDXSessionDataRow, NDXSessionRow } from "ndx/agent/session";
 import { buildSessionHistorySummary } from "./history.js";
 
 test("history summary keeps interrupted turns interrupted even when partial assistant text was saved", async () => {

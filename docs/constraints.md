@@ -10,7 +10,7 @@ Repository constraints:
 * Use Express for the server unless a future documented architecture decision replaces it.
 * Never import from `apps/*` into `packages/*`.
 * Cross-package imports use workspace package names, not relative paths across package boundaries.
-* `apps/ndx` depends on `ndx/common`, `ndx/agent`, and `ndx/webclient/*`.
+* `apps/ndx` depends on `ndx/common`, focused `ndx/agent/*` subpaths, and `ndx/webclient/*`.
 * `apps/ndx/src/server` owns the single agent Express server on `PORT`.
 * `apps/ndx/src/server/agent` owns session socket-server transport wiring attached to that same HTTP server.
 * New code must follow `docs/code-placement.md` before creating files or moving behavior across app/package boundaries.

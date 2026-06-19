@@ -1,5 +1,5 @@
 import type express from "express";
-import { agentServerDomain } from "ndx/agent";
+import { agentServerDomain } from "ndx/agent/init";
 import { NDX_AGENT_WEB_API, type NDXAgentWebMetadataResponse } from "ndx/webclient/common";
 import type { NDXLogger } from "ndx/common";
 import { defaultServerVolumeMap, serverContainerWorkspace, serverHostWorkspace } from "ndx/common/server-path";

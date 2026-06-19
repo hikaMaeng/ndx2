@@ -1,14 +1,4 @@
-export {
-  SESSION_TABLE_INDEX_SQL,
-  SESSION_TABLE_MIGRATION_SQL,
-  SESSIONSEARCH_TABLE_INDEX_SQL,
-  SESSIONSEARCH_TABLE_MIGRATION_SQL,
-  SESSIONSEARCH_TABLE_SQL,
-  SESSION_TABLE_SQL,
-  SESSIONDATA_TABLE_INDEX_SQL,
-  SESSIONDATA_TABLE_SQL,
-  initSessionDatabase
-} from "./schema.js";
+export { initSessionDatabase } from "./schema.js";
 export { appendSessionData } from "./appendSessionData.js";
 export { sessionDataRowsForModelContext } from "../compact/index.js";
 export { assertModelSupportsAttachments, writeSessionAttachments } from "./attachments.js";

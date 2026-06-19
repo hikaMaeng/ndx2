@@ -3,6 +3,7 @@ export const webclientFrontDomain = Object.freeze({
   runtime: "front"
 });
 export { getMetadata, getWebClientState, listWorkspaceDirectories, putWebClientState } from "./api/app.js";
+export { listWebSelfcheck, listWebSelfcheckCandidates, listWebSelfcheckCursors, listWebSelfcheckRuns, runWebSelfcheck, updateWebSelfcheckStatus } from "./api/selfcheck.js";
 export { createProjectSession, createUser, createWebProject, createWebProvider, createWebProviderEmbeddingModel, createWebProviderModel, deleteWebProject, deleteWebProvider, deleteWebProviderModel, getWebEmbeddingSettings, getWebSettings, listProjectSessions, listUsers, listWebProjects, listWebProviderEmbeddingModels, listWebProviderModels, listWebProviders, openWebProjectInVSCode, readProviderModelNames, syncWebProviderEmbeddingModels, syncWebProviderModels, updateProjectUser, updateWebEmbeddingSettings, updateWebProvider, updateWebProviderModel, updateWebSettings } from "./api/project.js";
 export { appendSessionMessage, interruptSession, listSessionData } from "./api/session.js";
 export {

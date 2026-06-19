@@ -1,14 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  DEFAULT_NDX_USERID,
-  DEFAULT_USER_RECORD_SQL,
-  USERS_TABLE_SQL,
   createUser,
   getUser,
   initAccountDatabase,
   listUser
 } from "./index.js";
+import { DEFAULT_NDX_USERID, DEFAULT_USER_RECORD_SQL, USERS_TABLE_SQL } from "./schema.js";
 import type { NDXDatabase } from "../init/index.js";
 
 test("users schema SQL defines account identity constraints", () => {

@@ -42,7 +42,13 @@ export const NDX_AGENT_WEB_API = Object.freeze({
     `/api/agent/sessions/${encodeURIComponent(sessionid)}/attachments/${encodeURIComponent(dataid)}/${encodeURIComponent(String(index))}`,
   sessionMessages: (sessionid: string) => `/api/agent/sessions/${encodeURIComponent(sessionid)}/messages`,
   sessionInterrupt: (sessionid: string) => `/api/agent/sessions/${encodeURIComponent(sessionid)}/interrupt`,
-  webClientState: "/api/agent/web-client-state"
+  webClientState: "/api/agent/web-client-state",
+  selfcheck: "/api/agent/selfcheck",
+  selfcheckItem: (selfcheckid: string) => `/api/agent/selfcheck/${encodeURIComponent(selfcheckid)}`,
+  selfcheckCandidates: "/api/agent/selfcheck/candidates",
+  selfcheckCursors: "/api/agent/selfcheck/cursors",
+  selfcheckRuns: "/api/agent/selfcheck/runs",
+  selfcheckRun: "/api/agent/selfcheck/run"
 });
 
 export type NDXAgentWebSessionMetadata = {
@@ -437,4 +443,126 @@ export type NDXAgentWebUpdateClientStateRequest = {
   clientid: string;
   userid?: string | null;
   state: unknown;
+};
+
+export type NDXAgentWebSelfcheckStatus = "open" | "reviewing" | "accepted" | "dismissed" | "resolved";
+export type NDXAgentWebSelfcheckSubjectKind = "tool" | "hook";
+
+export type NDXAgentWebSelfcheck = {
+  selfcheckid: string;
+  subjectkind: NDXAgentWebSelfcheckSubjectKind;
+  subjectname: string;
+  category: string;
+  severity: string;
+  status: NDXAgentWebSelfcheckStatus;
+  fingerprint: string;
+  title: string;
+  summary: string;
+  evidence: unknown;
+  recommendation: unknown;
+  confidence: string | null;
+  model: unknown;
+  promptversion: string;
+  analysiskind: string;
+  llmraw: unknown;
+  targetsessionid: string | null;
+  targetdataid: string | null;
+  targetiteration: number | null;
+  targetcallid: string | null;
+  targethookrunid: string | null;
+  firstseenat: string;
+  lastseenat: string;
+  occurrencecount: number;
+  sampledataids: string[];
+  createdat: string;
+  updatedat: string;
+};
+
+export type NDXAgentWebSelfcheckCandidate = {
+  candidateid: string;
+  subjectkind: NDXAgentWebSelfcheckSubjectKind;
+  subjectname: string;
+  analyzer: string;
+  sessionid: string | null;
+  calldataid: string | null;
+  resultdataid: string | null;
+  hookrunid: string | null;
+  fingerprint: string;
+  reason: string;
+  evidence: unknown;
+  status: string;
+  attemptcount: number;
+  lastattemptat: string | null;
+  lasterror: string | null;
+  createdat: string;
+  updatedat: string;
+};
+
+export type NDXAgentWebSelfcheckCursor = {
+  analyzer: string;
+  subjectkind: NDXAgentWebSelfcheckSubjectKind;
+  subjectname: string;
+  lastdataid: string;
+  settings: unknown;
+  laststartedat: string | null;
+  lastcompletedat: string | null;
+  laststatus: string | null;
+  lasterror: string | null;
+  updatedat: string;
+};
+
+export type NDXAgentWebSelfcheckRun = {
+  runid: string;
+  analyzer: string;
+  subjectkind: NDXAgentWebSelfcheckSubjectKind;
+  subjectname: string;
+  startedat: string;
+  completedat: string | null;
+  fromdataid: string;
+  todataid: string | null;
+  scannedrows: number;
+  createdcandidates: number;
+  llmanalyses: number;
+  createdchecks: number;
+  dedupedchecks: number;
+  status: string;
+  error: string | null;
+};
+
+export type NDXAgentWebSelfcheckResponse = {
+  selfchecks: NDXAgentWebSelfcheck[];
+};
+
+export type NDXAgentWebSelfcheckDetailResponse = {
+  selfcheck: NDXAgentWebSelfcheck;
+};
+
+export type NDXAgentWebUpdateSelfcheckRequest = {
+  status: NDXAgentWebSelfcheckStatus;
+};
+
+export type NDXAgentWebSelfcheckCandidatesResponse = {
+  candidates: NDXAgentWebSelfcheckCandidate[];
+};
+
+export type NDXAgentWebSelfcheckCursorsResponse = {
+  cursors: NDXAgentWebSelfcheckCursor[];
+};
+
+export type NDXAgentWebSelfcheckRunsResponse = {
+  runs: NDXAgentWebSelfcheckRun[];
+};
+
+export type NDXAgentWebRunSelfcheckRequest = {
+  mode?: "extract" | "analyze" | "all";
+  batchSize?: number;
+  maxLlmAnalyses?: number;
+};
+
+export type NDXAgentWebRunSelfcheckResponse = {
+  runid: string;
+  createdCandidates: number;
+  llmAnalyses: number;
+  createdChecks: number;
+  dedupedChecks: number;
 };

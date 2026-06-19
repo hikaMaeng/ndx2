@@ -1,6 +1,7 @@
 import type express from "express";
 import { NDX_AGENT_RESOURCE, createNDXAgentResourceResolver, type NDXAgentResourceResolver } from "ndx/common";
-import { createUser, listUser, type NDXDatabase } from "ndx/agent";
+import { createUser, listUser } from "ndx/agent/account";
+import type { NDXDatabase } from "ndx/agent/init";
 import { NDX_AGENT_WEB_API, type NDXAgentWebCreateUserRequest, type NDXAgentWebUsersResponse } from "ndx/webclient/common";
 import type { NDXLogger } from "ndx/common";
 

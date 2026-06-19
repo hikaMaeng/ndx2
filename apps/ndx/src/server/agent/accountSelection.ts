@@ -7,7 +7,8 @@ import {
   isNDXAccountSelectMessage
 } from "ndx/common";
 import type { NDXAgentResourceResolver } from "ndx/common";
-import { listUser, type NDXDatabase } from "ndx/agent";
+import { listUser } from "ndx/agent/account";
+import type { NDXDatabase } from "ndx/agent/init";
 import type { NDXLogger } from "ndx/common";
 import type { SessionClientState } from "./types.js";
 import { sendJson } from "./sendJson.js";

@@ -1,6 +1,6 @@
 import http from "node:http";
 import { createNDXLogger } from "ndx/common";
-import { initServer } from "ndx/agent";
+import { initServer } from "ndx/agent/init";
 import { NDX_CONTAINER_LOG_ROOT, NDX_CONTAINER_USER_HOME } from "ndx/common/server-path";
 import { acquireAgentServerInstanceLock, attachSessionSocketServer } from "./agent/index.js";
 import { createApp } from "./app.js";

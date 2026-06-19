@@ -30,7 +30,7 @@ attachment bytes는 한 요청에만 payload로 붙을 수 있다. 이미지를 
 | --- | --- |
 | context build | `packages/ndx/src/agent/context` |
 | turn base message | `packages/ndx/src/agent/turnloop/base/context/index.ts` |
-| sessiondata to model messages | `packages/ndx/src/agent/session/sessionDataRowsToModelMessages.ts` |
+| sessiondata to model messages | `packages/ndx/src/agent/turnloop/model-call/finalMessages/rows` |
 | attachment inline | `packages/ndx/src/agent/hook/base/inlineInputImages/index.ts` |
 | cot work reminder | `packages/ndx/src/agent/tool/base/cot_work/reminderHook.ts` |
 | rewriter marker | `packages/ndx/src/agent/hook/base/rewriterMarker/index.ts` |

@@ -79,6 +79,7 @@
 | `packages/ndx/src/agent/init/assets` | scaffolded skills, tools, and baseline assets. |
 | `packages/ndx/src/agent/project` | durable project identity. |
 | `packages/ndx/src/agent/runtime-settings` | runtime settings reader and defaults. |
+| `packages/ndx/src/agent/selfcheck` | self-check run storage and hook-run diagnostics. |
 | `packages/ndx/src/agent/session` | PostgreSQL session/sessiondata/sessionsearch domain. |
 | `packages/ndx/src/agent/tool` | tool registry and execution. |
 | `packages/ndx/src/agent/tool/base` | built-in process-backed tools and function-tool adapters. |
@@ -104,6 +105,7 @@
 | `packages/ndx/src/common/resource` | resource key and localization contracts. |
 | `packages/ndx/src/common/responseapi` | model provider request/response abstraction. |
 | `packages/ndx/src/common/server-path` | host/container path mapping. |
+| `packages/ndx/src/common/settings` | `.ndx/settings.json` schema and shared settings IO. |
 | `packages/ndx/src/common/uuid7` | UUIDv7 helper. |
 | `packages/ndx/src/webclient` | webclient package namespace. |
 | `packages/ndx/src/webclient/common` | browser/backend shared webclient contracts. |
@@ -111,6 +113,7 @@
 | `packages/ndx/src/webclient/front` | browser-facing domain helpers. |
 | `packages/ndx/src/webclient/front/api` | browser API request helpers. |
 | `packages/ndx/src/webclient/front/app` | browser app helper contracts. |
+| `packages/ndx/src/webclient/front/chat` | chat browser model helpers. |
 | `packages/ndx/src/webclient/front/i18n` | translation loader. |
 | `packages/ndx/src/webclient/front/model` | model form/config helpers. |
 | `packages/ndx/src/webclient/front/project` | project UI helper contracts. |
@@ -118,6 +121,7 @@
 | `packages/ndx/src/webclient/front/storage` | client-state cache helpers. |
 | `packages/ndx/src/webclient/server` | server-side webclient persistence helpers. |
 | `packages/ndx/src/webclient/server/client-state` | browser client state table. |
+| `packages/ndx/src/webclient/server/selfcheck` | web-facing self-check DTO conversion and actions. |
 | `packages/ndx/src/webclient/server/settings` | settings domain namespace for `.ndx/settings.json`. |
 | `packages/ndx/src/webclient/server/settings/model-catalog` | provider/model settings store. |
 | `packages/ndx/src/webclient/server/settings/model-patch` | model patch ingestion and normalization. |

@@ -9,6 +9,7 @@ import type { AttachAgentWebRoutesOptions } from "../common/types.js";
 import { attachAgentWebUserRoutes } from "./users/index.js";
 import { attachAgentWebWorkspaceRoutes } from "./workspace/index.js";
 import { attachAgentWebSettingsRoutes } from "./settings/index.js";
+import { attachAgentWebSelfcheckRoutes } from "./selfcheck/index.js";
 
 export function attachAgentWebRoutes(app: express.Express, options: AttachAgentWebRoutesOptions) {
   const database = options.database && options.logger ? { ...options.database, logger: options.logger } : options.database;
@@ -42,6 +43,7 @@ export function attachAgentWebRoutes(app: express.Express, options: AttachAgentW
   attachAgentWebSettingsRoutes(app, options.logger, options.resource);
   attachAgentWebProjectRoutes(app, database, options.logger, options.resource);
   attachAgentWebModelRoutes(app, database, options.logger, options.resource);
+  attachAgentWebSelfcheckRoutes(app, database, options.logger);
   attachAgentWebChatRoutes(app, database, options.logger, options.resource);
   attachAgentWebSessionRoutes(app, database, options.logger, options.resource);
   attachAgentWebClientStateRoutes(app, database, options.logger, options.resource);

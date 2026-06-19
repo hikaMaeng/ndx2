@@ -3,7 +3,11 @@ import path from "node:path";
 
 export const DEFAULT_NDX_MAX_MODEL_ITERATIONS = 500;
 export const DEFAULT_NDX_LOOP_DETECTION_INTERVAL = 50;
-export const SETTINGS_KNOWN_TOP_LEVEL_KEYS = new Set(["version", "model", "providers", "models", "embeddings", "runtime", "tools", "hooks", "websearch"]);
+export const DEFAULT_NDX_SELFCHECK_INTERVAL_MS = 300_000;
+export const DEFAULT_NDX_SELFCHECK_BATCH_SIZE = 100;
+export const DEFAULT_NDX_SELFCHECK_MAX_LLM_ANALYSES_PER_RUN = 20;
+export const DEFAULT_NDX_SELFCHECK_MAX_EVIDENCE_CHARS = 12_000;
+export const SETTINGS_KNOWN_TOP_LEVEL_KEYS = new Set(["version", "model", "providers", "models", "embeddings", "runtime", "tools", "hooks", "websearch", "selfcheck"]);
 
 export type NDXSettingsReasoningEffort = "low" | "medium" | "high";
 export type NDXSettingsModality = "text" | "image" | "file";
@@ -18,6 +22,7 @@ export type NDXSettingsDocument = {
   tools?: Record<string, unknown>;
   hooks?: Record<string, unknown>;
   websearch?: Record<string, unknown>;
+  selfcheck?: Record<string, unknown>;
   [key: string]: unknown;
 };
 
@@ -108,6 +113,14 @@ export type NDXSettingsDocumentRow = {
     queryParam: string;
     providersJson: string;
   };
+  selfcheck: {
+    enabled: boolean;
+    model: string;
+    defaultIntervalMs: number;
+    defaultBatchSize: number;
+    maxLlmAnalysesPerRun: number;
+    maxEvidenceChars: number;
+  };
   otherJson: string;
   topLevelKeys: string[];
 };
@@ -138,6 +151,14 @@ export type NDXSettingsDocumentInput = {
     queryParam?: string;
     providersJson?: string;
   };
+  selfcheck?: {
+    enabled?: boolean;
+    model?: string;
+    defaultIntervalMs?: number;
+    defaultBatchSize?: number;
+    maxLlmAnalysesPerRun?: number;
+    maxEvidenceChars?: number;
+  };
   otherJson?: string;
 };
 
@@ -165,6 +186,14 @@ export type NDXAgentRuntimeSettings = {
       MAX_REASONING_LENGTH: number;
       analysisModel?: string;
     };
+  };
+  selfcheck?: {
+    enabled: boolean;
+    model?: string;
+    defaultIntervalMs: number;
+    defaultBatchSize: number;
+    maxLlmAnalysesPerRun: number;
+    maxEvidenceChars: number;
   };
 };
 
@@ -233,6 +262,7 @@ export function settingsDocumentToAgentRuntimeSettings(settings: NDXSettingsDocu
   const embeddings = parseEmbeddingSettings(settings.embeddings, settings.providers);
   const hooks = parseHookSettings(settings.hooks);
   const promptRewriteModel = promptRewriteModelSetting(settings.tools);
+  const selfcheck = parseSelfcheckSettings(settings.selfcheck);
   const maxModelIterations = runtime && typeof runtime === "object" && !Array.isArray(runtime) ? runtime.maxModelIterations : undefined;
   const loopDetectionInterval = runtime && typeof runtime === "object" && !Array.isArray(runtime) ? runtime.loopDetectionInterval : undefined;
   return {
@@ -244,6 +274,7 @@ export function settingsDocumentToAgentRuntimeSettings(settings: NDXSettingsDocu
       : DEFAULT_NDX_LOOP_DETECTION_INTERVAL,
     ...(embeddings ? { embeddings } : {}),
     ...(hooks ? { hooks } : {}),
+    ...(selfcheck ? { selfcheck } : {}),
     tools: {
       ...(promptRewriteModel ? { prompt_rewrite: { model: promptRewriteModel } } : {})
     }
@@ -299,6 +330,7 @@ export function settingsDocumentRow(settings: NDXSettingsDocument): NDXSettingsD
   const tools = settings.tools && typeof settings.tools === "object" && !Array.isArray(settings.tools) ? settings.tools : {};
   const hooks = settings.hooks && typeof settings.hooks === "object" && !Array.isArray(settings.hooks) ? settings.hooks : {};
   const websearch = settings.websearch && typeof settings.websearch === "object" && !Array.isArray(settings.websearch) ? settings.websearch : {};
+  const selfcheck = settings.selfcheck && typeof settings.selfcheck === "object" && !Array.isArray(settings.selfcheck) ? settings.selfcheck : {};
   const promptRewrite = tools.prompt_rewrite && typeof tools.prompt_rewrite === "object" && !Array.isArray(tools.prompt_rewrite) ? tools.prompt_rewrite as Record<string, unknown> : {};
   const streamGuard = hooks.StreamGuard && typeof hooks.StreamGuard === "object" && !Array.isArray(hooks.StreamGuard) ? hooks.StreamGuard as Record<string, unknown> : {};
   const other = Object.fromEntries(Object.entries(settings).filter(([key]) => !SETTINGS_KNOWN_TOP_LEVEL_KEYS.has(key)));
@@ -327,6 +359,14 @@ export function settingsDocumentRow(settings: NDXSettingsDocument): NDXSettingsD
       method: typeof websearch.method === "string" ? websearch.method : "",
       queryParam: typeof websearch.queryParam === "string" ? websearch.queryParam : "",
       providersJson: JSON.stringify(websearch.providers && typeof websearch.providers === "object" && !Array.isArray(websearch.providers) ? websearch.providers : {}, null, 2)
+    },
+    selfcheck: {
+      enabled: typeof selfcheck.enabled === "boolean" ? selfcheck.enabled : false,
+      model: typeof selfcheck.model === "string" ? selfcheck.model : "",
+      defaultIntervalMs: positiveIntegerOrDefault(selfcheck.defaultIntervalMs, DEFAULT_NDX_SELFCHECK_INTERVAL_MS),
+      defaultBatchSize: positiveIntegerOrDefault(selfcheck.defaultBatchSize, DEFAULT_NDX_SELFCHECK_BATCH_SIZE),
+      maxLlmAnalysesPerRun: positiveIntegerOrDefault(selfcheck.maxLlmAnalysesPerRun, DEFAULT_NDX_SELFCHECK_MAX_LLM_ANALYSES_PER_RUN),
+      maxEvidenceChars: positiveIntegerOrDefault(selfcheck.maxEvidenceChars, DEFAULT_NDX_SELFCHECK_MAX_EVIDENCE_CHARS)
     },
     otherJson: JSON.stringify(other, null, 2),
     topLevelKeys: Object.keys(settings).sort()
@@ -487,6 +527,22 @@ function promptRewriteModelSetting(tools: unknown): string | undefined {
   return typeof model === "string" && model.trim() ? model.trim() : undefined;
 }
 
+function parseSelfcheckSettings(value: unknown): NDXAgentRuntimeSettings["selfcheck"] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const record = value as Record<string, unknown>;
+  const model = typeof record.model === "string" && record.model.trim() ? record.model.trim() : undefined;
+  const enabled = typeof record.enabled === "boolean" ? record.enabled : false;
+  if (!enabled && !model) return undefined;
+  return {
+    enabled,
+    ...(model ? { model } : {}),
+    defaultIntervalMs: positiveIntegerOrDefault(record.defaultIntervalMs, DEFAULT_NDX_SELFCHECK_INTERVAL_MS),
+    defaultBatchSize: positiveIntegerOrDefault(record.defaultBatchSize, DEFAULT_NDX_SELFCHECK_BATCH_SIZE),
+    maxLlmAnalysesPerRun: positiveIntegerOrDefault(record.maxLlmAnalysesPerRun, DEFAULT_NDX_SELFCHECK_MAX_LLM_ANALYSES_PER_RUN),
+    maxEvidenceChars: positiveIntegerOrDefault(record.maxEvidenceChars, DEFAULT_NDX_SELFCHECK_MAX_EVIDENCE_CHARS)
+  };
+}
+
 function settingsModelReasoningEffortField(value: unknown): Pick<NDXSettingsModelRow, "reasoningEffort"> {
   const effort = normalizeStoredReasoningEffort(value);
   return effort ? { reasoningEffort: effort } : {};
@@ -504,4 +560,8 @@ function normalizeStoredReasoningEffort(value: unknown): NDXSettingsReasoningEff
 
 function numberOrDefault(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function positiveIntegerOrDefault(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : fallback;
 }

@@ -1,7 +1,7 @@
 import React from "react";
-import { Bot, Braces, CheckCircle2, Database, Download, FileCode2, FolderOpen, FolderSearch, Gauge, Menu, Pencil, Plus, RefreshCw, RotateCw, Save, Search, ShieldCheck, Trash2, Undo2, Wrench, X } from "lucide-react";
-import type { NDXAgentModelFolderPatchDraftResponse, NDXAgentModelFolderPatchManifest, NDXAgentWebEmbeddingSettings, NDXAgentWebModel, NDXAgentWebProvider, NDXAgentWebSettingsDocument } from "ndx/webclient/common";
-import { createWebProvider, createWebProviderEmbeddingModel, deleteWebProvider, deleteWebProviderModel, getWebEmbeddingSettings, getWebSettings, listWebProviderEmbeddingModels, listWebProviderModels, listWebProviders, syncWebProviderEmbeddingModels, updateWebEmbeddingSettings, updateWebProvider, updateWebSettings } from "ndx/webclient/front";
+import { Bot, Braces, CheckCircle2, ClipboardCheck, Database, Download, FileCode2, FolderOpen, FolderSearch, Gauge, Menu, Pencil, Plus, RefreshCw, RotateCw, Save, Search, ShieldCheck, Trash2, Undo2, Wrench, X } from "lucide-react";
+import type { NDXAgentModelFolderPatchDraftResponse, NDXAgentModelFolderPatchManifest, NDXAgentWebEmbeddingSettings, NDXAgentWebModel, NDXAgentWebProvider, NDXAgentWebSelfcheck, NDXAgentWebSelfcheckCandidate, NDXAgentWebSelfcheckCursor, NDXAgentWebSelfcheckRun, NDXAgentWebSelfcheckStatus, NDXAgentWebSettingsDocument } from "ndx/webclient/common";
+import { createWebProvider, createWebProviderEmbeddingModel, deleteWebProvider, deleteWebProviderModel, getWebEmbeddingSettings, getWebSettings, listWebProviderEmbeddingModels, listWebProviderModels, listWebProviders, listWebSelfcheck, listWebSelfcheckCandidates, listWebSelfcheckCursors, listWebSelfcheckRuns, runWebSelfcheck, syncWebProviderEmbeddingModels, updateWebEmbeddingSettings, updateWebProvider, updateWebSettings, updateWebSelfcheckStatus } from "ndx/webclient/front";
 import { draftModelFolderPatch } from "./modelPatchApi";
 
 type SettingsSurfaceProps = {
@@ -30,7 +30,7 @@ type LocalFolderSnapshot = {
   existingModelYaml?: string;
 };
 
-type SettingsTab = "modelCatalog" | "modelPatch" | "embedding" | "runtime" | "tools" | "hooks" | "websearch" | "other";
+type SettingsTab = "modelCatalog" | "modelPatch" | "embedding" | "runtime" | "tools" | "hooks" | "selfcheck" | "websearch" | "other";
 type EmbeddingProviderBundle = {
   provider: NDXAgentWebProvider;
   models: NDXAgentWebModel[];
@@ -148,6 +148,7 @@ export function SettingsSurface({ menuLabel, onOpenMenu }: SettingsSurfaceProps)
           {activeTab === "runtime" ? <RuntimeSettingsTab /> : null}
           {activeTab === "tools" ? <ToolSettingsTab /> : null}
           {activeTab === "hooks" ? <HookSettingsTab /> : null}
+          {activeTab === "selfcheck" ? <SelfcheckSettingsTab /> : null}
           {activeTab === "websearch" ? <WebSearchSettingsTab /> : null}
           {activeTab === "other" ? <OtherSettingsTab /> : null}
           {activeTab === "modelPatch" ? (
@@ -277,6 +278,7 @@ function SettingsMenu({ activeTab, onSelect }: { activeTab: SettingsTab; onSelec
     { id: "runtime", icon: <Gauge aria-hidden="true" className="h-4 w-4" />, label: "런타임" },
     { id: "tools", icon: <Wrench aria-hidden="true" className="h-4 w-4" />, label: "도구" },
     { id: "hooks", icon: <ShieldCheck aria-hidden="true" className="h-4 w-4" />, label: "훅" },
+    { id: "selfcheck", icon: <ClipboardCheck aria-hidden="true" className="h-4 w-4" />, label: "자체 점검" },
     { id: "websearch", icon: <Search aria-hidden="true" className="h-4 w-4" />, label: "웹 검색" },
     { id: "modelPatch", icon: <FolderSearch aria-hidden="true" className="h-4 w-4" />, label: "모델 패치" },
     { id: "other", icon: <Braces aria-hidden="true" className="h-4 w-4" />, label: "기타 JSON" }
@@ -540,6 +542,193 @@ function HookSettingsTab() {
         <datalist id="stream-guard-analysis-models">{modelNames.map((name) => <option key={name} value={name} />)}</datalist>
       </label>
     </SettingsFormShell>
+  );
+}
+
+function SelfcheckSettingsTab() {
+  const [enabled, setEnabled] = React.useState(false);
+  const [model, setModel] = React.useState("");
+  const [modelKeys, setModelKeys] = React.useState<string[]>([]);
+  const [defaultIntervalMs, setDefaultIntervalMs] = React.useState("300000");
+  const [defaultBatchSize, setDefaultBatchSize] = React.useState("100");
+  const [maxLlmAnalysesPerRun, setMaxLlmAnalysesPerRun] = React.useState("20");
+  const [maxEvidenceChars, setMaxEvidenceChars] = React.useState("12000");
+  const [selfchecks, setSelfchecks] = React.useState<NDXAgentWebSelfcheck[]>([]);
+  const [candidates, setCandidates] = React.useState<NDXAgentWebSelfcheckCandidate[]>([]);
+  const [cursors, setCursors] = React.useState<NDXAgentWebSelfcheckCursor[]>([]);
+  const [runs, setRuns] = React.useState<NDXAgentWebSelfcheckRun[]>([]);
+  const [statusFilter, setStatusFilter] = React.useState("");
+  const [pending, setPending] = React.useState("");
+  const [error, setError] = React.useState("");
+  const [message, setMessage] = React.useState("");
+
+  const refresh = React.useCallback(async () => {
+    const [settings, providers, nextSelfchecks, nextCandidates, nextCursors, nextRuns] = await Promise.all([
+      getWebSettings(),
+      listWebProviders(),
+      listWebSelfcheck({ status: statusFilter || undefined }),
+      listWebSelfcheckCandidates(),
+      listWebSelfcheckCursors(),
+      listWebSelfcheckRuns()
+    ]);
+    const keys: string[] = [];
+    for (const provider of providers) {
+      keys.push(...(await listWebProviderModels(provider.title)).map((item) => item.key ?? item.model));
+    }
+    setEnabled(settings.selfcheck.enabled);
+    setModel(settings.selfcheck.model);
+    setDefaultIntervalMs(String(settings.selfcheck.defaultIntervalMs));
+    setDefaultBatchSize(String(settings.selfcheck.defaultBatchSize));
+    setMaxLlmAnalysesPerRun(String(settings.selfcheck.maxLlmAnalysesPerRun));
+    setMaxEvidenceChars(String(settings.selfcheck.maxEvidenceChars));
+    setModelKeys([...new Set(keys)].sort());
+    setSelfchecks(nextSelfchecks);
+    setCandidates(nextCandidates);
+    setCursors(nextCursors);
+    setRuns(nextRuns);
+  }, [statusFilter]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    setPending("load");
+    void refresh().catch((reason) => {
+      if (!cancelled) setError(reason instanceof Error ? reason.message : "자체 점검 정보를 불러오지 못했습니다.");
+    }).finally(() => {
+      if (!cancelled) setPending("");
+    });
+    return () => { cancelled = true; };
+  }, [refresh]);
+
+  const save = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (pending) return;
+    setPending("save");
+    setError("");
+    setMessage("");
+    void updateWebSettings({
+      selfcheck: {
+        enabled,
+        model,
+        defaultIntervalMs: Number(defaultIntervalMs),
+        defaultBatchSize: Number(defaultBatchSize),
+        maxLlmAnalysesPerRun: Number(maxLlmAnalysesPerRun),
+        maxEvidenceChars: Number(maxEvidenceChars)
+      }
+    }).then((response) => {
+      setEnabled(response.settings.selfcheck.enabled);
+      setModel(response.settings.selfcheck.model);
+      setDefaultIntervalMs(String(response.settings.selfcheck.defaultIntervalMs));
+      setDefaultBatchSize(String(response.settings.selfcheck.defaultBatchSize));
+      setMaxLlmAnalysesPerRun(String(response.settings.selfcheck.maxLlmAnalysesPerRun));
+      setMaxEvidenceChars(String(response.settings.selfcheck.maxEvidenceChars));
+      setMessage("자체 점검 설정을 저장했습니다.");
+    }).catch((reason) => setError(reason instanceof Error ? reason.message : "자체 점검 설정 저장에 실패했습니다.")).finally(() => setPending(""));
+  };
+
+  const run = (mode: "extract" | "analyze" | "all") => {
+    if (pending) return;
+    setPending(`run:${mode}`);
+    setError("");
+    setMessage("");
+    void runWebSelfcheck({ mode, batchSize: Number(defaultBatchSize), maxLlmAnalyses: Number(maxLlmAnalysesPerRun) }).then(async (result) => {
+      setMessage(`실행 완료: 후보 ${result.createdCandidates}건, LLM 분석 ${result.llmAnalyses}건, selfcheck ${result.createdChecks}건`);
+      await refresh();
+    }).catch((reason) => setError(reason instanceof Error ? reason.message : "자체 점검 실행에 실패했습니다.")).finally(() => setPending(""));
+  };
+
+  const changeStatus = (item: NDXAgentWebSelfcheck, status: NDXAgentWebSelfcheckStatus) => {
+    if (pending) return;
+    setPending(`status:${item.selfcheckid}`);
+    setError("");
+    setMessage("");
+    void updateWebSelfcheckStatus(item.selfcheckid, status).then(async () => {
+      setMessage("selfcheck 상태를 변경했습니다.");
+      await refresh();
+    }).catch((reason) => setError(reason instanceof Error ? reason.message : "selfcheck 상태 변경에 실패했습니다.")).finally(() => setPending(""));
+  };
+
+  return (
+    <div className="mx-auto grid max-w-6xl gap-4">
+      <form className="grid gap-4 rounded-lg border border-zinc-800 bg-zinc-900/45 p-4" onSubmit={save}>
+        <SettingsSectionTitle title="자체 점검 설정" description="도구와 기존 훅 실행 이력을 후보로 추출하고, 설정된 모델이 개선 후보를 분석해 selfcheck에 누적합니다." pending={pending} />
+        <label className="flex items-center gap-3 text-sm text-zinc-200">
+          <input type="checkbox" className="h-4 w-4 accent-emerald-500" checked={enabled} disabled={Boolean(pending)} onChange={(event) => setEnabled(event.target.checked)} />
+          정기 실행 활성화
+        </label>
+        <label className="grid gap-2">
+          <span className="text-sm font-medium text-zinc-200">분석 모델 키</span>
+          <input list="selfcheck-models" className="h-10 rounded-md border border-zinc-700 bg-zinc-950 px-3 text-sm text-zinc-100" disabled={Boolean(pending)} value={model} onChange={(event) => setModel(event.target.value)} placeholder="settings.models의 key" />
+          <datalist id="selfcheck-models">{modelKeys.map((name) => <option key={name} value={name} />)}</datalist>
+        </label>
+        <div className="grid gap-3 md:grid-cols-4">
+          <NumberTextInput label="실행 간격 ms" value={defaultIntervalMs} onChange={setDefaultIntervalMs} min={1} />
+          <NumberTextInput label="batch size" value={defaultBatchSize} onChange={setDefaultBatchSize} min={1} />
+          <NumberTextInput label="run당 LLM 분석" value={maxLlmAnalysesPerRun} onChange={setMaxLlmAnalysesPerRun} min={0} />
+          <NumberTextInput label="evidence 문자 수" value={maxEvidenceChars} onChange={setMaxEvidenceChars} min={1000} />
+        </div>
+        <div className="flex flex-wrap justify-between gap-2">
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="inline-flex h-9 items-center gap-2 rounded-md border border-zinc-700 bg-zinc-950 px-3 text-sm font-medium text-zinc-200 hover:bg-zinc-800 disabled:opacity-50" disabled={Boolean(pending)} onClick={() => run("extract")}>
+              <RefreshCw aria-hidden="true" className={`h-4 w-4 ${pending === "run:extract" ? "animate-spin" : ""}`} />
+              후보 추출
+            </button>
+            <button type="button" className="inline-flex h-9 items-center gap-2 rounded-md border border-zinc-700 bg-zinc-950 px-3 text-sm font-medium text-zinc-200 hover:bg-zinc-800 disabled:opacity-50" disabled={Boolean(pending)} onClick={() => run("analyze")}>
+              <Bot aria-hidden="true" className="h-4 w-4" />
+              LLM 분석
+            </button>
+            <button type="button" className="inline-flex h-9 items-center gap-2 rounded-md bg-emerald-600 px-3 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50" disabled={Boolean(pending)} onClick={() => run("all")}>
+              <ClipboardCheck aria-hidden="true" className="h-4 w-4" />
+              전체 실행
+            </button>
+          </div>
+          <SaveButton disabled={Boolean(pending)} label="설정 저장" />
+        </div>
+        <SettingsFeedback error={error} message={message} />
+      </form>
+
+      <section className="grid gap-3 rounded-lg border border-zinc-800 bg-zinc-900/45 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <SettingsSectionTitle title="Selfcheck" description="LLM이 제안한 수동 개선 후보입니다." pending="" />
+          <select className="h-9 rounded-md border border-zinc-700 bg-zinc-950 px-3 text-sm text-zinc-100" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+            <option value="">전체 상태</option>
+            {["open", "reviewing", "accepted", "dismissed", "resolved"].map((status) => <option key={status} value={status}>{status}</option>)}
+          </select>
+        </div>
+        <div className="grid gap-3">
+          {selfchecks.map((item) => (
+            <article key={item.selfcheckid} className="grid gap-3 rounded-md border border-zinc-800 bg-zinc-950 p-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap gap-2">
+                    <StatusPill text={item.subjectkind} tone="idle" />
+                    <StatusPill text={item.subjectname} tone="idle" />
+                    <StatusPill text={item.severity} tone={item.severity === "high" ? "warn" : "idle"} />
+                    <StatusPill text={item.status} tone={item.status === "open" ? "warn" : "ok"} />
+                  </div>
+                  <h3 className="mt-2 text-sm font-semibold text-zinc-100">{item.title}</h3>
+                  <p className="mt-1 text-sm leading-6 text-zinc-400">{item.summary}</p>
+                </div>
+                <select className="h-9 rounded-md border border-zinc-700 bg-zinc-950 px-2 text-xs text-zinc-100" disabled={Boolean(pending)} value={item.status} onChange={(event) => changeStatus(item, event.target.value as NDXAgentWebSelfcheckStatus)}>
+                  {["open", "reviewing", "accepted", "dismissed", "resolved"].map((status) => <option key={status} value={status}>{status}</option>)}
+                </select>
+              </div>
+              <div className="grid gap-2 md:grid-cols-2">
+                <JsonBlock title="recommendation" value={item.recommendation} />
+                <JsonBlock title="evidence" value={item.evidence} />
+              </div>
+              <p className="text-xs text-zinc-500">occurrence {item.occurrencecount} · confidence {item.confidence ?? "n/a"} · {new Date(item.updatedat).toLocaleString()}</p>
+            </article>
+          ))}
+          {selfchecks.length === 0 ? <p className="rounded-md border border-zinc-800 bg-zinc-950 px-3 py-6 text-center text-sm text-zinc-500">표시할 selfcheck가 없습니다.</p> : null}
+        </div>
+      </section>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <SelfcheckSmallList title="후보" rows={candidates.map((item) => `${item.status} · ${item.subjectkind}/${item.subjectname} · ${item.reason}`)} />
+        <SelfcheckSmallList title="커서" rows={cursors.map((item) => `${item.analyzer} · ${item.lastdataid} · ${item.laststatus ?? "n/a"}`)} />
+        <SelfcheckSmallList title="실행" rows={runs.map((item) => `${item.status} · 후보 ${item.createdcandidates} · LLM ${item.llmanalyses} · ${new Date(item.startedat).toLocaleString()}`)} />
+      </div>
+    </div>
   );
 }
 
@@ -1022,9 +1211,32 @@ function SettingsFeedback({ error, message }: { error: string; message: string }
   );
 }
 
-function StatusPill({ text, tone }: { text: string; tone: "ok" | "idle" }) {
+function JsonBlock({ title, value }: { title: string; value: unknown }) {
   return (
-    <span className={`rounded-full border px-2 py-1 text-xs font-medium ${tone === "ok" ? "border-emerald-700 bg-emerald-950/50 text-emerald-200" : "border-zinc-700 bg-zinc-950 text-zinc-400"}`}>
+    <details className="rounded-md border border-zinc-800 bg-zinc-900/60 p-2">
+      <summary className="cursor-pointer text-xs font-medium text-zinc-300">{title}</summary>
+      <pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap break-words font-mono text-xs leading-5 text-zinc-400">{JSON.stringify(value, null, 2)}</pre>
+    </details>
+  );
+}
+
+function SelfcheckSmallList({ title, rows }: { title: string; rows: string[] }) {
+  return (
+    <section className="grid gap-2 rounded-lg border border-zinc-800 bg-zinc-900/45 p-4">
+      <h3 className="text-sm font-semibold text-zinc-100">{title}</h3>
+      <div className="grid gap-2">
+        {rows.slice(0, 8).map((row, index) => (
+          <p key={`${row}:${index}`} className="truncate rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1.5 text-xs text-zinc-400">{row}</p>
+        ))}
+        {rows.length === 0 ? <p className="rounded-md border border-zinc-800 bg-zinc-950 px-2 py-4 text-center text-xs text-zinc-500">없음</p> : null}
+      </div>
+    </section>
+  );
+}
+
+function StatusPill({ text, tone }: { text: string; tone: "ok" | "idle" | "warn" }) {
+  return (
+    <span className={`rounded-full border px-2 py-1 text-xs font-medium ${tone === "ok" ? "border-emerald-700 bg-emerald-950/50 text-emerald-200" : tone === "warn" ? "border-amber-700 bg-amber-950/50 text-amber-200" : "border-zinc-700 bg-zinc-950 text-zinc-400"}`}>
       {text}
     </span>
   );

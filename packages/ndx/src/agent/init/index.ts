@@ -8,12 +8,18 @@ import { initSessionDatabase } from "../session/index.js";
 import { initWebClientStateDatabase } from "../../webclient/server/client-state/index.js";
 import { initChatDatabase } from "../chat/index.js";
 import { initCompactDatabase } from "../compact/index.js";
+import { initSelfcheckDatabase } from "../selfcheck/index.js";
 import { copyDirectoryRecursively } from "../../common/file/index.js";
 import { NDX_SYSTEM_SKILL_ASSETS, type NDXSystemSkillAsset } from "../tool/base/systemSkills.js";
 import type { NDXDatabase } from "./database.js";
 
 const DEFAULT_NDX_DATABASE_URL = "postgresql://ndev:ndev@127.0.0.1:5432/ndev";
 const REMOVED_SYSTEM_SKILL_DIRECTORIES = ["prompt_rewrite"];
+
+export const agentServerDomain = Object.freeze({
+  surface: "agent",
+  runtime: "server"
+});
 
 export interface InitServerOptions {
   userHome: string;
@@ -43,6 +49,7 @@ export async function initServer(options: InitServerOptions): Promise<Initialize
     await initChatDatabase(database);
     await initWebClientStateDatabase(database);
     await initCompactDatabase(database);
+    await initSelfcheckDatabase(database);
     options.logger?.info("agent.server.init.complete");
     return {
       database,

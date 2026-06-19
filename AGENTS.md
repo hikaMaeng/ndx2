@@ -115,7 +115,7 @@ No external host port is exposed for PostgreSQL.
 The `pgvector` Dockerfile must live at `./pgvector/Dockerfile.pgvector`. The
 `./pgvector/publish-ghcr.sh` script publishes the slow PostgreSQL image with
 Korean morphology (mecab-ko + textsearch_ko) tooling to GHCR, and
-`apps/agent/docker/Dockerfile` must use that image as its base.
+`apps/ndx/docker/Dockerfile` must use that image as its base.
 
 Required documentation targets for this contract:
 
@@ -208,16 +208,20 @@ follow `docs/code-placement.md`.
 
 Current app/package placement:
 
-* `apps/admin` is the administration service.
-* `apps/agent` is the agent session service.
+* `apps/ndx` is the single Express service for administration, session server,
+  webclient, documents, and account-management surfaces.
 * `packages/ndx/src/common` holds runtime-neutral shared contracts.
-* `packages/ndx/src/admin/common`, `src/admin/server`, and `src/admin/front`
-  hold admin domain contracts.
-* `packages/ndx/src/agent/common`, `src/agent/server`, `src/agent/cli`, and
-  `src/agent/web` hold agent domain contracts.
-* `apps/admin` may depend on `ndx/common` and `ndx/admin/*`.
-* `apps/agent` may depend on `ndx/common` and `ndx/agent/*`.
-* `apps/agent/src/session` owns session socket-server transport wiring and
+* `packages/ndx/src/agent` holds agent runtime authority, split by public
+  subpaths such as `ndx/agent/session`, `ndx/agent/tool`, `ndx/agent/hook`,
+  `ndx/agent/turnloop`, `ndx/agent/chat`, `ndx/agent/account`, and
+  `ndx/agent/init`. Self-check runtime APIs are exposed through
+  `ndx/agent/selfcheck`.
+* `packages/ndx/src/webclient/common`, `src/webclient/server`, and
+  `src/webclient/front` hold webclient DTOs, server-side helpers, and
+  front-only product helpers.
+* `apps/ndx` may depend on `ndx/common`, focused `ndx/agent/*` subpaths, and
+  `ndx/webclient/*`.
+* `apps/ndx/src/server/agent` owns session socket-server transport wiring and
   attaches to the same Express server while that remains sufficient.
 
 Non-domain packages should stay cohesive and standalone. Avoid dependencies
@@ -234,8 +238,9 @@ unless the user explicitly overrides this repository contract.
 
 Never import from `apps/` into `packages/`. Cross-package imports use workspace
 package names, not relative paths across package boundaries. App code imports
-the product package through exports such as `ndx/common`, `ndx/admin/server`,
-or `ndx/agent/server`.
+the product package through focused exports such as `ndx/common`,
+`ndx/agent/session`, `ndx/agent/turnloop`, `ndx/webclient/common`, or
+`ndx/webclient/server`.
 
 The scaffold baseline is intentionally small: health endpoint, one accessible
 front shell, deploy path, docs, and smoke tests. Do not infer or implement a
@@ -264,11 +269,11 @@ Use the repository-local skills installed under `.codex/skills`:
 * `agenttest` for strict JSON test suites and reports.
 
 When the user explicitly asks to use `web-deploy-docker` with a service such as
-`apps/dashboard`, do not search for the skill file or inspect repository
-structure first. Immediately run `bash scripts/deploy.sh apps/dashboard` from
-the repository root. The script performs local build, Docker Compose refresh,
-health checks, and prints a `deploy-report-begin` / `deploy-report-end` block;
-base the final answer on that block.
+`apps/ndx`, do not search for the skill file or inspect repository structure
+first. Immediately run `bash scripts/deploy.sh apps/ndx` from the repository
+root. The script performs local build, Docker Compose refresh, health checks,
+and prints a `deploy-report-begin` / `deploy-report-end` block; base the final
+answer on that block.
 
 ## Fast Scaffold Completion
 

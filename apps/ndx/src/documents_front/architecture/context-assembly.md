@@ -39,7 +39,7 @@ NDX의 컨텍스트 조립은 `packages/ndx/src/agent/context`와 `packages/ndx/
 | --- | --- |
 | `packages/ndx/src/agent/context/index.ts` | developer/user/environment prelude 순서 변경. |
 | `packages/ndx/src/agent/turnloop/base/context/index.ts` | model request message order 변경. |
-| `packages/ndx/src/agent/session/sessionDataRowsToModelMessages.ts` | durable history serialization 변경. |
+| `packages/ndx/src/agent/turnloop/model-call/finalMessages/rows` | durable history serialization 변경. |
 | `packages/ndx/src/agent/hook/turn.context.prepared/index.ts` | `turn.context.prepared` system hook 묶음(아래 구현 import) 변경. |
 | `packages/ndx/src/agent/hook/base/inlineInputImages/index.ts` | inline attachment append 위치 변경. |
 | `packages/ndx/src/agent/tool/base/cot_work/reminderHook.ts` | cot work reminder append 위치 변경. |

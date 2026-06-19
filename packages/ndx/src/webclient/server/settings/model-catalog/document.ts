@@ -69,6 +69,22 @@ export async function updateSettingsWebDocument(userHome: string, input: NDXSett
       else delete settings.websearch.providers;
     }
   }
+  if (input.selfcheck) {
+    settings.selfcheck = settings.selfcheck && typeof settings.selfcheck === "object" && !Array.isArray(settings.selfcheck) ? settings.selfcheck : {};
+    if (typeof input.selfcheck.enabled === "boolean") {
+      settings.selfcheck.enabled = input.selfcheck.enabled;
+    }
+    if (typeof input.selfcheck.model === "string") {
+      const model = input.selfcheck.model.trim();
+      if (model && !settings.models?.[model]) throw new Error(`settings model key not found: ${model}`);
+      if (model) settings.selfcheck.model = model;
+      else delete settings.selfcheck.model;
+    }
+    applyOptionalPositiveInteger(settings.selfcheck, "defaultIntervalMs", input.selfcheck.defaultIntervalMs);
+    applyOptionalPositiveInteger(settings.selfcheck, "defaultBatchSize", input.selfcheck.defaultBatchSize);
+    applyOptionalPositiveInteger(settings.selfcheck, "maxLlmAnalysesPerRun", input.selfcheck.maxLlmAnalysesPerRun);
+    applyOptionalPositiveInteger(settings.selfcheck, "maxEvidenceChars", input.selfcheck.maxEvidenceChars);
+  }
   if (typeof input.otherJson === "string") {
     const parsed = input.otherJson.trim() ? JSON.parse(input.otherJson) as unknown : {};
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("other settings must be a JSON object.");
@@ -87,5 +103,11 @@ function applyOptionalString(target: Record<string, unknown>, key: string, value
   if (typeof value !== "string") return;
   const trimmed = value.trim();
   if (trimmed) target[key] = trimmed;
+  else delete target[key];
+}
+
+function applyOptionalPositiveInteger(target: Record<string, unknown>, key: string, value: number | undefined): void {
+  if (value === undefined) return;
+  if (Number.isInteger(value) && value > 0) target[key] = value;
   else delete target[key];
 }

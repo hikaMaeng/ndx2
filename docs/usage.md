@@ -192,3 +192,29 @@ This repository runs PostgreSQL inside the `agent` container for session data.
 * DB 비밀번호/계정은 기본값 `ndev/ndev`이다.
 * 볼륨 데이터는 버전관리 대상이 아니며 `.gitignore`에 등록되어 있다.
 * 한국어 형태소 분석기와 검색 확장은 현재 운영 이미지(`pgvector/Dockerfile.pgvector`) 내에서 포함된다.
+
+## Runtime Selfcheck
+
+Runtime selfcheck analyzes tool and hook history without changing sessions.
+Configure it through the web settings `자체 점검` tab or directly in
+`/ndx/.ndx/settings.json`:
+
+```json
+{
+  "selfcheck": {
+    "enabled": true,
+    "model": "local/selfcheck-analyzer",
+    "defaultIntervalMs": 300000,
+    "defaultBatchSize": 100,
+    "maxLlmAnalysesPerRun": 20,
+    "maxEvidenceChars": 12000
+  }
+}
+```
+
+`selfcheck.model` must be a key from the existing `models` settings and uses
+the existing provider configuration. The scheduler scans bounded batches of
+tool results and hook audit rows, creates candidates, asks the configured model
+for a structured recommendation, and stores the result in `selfcheck` for manual
+review. Set `NDX_SELFCHECK_SCHEDULER=0` to disable the timer while keeping the
+manual settings-menu actions available.

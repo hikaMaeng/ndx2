@@ -1,6 +1,6 @@
 import type express from "express";
 import { NDX_AGENT_RESOURCE, createNDXAgentResourceResolver, isNDXClientId, type NDXAgentResourceResolver } from "ndx/common";
-import type { NDXDatabase } from "ndx/agent";
+import type { NDXDatabase } from "ndx/agent/init";
 import {
   createInitialWebClientState,
   getWebClientState,

@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import request from "supertest";
 import { createApp } from "./app.js";
-import type { NDXDatabase } from "ndx/agent";
+import type { NDXDatabase } from "ndx/agent/init";
 
 test("GET /health returns agent health", async () => {
   const response = await request(createApp()).get("/health").expect(200);

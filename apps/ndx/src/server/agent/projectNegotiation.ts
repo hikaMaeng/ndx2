@@ -9,7 +9,7 @@ import {
   isNDXProjectConfigureMessage
 } from "ndx/common";
 import type { NDXAgentResourceResolver } from "ndx/common";
-import type { NDXDatabase } from "ndx/agent";
+import type { NDXDatabase } from "ndx/agent/init";
 import type { NDXLogger } from "ndx/common";
 import { normalizeWorkspaceProjectName, serverWorkspaceProjectPath } from "ndx/common/server-path";
 import type { SessionClientState } from "./types.js";

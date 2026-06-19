@@ -6,7 +6,17 @@ Public exports:
 | --- | --- |
 | `ndx` | Common domain entrypoint. |
 | `ndx/common` | Runtime-neutral common entrypoint. |
-| `ndx/agent` | Agent server-only domain entrypoint. |
+| `ndx/agent` | Agent metadata only; runtime APIs use focused subpaths. |
+| `ndx/agent/init` | Agent server initialization and database handle contracts. |
+| `ndx/agent/account` | Account identity operations. |
+| `ndx/agent/session` | Project session persistence and history operations. |
+| `ndx/agent/selfcheck` | Agent self-check run/candidate/check persistence and execution. |
+| `ndx/agent/chat` | Chat folder/session persistence and chat turn authority. |
+| `ndx/agent/turnloop` | Agent turn orchestration boundary. |
+| `ndx/agent/tool` | Tool registry and execution boundary. |
+| `ndx/agent/hook` | Hook plan/runtime boundary. |
+| `ndx/agent/context` | Agent context construction and skill metadata loading. |
+| `ndx/agent/contextusage` | Context-window accounting helpers. |
 | `ndx/webclient/common` | Webclient shared protocol and DTO entrypoint. |
 | `ndx/webclient/common/protocol` | Webclient API protocol entrypoint. |
 | `ndx/webclient/front` | Browser-facing helper entrypoint. |
@@ -60,11 +70,30 @@ No server-only initialization or database API is exported from this runtime-neut
 
 | API | Purpose |
 | --- | --- |
+| `agentServerDomain` | Stable metadata for the agent service surface. |
+
+## `ndx/agent/init`
+
+| API | Purpose |
+| --- | --- |
 | `initServer(options?)` | Seeds server-owned `.ndx` assets and initializes account/session DB schemas when a database is requested. Runtime callers use the returned initialized database handle. |
 | `NDXDatabase` | Minimal query/close interface accepted by init and schema functions. |
+
+## `ndx/agent/context`
+
+| API | Purpose |
+| --- | --- |
 | `buildContext(sessionMetadata)` | Builds the single developer context string and single user context string for an agent turn from the session model config, cwd, homes, and environment metadata. |
 | `resolveModelInstruction(model)` | Resolves the static model instruction, trimming `:` suffixes from the right before falling back to the default prompt. |
-| `initSessionDatabase(database)` | Runs explicit `session` and `sessiondata` table/index SQL. |
+| `loadSkills(options?)` | Loads available skill metadata for session socket skill-list responses. |
+| `SessionMetadata` | Input contract for context construction; `model` is the persisted `NDXModelConfig`, including `contextsize` for skills budget calculation. |
+| `BuiltContext` | `{ developer, user }` context output contract. |
+
+## `ndx/agent/session`
+
+| API | Purpose |
+| --- | --- |
+| `initSessionDatabase(database)` | Runs explicit session, sessiondata, and sessionsearch schema initialization. |
 | `createSession(database, input)` | Inserts session metadata with UUIDv7-shaped id, empty title, default `none` mode, and idle state. |
 | `getSession(database, sessionid)` | Reads one session metadata row. |
 | `listSession(database, userid, projectname)` | Lists sessions for one owner and workspace project name, newest `lastupdated` first. |
@@ -73,11 +102,72 @@ No server-only initialization or database API is exported from this runtime-neut
 | `updateSessionTitle(database, sessionid, title)` | Applies direct user title changes without changing turn lifecycle state. |
 | `appendSessionData(database, sessionid, type, contents)` | Appends JSONB history and refreshes the session; first string `user` item becomes title when title is empty. |
 | `listSessionData(database, sessionid)` | Returns ordered session history. |
-| `readAgentRuntimeSettings(userHome)` | Reads runtime loop settings and compatibility settings such as `tools.prompt_rewrite.model` for the `[[rewriter]]` marker hook. |
+| `NDXModelConfig` | Persisted model/provider configuration for a session. |
+| `NDXSessionRow` | Session metadata row contract. |
+| `NDXSessionDataRow` | Append-only session history row contract. |
+
+## `ndx/agent/account`
+
+| API | Purpose |
+| --- | --- |
+| `DEFAULT_NDX_USERID` | Mandatory default account id, `ndev`. |
+| `createUser(database, userid)` | Creates an account row. |
+| `listUser(database)` | Lists account rows. |
+| `getUser(database, userid)` | Reads one account row. |
+
+## `ndx/agent/selfcheck`
+
+| API | Purpose |
+| --- | --- |
+| `runSelfcheckOnce(database, options)` | Runs one bounded self-check extraction/analysis pass. |
+| `listSelfcheck`, `getSelfcheck`, `updateSelfcheckStatus` | Self-check persistence helpers. |
+| `listSelfcheckCandidates`, `listSelfcheckCursors`, `listSelfcheckRuns` | Self-check queue, cursor, and run inspection helpers. |
+
+## `ndx/agent/chat`
+
+| API | Purpose |
+| --- | --- |
+| `ensureRootChatFolder(database, userid)` | Ensures the account root chat folder exists. |
+| `createChatFolder`, `listChatFolder`, `deleteChatFolder` | Chat folder persistence helpers. |
+| `createChatSession`, `listChatSession`, `deleteChatSession` | Chat session persistence helpers. |
+| `runChatSessionTurn(database, session, request, model?, events?)` | Runs a chat turn inside agent authority. |
+
+## `ndx/agent/turnloop`
+
+| API | Purpose |
+| --- | --- |
+| `runAgentTurn(database, session, request, model?, events?)` | Runs one agent turn against durable session state. |
+| `runAgentTurnWithCompactContinuation(...)` | Runs a turn and performs one bounded continuation after compaction. |
+| `buildTurnMessageParts(database, session)` | Builds developer, user prelude, and history message parts for context usage and request assembly. |
+| `requestRuntimeTurnInterrupt(state, reason?)` | Requests model/tool interruption for a running turn state. |
+
+## `ndx/agent/tool`
+
+| API | Purpose |
+| --- | --- |
 | `listAvailableTools(options?)` | Returns merged project/user/builtin tools, including function tools `askUserQuestion` and `session_history`. |
 | `executeToolCalls(toolCalls, options?)` | Executes process and function tools. Function tools run inside agent authority and must preserve durable history ordering. |
-| `SessionMetadata` | Input contract for context construction; `model` is the persisted `NDXModelConfig`, including `contextsize` for skills budget calculation. |
-| `BuiltContext` | `{ developer, user }` context output contract. |
+
+## `ndx/agent/hook`
+
+| API | Purpose |
+| --- | --- |
+| `loadNDXHookRuntime(options?)` | Loads system and project hook plans. |
+| `runNDXHooks(runtime, event, context)` | Executes hooks for one documented event. |
+| `NDXHookEventName` | Frozen hook event-name union. |
+
+## `ndx/agent/contextusage`
+
+| API | Purpose |
+| --- | --- |
+| `estimateContextTokens(value)` | Estimates token usage for text or model-visible content. |
+| `calculateDetailedContextUsage(messages, contextsize, assistantText?, tools?)` | Calculates usage parts for webclient context display. |
+
+## `ndx/agent/runtime-settings`
+
+| API | Purpose |
+| --- | --- |
+| `readAgentRuntimeSettings(userHome)` | Reads runtime loop settings and compatibility settings such as `tools.prompt_rewrite.model` for the `[[rewriter]]` marker hook. |
 
 ## `ndx/webclient/server`
 
