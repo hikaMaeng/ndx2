@@ -14,7 +14,7 @@ export function TurnFlow({ turns, onTurnToggle, onIterationToggle }: { turns: Tu
             <span className="flex min-w-0 items-center gap-2">
               <Activity aria-hidden="true" className="h-4 w-4 shrink-0 text-emerald-300" />
               <span className="truncate font-medium text-zinc-100">{turn.status === "completed" ? "Completed turn" : turn.status === "interrupted" ? "Interrupted turn" : "Running turn"}</span>
-              <span className="shrink-0 text-xs text-zinc-500">{turn.batches.length} batch(es)</span>
+              {turn.batches.length > 0 ? <span className="shrink-0 text-xs text-zinc-500">{turn.batches.length} batch(es)</span> : null}
             </span>
             <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-zinc-500" />
           </summary>
