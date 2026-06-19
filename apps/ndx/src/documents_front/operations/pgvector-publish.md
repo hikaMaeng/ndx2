@@ -7,7 +7,7 @@
 | prompt | 기본값 |
 | --- | --- |
 | GHCR owner | git origin owner 또는 `hikamaeng` |
-| Image tag | `npm/package.json` version 또는 `0.2.0` |
+| Image tag | `npm/package.json` version 또는 `0.2.3` |
 | GHCR username | owner |
 | GHCR token | 필수, package write 권한 필요 |
 

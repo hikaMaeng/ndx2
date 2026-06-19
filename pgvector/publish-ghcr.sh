@@ -12,7 +12,7 @@ if command -v git >/dev/null 2>&1; then
   fi
 fi
 
-default_version="$(node -p "require('$repo_root/npm/package.json').version" 2>/dev/null || echo "0.2.0")"
+default_version="$(node -p "require('$repo_root/npm/package.json').version" 2>/dev/null || echo "0.2.3")"
 
 read -r -p "GHCR owner [$default_owner]: " owner
 owner="${owner:-$default_owner}"
