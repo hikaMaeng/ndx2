@@ -9,6 +9,70 @@ import type { NDXSessionRow } from "../session/index.js";
 import type { NDXDatabase } from "../init/index.js";
 import type { NDXToolExecutionOptions, NDXToolExecutionResult } from "./index.js";
 
+test("glob supports session-observed brace, recursive, and virtual-root path patterns", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-glob-session-patterns-"));
+  const userHome = path.join(root, "ndx");
+  const projectHome = path.join(userHome, "workspace", "test1");
+  await fs.mkdir(path.join(projectHome, "apps", "tetris", "src", "front", "components", "piece-preview"), { recursive: true });
+  await fs.mkdir(path.join(projectHome, "apps", "tetris", "src", "front", "components", "ui"), { recursive: true });
+  await fs.mkdir(path.join(projectHome, "apps", "tetris", "src", "server"), { recursive: true });
+  await fs.mkdir(path.join(projectHome, "packages", "tetris_domain", "src", "common"), { recursive: true });
+  await fs.mkdir(path.join(projectHome, ".ndx", "sessions", "session-1"), { recursive: true });
+  await fs.writeFile(path.join(projectHome, "apps", "tetris", "src", "front", "TetrisGame.tsx"), "export function TetrisGame() {}\n", "utf8");
+  await fs.writeFile(path.join(projectHome, "apps", "tetris", "src", "front", "components", "NextPiecePreview.tsx"), "export function NextPiecePreview() {}\n", "utf8");
+  await fs.writeFile(path.join(projectHome, "apps", "tetris", "src", "front", "components", "piece-preview", "definitions.ts"), "export const definitions = {};\n", "utf8");
+  await fs.writeFile(path.join(projectHome, "apps", "tetris", "src", "front", "components", "piece-preview", "canvas.tsx"), "export function Canvas() {}\n", "utf8");
+  await fs.writeFile(path.join(projectHome, "apps", "tetris", "src", "front", "components", "ui", "button.tsx"), "export function Button() {}\n", "utf8");
+  await fs.writeFile(path.join(projectHome, "apps", "tetris", "src", "server", "app.ts"), "export const app = true;\n", "utf8");
+  await fs.writeFile(path.join(projectHome, "apps", "tetris", "package.json"), "{\"name\":\"tetris\"}\n", "utf8");
+  await fs.writeFile(path.join(projectHome, "packages", "tetris_domain", "src", "common", "piece.ts"), "export const piece = true;\n", "utf8");
+  await fs.writeFile(path.join(projectHome, "packages", "tetris_domain", "src", "common", "board.ts"), "export const board = true;\n", "utf8");
+  await fs.writeFile(path.join(projectHome, ".ndx", "sessions", "session-1", "probe.png"), "png", "utf8");
+
+  const cases = [
+    { pattern: "**/*.{ts,tsx,js,jsx,json,yml,yaml,css}", path: "/workspace/test1", includes: ["apps/tetris/src/front/TetrisGame.tsx", "apps/tetris/package.json"] },
+    { pattern: "apps/tetris/src/**/*.{ts,tsx}", path: "/ndx/workspace/test1", includes: ["apps/tetris/src/front/TetrisGame.tsx", "apps/tetris/src/server/app.ts"] },
+    { pattern: "apps/tetris/src/**/*.{ts,tsx}", path: "/ndx/workspace/test1/apps/tetris", includes: ["apps/tetris/src/front/components/piece-preview/definitions.ts"] },
+    { pattern: "**/*.{ts,tsx}", path: "packages/tetris_domain/src", includes: ["packages/tetris_domain/src/common/board.ts", "packages/tetris_domain/src/common/piece.ts"] },
+    { pattern: "**/piece.ts", path: ".", includes: ["packages/tetris_domain/src/common/piece.ts"] },
+    { pattern: "apps/tetris/src/front/components/piece-preview/**", path: ".", includes: ["apps/tetris/src/front/components/piece-preview/canvas.tsx"] },
+    { pattern: "apps/tetris/src/front/components/ui/*", path: ".", includes: ["apps/tetris/src/front/components/ui/button.tsx"] },
+    { pattern: "**/*.tsx", path: "/workspace/test1/apps/tetris/src/front", includes: ["apps/tetris/src/front/TetrisGame.tsx"] },
+    { pattern: "*.png", path: "workspace/test1/.ndx/sessions/session-1", includes: [".ndx/sessions/session-1/probe.png"] },
+    { pattern: "**/*.{ts,tsx}", path: "workspace/test1/workspace/test1", includes: ["apps/tetris/src/front/components/NextPiecePreview.tsx"] }
+  ];
+
+  for (const item of cases) {
+    const result = await executeToolCall({ name: "glob", arguments: JSON.stringify({ pattern: item.pattern, path: item.path, limit: 500 }) }, { userHome, projectHome });
+    assert.equal(result.success, true, `${item.pattern} under ${item.path}: ${result.output}`);
+    const output = JSON.parse(result.output) as { files: string[]; count: number };
+    const relativeFiles = output.files.map((file) => file.slice(projectHome.length + 1).split(path.sep).join("/"));
+    for (const expected of item.includes) {
+      assert.ok(relativeFiles.includes(expected), `${item.pattern} under ${item.path} should include ${expected}, got ${relativeFiles.join(", ")}`);
+    }
+    assert.ok(output.count >= item.includes.length);
+  }
+});
+
+test("grep_search glob filter supports brace alternatives", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-grep-brace-glob-"));
+  const userHome = path.join(root, "ndx");
+  const projectHome = path.join(userHome, "workspace", "project");
+  await fs.mkdir(path.join(projectHome, "src"), { recursive: true });
+  await fs.writeFile(path.join(projectHome, "src", "component.tsx"), "const NextPiece = true;\n", "utf8");
+  await fs.writeFile(path.join(projectHome, "src", "logic.ts"), "const NextPiece = true;\n", "utf8");
+  await fs.writeFile(path.join(projectHome, "src", "notes.md"), "NextPiece should not match\n", "utf8");
+
+  const result = await executeToolCall(
+    { name: "grep_search", arguments: JSON.stringify({ pattern: "NextPiece", path: "src", glob: "**/*.{ts,tsx}", limit: 10 }) },
+    { userHome, projectHome }
+  );
+
+  assert.equal(result.success, true);
+  const output = JSON.parse(result.output) as { matches: Array<{ path: string }> };
+  assert.deepEqual(output.matches.map((match) => path.basename(match.path)).sort(), ["component.tsx", "logic.ts"]);
+});
+
 test("grep_search supports JavaScript alternation, spaces in filenames, and generated-directory skips", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-grep-search-"));
   const userHome = path.join(root, "ndx");

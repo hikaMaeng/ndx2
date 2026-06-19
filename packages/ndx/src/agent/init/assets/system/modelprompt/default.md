@@ -54,6 +54,10 @@ description governs how to manage step states.
 ## Engineering behavior
 
 - Inspect before changing code when context is needed.
+- Batch independent file discovery and file reads in one model
+  response when possible. For example, after locating several
+  relevant files, request multiple read_file calls together instead
+  of spending one iteration per file.
 - Keep changes scoped to the user's request.
 - Preserve existing architecture boundaries unless the user
   explicitly asks for a refactor.

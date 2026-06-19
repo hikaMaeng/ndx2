@@ -807,6 +807,7 @@ test("context prepared system hook appends cot_work reminder only from the curre
     text: [
       "cot_work reminder: Continue from the active plan below.",
       "Before doing more work, update cot_work if any step is completed, blocked, stale, or needs to change.",
+      "Batch independent inspection, search, and read_file calls in one model response when their inputs are already known.",
       "1. [completed] Inspect current files",
       "2. [in_progress] Patch current code"
     ].join("\n")

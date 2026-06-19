@@ -1,0 +1,37 @@
+{
+  "status": "failed",
+  "mode": "scenario",
+  "startedAt": "2026-06-19T05:58:16.449Z",
+  "testedUrl": "http://127.0.0.1:18080/",
+  "finalUrl": "http://127.0.0.1:18080/",
+  "title": "NDX vibe",
+  "mainPresent": true,
+  "documentStatus": 200,
+  "consoleErrors": [],
+  "pageErrors": [],
+  "screenshots": [
+    "/mnt/f/dev/ndx2/test/20260619/055816_headless-browser-test/screenshots/01-home.png",
+    "/mnt/f/dev/ndx2/test/20260619/055816_headless-browser-test/screenshots/failure-4-click.png"
+  ],
+  "trace": "/mnt/f/dev/ndx2/test/20260619/055816_headless-browser-test/trace.zip",
+  "steps": [
+    {
+      "action": "goto",
+      "status": "passed"
+    },
+    {
+      "action": "assertRole",
+      "status": "passed"
+    },
+    {
+      "action": "screenshot",
+      "status": "passed"
+    },
+    {
+      "action": "click",
+      "status": "failed",
+      "error": "locator.click: Timeout 10000ms exceeded.\nCall log:\n  - waiting for getByRole('button', { name: '설정' })\n    - locator resolved to <button type=\"button\" class=\"inline-flex h-10 items-center gap-2 rounded-md border border-zinc-800 bg-zinc-950 px-3 text-sm font-medium text-zinc-300 transition-colors hover:border-zinc-700 hover:bg-zinc-900 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950\">…</button>\n  - attempting click action\n    - waiting for element to be visible, enabled and stable\n"
+    }
+  ],
+  "finishedAt": "2026-06-19T06:00:04.787Z"
+}

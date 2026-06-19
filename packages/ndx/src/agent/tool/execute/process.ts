@@ -231,7 +231,6 @@ async function collectStdoutLine(
     emitProtocolEvent(event);
   } else {
     legacyStdoutLines.push(line);
-    invalidProtocolLines.push(line);
   }
 }
 

@@ -1,0 +1,42 @@
+{
+  "status": "failed",
+  "mode": "scenario",
+  "testedUrl": "http://127.0.0.1:18080",
+  "finalUrl": "http://127.0.0.1:18080/",
+  "documentStatus": 200,
+  "title": "NDX vibe",
+  "mainPresent": true,
+  "consoleErrors": [],
+  "pageErrors": [],
+  "screenshots": [
+    "/mnt/f/dev/ndx2/test/20260619/20260619-060531_headless-browser-test/screenshots/01-home.png",
+    "/mnt/f/dev/ndx2/test/20260619/20260619-060531_headless-browser-test/screenshots/02-selfcheck-ready.png",
+    "/mnt/f/dev/ndx2/test/20260619/20260619-060531_headless-browser-test/screenshots/03-model-required.png",
+    "/mnt/f/dev/ndx2/test/20260619/20260619-060531_headless-browser-test/screenshots/failure.png"
+  ],
+  "trace": "/mnt/f/dev/ndx2/test/20260619/20260619-060531_headless-browser-test/trace.zip",
+  "steps": [
+    {
+      "action": "goto",
+      "status": "passed"
+    },
+    {
+      "action": "open settings",
+      "status": "passed"
+    },
+    {
+      "action": "open selfcheck",
+      "status": "passed"
+    },
+    {
+      "action": "model validation",
+      "status": "passed"
+    },
+    {
+      "action": "scenario",
+      "status": "failed",
+      "error": "locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n  - waiting for getByText('tool_result_empty_grep_matches') to be visible\n"
+    }
+  ],
+  "error": "locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n  - waiting for getByText('tool_result_empty_grep_matches') to be visible\n"
+}

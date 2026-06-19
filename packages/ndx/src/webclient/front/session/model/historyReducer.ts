@@ -26,7 +26,7 @@ export function applySessionHistorySummary(model: SessionInstanceModel, message:
     },
     runtime: {
       ...model.runtime,
-      cotWork: undefined,
+      cotWork: message.activeCotWork,
       contextUsage: message.contextUsage ? { ...message.contextUsage, parts: message.contextUsage.parts ?? model.runtime.contextUsage?.parts } : model.runtime.contextUsage
     }
   };

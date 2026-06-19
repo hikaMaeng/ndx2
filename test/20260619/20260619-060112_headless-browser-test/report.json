@@ -1,0 +1,28 @@
+{
+  "status": "failed",
+  "mode": "scenario",
+  "testedUrl": "http://127.0.0.1:18080",
+  "finalUrl": "http://127.0.0.1:18080/",
+  "documentStatus": 200,
+  "title": "NDX vibe",
+  "mainPresent": true,
+  "consoleErrors": [],
+  "pageErrors": [],
+  "screenshots": [
+    "/mnt/f/dev/ndx2/test/20260619/20260619-060112_headless-browser-test/screenshots/01-home.png",
+    "/mnt/f/dev/ndx2/test/20260619/20260619-060112_headless-browser-test/screenshots/failure.png"
+  ],
+  "trace": "/mnt/f/dev/ndx2/test/20260619/20260619-060112_headless-browser-test/trace.zip",
+  "steps": [
+    {
+      "action": "goto",
+      "status": "passed"
+    },
+    {
+      "action": "scenario",
+      "status": "failed",
+      "error": "locator.waitFor: Error: strict mode violation: getByRole('heading', { name: '설정' }) resolved to 2 elements:\n    1) <h1 class=\"text-base font-semibold\">설정</h1> aka getByRole('heading', { name: '설정', exact: true })\n    2) <h2 class=\"text-lg font-semibold\">모델 설정</h2> aka getByRole('heading', { name: '모델 설정' })\n\nCall log:\n  - waiting for getByRole('heading', { name: '설정' }) to be visible\n"
+    }
+  ],
+  "error": "locator.waitFor: Error: strict mode violation: getByRole('heading', { name: '설정' }) resolved to 2 elements:\n    1) <h1 class=\"text-base font-semibold\">설정</h1> aka getByRole('heading', { name: '설정', exact: true })\n    2) <h2 class=\"text-lg font-semibold\">모델 설정</h2> aka getByRole('heading', { name: '모델 설정' })\n\nCall log:\n  - waiting for getByRole('heading', { name: '설정' }) to be visible\n"
+}

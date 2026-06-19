@@ -91,6 +91,41 @@ test("history summary falls back to branch session title when old compact rows l
   ]);
 });
 
+test("history summary restores latest cot work from the running turn", async () => {
+  const cotWork = {
+    kind: "cot_work",
+    steps: [
+      { task: "조사", status: "completed", elapsedMs: 1000 },
+      { task: "수정", status: "in_progress", elapsedMs: 2000 },
+      { task: "검증", status: "pending" }
+    ],
+    totalElapsedMs: 3000,
+    timingUpdatedAt: "2026-05-12T00:00:03.000Z"
+  };
+  const rows: NDXSessionDataRow[] = [
+    row("1", "user", { kind: "user_message", text: "긴 작업" }),
+    row("2", "assistant", {
+      kind: "cot_work",
+      steps: [
+        { task: "조사", status: "in_progress" },
+        { task: "수정", status: "pending" }
+      ]
+    }),
+    row("3", "assistant", cotWork)
+  ];
+  const database: NDXDatabase = {
+    async query() {
+      return { rows, rowCount: rows.length } as never;
+    },
+    async close() {}
+  };
+
+  const summary = await buildSessionHistorySummary(database, session());
+
+  assert.equal(summary.turns[0]?.status, "running");
+  assert.deepEqual(summary.activeCotWork, cotWork);
+});
+
 function row(dataid: string, type: string, contents: unknown): NDXSessionDataRow {
   return {
     dataid,

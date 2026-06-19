@@ -99,6 +99,20 @@ Frontend UI implementation must use shadcn/ui components, Tailwind CSS, and
 Radix UI primitives by default. Do not introduce another UI component framework
 unless the user explicitly overrides this repository contract.
 
+## Frontend Architecture (Model Render)
+
+The screen is a projection of a model. The source of truth is a pure in-memory
+model that lives outside React (in `packages/<service>_domain/src/front/model`);
+React state is only an update trigger, never the store. Mutate the model in
+place and bump a version; bind components with `useSyncExternalStore` so each
+subscribes to the smallest slice it reads. Do not hold model data in
+`useState`/context, do not mirror it into immutable copies, and do not tie model
+lifecycle to component mount/unmount.
+
+When designing, implementing, reviewing, or refactoring any React front end, use
+the `react-model-render` skill before writing components or models. It carries
+the full contract and the model/component scaffolding templates.
+
 Never import from `apps/` into `packages/`. Cross-package imports use workspace
 package names, not relative paths across package boundaries. An app importing
 its domain package must use the workspace package name for
@@ -125,6 +139,8 @@ Use the repository-local skills installed under `.ndx/skills`:
   service-boundary rules.
 * `docker-compose-module-design` for compose, Dockerfile, container ownership,
   and deploy entrypoint rules.
+* `react-model-render` for React frontend architecture: pure model outside
+  React, state-as-trigger, slice subscription, ownership, and render isolation.
 * `headless-browser-markup` for front-end markup contracts and browser-test
   locators.
 * `headless-browser-test` for headless browser E2E checks, reports, and

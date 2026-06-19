@@ -1,0 +1,31 @@
+{
+  "status": "passed",
+  "mode": "smoke",
+  "startedAt": "2026-06-19T05:54:17.727Z",
+  "testedUrl": "http://host.docker.internal:18080/",
+  "finalUrl": "http://host.docker.internal:18080/",
+  "title": "tetris",
+  "mainPresent": true,
+  "documentStatus": 200,
+  "consoleErrors": [],
+  "pageErrors": [],
+  "screenshots": [
+    "/mnt/f/dev/ndx2/test/20260619/055417_headless-browser-test/screenshots/smoke.png"
+  ],
+  "trace": "/mnt/f/dev/ndx2/test/20260619/055417_headless-browser-test/trace.zip",
+  "steps": [
+    {
+      "action": "goto",
+      "status": "passed"
+    },
+    {
+      "action": "assertRole",
+      "status": "passed"
+    },
+    {
+      "action": "screenshot",
+      "status": "passed"
+    }
+  ],
+  "finishedAt": "2026-06-19T05:54:22.679Z"
+}

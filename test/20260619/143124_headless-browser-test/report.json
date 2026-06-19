@@ -1,0 +1,65 @@
+{
+  "kind": "scenario",
+  "testedUrl": "http://127.0.0.1:18080",
+  "externalUrl": "http://127.0.0.1:18082",
+  "startedAt": "2026-06-19T05:32:34.991Z",
+  "steps": [
+    {
+      "name": "smoke",
+      "at": "2026-06-19T05:32:59.894Z",
+      "title": "NDX vibe",
+      "hasMain": 1
+    },
+    {
+      "name": "open-selfcheck",
+      "at": "2026-06-19T05:33:56.647Z",
+      "selfcheckSettings": {
+        "enabled": true,
+        "model": "",
+        "defaultIntervalMs": 3600000,
+        "defaultBatchSize": 100,
+        "maxLlmAnalysesPerRun": 20,
+        "maxEvidenceChars": 12000
+      }
+    }
+  ],
+  "consoleErrors": [],
+  "pageErrors": [],
+  "network": [
+    {
+      "url": "http://127.0.0.1:18080/api/agent/settings",
+      "status": 200,
+      "body": "{\"settings\":{\"version\":\"0.1.41\",\"defaultModelKey\":\"qwen3.6-35b-mm\",\"runtime\":{\"maxModelIterations\":500,\"loopDetectionInterval\":50},\"tools\":{\"prompt_rewrite\":{\"model\":\"qwen3.6-35b:mp\"}},\"hooks\":{\"StreamGuard\":{\"MAX_REASONING_LENGTH\":240000,\"analysisModel\":\"\"}},\"websearch\":{\"provider\":\"tavily\",\"apiKey\":\"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\",\"baseUrl\":\"\",\"method\":\"\",\"queryParam\":\"\",\"providersJson\":\"{}\"},\"selfcheck\":{\"enabled\":true,\"model\":\"\",\"defaultIntervalMs\":3600000,\"defaultBatchSize\":100,\"maxLlmAnalysesPerRun\":20,\"maxEvidenceChars\":12000},\"otherJson\":\"{\\n  \\\"permissions\\\": {\\n    \\\"defaultMode\\\": \\\"danger-full-access\\\"\\n  }\\n}\",\"topLevelKeys\":[\"embeddings\",\"hooks\",\"model\",\"models\",\"permissions\",\"providers\",\"runtime\",\"selfcheck\",\"tools\",\"version\",\"websearch\"]}}"
+    },
+    {
+      "url": "http://127.0.0.1:18080/api/agent/settings",
+      "status": 200,
+      "body": "{\"settings\":{\"version\":\"0.1.41\",\"defaultModelKey\":\"qwen3.6-35b-mm\",\"runtime\":{\"maxModelIterations\":500,\"loopDetectionInterval\":50},\"tools\":{\"prompt_rewrite\":{\"model\":\"qwen3.6-35b:mp\"}},\"hooks\":{\"StreamGuard\":{\"MAX_REASONING_LENGTH\":240000,\"analysisModel\":\"\"}},\"websearch\":{\"provider\":\"tavily\",\"apiKey\":\"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\",\"baseUrl\":\"\",\"method\":\"\",\"queryParam\":\"\",\"providersJson\":\"{}\"},\"selfcheck\":{\"enabled\":true,\"model\":\"\",\"defaultIntervalMs\":3600000,\"defaultBatchSize\":100,\"maxLlmAnalysesPerRun\":20,\"maxEvidenceChars\":12000},\"otherJson\":\"{\\n  \\\"permissions\\\": {\\n    \\\"defaultMode\\\": \\\"danger-full-access\\\"\\n  }\\n}\",\"topLevelKeys\":[\"embeddings\",\"hooks\",\"model\",\"models\",\"permissions\",\"providers\",\"runtime\",\"selfcheck\",\"tools\",\"version\",\"websearch\"]}}"
+    },
+    {
+      "url": "http://127.0.0.1:18080/api/agent/selfcheck/runs",
+      "status": 200,
+      "body": "{\"runs\":[{\"runid\":\"a2424925-d2ee-4323-9305-d3951b530d69\",\"analyzer\":\"runtime.selfcheck.v1\",\"subjectkind\":\"tool\",\"subjectname\":\"*\",\"startedat\":\"2026-06-19T05:31:24.232Z\",\"completedat\":\"2026-06-19T05:31:24.269Z\",\"fromdataid\":\"0\",\"todataid\":null,\"scannedrows\":0,\"createdcandidates\":0,\"llmanalyses\":0,\"createdchecks\":0,\"dedupedchecks\":0,\"status\":\"completed\",\"error\":null},{\"runid\":\"8133619f-1a4b-426f-a49c-ee5b4e0ee9b7\",\"analyzer\":\"runtime.selfcheck.v1\",\"subjectkind\":\"tool\",\"subjectname\":\"*\",\"startedat\":\"2026-06-19T05:21:31.295Z\",\"completedat\":\"2026-06-19T05:21:31.321Z\",\"fromdataid\":\"0\",\"todataid\":null,\"scannedrows\":0,\"createdcandidates\":0,\"llmanalyses\":0,\"createdchecks\":0,\"dedupedchecks\":0,\"status\":\"completed\",\"error\":null},{\"runid\":\"19f61159-6498-4e2b-8ad2-0b60f108c80f\",\"analyzer\":\"runtime.selfcheck.v1\",\"subjectkind\":\"tool\",\"subjectname\":\"*\",\"startedat\":\"2026-06-19T05:21:20.471Z\",\"completedat\":\"2026-06-19T05:21:21.730Z\",\"fromdataid\":\"0\",\"todataid\":null,\"scannedrows\":0,\"createdcandidates\":9,\"llmanalyses\":0,\"createdchecks\":0,\"dedupedchecks\":0,\"status\":\"completed\",\"error\":null}]}"
+    },
+    {
+      "url": "http://127.0.0.1:18080/api/agent/selfcheck",
+      "status": 200,
+      "body": "{\"selfchecks\":[]}"
+    },
+    {
+      "url": "http://127.0.0.1:18080/api/agent/selfcheck/candidates",
+      "status": 200,
+      "body": "{\"candidates\":[{\"candidateid\":\"156105c7-4d71-4922-accb-e64655a7c9ae\",\"subjectkind\":\"hook\",\"subjectname\":\"turn.request.received\",\"analyzer\":\"hook:*.v1\",\"sessionid\":\"019ede46-a9c5-7bc9-b2b4-713ba7f8ab2b\",\"calldataid\":null,\"resultdataid\":null,\"hookrunid\":\"c972c3e8-56bb-4fd4-975d-17bd49d81875\",\"fingerprint\":\"92209615e42682a9e501eb26b4a3036449946f75bf50dfaee86955d8d0cff310\",\"reason\":\"hook_replaced_request\",\"evidence\":{\"error\":null,\"status\":\"completed\",\"hookname\":\"system.turn.request.received.thinking_markers, system.turn.request.received.skill_markers, system.turn.request.received.context_limit, system.turn.request.received.rewriter_marker\",\"eventname\":\"turn.request.received\",\"hookrunid\":\"c972c3e8-56bb-4fd4-975d-17bd49d81875\",\"sessionid\":\"019ede46-a9c5-7bc9-b2b4-713ba7f8ab2b\",\"stoppedturn\":false,\"effectsummary\":{\"diagnostics\":[],\"executionCount\":4,\"hasPrefixDrifts\":false,\"hasFinalAssistantText\":false},\"hookrunserial\":\"1\",\"relateddataids\":[],\"replacedrequest\":true,\"replacedtoolcalls\":false,\"finalassistanttext\":null,\"interruptedresponse\":false,\"replacedtoolresults\":false},\"status\":\"pending\",\"attemptcount\":0,\"lastattemptat\":null,\"lasterror\":null,\"createdat\":\"2026-06-19T05:21:21.602Z\",\"updatedat\":\"2026-06-19T05:21:21.602Z\"},{\"candidateid\":\"c79c66fe-ac19-44bf-8f92-7124babe33d3\",\"subjectkind\":\"tool\",\"subjectname\":\"bash\",\"analyzer\":\"tool:*.v1\",\"sessionid\":\"019e3df2-b80d-7983-8084-09ff922e75e7\",\"calldataid\":null,\"resultdataid\":\"1073\",\"hookrunid\":null,\"fingerprint\":\"9ba80855608094dea426ae29e1f016c67a4117ea4fa8166f0432399ad6317dda\",\"reason\":\"tool_result_failed\",\"evidence\":{\"row\":{\"dataid\":\"1073\",\"createdat\":\"2026-05-19T07:07:32.445Z\",\"sessionid\":\"019e3df2-b80d-7983-8084-09ff922e75e7\"},\"result\":{\"tool\":\"bash\",\"output\":\"stderr:\\nerror This project's package.json defines \\\"packageManager\\\": \\\"yarn@4.5.0\\\". However the current global version of Yarn is 1.22.22.\\n\\nPresence of the \\\"packageManager\\\" field indicates that the project is meant to be used with Corepack, a tool included by "
+    },
+    {
+      "url": "http://127.0.0.1:18080/api/agent/selfcheck/cursors",
+      "status": 200,
+      "body": "{\"cursors\":[{\"analyzer\":\"hook:*\",\"subjectkind\":\"hook\",\"subjectname\":\"*\",\"lastdataid\":\"1\",\"settings\":{},\"laststartedat\":\"2026-06-19T05:21:21.524Z\",\"lastcompletedat\":\"2026-06-19T05:21:21.666Z\",\"laststatus\":\"completed\",\"lasterror\":null,\"updatedat\":\"2026-06-19T05:21:21.666Z\"},{\"analyzer\":\"tool:*\",\"subjectkind\":\"tool\",\"subjectname\":\"*\",\"lastdataid\":\"1130\",\"settings\":{},\"laststartedat\":\"2026-06-19T05:21:20.532Z\",\"lastcompletedat\":\"2026-06-19T05:21:21.480Z\",\"laststatus\":\"completed\",\"lasterror\":null,\"updatedat\":\"2026-06-19T05:21:21.480Z\"}]}"
+    }
+  ],
+  "status": "error",
+  "error": {
+    "message": "page.waitForResponse: Timeout 15000ms exceeded while waiting for event \"response\"",
+    "stack": "page.waitForResponse: Timeout 15000ms exceeded while waiting for event \"response\"\n    at [stdin]:30:31"
+  }
+}

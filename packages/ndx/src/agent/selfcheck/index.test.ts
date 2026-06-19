@@ -50,6 +50,87 @@ test("selfcheck run extracts failed tool candidates without calling the model in
   assert.equal(database.candidates[0].subjectname, "read_file");
 });
 
+test("selfcheck run extracts successful structured zero-result tool candidates", async () => {
+  const database = selfcheckMemoryDatabase([{
+    dataid: "1",
+    sessionid: "018f0000-0000-7000-8000-000000000000",
+    type: "assistant",
+    contents: {
+      kind: "tool_result",
+      iteration: 1,
+      results: [
+        { toolCallId: "call_1", tool: "grep_search", success: true, output: { mode: "ripgrep", results: [] } },
+        { toolCallId: "call_2", tool: "vector_search", success: true, output: { items: [], total: 0 } }
+      ]
+    },
+    createdat: new Date()
+  }], []);
+  const result = await runSelfcheckOnce(database, { userHome: await fs.mkdtemp(path.join(os.tmpdir(), "ndx-selfcheck-")), mode: "extract", batchSize: 10 });
+
+  assert.equal(result.createdCandidates, 2);
+  assert.deepEqual(database.candidates.map((candidate) => candidate.reason), [
+    "tool_result_empty_grep_matches",
+    "tool_result_empty_search_results"
+  ]);
+});
+
+test("selfcheck run extracts zero-result JSON string outputs", async () => {
+  const database = selfcheckMemoryDatabase([{
+    dataid: "1",
+    sessionid: "018f0000-0000-7000-8000-000000000000",
+    type: "assistant",
+    contents: {
+      kind: "tool_result",
+      iteration: 1,
+      results: [{ toolCallId: "call_1", tool: "session_history", success: true, output: JSON.stringify({ mode: "fts", scope: { type: "session" }, results: [] }) }]
+    },
+    createdat: new Date()
+  }], []);
+  const result = await runSelfcheckOnce(database, { userHome: await fs.mkdtemp(path.join(os.tmpdir(), "ndx-selfcheck-")), mode: "extract", batchSize: 10 });
+
+  assert.equal(result.createdCandidates, 1);
+  assert.equal(database.candidates[0].reason, "tool_result_empty_history_results");
+});
+
+test("selfcheck run does not treat read_file content text as a no-match search result", async () => {
+  const database = selfcheckMemoryDatabase([{
+    dataid: "1",
+    sessionid: "018f0000-0000-7000-8000-000000000000",
+    type: "assistant",
+    contents: {
+      kind: "tool_result",
+      iteration: 1,
+      results: [{
+        toolCallId: "call_1",
+        tool: "read_file",
+        success: true,
+        output: JSON.stringify({
+          path: "/workspace/src/index.ts",
+          offset: 0,
+          line_count: 20,
+          returned_line_count: 20,
+          truncated: false,
+          content: "if (!container) throw new Error('Root element not found');"
+        })
+      }]
+    },
+    createdat: new Date()
+  }], []);
+  const result = await runSelfcheckOnce(database, { userHome: await fs.mkdtemp(path.join(os.tmpdir(), "ndx-selfcheck-")), mode: "extract", batchSize: 10 });
+
+  assert.equal(result.createdCandidates, 0);
+  assert.equal(database.candidates.length, 0);
+});
+
+test("selfcheck analyze mode requires a configured model", async () => {
+  const database = selfcheckMemoryDatabase([], []);
+
+  await assert.rejects(
+    runSelfcheckOnce(database, { userHome: await fs.mkdtemp(path.join(os.tmpdir(), "ndx-selfcheck-")), mode: "analyze", batchSize: 10 }),
+    /selfcheck analysis model is not configured/
+  );
+});
+
 function selfcheckMemoryDatabase(sessiondata: Array<Record<string, unknown>>, hookruns: Array<Record<string, unknown>>): NDXDatabase & { candidates: Array<Record<string, unknown>> } {
   let locked = false;
   const candidates: Array<Record<string, unknown>> = [];

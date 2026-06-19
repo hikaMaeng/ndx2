@@ -116,6 +116,41 @@ test("history summary synthesizes a missing visible request from the turn summar
   assert.equal(next["session-a"]?.history.turns[0]?.inputDataId, "input-a");
 });
 
+test("history summary restores active cot work into the session model", () => {
+  const snapshot: SessionModelSnapshot = {
+    "session-a": createSessionModelFromRow(sessionRow("session-a", "project-a"))
+  };
+  const activeCotWork = {
+    kind: "cot_work" as const,
+    steps: [
+      { task: "조사", status: "completed" as const, elapsedMs: 1000 },
+      { task: "수정", status: "in_progress" as const, elapsedMs: 2000 },
+      { task: "검증", status: "pending" as const }
+    ],
+    totalElapsedMs: 3000,
+    timingUpdatedAt: "2026-06-04T00:00:02.000Z"
+  };
+  const message: NDXSessionHistorySummaryResultMessage = {
+    type: NDX_SESSION_HISTORY_SUMMARY_RESULT,
+    sessionid: "session-a",
+    visibleEvents: [inputRecorded("session-a", "input-a", "긴 작업")],
+    turns: [{
+      inputDataId: "input-a",
+      sessionid: "session-a",
+      title: "긴 작업",
+      status: "running",
+      createdat: "2026-06-04T00:00:00.000Z",
+      updatedat: "2026-06-04T00:00:02.000Z",
+      iterations: []
+    }],
+    activeCotWork
+  };
+
+  const next = applyRoutedSessionMessageToStore(snapshot, message, text);
+
+  assert.deepEqual(next["session-a"]?.runtime.cotWork, activeCotWork);
+});
+
 test("sidebar item messages are scoped to one session model", () => {
   const sessionA = createSessionModelFromRow(sessionRow("session-a", "project-a"));
   const sessionB = createSessionModelFromRow(sessionRow("session-b", "project-a"));

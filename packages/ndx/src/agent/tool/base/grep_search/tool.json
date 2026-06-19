@@ -6,13 +6,13 @@
   "schema": {
     "type": "function",
     "name": "grep_search",
-    "description": "Searches text files with a JavaScript regular expression under the NDX virtual root. Prefer project-relative paths like apps/... for project files; never write them as /apps/....",
+    "description": "Searches text files with a JavaScript regular expression under the NDX virtual root. Prefer project-relative paths like apps/... for project files; never write them as /apps/.... Independent grep_search/read_file calls can be batched in one model response.",
     "parameters": {
       "type": "object",
       "properties": {
         "pattern": { "type": "string", "description": "JavaScript RegExp source. Alternation like foo|bar and whitespace patterns like class\\s+Name are supported." },
         "path": { "type": "string", "description": "File or directory to search. Defaults to project root. Prefer project-relative paths; absolute paths must stay under the NDX virtual root." },
-        "glob": { "type": "string", "description": "Optional glob filter such as *.ts or src/**/*.tsx." },
+        "glob": { "type": "string", "description": "Optional glob filter such as *.ts, src/**/*.tsx, or **/*.{ts,tsx}." },
         "limit": { "type": "number", "description": "Maximum matching lines returned across all files. Defaults to 100." }
       },
       "required": ["pattern"],

@@ -6,7 +6,7 @@
   "schema": {
     "type": "function",
     "name": "read_file",
-    "description": "Reads a text file under the NDX virtual root, optionally returning a line range. Prefer project-relative paths like apps/... for project files; never write them as /apps/....",
+    "description": "Reads a text file under the NDX virtual root, optionally returning a line range. Prefer project-relative paths like apps/... for project files; never write them as /apps/.... When several independent files are needed, request multiple read_file tool calls in the same model response so the session server can run them in parallel.",
     "parameters": {
       "type": "object",
       "properties": {

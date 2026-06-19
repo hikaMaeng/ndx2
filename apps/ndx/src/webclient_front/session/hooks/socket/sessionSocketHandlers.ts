@@ -14,8 +14,7 @@ import {
 } from "ndx/common/protocol";
 import {
   interruptWasAccepted,
-  withoutPendingUserChatMessages,
-  type NDXAgentWebContextUsage
+  withoutPendingUserChatMessages
 } from "ndx/webclient/front";
 import { RSC } from "../../../app/resource";
 import { rightSidebarCleared } from "../../rightsidebar/state";
@@ -39,7 +38,6 @@ export type SessionSocketHandlers = {
 type SessionSocketHandlerRuntime = {
   attachSession: SessionSocketControllerActions["attachSession"];
   liveSessionIdsRef: React.MutableRefObject<Set<string>>;
-  updateContextUsage: (usage?: NDXAgentWebContextUsage) => void;
 };
 
 export function createSessionSocketHandlers(options: UseSessionSocketControllerOptions, runtime: SessionSocketHandlerRuntime): SessionSocketHandlers {
@@ -61,22 +59,19 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
     setActiveSessionError,
     setActiveSessionId,
     setAgentRunning,
-    setChatMessages,
-    setCotWork,
     setDraftSessionProjectId,
     setNotice,
     setPendingActions,
     setSessionNotice,
     setAttachedSessionIds,
     setSessionUiByKey,
-    setTurnFlows,
     socketRef,
     stateRef,
     t,
     updateActiveUi,
     updateSessionUi
   } = options;
-  const { attachSession, liveSessionIdsRef, updateContextUsage } = runtime;
+  const { attachSession, liveSessionIdsRef } = runtime;
 
   const rejectActiveSessionRequest = (message: string) => {
     const next = new Set(pendingActionsRef.current);
@@ -119,7 +114,6 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
 
   const onHistorySummary = (message: NDXSessionHistorySummaryResultMessage) => {
     if (message.sessionid !== activeSessionIdRef.current) return;
-    updateContextUsage(message.contextUsage);
     applyRoutedSessionMessage(message, eventText());
   };
 

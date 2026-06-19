@@ -717,11 +717,8 @@ test("builtin tools emit protocol errors for invalid runtime situations", async 
     { name: "glob", arguments: JSON.stringify({ pattern: "**/*", path: `/workspace/${path.basename(projectHome)}` }) },
     { userHome, projectHome }
   );
-  assert.equal(workspaceAlias.success, false);
-  const workspaceAliasEffect = workspaceAlias.effects?.find((effect): effect is Extract<NonNullable<typeof workspaceAlias.effects>[number], { type: "append_user_message" }> => effect.type === "append_user_message");
-  assert.match(workspaceAlias.output, /path escapes NDX virtual root/);
-  assert.match(workspaceAliasEffect?.text ?? "", /For this project path, call the tool with:\n\./);
-  assert.doesNotMatch(workspaceAliasEffect?.text ?? "", new RegExp(`${escapeRegExp(projectHome)}/workspace/${escapeRegExp(path.basename(projectHome))}`));
+  assert.equal(workspaceAlias.success, true);
+  assert.equal(JSON.parse(workspaceAlias.output).root, projectHome);
 });
 
 test("builtin file tools map Windows volume paths before invoking shell tools", async () => {

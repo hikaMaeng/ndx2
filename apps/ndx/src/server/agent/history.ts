@@ -1,4 +1,4 @@
-import { NDX_SESSION_EVENT, NDX_TURN_EVENT, type NDXSessionEventMessage, type NDXSessionIterationSummary, type NDXSessionTurnSummary } from "ndx/common";
+import { NDX_SESSION_EVENT, NDX_TURN_EVENT, isNDXCotWorkContents, type NDXCotWorkContents, type NDXSessionEventMessage, type NDXSessionIterationSummary, type NDXSessionTurnSummary } from "ndx/common";
 import {
   listSessionData,
   type NDXSessionDataRow,
@@ -26,6 +26,7 @@ export async function buildSessionHistorySummary(database: NDXDatabase, session:
   return {
     visibleEvents: [...leadingCompactEvents, ...turns.flatMap((turn) => turn.finalEvent ? [turn.inputEvent, turn.finalEvent] : [turn.inputEvent])],
     turns: turns.map((turn) => ({ ...turn.summary, iterations: [] })),
+    activeCotWork: activeCotWorkFromTurns(turns),
     contextUsage: calculateDetailedContextUsage(
       [parts.developer, parts.user, ...parts.history].filter((message) => {
         if (!("content" in message)) return true;
@@ -36,6 +37,12 @@ export async function buildSessionHistorySummary(database: NDXDatabase, session:
       tools
     )
   };
+}
+
+function activeCotWorkFromTurns(turns: SessionHistoryTurn[]): NDXCotWorkContents | undefined {
+  const runningTurn = [...turns].reverse().find((turn) => turn.summary.status === "running");
+  if (!runningTurn) return undefined;
+  return [...runningTurn.events].reverse().find((event): event is NDXSessionEventMessage & { contents: NDXCotWorkContents } => event.event === NDX_TURN_EVENT.CotWork && isNDXCotWorkContents(event.contents))?.contents;
 }
 
 async function listLeadingCompactEvents(database: NDXDatabase, session: NDXSessionRow): Promise<NDXSessionEventMessage[]> {

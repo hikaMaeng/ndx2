@@ -60,6 +60,7 @@ function cotWorkReminderText(contents: NDXCotWorkContents): string {
   const lines = [
     "cot_work reminder: Continue from the active plan below.",
     "Before doing more work, update cot_work if any step is completed, blocked, stale, or needs to change.",
+    "Batch independent inspection, search, and read_file calls in one model response when their inputs are already known.",
     ...contents.steps.map((step, index) => `${index + 1}. [${step.status}] ${step.task}`)
   ];
   if (contents.reason?.trim()) {

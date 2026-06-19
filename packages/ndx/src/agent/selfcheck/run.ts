@@ -51,6 +51,12 @@ type LlmSelfcheckResult = {
   requiresHumanReview?: unknown;
 };
 
+type ToolCandidateIssue = {
+  reason: string;
+  outputclass: string;
+  details: Record<string, unknown>;
+};
+
 export async function runSelfcheckOnce(database: NDXDatabase, options: NDXSelfcheckRunOptions): Promise<{ runid: string; createdCandidates: number; llmAnalyses: number; createdChecks: number; dedupedChecks: number }> {
   const mode = options.mode ?? "all";
   const batchSize = Math.min(Math.max(options.batchSize ?? DEFAULT_NDX_SELFCHECK_BATCH_SIZE, 1), 2_000);
@@ -168,7 +174,7 @@ async function analyzePendingCandidates(database: NDXDatabase, options: NDXSelfc
   const runtime = settingsDocumentToAgentRuntimeSettings(settings);
   const modelKey = runtime.selfcheck?.model;
   if (!modelKey) {
-    return { llmAnalyses: 0, createdChecks: 0, dedupedChecks: 0 };
+    throw new Error("selfcheck analysis model is not configured.");
   }
   const resolved = resolveSettingsModelConfig(settings, modelKey, 100_000);
   if (!resolved) {
@@ -223,8 +229,8 @@ function toolCandidatesFromRow(row: SessionDataScanRow): Array<{ subjectkind: "t
     const record = result as { tool?: unknown; toolCallId?: unknown; success?: unknown; output?: unknown };
     const tool = typeof record.tool === "string" && record.tool.trim() ? record.tool.trim() : "unknown";
     const output = stringifyEvidence(record.output);
-    const reason = toolResultReason(record.success === true, output);
-    if (!reason) continue;
+    const issue = toolResultIssue(tool, record.success === true, record.output, output);
+    if (!issue) continue;
     candidates.push({
       subjectkind: "tool" as const,
       subjectname: tool,
@@ -233,25 +239,132 @@ function toolCandidatesFromRow(row: SessionDataScanRow): Array<{ subjectkind: "t
       calldataid: null,
       resultdataid: row.dataid,
       hookrunid: null,
-      fingerprint: fingerprint(["tool", tool, reason, outputClass(output)]),
-      reason,
+      fingerprint: fingerprint(["tool", tool, issue.reason, issue.outputclass]),
+      reason: issue.reason,
       evidence: {
         row: { dataid: row.dataid, sessionid: row.sessionid, createdat: row.createdat },
         iteration: contents.iteration,
-        result
+        result,
+        mechanical: issue.details
       }
     });
   }
   return candidates;
 }
 
-function toolResultReason(success: boolean, output: string): string | undefined {
+function toolResultIssue(tool: string, success: boolean, rawOutput: unknown, output: string): ToolCandidateIssue | undefined {
   const normalized = output.toLowerCase().replace(/\s+/g, " ").trim();
-  if (!success) return "tool_result_failed";
-  if (!normalized) return "tool_result_empty";
-  if (/\b(0 results|0 matches|no results|no matches|not found|nothing found|empty result)\b/.test(normalized)) return "tool_result_no_useful_matches";
-  if (normalized.length < 8) return "tool_result_too_short_to_be_useful";
+  if (!success) return { reason: "tool_result_failed", outputclass: outputClass(output), details: { success, outputLength: output.length } };
+  if (!normalized) return { reason: "tool_result_empty", outputclass: "empty", details: { success, outputLength: output.length } };
+  const structured = parseStructuredOutput(rawOutput);
+  if (Array.isArray(structured) && structured.length === 0) {
+    return { reason: "tool_result_empty_results", outputclass: "empty_array", details: { signal: "empty_top_level_array" } };
+  }
+  const structuredIssue = structuredToolResultIssue(tool, structured);
+  if (structuredIssue) return structuredIssue;
+  if (structured && typeof structured === "object") return undefined;
+  if (toolAllowsNaturalLanguageNoMatch(tool) && /\b(0 results|0 matches|no results|no matches|nothing found|empty result)\b/.test(normalized)) {
+    return { reason: "tool_result_no_useful_matches", outputclass: "zero_results_text", details: { success, matchedText: true } };
+  }
+  if (toolAllowsNotFoundText(tool) && /\b(not found|no such file|enoent)\b/.test(normalized)) {
+    return { reason: "tool_result_not_found", outputclass: "not_found", details: { success, matchedText: true } };
+  }
+  if (normalized.length < 8) return { reason: "tool_result_too_short_to_be_useful", outputclass: "too_short", details: { success, outputLength: output.length } };
   return undefined;
+}
+
+function structuredToolResultIssue(tool: string, value: unknown): ToolCandidateIssue | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const record = value as Record<string, unknown>;
+  const emptyCollection = emptyCollectionField(record);
+  if (emptyCollection) {
+    return {
+      reason: toolCollectionReason(tool, emptyCollection.key),
+      outputclass: `empty_${emptyCollection.key}`,
+      details: { signal: "empty_collection", key: emptyCollection.key, path: emptyCollection.path }
+    };
+  }
+  const zeroCount = zeroCountField(record);
+  if (zeroCount) {
+    return {
+      reason: toolCountReason(tool, zeroCount.key),
+      outputclass: `zero_${zeroCount.key}`,
+      details: { signal: "zero_count", key: zeroCount.key, path: zeroCount.path }
+    };
+  }
+  if (tool === "bash" && typeof record.stderr === "string" && record.stderr.trim()) {
+    const exitCode = typeof record.exit_code === "number" ? record.exit_code : typeof record.exitCode === "number" ? record.exitCode : undefined;
+    if (exitCode === 0 || exitCode === undefined) {
+      return {
+        reason: "tool_result_success_with_stderr",
+        outputclass: "stderr_present",
+        details: { signal: "stderr_present", exitCode: exitCode ?? null }
+      };
+    }
+  }
+  if ((tool === "edit" || tool === "edit_lines") && typeof record.output === "string" && /old_string was not found|expected_text/i.test(record.output)) {
+    return {
+      reason: "tool_result_edit_target_not_found",
+      outputclass: "edit_target_not_found",
+      details: { signal: "edit_target_not_found" }
+    };
+  }
+  return undefined;
+}
+
+function emptyCollectionField(record: Record<string, unknown>, prefix = ""): { key: string; path: string } | undefined {
+  for (const key of ["results", "matches", "items", "files", "rows", "entries", "data", "documents", "hits"]) {
+    const value = record[key];
+    if (Array.isArray(value) && value.length === 0) return { key, path: `${prefix}${key}` };
+  }
+  for (const key of ["result", "output", "response"]) {
+    const value = record[key];
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      const nested = emptyCollectionField(value as Record<string, unknown>, `${prefix}${key}.`);
+      if (nested) return nested;
+    }
+  }
+  return undefined;
+}
+
+function zeroCountField(record: Record<string, unknown>, prefix = ""): { key: string; path: string } | undefined {
+  for (const key of ["count", "total", "totalCount", "resultCount", "matchCount", "returned", "returnedCount", "returned_line_count", "returnedLineCount"]) {
+    if (record[key] === 0) return { key, path: `${prefix}${key}` };
+  }
+  for (const key of ["result", "output", "response", "metadata", "pageInfo"]) {
+    const value = record[key];
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      const nested = zeroCountField(value as Record<string, unknown>, `${prefix}${key}.`);
+      if (nested) return nested;
+    }
+  }
+  return undefined;
+}
+
+function toolCollectionReason(tool: string, key: string): string {
+  if (tool === "glob") return "tool_result_empty_glob_matches";
+  if (tool === "grep_search") return "tool_result_empty_grep_matches";
+  if (tool === "session_history") return "tool_result_empty_history_results";
+  if (tool.includes("search")) return "tool_result_empty_search_results";
+  if (tool === "read_file") return "tool_result_empty_file_content";
+  return `tool_result_empty_${key}`;
+}
+
+function toolCountReason(tool: string, key: string): string {
+  if (tool === "grep_search") return "tool_result_zero_grep_matches";
+  if (tool === "glob") return "tool_result_zero_glob_matches";
+  if (tool === "session_history") return "tool_result_zero_history_results";
+  if (tool.includes("search")) return "tool_result_zero_search_results";
+  if (tool === "read_file" && key.toLowerCase().includes("line")) return "tool_result_empty_file_content";
+  return `tool_result_zero_${key}`;
+}
+
+function toolAllowsNaturalLanguageNoMatch(tool: string): boolean {
+  return tool === "glob" || tool === "grep_search" || tool === "session_history" || tool.includes("search") || tool.includes("find") || tool.includes("list");
+}
+
+function toolAllowsNotFoundText(tool: string): boolean {
+  return tool === "read_file" || tool === "getImage" || tool === "edit" || tool === "edit_lines" || tool.includes("file");
 }
 
 function hookRunIsCandidate(row: HookRunScanRow): boolean {
@@ -376,7 +489,7 @@ async function callSelfcheckModel(model: { model: string; url: string; token: st
             category: "tool_description | tool_error_message | tool_schema | tool_bug | hook_policy | hook_message | base_context_guidance | settings | documentation | analyzer_noise",
             severity: "info | low | medium | high",
             title: "short title",
-            diagnosis: "why this happened",
+            diagnosis: "decide whether the model sent a bad request, the tool behavior/schema/description is unfriendly to models, the hook policy is too aggressive, or the evidence is normal/noise",
             evidenceSummary: "what evidence supports the diagnosis",
             recommendedChange: { target: "tool | hook | prompt | settings | docs | implementation", change: "manual improvement proposal" },
             confidence: 0.0,
@@ -447,6 +560,17 @@ function outputClass(output: string): string {
   if (/\b(timeout|timed out)\b/.test(normalized)) return "timeout";
   if (/\b(permission denied|eacces)\b/.test(normalized)) return "permission";
   return normalized.replace(/["'`].*?["'`]/g, "<value>").replace(/\d+/g, "<number>").slice(0, 200);
+}
+
+function parseStructuredOutput(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim();
+  if (!trimmed || (!trimmed.startsWith("{") && !trimmed.startsWith("["))) return undefined;
+  try {
+    return JSON.parse(trimmed) as unknown;
+  } catch {
+    return undefined;
+  }
 }
 
 function stringifyEvidence(value: unknown): string {

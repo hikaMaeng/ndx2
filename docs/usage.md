@@ -218,3 +218,10 @@ tool results and hook audit rows, creates candidates, asks the configured model
 for a structured recommendation, and stores the result in `selfcheck` for manual
 review. Set `NDX_SELFCHECK_SCHEDULER=0` to disable the timer while keeping the
 manual settings-menu actions available.
+
+Manual `LLM 분석` and `전체 실행` require the selfcheck model key to be saved
+first. Mechanical extraction still works without a model. The mechanical tool
+phase catches failed tools, empty output, structured zero-result fields such as
+`results: []` or `total: 0`, and search/list no-match text; LLM analysis then
+decides whether the issue belongs to the model request, tool schema,
+description, implementation, context guidance, or analyzer noise.

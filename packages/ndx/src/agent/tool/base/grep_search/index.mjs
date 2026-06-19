@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from "node:fs/promises";
 import path from "node:path";
+import { compileGlob, matchesGlob, normalizeGlobPath } from "../_lib/glob.mjs";
 
 const pattern = process.argv[2] ?? "";
 const pathInput = process.argv[3] || ".";
@@ -35,7 +36,13 @@ if (!isInside(root, virtualRoot)) {
 }
 
 emitProgress("searching files");
-const globRegex = globPattern ? compileGlob(globPattern) : undefined;
+let globRegex;
+try {
+  globRegex = globPattern ? compileGlob(globPattern) : undefined;
+} catch (error) {
+  emitError(`invalid glob pattern: ${error instanceof Error ? error.message : String(error)}`);
+  process.exit(1);
+}
 const matches = [];
 let truncated = false;
 
@@ -43,7 +50,7 @@ for await (const filePath of filesUnder(root, root)) {
   if (truncated) {
     break;
   }
-  if (globRegex && !matchesGlob(filePath, globRegex)) {
+  if (globRegex && !matchesGlob(filePath, globRegex, { projectHome, searchRoot: root })) {
     continue;
   }
   await searchFile(filePath);
@@ -133,18 +140,8 @@ function shouldSkipDirectory(directory, rootPath) {
   return excludedDirectoryNames.has(path.basename(directory)) || relative === ".ndx/tool-output" || relative.startsWith(".ndx/tool-output/");
 }
 
-function compileGlob(glob) {
-  const escaped = glob.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*\*/g, "\0").replace(/\*/g, "[^/]*").replace(/\0/g, ".*");
-  return new RegExp(`^${escaped}$`);
-}
-
-function matchesGlob(filePath, globRegex) {
-  const relative = normalizeRelative(path.relative(projectHome, filePath));
-  return globRegex.test(relative) || globRegex.test(path.basename(filePath));
-}
-
 function normalizeRelative(value) {
-  return value.split(path.sep).join("/");
+  return normalizeGlobPath(value);
 }
 
 async function searchFile(filePath) {

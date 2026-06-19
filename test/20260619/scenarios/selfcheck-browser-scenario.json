@@ -1,0 +1,15 @@
+[
+  { "action": "goto", "url": "/" },
+  { "action": "assertRole", "role": "main" },
+  { "action": "screenshot", "name": "01-home" },
+  { "action": "click", "role": "button", "name": "설정" },
+  { "action": "click", "role": "button", "name": "자체 점검" },
+  { "action": "assertText", "text": "자체 점검 설정" },
+  { "action": "screenshot", "name": "02-selfcheck-ready" },
+  { "action": "click", "role": "button", "name": "LLM 분석" },
+  { "action": "assertText", "text": "분석 모델 키를 저장한 뒤 LLM 분석을 실행하세요." },
+  { "action": "screenshot", "name": "03-model-required" },
+  { "action": "click", "role": "button", "name": "후보 추출" },
+  { "action": "assertText", "text": "tool_result_empty_grep_matches" },
+  { "action": "screenshot", "name": "04-candidate-extracted" }
+]

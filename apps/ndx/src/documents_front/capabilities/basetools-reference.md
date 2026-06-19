@@ -7,14 +7,20 @@
 | 도구 | 필수 입력 | 용도 | 주의 |
 | --- | --- | --- | --- |
 | `bash` | `command` | shell command 실행 | 파일 읽기/검색/편집은 전용 도구를 우선한다. |
-| `read_file` | `path` | 텍스트 파일 일부 또는 전체 읽기 | `offset`, `limit`으로 범위를 줄일 수 있고 결과에 1-based `lines`가 포함된다. |
-| `grep_search` | `pattern` | JavaScript RegExp 텍스트 검색 | `foo|bar` alternation을 지원한다. `glob`, `limit`으로 결과 폭을 제한한다. |
-| `glob` | `pattern` | 파일 path 검색 | 기본 limit은 100이다. |
+| `read_file` | `path` | 텍스트 파일 일부 또는 전체 읽기 | `offset`, `limit`으로 범위를 줄일 수 있고 결과에 1-based `lines`가 포함된다. 독립 파일 여러 개는 같은 model response에서 여러 `read_file` call로 묶는다. |
+| `grep_search` | `pattern` | JavaScript RegExp 텍스트 검색 | `foo|bar` alternation을 지원한다. `glob`, `limit`으로 결과 폭을 제한한다. `glob` 필터는 `**/*.{ts,tsx}` 같은 brace pattern을 지원한다. |
+| `glob` | `pattern` | 파일 path 검색 | 기본 limit은 100이다. `**`, `*`, `?`, character class, brace alternative를 지원한다. |
 | `edit` | `file_path`, `old_string`, `new_string` | legacy 정확한 문자열 치환 | 호환용으로 남아 있지만 model-facing schema에는 노출하지 않는다. |
 | `edit_lines` | `file_path`, `start_line`, `end_line`, `replacement` | 1-based 줄 범위 치환 | 긴 코드 수정에는 `expected_text`로 읽은 범위가 그대로인지 확인한다. |
 | `write_file` | `file_path`, `content` | 전체 파일 쓰기 | parent directory를 만든다. |
 
 모든 path 입력은 project root 상대 경로 또는 NDX virtual root 하위 container absolute path여야 한다. Windows host path를 직접 전달하는 대신 server path mapping을 통해 container path가 정리되어야 한다.
+`glob`은 model이 자주 쓰는 `/workspace/<project>`, `workspace/<project>`,
+`ndx/workspace/<project>` 형태를 현재 project root로 정규화한다.
+
+서로 의존하지 않는 `glob`, `grep_search`, `read_file` 호출은 같은 model
+response에서 batch로 요청할 수 있고 session server가 병렬 실행한다. 앞
+도구의 결과가 다음 도구의 입력을 결정하는 경우에만 iteration을 나눈다.
 
 `grep_search`는 기본 대소문자 무시 검색이며 전체 반환 line 수 기준으로
 `limit`을 적용한다. Project root 전체 검색에서는 `.git`, `node_modules`,

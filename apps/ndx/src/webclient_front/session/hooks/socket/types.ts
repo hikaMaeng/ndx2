@@ -9,7 +9,7 @@ import type {
   NDXSessionTurnDeletedMessage
 } from "ndx/common/protocol";
 import type { NDXAgentWebMetadataResponse, NDXAgentWebSession, NDXWebClientStateDocument } from "ndx/webclient/common";
-import type { NDXAgentWebContextUsage, SessionUiState, SocketState, TurnFlowState } from "ndx/webclient/front";
+import type { SessionUiState, SocketState, TurnFlowState } from "ndx/webclient/front";
 import type { NDXSessionDeletedMessage, NDXSessionListChangedMessage, NDXSessionRenamedMessage } from "../../../menu/project/socket/projectSocket";
 import type { SessionSocketClient } from "../../socket/sessionSocket";
 
@@ -52,13 +52,10 @@ export type UseSessionSocketControllerOptions = {
   setActiveSessionError: (message: string) => void;
   setActiveSessionId: React.Dispatch<React.SetStateAction<string | undefined>>;
   setAgentRunning: (running: boolean) => void;
-  setChatMessages: (update: SessionUiState["chatMessages"] | ((current: SessionUiState["chatMessages"]) => SessionUiState["chatMessages"])) => void;
-  setCotWork: (work: SessionUiState["cotWork"]) => void;
   setDraftSessionProjectId: React.Dispatch<React.SetStateAction<string | undefined>>;
   setLastProtocolEvent: React.Dispatch<React.SetStateAction<string>>;
   setNotice: React.Dispatch<React.SetStateAction<string>>;
   setPendingActions: React.Dispatch<React.SetStateAction<Set<string>>>;
-  setReportedContextUsage: (update: NDXAgentWebContextUsage | undefined | ((current?: NDXAgentWebContextUsage) => NDXAgentWebContextUsage | undefined)) => void;
   setSessionNotice: (message: string) => void;
   setAttachedSessionIds: React.Dispatch<React.SetStateAction<Set<string>>>;
   setSessionUiByKey: React.Dispatch<React.SetStateAction<Record<string, SessionUiState>>>;

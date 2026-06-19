@@ -56,7 +56,9 @@ export function ChatComposer({
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   const [previewAttachmentId, setPreviewAttachmentId] = useState<string>();
+  const [cotSolveSteps, setCotSolveSteps] = useState("");
   const inputId = idSuffix ? `session-chat-input-${idSuffix}` : "session-chat-input";
+  const cotSolveInputId = idSuffix ? `session-cot-solve-input-${idSuffix}` : "session-cot-solve-input";
   const attachmentInputId = idSuffix ? `session-attachment-input-${idSuffix}` : "session-attachment-input";
   const submitDisabled = compactRunning || interruptPending || (!agentRunning && requestPending);
   const previewAttachment = attachments.find((attachment) => attachment.id === previewAttachmentId && attachment.previewUrl);
@@ -228,6 +230,31 @@ export function ChatComposer({
               <WandSparkles aria-hidden="true" className="h-3.5 w-3.5" />
               <span>Rewrite</span>
             </button>
+            <label
+              className={cotSolveSteps ? "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-cyan-400/50 bg-cyan-400/10 px-2 text-xs font-medium text-cyan-100 transition-colors focus-within:border-cyan-300 disabled:pointer-events-none disabled:opacity-45" : "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-zinc-800 bg-zinc-950 px-2 text-xs font-medium text-zinc-400 transition-colors focus-within:border-zinc-600 focus-within:text-zinc-100"}
+              htmlFor={cotSolveInputId}
+              title={cotSolveSteps ? `$cot-solve ${cotSolveSteps}` : "$cot-solve"}
+            >
+              <span>COT</span>
+              <input
+                id={cotSolveInputId}
+                name="cotSolveSteps"
+                className="h-6 w-12 rounded-full border border-transparent bg-transparent px-1 text-center text-xs text-inherit outline-none [appearance:textfield] placeholder:text-zinc-600 disabled:pointer-events-none disabled:opacity-45 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                type="number"
+                min={1}
+                step={1}
+                inputMode="numeric"
+                disabled={compactRunning}
+                aria-label="cot-solve"
+                placeholder="#"
+                value={cotSolveSteps}
+                onChange={(event) => {
+                  if (compactRunning) return;
+                  const next = event.currentTarget.value.replace(/\D/gu, "");
+                  setCotSolveSteps(next.replace(/^0+(?=\d)/u, ""));
+                }}
+              />
+            </label>
             <input
               id={attachmentInputId}
               className="sr-only"

@@ -1,6 +1,6 @@
 import type { NDXSessionDataContents, NDXSessionEventContextUsage, NDXSessionEventName } from "./data.js";
 import type { NDXAgentLanguage } from "../../resource/index.js";
-import type { NDXSidebarItem } from "../turn/index.js";
+import type { NDXCotWorkContents, NDXSidebarItem } from "../turn/index.js";
 
 export const NDX_SESSION_INPUT = "session.input";
 export const NDX_SESSION_INTERRUPT = "session.interrupt";
@@ -322,6 +322,7 @@ export type NDXSessionHistorySummaryResultMessage = {
   sessionid: string;
   visibleEvents: NDXSessionEventMessage[];
   turns: NDXSessionTurnSummary[];
+  activeCotWork?: NDXCotWorkContents;
   contextUsage?: NDXSessionEventContextUsage;
 };
 

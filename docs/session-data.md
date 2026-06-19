@@ -236,6 +236,19 @@ as failed tools, empty or zero-result outputs, hook stops, hook interruptions,
 hook result rewrites, and hook failures. The LLM phase decides whether the
 candidate is actionable and records the recommendation for human review.
 
+Tool candidates are intentionally broader than hard failures. A successful tool
+result is still a candidate when structured output reports empty collections
+such as `results`, `matches`, `items`, `files`, `rows`, `documents`, or `hits`,
+or zero counters such as `count`, `total`, `resultCount`, `matchCount`,
+`returned`, or `returned_line_count`. JSON strings are parsed before these
+checks so search tools that serialize `{ "results": [] }` are still caught.
+Search/list tools may also use natural-language no-match text such as
+`no results`, but file content from structured `read_file` output is not scanned
+with those broad text rules to avoid treating application strings like
+`not found` as search failures. The LLM analysis must then classify whether the
+root cause is a bad model query, an unfriendly tool schema or description, a
+tool bug, normal absence of data, or analyzer noise.
+
 Selfcheck tables:
 
 | Table | Contract |

@@ -107,8 +107,11 @@ export function useSessionRequestController({
       return;
     }
     if (!startAction(sessionSubmitActionKey)) return;
+    const cotSolveFormValue = new FormData(event.currentTarget).get("cotSolveSteps");
+    const rawCotSolveSteps = typeof cotSolveFormValue === "string" ? cotSolveFormValue.trim().replace(/^0+/u, "") : "";
+    const cotSolveSteps = /^\d+$/u.test(rawCotSolveSteps) ? rawCotSolveSteps : "";
     const text = chatInput.trim();
-    const requestText = withRewriterMarker(withThinkingMarker(text, selectedModel.reasoningEffort), rewriteEnabled);
+    const requestText = withRewriterMarker(withCotSolveMarker(withThinkingMarker(text, selectedModel.reasoningEffort), cotSolveSteps), rewriteEnabled);
     const pendingAttachments = chatAttachments;
     if (!text && pendingAttachments.length === 0) {
       finishAction(sessionSubmitActionKey);
@@ -265,4 +268,8 @@ function withThinkingMarker(text: string, effort: unknown): string {
 
 function withRewriterMarker(text: string, enabled: boolean): string {
   return enabled ? `${text.trimEnd()}\n[[rewriter]]`.trim() : text;
+}
+
+function withCotSolveMarker(text: string, steps: string): string {
+  return steps ? `${text.trimEnd()}\n[[NDX_SKILL_cot-solve]] ${steps}`.trim() : text;
 }

@@ -1,17 +1,17 @@
 {
   "tool": {
-    "command": "bash",
-    "args": ["./index.sh", "{pattern}", "{path}", "{limit}"]
+    "command": "node",
+    "args": ["./index.mjs", "{pattern}", "{path}", "{limit}"]
   },
   "schema": {
     "type": "function",
     "name": "glob",
-    "description": "Finds files matching a glob pattern under the NDX virtual root. Prefer project-relative paths like apps/... for project directories; never write them as /apps/....",
+    "description": "Finds files matching a glob pattern under the NDX virtual root. Supports **, *, ?, character classes, and brace alternatives such as **/*.{ts,tsx}. Prefer project-relative paths like apps/... for project directories; independent glob/read_file calls can be batched in one model response.",
     "parameters": {
       "type": "object",
       "properties": {
-        "pattern": { "type": "string", "description": "Glob pattern such as src/**/*.ts." },
-        "path": { "type": "string", "description": "Directory to search in. Defaults to the project root. Prefer project-relative paths; absolute paths must stay under the NDX virtual root." },
+        "pattern": { "type": "string", "description": "Glob pattern such as src/**/*.ts or apps/*/src/**/*.{ts,tsx}." },
+        "path": { "type": "string", "description": "Directory to search in. Defaults to the project root. Prefer project-relative paths; absolute paths must stay under the NDX virtual root. Common virtual forms such as /workspace/<project>, workspace/<project>, and ndx/workspace/<project> are normalized." },
         "limit": { "type": "number", "description": "Maximum number of files to return. Defaults to 100." }
       },
       "required": ["pattern"],

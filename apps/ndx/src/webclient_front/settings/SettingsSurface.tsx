@@ -548,6 +548,7 @@ function HookSettingsTab() {
 function SelfcheckSettingsTab() {
   const [enabled, setEnabled] = React.useState(false);
   const [model, setModel] = React.useState("");
+  const [savedModel, setSavedModel] = React.useState("");
   const [modelKeys, setModelKeys] = React.useState<string[]>([]);
   const [defaultIntervalMs, setDefaultIntervalMs] = React.useState("300000");
   const [defaultBatchSize, setDefaultBatchSize] = React.useState("100");
@@ -577,6 +578,7 @@ function SelfcheckSettingsTab() {
     }
     setEnabled(settings.selfcheck.enabled);
     setModel(settings.selfcheck.model);
+    setSavedModel(settings.selfcheck.model);
     setDefaultIntervalMs(String(settings.selfcheck.defaultIntervalMs));
     setDefaultBatchSize(String(settings.selfcheck.defaultBatchSize));
     setMaxLlmAnalysesPerRun(String(settings.selfcheck.maxLlmAnalysesPerRun));
@@ -617,6 +619,7 @@ function SelfcheckSettingsTab() {
     }).then((response) => {
       setEnabled(response.settings.selfcheck.enabled);
       setModel(response.settings.selfcheck.model);
+      setSavedModel(response.settings.selfcheck.model);
       setDefaultIntervalMs(String(response.settings.selfcheck.defaultIntervalMs));
       setDefaultBatchSize(String(response.settings.selfcheck.defaultBatchSize));
       setMaxLlmAnalysesPerRun(String(response.settings.selfcheck.maxLlmAnalysesPerRun));
@@ -627,6 +630,16 @@ function SelfcheckSettingsTab() {
 
   const run = (mode: "extract" | "analyze" | "all") => {
     if (pending) return;
+    if ((mode === "analyze" || mode === "all") && !model.trim()) {
+      setError("분석 모델 키를 저장한 뒤 LLM 분석을 실행하세요.");
+      setMessage("");
+      return;
+    }
+    if ((mode === "analyze" || mode === "all") && model.trim() !== savedModel.trim()) {
+      setError("변경한 분석 모델 키를 먼저 저장한 뒤 LLM 분석을 실행하세요.");
+      setMessage("");
+      return;
+    }
     setPending(`run:${mode}`);
     setError("");
     setMessage("");
@@ -719,12 +732,21 @@ function SelfcheckSettingsTab() {
               <p className="text-xs text-zinc-500">occurrence {item.occurrencecount} · confidence {item.confidence ?? "n/a"} · {new Date(item.updatedat).toLocaleString()}</p>
             </article>
           ))}
-          {selfchecks.length === 0 ? <p className="rounded-md border border-zinc-800 bg-zinc-950 px-3 py-6 text-center text-sm text-zinc-500">표시할 selfcheck가 없습니다.</p> : null}
+          {selfchecks.length === 0 ? (
+            <div className="rounded-md border border-zinc-800 bg-zinc-950 px-3 py-6 text-center text-sm text-zinc-500">
+              <p>표시할 selfcheck 수정 제안이 없습니다.</p>
+              {candidates.length > 0 ? (
+                <p className="mt-2 text-xs leading-5 text-amber-200">
+                  분석 후보 {candidates.length}건이 대기 중입니다. 분석 모델 키를 저장한 뒤 LLM 분석을 실행해야 수정 제안이 생성됩니다.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </section>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <SelfcheckSmallList title="후보" rows={candidates.map((item) => `${item.status} · ${item.subjectkind}/${item.subjectname} · ${item.reason}`)} />
+        <SelfcheckCandidateList candidates={candidates} />
         <SelfcheckSmallList title="커서" rows={cursors.map((item) => `${item.analyzer} · ${item.lastdataid} · ${item.laststatus ?? "n/a"}`)} />
         <SelfcheckSmallList title="실행" rows={runs.map((item) => `${item.status} · 후보 ${item.createdcandidates} · LLM ${item.llmanalyses} · ${new Date(item.startedat).toLocaleString()}`)} />
       </div>
@@ -1229,6 +1251,26 @@ function SelfcheckSmallList({ title, rows }: { title: string; rows: string[] }) 
           <p key={`${row}:${index}`} className="truncate rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1.5 text-xs text-zinc-400">{row}</p>
         ))}
         {rows.length === 0 ? <p className="rounded-md border border-zinc-800 bg-zinc-950 px-2 py-4 text-center text-xs text-zinc-500">없음</p> : null}
+      </div>
+    </section>
+  );
+}
+
+function SelfcheckCandidateList({ candidates }: { candidates: NDXAgentWebSelfcheckCandidate[] }) {
+  return (
+    <section className="grid gap-2 rounded-lg border border-zinc-800 bg-zinc-900/45 p-4">
+      <h3 className="text-sm font-semibold text-zinc-100">분석 후보</h3>
+      <div className="grid gap-2">
+        {candidates.slice(0, 8).map((candidate) => (
+          <article key={candidate.candidateid} className="grid gap-1 rounded-md border border-zinc-800 bg-zinc-950 px-2 py-2 text-xs">
+            <div className="flex flex-wrap gap-1">
+              <StatusPill text={candidate.status} tone={candidate.status === "pending" ? "warn" : "idle"} />
+              <StatusPill text={`${candidate.subjectkind}/${candidate.subjectname}`} tone="idle" />
+            </div>
+            <p className="break-words font-mono text-zinc-300">{candidate.reason}</p>
+          </article>
+        ))}
+        {candidates.length === 0 ? <p className="rounded-md border border-zinc-800 bg-zinc-950 px-2 py-4 text-center text-xs text-zinc-500">없음</p> : null}
       </div>
     </section>
   );

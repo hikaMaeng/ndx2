@@ -83,6 +83,10 @@ export function attachAgentWebSelfcheckRoutes(app: express.Express, database?: N
       }));
       logger?.info("web.selfcheck.run.complete", { mode });
     } catch (error) {
+      if (error instanceof Error && /selfcheck analysis model/i.test(error.message)) {
+        response.status(400).json({ error: error.message });
+        return;
+      }
       next(error);
     }
   });
