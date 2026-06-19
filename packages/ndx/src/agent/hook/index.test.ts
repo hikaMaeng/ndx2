@@ -1090,6 +1090,43 @@ test("model responding stream guard interrupts excessive no-output reasoning str
   assert.match(result.interruptReason ?? "", /streamed too long/);
 });
 
+test("model responding stream guard interrupts implicit thinking streamed as text", async () => {
+  const content = Array.from({ length: 1_200 }, (_item, index) => `implicit-think-token-${index}`).join(" ");
+  const result = await runModelRespondingHook(createNDXHookRuntime({ [NDX_TURN_EVENT.ModelResponding]: modelRespondingHooks }, {}), {
+    ...baseContext,
+    iteration: 108,
+    modelResponse: {
+      type: "text",
+      delta: content.slice(-100),
+      content,
+      textRole: "implicit_thinking_candidate",
+      elapsedMs: 91_000,
+      sequence: 1_001
+    }
+  });
+
+  assert.equal(result.interruptModelResponse, true);
+  assert.match(result.interruptReason ?? "", /streamed too long/);
+});
+
+test("model responding stream guard does not interrupt confirmed assistant text", async () => {
+  const content = Array.from({ length: 1_200 }, (_item, index) => `assistant-token-${index}`).join(" ");
+  const result = await runModelRespondingHook(createNDXHookRuntime({ [NDX_TURN_EVENT.ModelResponding]: modelRespondingHooks }, {}), {
+    ...baseContext,
+    iteration: 109,
+    modelResponse: {
+      type: "text",
+      delta: content.slice(-100),
+      content,
+      textRole: "assistant_text",
+      elapsedMs: 91_000,
+      sequence: 1_001
+    }
+  });
+
+  assert.equal(result.interruptModelResponse, false);
+});
+
 test("model responding stream guard clears repeated reasoning detection after output starts", async () => {
   const repeatedParagraph = "I need to preserve the original shape while ensuring correct rendering across tetromino configurations.";
   const result = await runModelRespondingHook(createNDXHookRuntime({ [NDX_TURN_EVENT.ModelResponding]: modelRespondingHooks }, {}), {

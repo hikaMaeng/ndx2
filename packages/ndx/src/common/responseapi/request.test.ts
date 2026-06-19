@@ -178,8 +178,63 @@ test("requestModelResponse keeps attachments encoded when falling back to text i
   }
 });
 
+test("requestModelResponse blocks input serialization fallback in strict prefix-cache mode", async () => {
+  clearResponseInputCompatibilityCache();
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-response-strict-prefix-"));
+  const imagePath = path.join(directory, "sample.png");
+  await fs.writeFile(imagePath, Buffer.from([1, 2, 3]));
+  const requests: unknown[] = [];
+  const debugEvents: Array<{ event: string; context: Record<string, unknown> }> = [];
+  const server = http.createServer((request, response) => {
+    let body = "";
+    request.on("data", (chunk) => {
+      body += String(chunk);
+    });
+    request.on("end", () => {
+      const payload = JSON.parse(body) as { input?: unknown };
+      requests.push(payload);
+      response.writeHead(400, { "Content-Type": "application/json" });
+      response.end(JSON.stringify({ error: { message: "Invalid type for 'input'.", type: "invalid_request_error", param: "input", code: "invalid_union" } }));
+    });
+  });
+
+  await new Promise<void>((resolve) => {
+    server.listen(0, "127.0.0.1", () => resolve());
+  });
+  const address = server.address();
+  assert(address && typeof address === "object");
+
+  try {
+    await assert.rejects(
+      requestModelResponse(
+        { model: "test-model", url: `http://127.0.0.1:${address.port}/v1`, token: "", strictPrefixCache: true },
+        [{ role: "user", content: [{ type: "input_text", text: "이미지를 봐" }, { type: "input_image", file_path: imagePath, mime_type: "image/png" }] }],
+        [],
+        {
+          async onDebug(event, context) {
+            debugEvents.push({ event, context });
+          }
+        }
+      ),
+      /model request failed: 400/
+    );
+
+    assert.equal(requests.length, 1);
+    assert.equal(Array.isArray((requests[0] as { input?: unknown }).input), true);
+    assert.equal(debugEvents.some((entry) => entry.event === "responseapi.request.input_fallback"), false);
+    const blockedEvent = debugEvents.find((entry) => entry.event === "responseapi.request.input_fallback_blocked");
+    assert.equal(blockedEvent?.context.prefixCacheStrict, true);
+    assert.equal(blockedEvent?.context.prefixCacheRiskAvoided, true);
+  } finally {
+    server.close();
+    await once(server, "close");
+    await fs.rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("requestModelResponse text serialization preserves the previous request as next prefix", async () => {
   const requests: Array<{ input?: unknown }> = [];
+  const preparedRequests: Array<{ inputSerialized: string; inputSerializedLength: number; inputSha256: string }> = [];
   const server = http.createServer((request, response) => {
     let body = "";
     request.on("data", (chunk) => {
@@ -214,8 +269,16 @@ test("requestModelResponse text serialization preserves the previous request as 
       { type: "function_call_output", call_id: "call_2", output: "grep result" }
     ];
 
-    await requestModelResponse(model, firstMessages);
-    await requestModelResponse(model, secondMessages);
+    await requestModelResponse(model, firstMessages, [], {
+      async onRequestPrepared(request) {
+        preparedRequests.push(request);
+      }
+    });
+    await requestModelResponse(model, secondMessages, [], {
+      async onRequestPrepared(request) {
+        preparedRequests.push(request);
+      }
+    });
 
     assert.equal(requests.length, 2);
     assert.equal(typeof requests[0].input, "string");
@@ -224,6 +287,61 @@ test("requestModelResponse text serialization preserves the previous request as 
     assert.match(String(requests[1].input), /assistant function_call grep_search \(call_2\):\n\{"pattern":"x"\}/);
     assert.doesNotMatch(String(requests[1].input), /<tool_call>|<parameter=/);
     assert.ok(String(requests[1].input).startsWith(`${String(requests[0].input)}\n\n`));
+    assert.equal(preparedRequests[0]?.inputSerialized, requests[0].input);
+    assert.equal(preparedRequests[1]?.inputSerialized, requests[1].input);
+    assert.ok(preparedRequests[1]?.inputSerialized.startsWith(`${preparedRequests[0]?.inputSerialized}\n\n`));
+    assert.equal(preparedRequests[1]?.inputSerializedLength, preparedRequests[1]?.inputSerialized.length);
+    assert.match(preparedRequests[1]?.inputSha256 ?? "", /^[a-f0-9]{64}$/);
+  } finally {
+    server.close();
+    await once(server, "close");
+  }
+});
+
+test("requestModelResponse text serialization preserves prefix across parallel tool call continuation", async () => {
+  const requests: Array<{ input?: unknown }> = [];
+  const server = http.createServer((request, response) => {
+    let body = "";
+    request.on("data", (chunk) => {
+      body += String(chunk);
+    });
+    request.on("end", () => {
+      requests.push(JSON.parse(body) as { input?: unknown });
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.end(JSON.stringify({ output: [{ type: "message", content: [{ type: "output_text", text: "ok" }] }] }));
+    });
+  });
+
+  await new Promise<void>((resolve) => {
+    server.listen(0, "127.0.0.1", () => resolve());
+  });
+  const address = server.address();
+  assert(address && typeof address === "object");
+
+  try {
+    const model = { model: "test-model", url: `http://127.0.0.1:${address.port}/v1`, token: "" };
+    const firstMessages: ResponseInputItem[] = [
+      { role: "system", content: "stable developer" },
+      { role: "user", content: "stable prelude" },
+      { role: "user", content: "inspect files" }
+    ];
+    const secondMessages: ResponseInputItem[] = [
+      ...firstMessages,
+      { type: "function_call", call_id: "call_read", name: "read_file", arguments: "{\"path\":\"a.ts\"}" },
+      { type: "function_call", call_id: "call_grep", name: "grep_search", arguments: "{\"pattern\":\"x\"}" },
+      { type: "function_call_output", call_id: "call_read", output: "file a" },
+      { type: "function_call_output", call_id: "call_grep", output: "grep result" }
+    ];
+
+    await requestModelResponse(model, firstMessages);
+    await requestModelResponse(model, secondMessages);
+
+    assert.equal(requests.length, 2);
+    assert.ok(String(requests[1].input).startsWith(`${String(requests[0].input)}\n\n`));
+    assert.match(String(requests[1].input), /assistant function_call read_file \(call_read\):\n\{"path":"a\.ts"\}/);
+    assert.match(String(requests[1].input), /assistant function_call grep_search \(call_grep\):\n\{"pattern":"x"\}/);
+    assert.ok(String(requests[1].input).indexOf("assistant function_call read_file") < String(requests[1].input).indexOf("assistant function_call grep_search"));
+    assert.ok(String(requests[1].input).indexOf("tool result (call_read)") < String(requests[1].input).indexOf("tool result (call_grep)"));
   } finally {
     server.close();
     await once(server, "close");

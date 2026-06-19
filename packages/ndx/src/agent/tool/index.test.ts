@@ -951,6 +951,68 @@ test("executeToolCalls starts process tools in parallel and preserves call order
   assert.ok(Math.abs(payloads[0]!.started - payloads[1]!.started) < 700);
 });
 
+test("executeToolCalls passes the original call index to tool agent calls", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-tools-agentcall-index-"));
+  const userHome = path.join(root, "user");
+  const projectHome = path.join(root, "project");
+  await fs.mkdir(path.join(userHome, ".ndx", "tools", "agentcall_delay"), { recursive: true });
+  await fs.writeFile(
+    path.join(userHome, ".ndx", "tools", "agentcall_delay", "tool.json"),
+    JSON.stringify({
+      tool: { command: "node", args: ["./index.mjs", "{label}", "{ms}"] },
+      schema: {
+        type: "function",
+        name: "agentcall_delay",
+        parameters: {
+          type: "object",
+          properties: {
+            label: { type: "string" },
+            ms: { type: "number" }
+          }
+        }
+      }
+    }),
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(userHome, ".ndx", "tools", "agentcall_delay", "index.mjs"),
+    [
+      "setTimeout(() => {",
+      "  console.log(`[[ndx-agentcall:${JSON.stringify({ type: 'ndx.agentcall', name: 'session.cot_work', input: { steps: [{ task: process.argv[2] || '', status: 'in_progress' }] } })}]]`);",
+      "  console.log(JSON.stringify({ type: 'result', success: true, output: process.argv[2] || '' }));",
+      "}, Number(process.argv[3] || 0));",
+      ""
+    ].join("\n"),
+    "utf8"
+  );
+  const contexts: Array<{ task: string; callId?: string; toolCallIndex?: number }> = [];
+
+  await executeToolCalls(
+    [
+      { call_id: "first", name: "agentcall_delay", arguments: JSON.stringify({ label: "slow", ms: 200 }) },
+      { call_id: "second", name: "agentcall_delay", arguments: JSON.stringify({ label: "fast", ms: 10 }) }
+    ],
+    {
+      userHome,
+      projectHome,
+      agentCallHandlers: {
+        "session.cot_work": (input, context) => {
+          const steps = (input as { steps?: Array<{ task?: string }> }).steps ?? [];
+          contexts.push({ task: steps[0]?.task ?? "", callId: context.callId, toolCallIndex: context.toolCallIndex });
+        }
+      }
+    }
+  );
+
+  assert.deepEqual(
+    contexts.sort((left, right) => (left.toolCallIndex ?? 0) - (right.toolCallIndex ?? 0)),
+    [
+      { task: "slow", callId: "first", toolCallIndex: 0 },
+      { task: "fast", callId: "second", toolCallIndex: 1 }
+    ]
+  );
+});
+
 test("tool process protocol reports progress and final result through observer", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-tools-"));
   const userHome = path.join(root, "user");

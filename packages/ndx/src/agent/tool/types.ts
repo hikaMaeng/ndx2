@@ -50,6 +50,7 @@ export type NDXToolExecutionOptions = NDXToolRegistryOptions & {
   turnContext?: NDXToolRuntimeTurnContext;
   timeoutMs?: number;
   killGraceMs?: number;
+  toolCallIndex?: number;
   denyToolResultEffects?: boolean;
   signal?: AbortSignal;
   observer?: NDXToolExecutionObserver;

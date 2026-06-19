@@ -121,7 +121,12 @@ export async function runToolProcess(
     const lines = stdoutLineBuffer.split(/\r?\n/);
     stdoutLineBuffer = lines.pop() ?? "";
     for (const line of lines) {
-      stdoutLineTask = stdoutLineTask.then(() => collectStdoutLine(line, emitProtocolEvent, legacyStdoutLines, invalidProtocolLines, options, { tool: tool.name, callId, sessionid: options.sessionid }));
+      stdoutLineTask = stdoutLineTask.then(() => collectStdoutLine(line, emitProtocolEvent, legacyStdoutLines, invalidProtocolLines, options, {
+        tool: tool.name,
+        callId,
+        sessionid: options.sessionid,
+        toolCallIndex: options.toolCallIndex
+      }));
     }
   });
   child.stderr.on("data", (chunk: string) => {
@@ -160,7 +165,12 @@ export async function runToolProcess(
         emitToolInterrupt("exited", terminatingStatus, signal);
       }
       if (stdoutLineBuffer.length > 0) {
-        stdoutLineTask = stdoutLineTask.then(() => collectStdoutLine(stdoutLineBuffer, emitProtocolEvent, legacyStdoutLines, invalidProtocolLines, options, { tool: tool.name, callId, sessionid: options.sessionid }));
+        stdoutLineTask = stdoutLineTask.then(() => collectStdoutLine(stdoutLineBuffer, emitProtocolEvent, legacyStdoutLines, invalidProtocolLines, options, {
+          tool: tool.name,
+          callId,
+          sessionid: options.sessionid,
+          toolCallIndex: options.toolCallIndex
+        }));
       }
       await stdoutLineTask.catch((error) => {
         invalidProtocolLines.push(error instanceof Error ? error.message : String(error));
@@ -204,7 +214,7 @@ async function collectStdoutLine(
   legacyStdoutLines: string[],
   invalidProtocolLines: string[],
   options: NDXToolExecutionOptions,
-  agentCallContext: { tool: string; callId?: string; sessionid?: string }
+  agentCallContext: { tool: string; callId?: string; sessionid?: string; toolCallIndex?: number }
 ) {
   if (!line.trim()) return;
   try {

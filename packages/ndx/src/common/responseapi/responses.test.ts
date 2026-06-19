@@ -151,6 +151,36 @@ test("readResponsesStream preserves leading spaces across streamed text deltas",
   ]);
 });
 
+test("readResponsesStream samples debug logs for frequent streamed text deltas", async () => {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (let index = 0; index < 20; index += 1) {
+        controller.enqueue(encoder.encode(`data: {"type":"response.output_text.delta","delta":"${index},"}\n\n`));
+      }
+      controller.close();
+    }
+  });
+  const streamEvents: Record<string, unknown>[] = [];
+  let completeEvent: Record<string, unknown> | undefined;
+
+  const response = await readResponsesStream(stream, {
+    async onDebug(event, context) {
+      if (event === "responseapi.stream.event") {
+        streamEvents.push(context);
+      }
+      if (event === "responseapi.stream.complete") {
+        completeEvent = context;
+      }
+    }
+  });
+
+  assert.equal(response.content, "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,");
+  assert.equal(streamEvents.length, 5);
+  assert.equal(completeEvent?.streamEventCount, 20);
+  assert.equal(completeEvent?.suppressedStreamEventCount, 15);
+});
+
 test("readResponsesStream parses multiline SSE data frames", async () => {
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
@@ -280,12 +310,42 @@ test("readResponsesStream separates explicit think tags from assistant text", as
   assert.deepEqual(reasoning, ["숨김"]);
 });
 
-test("readResponsesStream treats implicit local-model thinking tail as reasoning", async () => {
+test("readResponsesStream reclassifies implicit local-model thinking when the tail closes", async () => {
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       controller.enqueue(encoder.encode('data: {"type":"response.output_text.delta","delta":"We need inspect files first. "}\n\n'));
       controller.enqueue(encoder.encode('data: {"type":"response.output_text.delta","delta":"Then call a tool. </think>"}\n\n'));
+      controller.close();
+    }
+  });
+  const text: string[] = [];
+  const textRoles: string[] = [];
+  const reasoning: string[] = [];
+
+  const response = await readResponsesStream(stream, {
+    async onText(_delta, content, _interrupt, metadata) {
+      text.push(content);
+      textRoles.push(metadata?.role ?? "");
+    },
+    async onReasoning(summary) {
+      reasoning.push(summary);
+    }
+  });
+
+  assert.equal(response.content, "");
+  assert.equal(response.reasoning, "We need inspect files first. Then call a tool. ");
+  assert.deepEqual(text, ["We need inspect files first. ", ""]);
+  assert.deepEqual(textRoles, ["implicit_thinking_candidate", "assistant_text"]);
+  assert.deepEqual(reasoning, ["We need inspect files first. Then call a tool. "]);
+});
+
+test("readResponsesStream reclassifies Korean implicit local-model thinking when the tail closes", async () => {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(encoder.encode('data: {"type":"response.output_text.delta","delta":"현재 코드를 보니 이미 일부 개선 로직이 들어가 있습니다. "}\n\n'));
+      controller.enqueue(encoder.encode('data: {"type":"response.output_text.delta","delta":"이 경로를 helper 기준으로 맞추는 작업이 핵심입니다.\\n</think>"}\n\n'));
       controller.close();
     }
   });
@@ -302,9 +362,36 @@ test("readResponsesStream treats implicit local-model thinking tail as reasoning
   });
 
   assert.equal(response.content, "");
-  assert.equal(response.reasoning, "We need inspect files first. Then call a tool. ");
-  assert.deepEqual(text, []);
-  assert.deepEqual(reasoning, ["We need inspect files first. Then call a tool. "]);
+  assert.equal(response.reasoning, "현재 코드를 보니 이미 일부 개선 로직이 들어가 있습니다. 이 경로를 helper 기준으로 맞추는 작업이 핵심입니다.\n");
+  assert.deepEqual(text, ["현재 코드를 보니 이미 일부 개선 로직이 들어가 있습니다. ", ""]);
+  assert.deepEqual(reasoning, ["현재 코드를 보니 이미 일부 개선 로직이 들어가 있습니다. 이 경로를 helper 기준으로 맞추는 작업이 핵심입니다.\n"]);
+});
+
+test("readResponsesStream avoids duplicating reasoning when hidden text repeats provider reasoning", async () => {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(encoder.encode('data: {"type":"response.reasoning_text.delta","delta":"현재 코드를 보니 이미 일부 개선 로직이 들어가 있습니다. "}\n\n'));
+      controller.enqueue(encoder.encode('data: {"type":"response.reasoning_text.delta","delta":"이 경로를 helper 기준으로 맞추는 작업이 핵심입니다.\\n"}\n\n'));
+      controller.enqueue(encoder.encode('data: {"type":"response.output_text.delta","delta":"현재 코드를 보니 이미 일부 개선 로직이 들어가 있습니다. "}\n\n'));
+      controller.enqueue(encoder.encode('data: {"type":"response.output_text.delta","delta":"이 경로를 helper 기준으로 맞추는 작업이 핵심입니다.\\n</think>"}\n\n'));
+      controller.close();
+    }
+  });
+  const reasoning: string[] = [];
+
+  const response = await readResponsesStream(stream, {
+    async onReasoning(summary) {
+      reasoning.push(summary);
+    }
+  });
+
+  assert.equal(response.content, "");
+  assert.equal(response.reasoning, "현재 코드를 보니 이미 일부 개선 로직이 들어가 있습니다. 이 경로를 helper 기준으로 맞추는 작업이 핵심입니다.\n");
+  assert.deepEqual(reasoning, [
+    "현재 코드를 보니 이미 일부 개선 로직이 들어가 있습니다. ",
+    "현재 코드를 보니 이미 일부 개선 로직이 들어가 있습니다. 이 경로를 helper 기준으로 맞추는 작업이 핵심입니다.\n"
+  ]);
 });
 
 test("readResponsesStream rejects response.failed events even when they include text output", async () => {

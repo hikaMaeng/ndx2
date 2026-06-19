@@ -7,8 +7,13 @@ export POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-ndev}"
 export POSTGRES_DB="${POSTGRES_DB:-$POSTGRES_USER}"
 export PGDATA="${PGDATA:-$NDX_ROOT/pgvector/pgdata}"
 export NDX_DATABASE_URL="${NDX_DATABASE_URL:-postgresql://$POSTGRES_USER:$POSTGRES_PASSWORD@127.0.0.1:5432/$POSTGRES_DB}"
+export NDX_WORKSPACE_ROOT="${NDX_WORKSPACE_ROOT:-$NDX_ROOT/workspace}"
 
-mkdir -p "$NDX_ROOT/pgvector" "$NDX_ROOT/workspace" "$NDX_ROOT/.ndx/log" "$NDX_ROOT/.ndx/i18n"
+mkdir -p "$NDX_ROOT/pgvector" "$NDX_WORKSPACE_ROOT" "$NDX_ROOT/.ndx/log" "$NDX_ROOT/.ndx/i18n"
+if command -v git >/dev/null 2>&1; then
+  git config --global --add safe.directory "$NDX_WORKSPACE_ROOT" 2>/dev/null || true
+  git config --global --add safe.directory "$NDX_WORKSPACE_ROOT/*" 2>/dev/null || true
+fi
 if [[ -d /app/assets/i18n ]]; then
   cp -f /app/assets/i18n/*.json "$NDX_ROOT/.ndx/i18n/" 2>/dev/null || true
 fi

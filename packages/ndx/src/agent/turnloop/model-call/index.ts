@@ -3,7 +3,7 @@ import { appendSessionData } from "../../session/appendSessionData.js";
 import { rememberSessionModelRequestPrefixPreview } from "../../hook/base/prefixDrift/index.js";
 import { runTurnModelRequestHook } from "../../hook/turn.model.request/index.js";
 import { runModelRespondingHook } from "../../hook/turn.model.responding/index.js";
-import { requestModelResponse, type ModelResponse, type ResponseStreamInterrupt } from "ndx/common/responseapi";
+import { requestModelResponse, type ModelResponse, type ResponsePreparedRequest, type ResponseStreamInterrupt } from "ndx/common/responseapi";
 import { prepareFinalModelRequestMessagesForCall } from "./finalMessages/index.js";
 import { calculateDetailedContextUsage } from "../../contextusage/index.js";
 import { NDX_TURN_EVENT } from "../../../common/protocol/index.js";
@@ -13,6 +13,8 @@ import type { NDXContextUsage } from "../../contextusage/index.js";
 import type { NDXActiveTurnPipelineState } from "../types.js";
 
 export const MODEL_PROGRESS_NOTICE_INTERVAL_MS = 120_000;
+const MODEL_STREAM_DELTA_FLUSH_CHARS = 512;
+const MODEL_STREAM_DELTA_FLUSH_INTERVAL_MS = 250;
 
 export async function callTurnModel(
   state: NDXActiveTurnPipelineState,
@@ -78,49 +80,53 @@ export async function callTurnModel(
     const modelResponseStartedAt = Date.now();
     let modelResponseSequence = 0;
     const stopModelProgressNotice = startModelProgressNotice(state, iteration, modelResponseStartedAt, contextUsage);
+    const streamDispatcher = createModelStreamDispatcher(state, {
+      iteration,
+      startedAt: modelResponseStartedAt,
+      finalizingAfterIterationLimit: options.finalizingAfterIterationLimit,
+      nextSequence: () => ++modelResponseSequence
+    });
+    let stopModelResponseForFlush: ResponseStreamInterrupt | undefined;
     let response: ModelResponse;
     try {
       response = await requestModelResponse(
-        state.runningSession.model,
+        { ...state.runningSession.model, strictPrefixCache: state.runtimeSettings.strictPrefixCache },
         modelRequestMessages,
         modelRequestTools,
         {
           signal: state.interrupt.signal,
-          onText: async (delta, content, stopModelResponse) => {
+          onRequestPrepared: async (preparedRequest) => {
+            const prefixComparison = comparePreparedModelRequestPrefix(state.lastPreparedModelRequest, preparedRequest);
+            if (prefixComparison) {
+              const logContext = {
+                sessionid: state.runningSession.sessionid,
+                iteration,
+                ...prefixComparison
+              };
+              if (prefixComparison.appendOnlyPrefix) {
+                state.database.logger?.debug("turn.model.request.provider_prefix_reused", logContext);
+              } else if (prefixComparison.likelyOneRequestAttachmentException) {
+                state.database.logger?.debug("turn.model.request.provider_prefix_attachment_exception", logContext);
+              } else {
+                state.database.logger?.warn("turn.model.request.provider_prefix_drift", logContext);
+              }
+            }
+            state.lastPreparedModelRequest = preparedRequest;
+          },
+          onText: async (delta, content, stopModelResponse, metadata) => {
             await state.interrupt.checkpoint();
-            await processModelRespondingHook(state, {
-              type: "text",
-              delta,
-              content,
-              elapsedMs: Date.now() - modelResponseStartedAt,
-              sequence: ++modelResponseSequence
-            }, stopModelResponse);
-            await state.events.onEvent?.({
-              type: NDX_TURN_EVENT.AssistantDelta,
-              iteration,
-              delta,
-              content,
-              contextUsage: state.turnContextUsage(content, options.finalizingAfterIterationLimit ? [] : state.modelTools)
-            });
+            stopModelResponseForFlush = stopModelResponse;
+            await streamDispatcher.text(delta, content, metadata?.role ?? "assistant_text", stopModelResponse);
           },
           onReasoning: async (summary, content, stopModelResponse) => {
             await state.interrupt.checkpoint();
-            await processModelRespondingHook(state, {
-              type: "reasoning",
-              summary,
-              content,
-              elapsedMs: Date.now() - modelResponseStartedAt,
-              sequence: ++modelResponseSequence
-            }, stopModelResponse);
-            await state.events.onEvent?.({
-              type: NDX_TURN_EVENT.AssistantReasoning,
-              iteration,
-              summary,
-              contextUsage: state.turnContextUsage(content, options.finalizingAfterIterationLimit ? [] : state.modelTools)
-            });
+            stopModelResponseForFlush = stopModelResponse;
+            await streamDispatcher.reasoning(summary, content, stopModelResponse);
           },
           onToolCall: options.finalizingAfterIterationLimit ? undefined : async (toolCall, stopModelResponse) => {
             await state.interrupt.checkpoint();
+            stopModelResponseForFlush = stopModelResponse;
+            await streamDispatcher.flush(stopModelResponse);
             await processModelRespondingHook(state, {
               type: "tool_call",
               toolCall,
@@ -143,6 +149,7 @@ export async function callTurnModel(
           }
         }
       );
+      await streamDispatcher.flush(stopModelResponseForFlush);
     } finally {
       stopModelProgressNotice();
     }
@@ -171,6 +178,172 @@ export async function callTurnModel(
   } catch (error) {
     return state.pipeline.handleTurnFailure(state, error);
   }
+}
+
+function comparePreparedModelRequestPrefix(previous: ResponsePreparedRequest | undefined, next: ResponsePreparedRequest): Record<string, unknown> | undefined {
+  if (!previous || previous.endpoint !== next.endpoint || previous.model !== next.model) {
+    return undefined;
+  }
+  const commonPrefixLength = commonStringPrefixLength(previous.inputSerialized, next.inputSerialized);
+  const appendOnlyPrefix = next.inputSerialized.startsWith(previous.inputSerialized);
+  return {
+    appendOnlyPrefix,
+    previousInputMode: previous.inputMode,
+    nextInputMode: next.inputMode,
+    previousInputBodyIndex: previous.inputBodyIndex,
+    nextInputBodyIndex: next.inputBodyIndex,
+    previousInputSerializedLength: previous.inputSerializedLength,
+    nextInputSerializedLength: next.inputSerializedLength,
+    commonPrefixLength,
+    previousInputSha256: previous.inputSha256,
+    nextInputSha256: next.inputSha256,
+    firstDivergencePreviousPreview: appendOnlyPrefix ? undefined : previous.inputSerialized.slice(commonPrefixLength, commonPrefixLength + 160),
+    firstDivergenceNextPreview: appendOnlyPrefix ? undefined : next.inputSerialized.slice(commonPrefixLength, commonPrefixLength + 160),
+    likelyOneRequestAttachmentException: likelyOneRequestAttachmentException(previous, next)
+  };
+}
+
+function commonStringPrefixLength(previous: string, next: string): number {
+  const length = Math.min(previous.length, next.length);
+  for (let index = 0; index < length; index += 1) {
+    if (previous.charCodeAt(index) !== next.charCodeAt(index)) {
+      return index;
+    }
+  }
+  return length;
+}
+
+function likelyOneRequestAttachmentException(previous: ResponsePreparedRequest, next: ResponsePreparedRequest): boolean {
+  return previous.inputSerialized.includes("\"input_image\"") ||
+    previous.inputSerialized.includes("\"input_file\"") ||
+    next.inputSerialized.includes("\"input_image\"") ||
+    next.inputSerialized.includes("\"input_file\"");
+}
+
+function createModelStreamDispatcher(
+  state: NDXActiveTurnPipelineState,
+  options: {
+    iteration: number;
+    startedAt: number;
+    finalizingAfterIterationLimit?: boolean;
+    nextSequence: () => number;
+  }
+) {
+  let pendingTextDelta = "";
+  let pendingTextContent = "";
+  let pendingTextRole: "assistant_text" | "implicit_thinking_candidate" | undefined;
+  let pendingTextSequence = 0;
+  let pendingTextUpdatedAt = 0;
+  let pendingReasoningSummary = "";
+  let pendingReasoningContent = "";
+  let pendingReasoningSequence = 0;
+  let pendingReasoningUpdatedAt = 0;
+
+  const shouldFlush = (pendingLength: number, updatedAt: number) => (
+    pendingLength >= MODEL_STREAM_DELTA_FLUSH_CHARS || (updatedAt > 0 && Date.now() - updatedAt >= MODEL_STREAM_DELTA_FLUSH_INTERVAL_MS)
+  );
+
+  const flushText = async (stopModelResponse?: ResponseStreamInterrupt): Promise<void> => {
+    if (pendingTextDelta.length === 0) {
+      return;
+    }
+    const delta = pendingTextDelta;
+    const content = pendingTextContent;
+    const textRole = pendingTextRole ?? "assistant_text";
+    const sequence = pendingTextSequence;
+    pendingTextDelta = "";
+    pendingTextContent = "";
+    pendingTextRole = undefined;
+    pendingTextSequence = 0;
+    pendingTextUpdatedAt = 0;
+    if (stopModelResponse) {
+      await processModelRespondingHook(state, {
+        type: "text",
+        delta,
+        content,
+        textRole,
+        elapsedMs: Date.now() - options.startedAt,
+        sequence
+      }, stopModelResponse);
+    }
+    await state.events.onEvent?.({
+      type: NDX_TURN_EVENT.AssistantDelta,
+      iteration: options.iteration,
+      delta,
+      content,
+      contextUsage: state.turnContextUsage(content, options.finalizingAfterIterationLimit ? [] : state.modelTools)
+    });
+  };
+
+  const flushReasoning = async (stopModelResponse?: ResponseStreamInterrupt): Promise<void> => {
+    if (pendingReasoningSummary.length === 0) {
+      return;
+    }
+    const summary = pendingReasoningSummary;
+    const content = pendingReasoningContent;
+    const sequence = pendingReasoningSequence;
+    pendingReasoningSummary = "";
+    pendingReasoningContent = "";
+    pendingReasoningSequence = 0;
+    pendingReasoningUpdatedAt = 0;
+    if (stopModelResponse) {
+      await processModelRespondingHook(state, {
+        type: "reasoning",
+        summary,
+        content,
+        elapsedMs: Date.now() - options.startedAt,
+        sequence
+      }, stopModelResponse);
+    }
+    await state.events.onEvent?.({
+      type: NDX_TURN_EVENT.AssistantReasoning,
+      iteration: options.iteration,
+      summary,
+      contextUsage: state.turnContextUsage(content, options.finalizingAfterIterationLimit ? [] : state.modelTools)
+    });
+  };
+
+  const flush = async (stopModelResponse?: ResponseStreamInterrupt): Promise<void> => {
+    await flushText(stopModelResponse);
+    await flushReasoning(stopModelResponse);
+  };
+
+  return {
+    async text(delta: string, content: string, textRole: "assistant_text" | "implicit_thinking_candidate", stopModelResponse: ResponseStreamInterrupt): Promise<void> {
+      const sequence = options.nextSequence();
+      if (pendingReasoningSummary.length > 0 || (pendingTextRole && pendingTextRole !== textRole)) {
+        await flush(stopModelResponse);
+      }
+      if (pendingTextDelta.length === 0) {
+        pendingTextUpdatedAt = Date.now();
+      }
+      pendingTextDelta += delta;
+      pendingTextContent = content;
+      pendingTextRole = textRole;
+      pendingTextSequence = sequence;
+      if (shouldFlush(pendingTextDelta.length, pendingTextUpdatedAt)) {
+        await flushText(stopModelResponse);
+      }
+    },
+    async reasoning(summary: string, content: string, stopModelResponse: ResponseStreamInterrupt): Promise<void> {
+      const sequence = options.nextSequence();
+      if (pendingTextDelta.length > 0) {
+        await flushText(stopModelResponse);
+      }
+      if (pendingReasoningSummary.length === 0) {
+        pendingReasoningUpdatedAt = Date.now();
+      }
+      pendingReasoningSummary = summary;
+      pendingReasoningContent = content;
+      pendingReasoningSequence = sequence;
+      if (shouldFlush(pendingReasoningSummary.length, pendingReasoningUpdatedAt)) {
+        await flushReasoning(stopModelResponse);
+      }
+    },
+    flush,
+    flushText,
+    flushReasoning
+  };
 }
 
 export function startModelProgressNotice(

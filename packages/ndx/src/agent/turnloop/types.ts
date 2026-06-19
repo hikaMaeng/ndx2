@@ -7,7 +7,7 @@ import type { NDXResolvedTool, NDXToolExecutionResult, NDXToolProcessEvent } fro
 import type { NDXSessionClientBridge } from "../tool/types.js";
 import type { NDXCotWorkContents, NDXSessionAttachmentReference, NDXSidebarItem, NDX_TURN_EVENT } from "../../common/protocol/index.js";
 import type { NDXAgentLanguage, NDXAgentResourceResolver } from "../../common/resource/index.js";
-import type { ModelResponse, ResponseInputItem } from "ndx/common/responseapi";
+import type { ModelResponse, ResponseInputItem, ResponsePreparedRequest } from "ndx/common/responseapi";
 import type { NDXTurnMessageParts } from "./base/context/index.js";
 import type { NDXCotWorkTimingTracker } from "../tool/base/cot_work/timing.js";
 import type { NDXTurnInterruptScope } from "./base/interrupt/index.js";
@@ -93,6 +93,7 @@ export type NDXTurnPipelineState = {
   currentMessageParts?: NDXTurnMessageParts;
   messages: ResponseInputItem[];
   lastModelRequestStablePrefix?: NDXModelRequestPrefixSnapshot;
+  lastPreparedModelRequest?: ResponsePreparedRequest;
   availableTools: NDXResolvedTool[];
   modelTools: Record<string, unknown>[];
   inputContextUsage?: NDXContextUsage;

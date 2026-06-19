@@ -67,30 +67,43 @@ export const modelResponseStreamGuardHook: NDXHookCodeExecutor = {
       return { type: "noeffect" };
     }
     if (context.modelResponse.type === "text") {
-      streamGuardState.delete(key);
-      return { type: "noeffect" };
+      if (context.modelResponse.textRole !== "implicit_thinking_candidate") {
+        streamGuardState.delete(key);
+        return { type: "noeffect" };
+      }
+      return detectAndInterrupt(context, key, context.modelResponse.content, context.modelResponse.elapsedMs, context.modelResponse.sequence);
     }
 
     if (context.modelResponse.content.length > 0) {
       streamGuardState.delete(key);
       return { type: "noeffect" };
     }
-    const existingState = streamGuardState.get(key);
-    const state = existingState ?? {
-      maxReasoningObservedChars: 0,
-      ...await readStreamGuardSettings(context.userHome)
-    };
-    state.maxReasoningObservedChars = Math.max(state.maxReasoningObservedChars, context.modelResponse.summary.length);
-    streamGuardState.set(key, state);
-
-    const detection = detectStreamGuardStop(context.modelResponse.summary, context.modelResponse.elapsedMs, context.modelResponse.sequence, state);
-    if (detection) {
-      streamGuardState.delete(key);
-      return interruptEffect(context, detection, state.analysisModel, context.modelResponse.summary);
-    }
-    return { type: "noeffect" };
+    return detectAndInterrupt(context, key, context.modelResponse.summary, context.modelResponse.elapsedMs, context.modelResponse.sequence);
   }
 };
+
+async function detectAndInterrupt(
+  context: Readonly<Parameters<NDXHookCodeExecutor["run"]>[0]>,
+  key: string,
+  summary: string,
+  elapsedMs: number,
+  sequence: number
+): Promise<NDXHookEffect> {
+  const existingState = streamGuardState.get(key);
+  const state = existingState ?? {
+    maxReasoningObservedChars: 0,
+    ...await readStreamGuardSettings(context.userHome)
+  };
+  state.maxReasoningObservedChars = Math.max(state.maxReasoningObservedChars, summary.length);
+  streamGuardState.set(key, state);
+
+  const detection = detectStreamGuardStop(summary, elapsedMs, sequence, state);
+  if (detection) {
+    streamGuardState.delete(key);
+    return interruptEffect(context, detection, state.analysisModel, summary);
+  }
+  return { type: "noeffect" };
+}
 
 async function readStreamGuardSettings(userHome: string): Promise<Pick<StreamGuardState, "maxReasoningAllowedChars" | "analysisModel">> {
   const settings = await readAgentRuntimeSettings(userHome);

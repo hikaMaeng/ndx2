@@ -13,11 +13,20 @@ import { responseToolCallId, type ModelResponse } from "ndx/common/responseapi";
 import { NDX_TURN_EVENT } from "../../../common/protocol/index.js";
 import { NDX_AGENT_RESOURCE } from "../../../common/resource/index.js";
 import { refreshCurrentMessageParts, refreshTurnMessages } from "../base/state/index.js";
+import type { NDXContextUsage } from "../../contextusage/index.js";
 import type { NDXToolResultContents } from "../../session/index.js";
 import type { NDXSessionDataRow } from "../../session/types.js";
 import type { NDXToolExecutionResult, NDXToolResultEffect } from "../../tool/index.js";
-import type { NDXSessionAttachmentReference } from "../../../common/protocol/index.js";
+import type { NDXCotWorkContents, NDXSessionAttachmentReference } from "../../../common/protocol/index.js";
 import type { NDXActiveTurnPipelineState } from "../types.js";
+
+type PendingCotWorkEvent = {
+  toolCallIndex: number;
+  sequence: number;
+  tool: string;
+  callId?: string;
+  contents: NDXCotWorkContents;
+};
 
 export async function processToolCalls(state: NDXActiveTurnPipelineState, response: ModelResponse): Promise<void> {
   try {
@@ -68,6 +77,8 @@ export async function processToolCalls(state: NDXActiveTurnPipelineState, respon
       count: toolCalls.length,
       tools: toolCalls.map(summarizeToolName)
     });
+    const pendingCotWorkEvents: PendingCotWorkEvent[] = [];
+    let pendingCotWorkSequence = 0;
     let executedToolCalls = await executeToolCalls(toolCalls, {
       cwd: state.projectHome,
       userHome: state.userHome,
@@ -149,30 +160,19 @@ export async function processToolCalls(state: NDXActiveTurnPipelineState, respon
         }),
         [NDX_COT_WORK_AGENTCALL_NAME]: createCotWorkAgentCallHandler(async (contents, context) => {
           await state.interrupt.checkpoint();
-          const timedContents = state.cotWorkTiming.update(contents);
-          await appendSessionData(state.database, state.runningSession.sessionid, "assistant", timedContents);
-          for (const item of cotWorkCompletedSidebarItems(timedContents)) {
-            await state.events.onEvent?.({
-              type: NDX_TURN_EVENT.SidebarItem,
-              iteration,
-              tool: context.tool,
-              callId: context.callId,
-              item,
-              contextUsage: toolContextUsage
-            });
-          }
-          await state.events.onEvent?.({
-            type: NDX_TURN_EVENT.CotWork,
-            iteration,
+          pendingCotWorkEvents.push({
+            toolCallIndex: typeof context.toolCallIndex === "number" ? context.toolCallIndex : Number.MAX_SAFE_INTEGER,
+            sequence: pendingCotWorkSequence,
             tool: context.tool,
-            callId: context.callId,
-            contents: timedContents,
-            contextUsage: toolContextUsage
+            ...(context.callId ? { callId: context.callId } : {}),
+            contents
           });
+          pendingCotWorkSequence += 1;
           await state.interrupt.checkpoint();
         })
       }
     });
+    await commitPendingCotWorkEvents(state, pendingCotWorkEvents, iteration, toolContextUsage);
     if (state.interrupt.signal.aborted) {
       const { row: toolResult, toolResults } = await appendToolResultRow(state.database, state.runningSession.sessionid, iteration, toolCalls, executedToolCalls);
       await state.events.onEvent?.({
@@ -268,6 +268,38 @@ export async function processToolCalls(state: NDXActiveTurnPipelineState, respon
     return state.pipeline.prepareTurnIteration(state);
   } catch (error) {
     return state.pipeline.handleTurnFailure(state, error);
+  }
+}
+
+async function commitPendingCotWorkEvents(
+  state: NDXActiveTurnPipelineState,
+  pendingCotWorkEvents: PendingCotWorkEvent[],
+  iteration: number,
+  contextUsage: NDXContextUsage
+): Promise<void> {
+  for (const event of [...pendingCotWorkEvents].sort((left, right) => left.toolCallIndex - right.toolCallIndex || left.sequence - right.sequence)) {
+    await state.interrupt.checkpoint();
+    const timedContents = state.cotWorkTiming.update(event.contents);
+    await appendSessionData(state.database, state.runningSession.sessionid, "assistant", timedContents);
+    for (const item of cotWorkCompletedSidebarItems(timedContents)) {
+      await state.events.onEvent?.({
+        type: NDX_TURN_EVENT.SidebarItem,
+        iteration,
+        tool: event.tool,
+        callId: event.callId,
+        item,
+        contextUsage
+      });
+    }
+    await state.events.onEvent?.({
+      type: NDX_TURN_EVENT.CotWork,
+      iteration,
+      tool: event.tool,
+      callId: event.callId,
+      contents: timedContents,
+      contextUsage
+    });
+    await state.interrupt.checkpoint();
   }
 }
 

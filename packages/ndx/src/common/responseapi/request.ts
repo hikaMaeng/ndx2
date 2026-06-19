@@ -140,9 +140,22 @@ export async function requestModelResponse(
             });
             lastError = new Error(`model request failed: ${response.status}${errorText ? ` ${errorText}` : ""}`);
             if (response.status === 400 && errorText.includes("Invalid type for 'input'")) {
+              const nextBody = requestBodies[bodyIndex + 1];
+              if (model.strictPrefixCache) {
+                await requestEvents.onDebug?.("responseapi.request.input_fallback_blocked", {
+                  endpoint: responseEndpoint.toString(),
+                  status: response.status,
+                  reason: "provider rejected input type",
+                  fromInputMode: requestEntry.inputMode,
+                  toInputMode: nextBody?.inputMode,
+                  prefixCacheStrict: true,
+                  prefixCacheRiskAvoided: true,
+                  message: "Provider input fallback was blocked because strict prefix-cache mode is enabled."
+                });
+                break;
+              }
               shouldTryAlternativeInput = true;
               rememberRejectedProviderInputMode(compatibilityKey, requestEntry.inputMode);
-              const nextBody = requestBodies[bodyIndex + 1];
               await requestEvents.onDebug?.("responseapi.request.input_fallback", {
                 endpoint: responseEndpoint.toString(),
                 status: response.status,
@@ -248,9 +261,21 @@ export async function requestModelResponse(
             continue;
           }
           if (isProviderInputParseFailure(error)) {
+            const nextBody = requestBodies[bodyIndex + 1];
+            if (model.strictPrefixCache) {
+              await requestEvents.onDebug?.("responseapi.request.input_fallback_blocked", {
+                endpoint: responseEndpoint.toString(),
+                reason: "provider response parser rejected input serialization",
+                fromInputMode: requestEntry.inputMode,
+                toInputMode: nextBody?.inputMode,
+                prefixCacheStrict: true,
+                prefixCacheRiskAvoided: true,
+                message: "Provider input fallback was blocked because strict prefix-cache mode is enabled."
+              });
+              break;
+            }
             shouldTryAlternativeInput = true;
             rememberRejectedProviderInputMode(compatibilityKey, requestEntry.inputMode);
-            const nextBody = requestBodies[bodyIndex + 1];
             await requestEvents.onDebug?.("responseapi.request.input_fallback", {
               endpoint: responseEndpoint.toString(),
               reason: "provider response parser rejected input serialization",
@@ -320,6 +345,7 @@ function preparedRequestContext(input: {
     inputItemCount: Array.isArray(input.input) ? input.input.length : undefined,
     inputTextLength: typeof input.input === "string" ? input.input.length : undefined,
     inputSerializedLength: serialized.length,
+    inputSerialized: serialized,
     inputSha256: createHash("sha256").update(serialized).digest("hex"),
     inputPreview: serialized.length > 500 ? `${serialized.slice(0, 500)}...` : serialized,
     toolCount: input.toolCount,

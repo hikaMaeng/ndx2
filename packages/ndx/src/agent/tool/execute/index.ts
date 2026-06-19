@@ -7,9 +7,10 @@ import type { NDXToolExecutionOptions, NDXToolExecutionResult } from "../types.j
 export async function executeToolCalls(toolCalls: unknown[], options: NDXToolExecutionOptions = {}): Promise<NDXToolExecutionResult[]> {
   const tools = await listAvailableTools(options);
   const allowedToolNames = options.allowedToolNames ? new Set(options.allowedToolNames) : undefined;
-  return Promise.all(toolCalls.map((toolCall) => {
+  return Promise.all(toolCalls.map((toolCall, toolCallIndex) => {
     const name = summarizeToolName(toolCall);
     const callId = resolveToolCallId(toolCall);
+    const callOptions = { ...options, toolCallIndex };
     if (allowedToolNames && !allowedToolNames.has(name)) {
       return failedWithoutProcess(name, callId, `Tool is not allowed in this session: ${name}`);
     }
@@ -22,12 +23,12 @@ export async function executeToolCalls(toolCalls: unknown[], options: NDXToolExe
       if (!functionTool) {
         return failedWithoutProcess(name, callId, `Function tool handler is not available: ${name}`);
       }
-      return functionTool.execute(toolArguments(toolCall), callId, options).then(async (result) => {
-        await options.observer?.onToolFinished?.(result);
+      return functionTool.execute(toolArguments(toolCall), callId, callOptions).then(async (result) => {
+        await callOptions.observer?.onToolFinished?.(result);
         return result;
       });
     }
-    return runToolProcess(tool, toolArguments(toolCall), callId, options);
+    return runToolProcess(tool, toolArguments(toolCall), callId, callOptions);
   }));
 }
 

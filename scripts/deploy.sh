@@ -11,6 +11,10 @@ now_ms() {
 
 deploy_started_ms="$(now_ms)"
 deploy_completed=0
+git_config_index="${GIT_CONFIG_COUNT:-0}"
+export GIT_CONFIG_COUNT=$((git_config_index + 1))
+export "GIT_CONFIG_KEY_${git_config_index}=safe.directory"
+export "GIT_CONFIG_VALUE_${git_config_index}=$(pwd -P)"
 
 elapsed_ms() {
   local started_ms="$1"

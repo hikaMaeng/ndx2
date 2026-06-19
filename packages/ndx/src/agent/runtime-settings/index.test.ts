@@ -11,6 +11,7 @@ test("runtime settings default max model iterations to 500", async () => {
   assert.deepEqual(await readAgentRuntimeSettings(userHome), {
     maxModelIterations: DEFAULT_NDX_MAX_MODEL_ITERATIONS,
     loopDetectionInterval: DEFAULT_NDX_LOOP_DETECTION_INTERVAL,
+    strictPrefixCache: false,
     tools: {}
   });
 });
@@ -24,6 +25,7 @@ test("runtime settings read max model iterations from settings json", async () =
   assert.deepEqual(await readAgentRuntimeSettings(userHome), {
     maxModelIterations: 750,
     loopDetectionInterval: DEFAULT_NDX_LOOP_DETECTION_INTERVAL,
+    strictPrefixCache: false,
     tools: {}
   });
 });
@@ -37,6 +39,7 @@ test("runtime settings ignore invalid max model iterations", async () => {
   assert.deepEqual(await readAgentRuntimeSettings(userHome), {
     maxModelIterations: DEFAULT_NDX_MAX_MODEL_ITERATIONS,
     loopDetectionInterval: DEFAULT_NDX_LOOP_DETECTION_INTERVAL,
+    strictPrefixCache: false,
     tools: {}
   });
 });
@@ -50,6 +53,21 @@ test("runtime settings read loop detection interval and allow non-positive disab
   assert.deepEqual(await readAgentRuntimeSettings(userHome), {
     maxModelIterations: 750,
     loopDetectionInterval: 0,
+    strictPrefixCache: false,
+    tools: {}
+  });
+});
+
+test("runtime settings read strict prefix cache mode", async () => {
+  const userHome = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-runtime-settings-strict-prefix-"));
+  const settingsPath = path.join(userHome, ".ndx", "settings.json");
+  await fs.mkdir(path.dirname(settingsPath), { recursive: true });
+  await fs.writeFile(settingsPath, JSON.stringify({ runtime: { strictPrefixCache: true } }), "utf8");
+
+  assert.deepEqual(await readAgentRuntimeSettings(userHome), {
+    maxModelIterations: DEFAULT_NDX_MAX_MODEL_ITERATIONS,
+    loopDetectionInterval: DEFAULT_NDX_LOOP_DETECTION_INTERVAL,
+    strictPrefixCache: true,
     tools: {}
   });
 });
@@ -63,6 +81,7 @@ test("runtime settings read prompt rewrite model from tool settings", async () =
   assert.deepEqual(await readAgentRuntimeSettings(userHome), {
     maxModelIterations: DEFAULT_NDX_MAX_MODEL_ITERATIONS,
     loopDetectionInterval: DEFAULT_NDX_LOOP_DETECTION_INTERVAL,
+    strictPrefixCache: false,
     tools: {
       prompt_rewrite: {
         model: "qwen3.6-35b-mp"
@@ -80,6 +99,7 @@ test("runtime settings read stream guard max reasoning length from hook settings
   assert.deepEqual(await readAgentRuntimeSettings(userHome), {
     maxModelIterations: DEFAULT_NDX_MAX_MODEL_ITERATIONS,
     loopDetectionInterval: DEFAULT_NDX_LOOP_DETECTION_INTERVAL,
+    strictPrefixCache: false,
     tools: {},
     hooks: {
       StreamGuard: {
@@ -98,11 +118,32 @@ test("runtime settings read stream guard analysis model from hook settings", asy
   assert.deepEqual(await readAgentRuntimeSettings(userHome), {
     maxModelIterations: DEFAULT_NDX_MAX_MODEL_ITERATIONS,
     loopDetectionInterval: DEFAULT_NDX_LOOP_DETECTION_INTERVAL,
+    strictPrefixCache: false,
     tools: {},
     hooks: {
       StreamGuard: {
         MAX_REASONING_LENGTH: 240000,
         analysisModel: "loop-judge"
+      }
+    }
+  });
+});
+
+test("runtime settings read legacy stream guard model alias as analysis model", async () => {
+  const userHome = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-runtime-settings-stream-guard-model-alias-"));
+  const settingsPath = path.join(userHome, ".ndx", "settings.json");
+  await fs.mkdir(path.dirname(settingsPath), { recursive: true });
+  await fs.writeFile(settingsPath, JSON.stringify({ hooks: { StreamGuard: { model: "legacy-loop-judge" } } }), "utf8");
+
+  assert.deepEqual(await readAgentRuntimeSettings(userHome), {
+    maxModelIterations: DEFAULT_NDX_MAX_MODEL_ITERATIONS,
+    loopDetectionInterval: DEFAULT_NDX_LOOP_DETECTION_INTERVAL,
+    strictPrefixCache: false,
+    tools: {},
+    hooks: {
+      StreamGuard: {
+        MAX_REASONING_LENGTH: 240000,
+        analysisModel: "legacy-loop-judge"
       }
     }
   });
@@ -117,6 +158,7 @@ test("runtime settings ignore invalid stream guard max reasoning length", async 
   assert.deepEqual(await readAgentRuntimeSettings(userHome), {
     maxModelIterations: DEFAULT_NDX_MAX_MODEL_ITERATIONS,
     loopDetectionInterval: DEFAULT_NDX_LOOP_DETECTION_INTERVAL,
+    strictPrefixCache: false,
     tools: {}
   });
 });
@@ -136,6 +178,7 @@ test("runtime settings read embedding provider settings", async () => {
   assert.deepEqual(await readAgentRuntimeSettings(userHome), {
     maxModelIterations: DEFAULT_NDX_MAX_MODEL_ITERATIONS,
     loopDetectionInterval: DEFAULT_NDX_LOOP_DETECTION_INTERVAL,
+    strictPrefixCache: false,
     embeddings: {
       provider: "local",
       model: "text-embedding-3-small",
@@ -166,6 +209,7 @@ test("runtime settings resolve embedding provider url from provider settings", a
   assert.deepEqual(await readAgentRuntimeSettings(userHome), {
     maxModelIterations: DEFAULT_NDX_MAX_MODEL_ITERATIONS,
     loopDetectionInterval: DEFAULT_NDX_LOOP_DETECTION_INTERVAL,
+    strictPrefixCache: false,
     embeddings: {
       provider: "local",
       model: "qwen3-embedding-8b:mp",

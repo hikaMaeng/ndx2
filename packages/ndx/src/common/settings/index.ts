@@ -93,6 +93,7 @@ export type NDXSettingsDocumentRow = {
   runtime: {
     maxModelIterations: number;
     loopDetectionInterval: number;
+    strictPrefixCache: boolean;
   };
   tools: {
     prompt_rewrite: {
@@ -131,6 +132,7 @@ export type NDXSettingsDocumentInput = {
   runtime?: {
     maxModelIterations?: number;
     loopDetectionInterval?: number;
+    strictPrefixCache?: boolean;
   };
   tools?: {
     prompt_rewrite?: {
@@ -141,6 +143,7 @@ export type NDXSettingsDocumentInput = {
     StreamGuard?: {
       MAX_REASONING_LENGTH?: number;
       analysisModel?: string;
+      model?: string;
     };
   };
   websearch?: {
@@ -170,6 +173,7 @@ export type NDXSettingsProviderUpstreamModel = {
 export type NDXAgentRuntimeSettings = {
   maxModelIterations: number;
   loopDetectionInterval: number;
+  strictPrefixCache: boolean;
   embeddings?: {
     provider: string;
     model: string;
@@ -265,6 +269,7 @@ export function settingsDocumentToAgentRuntimeSettings(settings: NDXSettingsDocu
   const selfcheck = parseSelfcheckSettings(settings.selfcheck);
   const maxModelIterations = runtime && typeof runtime === "object" && !Array.isArray(runtime) ? runtime.maxModelIterations : undefined;
   const loopDetectionInterval = runtime && typeof runtime === "object" && !Array.isArray(runtime) ? runtime.loopDetectionInterval : undefined;
+  const strictPrefixCache = runtime && typeof runtime === "object" && !Array.isArray(runtime) ? runtime.strictPrefixCache : undefined;
   return {
     maxModelIterations: typeof maxModelIterations === "number" && Number.isInteger(maxModelIterations) && maxModelIterations > 0
       ? maxModelIterations
@@ -272,6 +277,7 @@ export function settingsDocumentToAgentRuntimeSettings(settings: NDXSettingsDocu
     loopDetectionInterval: typeof loopDetectionInterval === "number" && Number.isInteger(loopDetectionInterval)
       ? loopDetectionInterval
       : DEFAULT_NDX_LOOP_DETECTION_INTERVAL,
+    strictPrefixCache: strictPrefixCache === true,
     ...(embeddings ? { embeddings } : {}),
     ...(hooks ? { hooks } : {}),
     ...(selfcheck ? { selfcheck } : {}),
@@ -285,6 +291,7 @@ export function defaultAgentRuntimeSettings(): NDXAgentRuntimeSettings {
   return {
     maxModelIterations: DEFAULT_NDX_MAX_MODEL_ITERATIONS,
     loopDetectionInterval: DEFAULT_NDX_LOOP_DETECTION_INTERVAL,
+    strictPrefixCache: false,
     tools: {}
   };
 }
@@ -339,7 +346,8 @@ export function settingsDocumentRow(settings: NDXSettingsDocument): NDXSettingsD
     defaultModelKey: typeof settings.model === "string" ? settings.model : "",
     runtime: {
       maxModelIterations: typeof runtime.maxModelIterations === "number" && Number.isInteger(runtime.maxModelIterations) && runtime.maxModelIterations > 0 ? runtime.maxModelIterations : DEFAULT_NDX_MAX_MODEL_ITERATIONS,
-      loopDetectionInterval: typeof runtime.loopDetectionInterval === "number" && Number.isInteger(runtime.loopDetectionInterval) ? runtime.loopDetectionInterval : DEFAULT_NDX_LOOP_DETECTION_INTERVAL
+      loopDetectionInterval: typeof runtime.loopDetectionInterval === "number" && Number.isInteger(runtime.loopDetectionInterval) ? runtime.loopDetectionInterval : DEFAULT_NDX_LOOP_DETECTION_INTERVAL,
+      strictPrefixCache: runtime.strictPrefixCache === true
     },
     tools: {
       prompt_rewrite: {
@@ -505,7 +513,7 @@ function parseHookSettings(value: unknown): NDXAgentRuntimeSettings["hooks"] {
   const streamGuard = (value as { StreamGuard?: unknown }).StreamGuard;
   if (!streamGuard || typeof streamGuard !== "object" || Array.isArray(streamGuard)) return undefined;
   const maxReasoningLength = (streamGuard as { MAX_REASONING_LENGTH?: unknown }).MAX_REASONING_LENGTH;
-  const analysisModel = (streamGuard as { analysisModel?: unknown }).analysisModel;
+  const analysisModel = (streamGuard as { analysisModel?: unknown; model?: unknown }).analysisModel ?? (streamGuard as { model?: unknown }).model;
   const validMaxReasoningLength = typeof maxReasoningLength === "number" && Number.isInteger(maxReasoningLength) && maxReasoningLength > 0;
   const validAnalysisModel = typeof analysisModel === "string" && analysisModel.trim().length > 0;
   if (!validMaxReasoningLength && !validAnalysisModel) return undefined;

@@ -79,6 +79,39 @@ was shown as user text instead of progressing the task. These checks are
 intentionally independent of `MAX_REASONING_LENGTH`: they stop local-model
 reasoning loops before the larger hard length fallback is reached, while
 clearing their state as soon as assistant output text or a tool call starts.
+For local models that stream hidden thinking as ordinary output text until a
+later `</think>` marker, the response API marks the initial unclosed text as an
+implicit thinking candidate. StreamGuard treats that candidate the same as
+reasoning for interruption purposes, but clears the guard once the response API
+confirms ordinary assistant text after the thinking segment.
+
+The model-request prefix audit has two layers. The model-request hook checks the
+stable message prefix before provider serialization, while the model-call
+boundary compares the current prepared provider input against the previous
+prepared provider input. The provider-level check logs whether the next input is
+an append-only extension of the previous input, including the common-prefix
+length and first-divergence previews, without adding another hook event.
+One-request attachment payloads are reported as attachment exceptions because
+those payloads are allowed to break provider prefix reuse for that request.
+Set `runtime.strictPrefixCache` to `true` to block provider input-serialization
+fallbacks that would retry the same request with a different provider-visible
+input shape. In strict mode, ndx logs
+`responseapi.request.input_fallback_blocked` and returns the original provider
+failure instead of attempting the fallback.
+
+Parallel tool execution may run tool processes concurrently, but model-visible
+sessiondata writes produced by tool-side agent calls must be committed by the
+turn-loop collector after all parallel branches are joined. The collector uses
+the original tool-call index and each branch-local event sequence as the stable
+commit order. Tool branches may still emit non-model-visible progress events
+while running, but they must not directly append model-visible rows such as
+`cot_work` payloads during the parallel section.
+
+The Docker entrypoint configures Git `safe.directory` for the runtime workspace
+root and its immediate repositories so Git commands do not fail only because a
+bind-mounted repository has a different host owner. This does not repair file
+permissions or UID/GID mismatches; it only answers Git's dubious-ownership
+safety check for the configured workspace paths.
 
 When StreamGuard interrupts a response, the interrupt reason includes the guard
 that fired, the fixed-policy reason, and a short detail explaining the observed

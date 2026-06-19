@@ -10,6 +10,7 @@ export type NDXToolAgentCallContext = {
   tool: string;
   callId?: string;
   sessionid?: string;
+  toolCallIndex?: number;
 };
 
 export type NDXToolAgentCallHandler = (input: unknown, context: NDXToolAgentCallContext) => void | Promise<void>;

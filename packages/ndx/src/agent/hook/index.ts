@@ -115,6 +115,7 @@ export type NDXModelRespondingContext =
       type: "text";
       delta: string;
       content: string;
+      textRole?: "assistant_text" | "implicit_thinking_candidate";
       elapsedMs: number;
       sequence: number;
     }

@@ -3,10 +3,14 @@ import { parseSSEDataFrame } from "../protocol/index.js";
 export type ResponseOutputEvent = {
   signal?: AbortSignal;
   onRequestPrepared?: (request: ResponsePreparedRequest) => Promise<void>;
-  onText?: (delta: string, content: string, interrupt: ResponseStreamInterrupt) => Promise<void>;
+  onText?: (delta: string, content: string, interrupt: ResponseStreamInterrupt, metadata?: ResponseTextMetadata) => Promise<void>;
   onReasoning?: (summary: string, content: string, interrupt: ResponseStreamInterrupt) => Promise<void>;
   onToolCall?: (toolCall: unknown, interrupt: ResponseStreamInterrupt) => Promise<void>;
   onDebug?: (event: string, context: Record<string, unknown>) => Promise<void>;
+};
+
+export type ResponseTextMetadata = {
+  role: "assistant_text" | "implicit_thinking_candidate";
 };
 
 export type ResponsePreparedRequest = {
@@ -17,6 +21,7 @@ export type ResponsePreparedRequest = {
   inputItemCount?: number;
   inputTextLength?: number;
   inputSerializedLength: number;
+  inputSerialized: string;
   inputSha256: string;
   inputPreview: string;
   toolCount: number;
@@ -66,6 +71,7 @@ export type ResponseModelConfig = {
   topP?: number;
   topK?: number;
   minP?: number;
+  strictPrefixCache?: boolean;
 };
 
 export function normalizeResponseSummary(summary: unknown): string {
@@ -99,9 +105,12 @@ export async function readResponsesStream(stream: ReadableStream<Uint8Array>, on
   let buffer = "";
   let content = "";
   let reasoningContent = "";
+  let implicitThinkingCandidate = true;
   const textFilter = createOutputTextFilter();
   const toolCalls: unknown[] = [];
   const outputItems: unknown[] = [];
+  let streamEventCount = 0;
+  let suppressedStreamEventCount = 0;
   const interrupt: ResponseStreamInterrupt = async (reason) => {
     await reader.cancel(reason).catch(() => undefined);
     throw abortError(reason);
@@ -134,9 +143,6 @@ export async function readResponsesStream(stream: ReadableStream<Uint8Array>, on
         throw error;
       }
 
-      const completedEvent = isCompletedEvent(parsed);
-      await onEvent?.onDebug?.("responseapi.stream.event", responsePayloadDebugContext(parsed));
-
       let parsedText: ResponsePayloadResult;
       try {
         parsedText = parseResponsesPayload(parsed);
@@ -146,6 +152,18 @@ export async function readResponsesStream(stream: ReadableStream<Uint8Array>, on
           ...responsePayloadDebugContext(parsed)
         });
         throw error;
+      }
+      const completedEvent = isCompletedEvent(parsed);
+      streamEventCount += 1;
+      if (shouldDebugStreamEvent(parsed, streamEventCount, parsedText.toolCalls.length > 0)) {
+        await onEvent?.onDebug?.("responseapi.stream.event", {
+          ...responsePayloadDebugContext(parsed),
+          streamEventCount,
+          suppressedStreamEventCount
+        });
+        suppressedStreamEventCount = 0;
+      } else {
+        suppressedStreamEventCount += 1;
       }
       const streamFailure = responseFailureError(parsed);
       if (streamFailure && !isRecoverableToolCallParseFailure(streamFailure, parsedText)) {
@@ -162,9 +180,7 @@ export async function readResponsesStream(stream: ReadableStream<Uint8Array>, on
       for (const summary of parsedText.reasoning) {
         const nextReasoningContent = isReasoningDeltaEvent(parsed)
           ? reasoningContent + summary
-          : summary.length >= reasoningContent.length
-            ? summary
-            : reasoningContent + summary;
+          : appendReasoningContent(reasoningContent, summary);
         if (nextReasoningContent !== reasoningContent) {
           reasoningContent = nextReasoningContent;
           await onEvent?.onReasoning?.(reasoningContent, content, interrupt);
@@ -193,15 +209,35 @@ export async function readResponsesStream(stream: ReadableStream<Uint8Array>, on
       }
 
       if (!completedEvent && parsedText.text.length > 0) {
-        const filtered = textFilter.push(parsedText.text);
+        const danglingThinkEndIndex = content.length > 0 ? parsedText.text.indexOf("</think>") : -1;
+        const filtered = danglingThinkEndIndex === -1
+          ? textFilter.push(parsedText.text)
+          : textFilter.push(parsedText.text.slice(danglingThinkEndIndex + "</think>".length));
+        if (danglingThinkEndIndex !== -1) {
+          const hiddenThinking = content + parsedText.text.slice(0, danglingThinkEndIndex);
+          const nextReasoningContent = appendReasoningContent(reasoningContent, hiddenThinking);
+          if (nextReasoningContent !== reasoningContent) {
+            reasoningContent = nextReasoningContent;
+            await onEvent?.onReasoning?.(reasoningContent, filtered.text, interrupt);
+          }
+          implicitThinkingCandidate = false;
+          await onEvent?.onText?.(filtered.text, filtered.text, interrupt, { role: "assistant_text" });
+          content = filtered.text;
+          continue;
+        }
         for (const summary of filtered.reasoning) {
           if (summary.length > 0) {
-            reasoningContent += summary;
+            reasoningContent = appendReasoningContent(reasoningContent, summary);
             await onEvent?.onReasoning?.(reasoningContent, content, interrupt);
           }
         }
+        if (filtered.reasoning.length > 0) {
+          implicitThinkingCandidate = false;
+        }
         if (filtered.text.length > 0) {
-          await onEvent?.onText?.(filtered.text, content + filtered.text, interrupt);
+          await onEvent?.onText?.(filtered.text, content + filtered.text, interrupt, {
+            role: implicitThinkingCandidate ? "implicit_thinking_candidate" : "assistant_text"
+          });
           content += filtered.text;
         }
       }
@@ -214,12 +250,12 @@ export async function readResponsesStream(stream: ReadableStream<Uint8Array>, on
   const flushed = textFilter.flush();
   for (const summary of flushed.reasoning) {
     if (summary.length > 0) {
-      reasoningContent += summary;
+      reasoningContent = appendReasoningContent(reasoningContent, summary);
       await onEvent?.onReasoning?.(reasoningContent, content, interrupt);
     }
   }
   if (flushed.text.length > 0) {
-    await onEvent?.onText?.(flushed.text, content + flushed.text, interrupt);
+    await onEvent?.onText?.(flushed.text, content + flushed.text, interrupt, { role: "assistant_text" });
     content += flushed.text;
   }
 
@@ -238,7 +274,9 @@ export async function readResponsesStream(stream: ReadableStream<Uint8Array>, on
   await onEvent?.onDebug?.("responseapi.stream.complete", {
     contentLength: content.length,
     reasoningLength: reasoningContent.length,
-    toolCallCount: toolCalls.length
+    toolCallCount: toolCalls.length,
+    streamEventCount,
+    suppressedStreamEventCount
   });
   return { content, reasoning: reasoningContent, toolCalls, outputItems };
 }
@@ -252,6 +290,16 @@ function abortError(reason?: string | Error): Error {
   return error;
 }
 
+function appendReasoningContent(current: string, summary: string): string {
+  if (summary.length === 0 || current.endsWith(summary)) {
+    return current;
+  }
+  if (summary.length >= current.length && summary.startsWith(current)) {
+    return summary;
+  }
+  return current + summary;
+}
+
 type OutputTextFilterResult = {
   text: string;
   reasoning: string[];
@@ -260,8 +308,6 @@ type OutputTextFilterResult = {
 function createOutputTextFilter() {
   let visibleStarted = false;
   let insideThink = false;
-  let implicitThink = false;
-  let pending = "";
 
   return {
     push(delta: string): OutputTextFilterResult {
@@ -282,25 +328,6 @@ function createOutputTextFilter() {
           continue;
         }
 
-        if (implicitThink) {
-          pending += rest;
-          const endIndex = pending.indexOf("</think>");
-          if (endIndex === -1) {
-            if (pending.length > 8_000) {
-              text += pending;
-              visibleStarted = true;
-              pending = "";
-              implicitThink = false;
-            }
-            return { text, reasoning };
-          }
-          reasoning.push(pending.slice(0, endIndex));
-          rest = pending.slice(endIndex + "</think>".length);
-          pending = "";
-          implicitThink = false;
-          continue;
-        }
-
         const startIndex = rest.indexOf("<think>");
         const endIndex = rest.indexOf("</think>");
         if (startIndex !== -1 && (endIndex === -1 || startIndex < endIndex)) {
@@ -318,12 +345,6 @@ function createOutputTextFilter() {
           rest = rest.slice(endIndex + "</think>".length);
           continue;
         }
-        if (!visibleStarted && looksLikeImplicitThinking(rest)) {
-          pending = rest;
-          implicitThink = true;
-          return { text, reasoning };
-        }
-
         text += rest;
         visibleStarted = true;
         rest = "";
@@ -332,14 +353,7 @@ function createOutputTextFilter() {
       return { text, reasoning };
     },
     flush(): OutputTextFilterResult {
-      if (!implicitThink || pending.length === 0) {
-        return { text: "", reasoning: [] };
-      }
-      const text = pending;
-      pending = "";
-      implicitThink = false;
-      visibleStarted = true;
-      return { text, reasoning: [] };
+      return { text: "", reasoning: [] };
     }
   };
 }
@@ -352,10 +366,6 @@ function stripHiddenThinking(text: string): OutputTextFilterResult {
     text: first.text + last.text,
     reasoning: [...first.reasoning, ...last.reasoning]
   };
-}
-
-function looksLikeImplicitThinking(text: string): boolean {
-  return /^\s*(?:we need|need to|need respond|i need|we should|user asks|current request|we have|let's|maybe need|need inspect)\b/i.test(text);
 }
 
 export function parseResponsesPayload(payload: unknown): ResponsePayloadResult {
@@ -523,6 +533,20 @@ function isReasoningDeltaEvent(payload: unknown): boolean {
     typeof payload === "object" &&
     ((payload as { type?: unknown }).type === "response.reasoning_text.delta" || (payload as { type?: unknown }).type === "reasoning_text.delta")
   );
+}
+
+function shouldDebugStreamEvent(payload: unknown, streamEventCount: number, hasToolCall: boolean): boolean {
+  if (streamEventCount <= 5 || streamEventCount % 500 === 0) {
+    return true;
+  }
+  if (!payload || typeof payload !== "object") {
+    return true;
+  }
+  const type = (payload as { type?: unknown }).type;
+  if (type !== "response.output_text.delta" && type !== "message_delta" && type !== "response.reasoning_text.delta" && type !== "reasoning_text.delta") {
+    return true;
+  }
+  return hasToolCall;
 }
 
 function responseFailureError(payload: unknown): Error | undefined {
