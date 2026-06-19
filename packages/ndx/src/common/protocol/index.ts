@@ -1,3 +1,4 @@
+export { parseSSEDataFrame } from "./sse.js";
 export {
   NDX_ACCOUNT_SELECTED,
   NDX_ACCOUNT_SELECTION_REQUIRED,

@@ -151,6 +151,31 @@ test("readResponsesStream preserves leading spaces across streamed text deltas",
   ]);
 });
 
+test("readResponsesStream parses multiline SSE data frames", async () => {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(encoder.encode([
+        'data: {"type":"response.output_text.delta",',
+        'data: "delta":"멀티라인 스트림"}',
+        "",
+        ""
+      ].join("\n")));
+      controller.close();
+    }
+  });
+  const deltas: string[] = [];
+
+  const response = await readResponsesStream(stream, {
+    async onText(_delta, content) {
+      deltas.push(content);
+    }
+  });
+
+  assert.equal(response.content, "멀티라인 스트림");
+  assert.deepEqual(deltas, ["멀티라인 스트림"]);
+});
+
 test("readResponsesStream inspects completed response output after streamed text", async () => {
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
@@ -227,6 +252,59 @@ test("readResponsesStream emits cumulative reasoning text deltas", async () => {
 
   assert.deepEqual(reasoning, ["패키지", "패키지 파일을 생성합니다."]);
   assert.equal(response.reasoning, "패키지 파일을 생성합니다.");
+});
+
+test("readResponsesStream separates explicit think tags from assistant text", async () => {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(encoder.encode('data: {"type":"response.output_text.delta","delta":"<think>숨김</think>보이는 답"}\n\n'));
+      controller.close();
+    }
+  });
+  const text: string[] = [];
+  const reasoning: string[] = [];
+
+  const response = await readResponsesStream(stream, {
+    async onText(_delta, content) {
+      text.push(content);
+    },
+    async onReasoning(summary) {
+      reasoning.push(summary);
+    }
+  });
+
+  assert.equal(response.content, "보이는 답");
+  assert.equal(response.reasoning, "숨김");
+  assert.deepEqual(text, ["보이는 답"]);
+  assert.deepEqual(reasoning, ["숨김"]);
+});
+
+test("readResponsesStream treats implicit local-model thinking tail as reasoning", async () => {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(encoder.encode('data: {"type":"response.output_text.delta","delta":"We need inspect files first. "}\n\n'));
+      controller.enqueue(encoder.encode('data: {"type":"response.output_text.delta","delta":"Then call a tool. </think>"}\n\n'));
+      controller.close();
+    }
+  });
+  const text: string[] = [];
+  const reasoning: string[] = [];
+
+  const response = await readResponsesStream(stream, {
+    async onText(_delta, content) {
+      text.push(content);
+    },
+    async onReasoning(summary) {
+      reasoning.push(summary);
+    }
+  });
+
+  assert.equal(response.content, "");
+  assert.equal(response.reasoning, "We need inspect files first. Then call a tool. ");
+  assert.deepEqual(text, []);
+  assert.deepEqual(reasoning, ["We need inspect files first. Then call a tool. "]);
 });
 
 test("readResponsesStream rejects response.failed events even when they include text output", async () => {

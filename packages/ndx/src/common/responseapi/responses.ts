@@ -1,3 +1,5 @@
+import { parseSSEDataFrame } from "../protocol/index.js";
+
 export type ResponseOutputEvent = {
   signal?: AbortSignal;
   onRequestPrepared?: (request: ResponsePreparedRequest) => Promise<void>;
@@ -97,6 +99,7 @@ export async function readResponsesStream(stream: ReadableStream<Uint8Array>, on
   let buffer = "";
   let content = "";
   let reasoningContent = "";
+  const textFilter = createOutputTextFilter();
   const toolCalls: unknown[] = [];
   const outputItems: unknown[] = [];
   const interrupt: ResponseStreamInterrupt = async (reason) => {
@@ -115,89 +118,91 @@ export async function readResponsesStream(stream: ReadableStream<Uint8Array>, on
     buffer = frames.pop() ?? "";
 
     for (const frame of frames) {
-      for (const line of frame.split(/\n/)) {
-        const trimmed = line.trim();
-        if (!trimmed.startsWith("data:")) {
-          continue;
-        }
+      const payload = parseSSEDataFrame(frame)?.trim();
+      if (!payload || payload === "[DONE]") {
+        continue;
+      }
 
-        const payload = trimmed.slice("data:".length).trim();
-        if (!payload || payload === "[DONE]") {
-          continue;
-        }
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(payload) as unknown;
+      } catch (error) {
+        await onEvent?.onDebug?.("responseapi.stream.parse_failed", {
+          error: error instanceof Error ? error.message : String(error),
+          payloadPreview: payload.slice(0, 500)
+        });
+        throw error;
+      }
 
-        let parsed: unknown;
-        try {
-          parsed = JSON.parse(payload) as unknown;
-        } catch (error) {
-          await onEvent?.onDebug?.("responseapi.stream.parse_failed", {
-            error: error instanceof Error ? error.message : String(error),
-            payloadPreview: payload.slice(0, 500)
-          });
-          throw error;
-        }
+      const completedEvent = isCompletedEvent(parsed);
+      await onEvent?.onDebug?.("responseapi.stream.event", responsePayloadDebugContext(parsed));
 
-        const completedEvent = isCompletedEvent(parsed);
-        await onEvent?.onDebug?.("responseapi.stream.event", responsePayloadDebugContext(parsed));
+      let parsedText: ResponsePayloadResult;
+      try {
+        parsedText = parseResponsesPayload(parsed);
+      } catch (error) {
+        await onEvent?.onDebug?.("responseapi.stream.payload_parse_failed", {
+          error: error instanceof Error ? error.message : String(error),
+          ...responsePayloadDebugContext(parsed)
+        });
+        throw error;
+      }
+      const streamFailure = responseFailureError(parsed);
+      if (streamFailure && !isRecoverableToolCallParseFailure(streamFailure, parsedText)) {
+        throw streamFailure;
+      }
+      if (streamFailure) {
+        await onEvent?.onDebug?.("responseapi.stream.tool_call_parse_failure_recovered", {
+          error: streamFailure.message,
+          toolCallCount: parsedText.toolCalls.length,
+          textLength: parsedText.text.length
+        });
+      }
 
-        let parsedText: ResponsePayloadResult;
-        try {
-          parsedText = parseResponsesPayload(parsed);
-        } catch (error) {
-          await onEvent?.onDebug?.("responseapi.stream.payload_parse_failed", {
-            error: error instanceof Error ? error.message : String(error),
-            ...responsePayloadDebugContext(parsed)
-          });
-          throw error;
+      for (const summary of parsedText.reasoning) {
+        const nextReasoningContent = isReasoningDeltaEvent(parsed)
+          ? reasoningContent + summary
+          : summary.length >= reasoningContent.length
+            ? summary
+            : reasoningContent + summary;
+        if (nextReasoningContent !== reasoningContent) {
+          reasoningContent = nextReasoningContent;
+          await onEvent?.onReasoning?.(reasoningContent, content, interrupt);
         }
-        const streamFailure = responseFailureError(parsed);
-        if (streamFailure && !isRecoverableToolCallParseFailure(streamFailure, parsedText)) {
-          throw streamFailure;
-        }
-        if (streamFailure) {
-          await onEvent?.onDebug?.("responseapi.stream.tool_call_parse_failure_recovered", {
-            error: streamFailure.message,
-            toolCallCount: parsedText.toolCalls.length,
-            textLength: parsedText.text.length
-          });
-        }
+      }
 
-        for (const summary of parsedText.reasoning) {
-          const nextReasoningContent = isReasoningDeltaEvent(parsed)
-            ? reasoningContent + summary
-            : summary.length >= reasoningContent.length
-              ? summary
-              : reasoningContent + summary;
-          if (nextReasoningContent !== reasoningContent) {
-            reasoningContent = nextReasoningContent;
+      for (const toolCall of parsedText.toolCalls) {
+        if (!toolCalls.some((current) => responseToolCallId(current) && responseToolCallId(current) === responseToolCallId(toolCall))) {
+          await onEvent?.onToolCall?.(toolCall, interrupt);
+        }
+      }
+
+      for (const item of parsedText.outputItems) {
+        if (isResponseCarryForwardItem(item)) {
+          outputItems.push(item);
+        }
+      }
+
+      if (parsedText.toolCalls.length > 0) {
+        for (const toolCall of parsedText.toolCalls) {
+          const callId = responseToolCallId(toolCall);
+          if (!callId || !toolCalls.some((current) => responseToolCallId(current) === callId)) {
+            toolCalls.push(toolCall);
+          }
+        }
+      }
+
+      if (!completedEvent && parsedText.text.length > 0) {
+        const filtered = textFilter.push(parsedText.text);
+        for (const summary of filtered.reasoning) {
+          if (summary.length > 0) {
+            reasoningContent += summary;
             await onEvent?.onReasoning?.(reasoningContent, content, interrupt);
           }
         }
-
-        for (const toolCall of parsedText.toolCalls) {
-          if (!toolCalls.some((current) => responseToolCallId(current) && responseToolCallId(current) === responseToolCallId(toolCall))) {
-            await onEvent?.onToolCall?.(toolCall, interrupt);
-          }
-        }
-
-        for (const item of parsedText.outputItems) {
-          if (isResponseCarryForwardItem(item)) {
-            outputItems.push(item);
-          }
-        }
-
-        if (parsedText.toolCalls.length > 0) {
-          for (const toolCall of parsedText.toolCalls) {
-            const callId = responseToolCallId(toolCall);
-            if (!callId || !toolCalls.some((current) => responseToolCallId(current) === callId)) {
-              toolCalls.push(toolCall);
-            }
-          }
-        }
-
-        if (!completedEvent && parsedText.text.length > 0) {
-          await onEvent?.onText?.(parsedText.text, content + parsedText.text, interrupt);
-          content += parsedText.text;
+        if (filtered.text.length > 0) {
+          await onEvent?.onText?.(filtered.text, content + filtered.text, interrupt);
+          content += filtered.text;
         }
       }
     }
@@ -205,6 +210,17 @@ export async function readResponsesStream(stream: ReadableStream<Uint8Array>, on
     if (done) {
       break;
     }
+  }
+  const flushed = textFilter.flush();
+  for (const summary of flushed.reasoning) {
+    if (summary.length > 0) {
+      reasoningContent += summary;
+      await onEvent?.onReasoning?.(reasoningContent, content, interrupt);
+    }
+  }
+  if (flushed.text.length > 0) {
+    await onEvent?.onText?.(flushed.text, content + flushed.text, interrupt);
+    content += flushed.text;
   }
 
   if (toolCalls.length === 0 && content.includes("<tool_")) {
@@ -234,6 +250,112 @@ function abortError(reason?: string | Error): Error {
   const error = new Error(reason || "model request aborted.");
   error.name = "AbortError";
   return error;
+}
+
+type OutputTextFilterResult = {
+  text: string;
+  reasoning: string[];
+};
+
+function createOutputTextFilter() {
+  let visibleStarted = false;
+  let insideThink = false;
+  let implicitThink = false;
+  let pending = "";
+
+  return {
+    push(delta: string): OutputTextFilterResult {
+      let text = "";
+      const reasoning: string[] = [];
+      let rest = delta;
+
+      while (rest.length > 0) {
+        if (insideThink) {
+          const endIndex = rest.indexOf("</think>");
+          if (endIndex === -1) {
+            reasoning.push(rest);
+            return { text, reasoning };
+          }
+          reasoning.push(rest.slice(0, endIndex));
+          rest = rest.slice(endIndex + "</think>".length);
+          insideThink = false;
+          continue;
+        }
+
+        if (implicitThink) {
+          pending += rest;
+          const endIndex = pending.indexOf("</think>");
+          if (endIndex === -1) {
+            if (pending.length > 8_000) {
+              text += pending;
+              visibleStarted = true;
+              pending = "";
+              implicitThink = false;
+            }
+            return { text, reasoning };
+          }
+          reasoning.push(pending.slice(0, endIndex));
+          rest = pending.slice(endIndex + "</think>".length);
+          pending = "";
+          implicitThink = false;
+          continue;
+        }
+
+        const startIndex = rest.indexOf("<think>");
+        const endIndex = rest.indexOf("</think>");
+        if (startIndex !== -1 && (endIndex === -1 || startIndex < endIndex)) {
+          const visible = rest.slice(0, startIndex);
+          if (visible.length > 0) {
+            text += visible;
+            visibleStarted = true;
+          }
+          rest = rest.slice(startIndex + "<think>".length);
+          insideThink = true;
+          continue;
+        }
+        if (!visibleStarted && endIndex !== -1) {
+          reasoning.push(rest.slice(0, endIndex));
+          rest = rest.slice(endIndex + "</think>".length);
+          continue;
+        }
+        if (!visibleStarted && looksLikeImplicitThinking(rest)) {
+          pending = rest;
+          implicitThink = true;
+          return { text, reasoning };
+        }
+
+        text += rest;
+        visibleStarted = true;
+        rest = "";
+      }
+
+      return { text, reasoning };
+    },
+    flush(): OutputTextFilterResult {
+      if (!implicitThink || pending.length === 0) {
+        return { text: "", reasoning: [] };
+      }
+      const text = pending;
+      pending = "";
+      implicitThink = false;
+      visibleStarted = true;
+      return { text, reasoning: [] };
+    }
+  };
+}
+
+function stripHiddenThinking(text: string): OutputTextFilterResult {
+  const filter = createOutputTextFilter();
+  const first = filter.push(text);
+  const last = filter.flush();
+  return {
+    text: first.text + last.text,
+    reasoning: [...first.reasoning, ...last.reasoning]
+  };
+}
+
+function looksLikeImplicitThinking(text: string): boolean {
+  return /^\s*(?:we need|need to|need respond|i need|we should|user asks|current request|we have|let's|maybe need|need inspect)\b/i.test(text);
 }
 
 export function parseResponsesPayload(payload: unknown): ResponsePayloadResult {
@@ -276,18 +398,31 @@ export function parseResponsesPayload(payload: unknown): ResponsePayloadResult {
     if (output.type === "message") {
       const messageText = extractOutputMessageText(output.content);
       if (messageText) {
-        toolCalls.push(...extractTextToolCalls(messageText));
-        text += stripTextToolCalls(messageText);
+        const stripped = stripHiddenThinking(messageText);
+        reasoning.push(...stripped.reasoning);
+        const visibleText = stripped.text;
+        toolCalls.push(...extractTextToolCalls(visibleText));
+        text += stripTextToolCalls(visibleText);
       }
       continue;
     }
 
     if (
       output.type === "response.output_text" ||
-      output.type === "response.output_text.delta" ||
-      output.type === "output_text" ||
-      output.type === "message_delta"
+      output.type === "output_text"
     ) {
+      const delta = extractResponseText(output);
+      if (delta) {
+        const stripped = stripHiddenThinking(delta);
+        reasoning.push(...stripped.reasoning);
+        const visibleDelta = stripped.text;
+        toolCalls.push(...extractTextToolCalls(visibleDelta));
+        text += stripTextToolCalls(visibleDelta, { trim: false });
+      }
+      continue;
+    }
+
+    if (output.type === "response.output_text.delta" || output.type === "message_delta") {
       const delta = extractResponseText(output);
       if (delta) {
         toolCalls.push(...extractTextToolCalls(delta));

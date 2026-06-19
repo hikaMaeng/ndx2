@@ -11,6 +11,7 @@ import {
   type NDXAgentWebUpdateChatFolderRequest,
   type NDXAgentWebUpdateChatSessionRequest
 } from "ndx/webclient/common";
+import { parseSSEDataFrame } from "../../../common/protocol/index.js";
 import { requestJson } from "./request.js";
 
 export type NDXAgentWebChatStreamEvent =
@@ -109,9 +110,9 @@ export async function appendChatSessionMessageStream(
     const chunks = buffer.split("\n\n");
     buffer = chunks.pop() ?? "";
     for (const chunk of chunks) {
-      const line = chunk.split("\n").find((item) => item.startsWith("data:"));
-      if (!line) continue;
-      const event = JSON.parse(line.slice(5).trim()) as NDXAgentWebChatStreamEvent;
+      const payload = parseSSEDataFrame(chunk)?.trim();
+      if (!payload) continue;
+      const event = JSON.parse(payload) as NDXAgentWebChatStreamEvent;
       onEvent(event);
       if (event.kind === "error") {
         throw new Error(event.error);
