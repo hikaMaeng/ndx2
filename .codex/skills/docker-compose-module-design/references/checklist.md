@@ -13,6 +13,8 @@
 * no out-of-band container flow
 * root compose depends on module-owned docker assets
 * `env_file`, named volumes, explicit networks
+* services that may invoke Docker mount `/var/run/docker.sock:/var/run/docker.sock`
+* no Docker-in-Docker daemon for container-spawning services
 * default internal network
 * external `linker` only when needed
 * minimal build context
@@ -20,6 +22,7 @@
 * deploy = local build + compose refresh
 * tests target deployed server from `npm run deploy`
 * Dockerfile contains no project build logic
+* Dockerfile contains only image-owned runtime tools, not project dependency installation
 * Dockerfile copies prebuilt local `dist/`
 * Dockerfile never builds `dist/`
 * Dockerfile defines runtime start only

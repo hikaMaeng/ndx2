@@ -104,6 +104,13 @@ row instead of replaying the whole session. Browser history may still display
 older rows, but model prompts use only the compact row and later append-only
 rows.
 
+Compact text is a recall index, not an authoritative replacement for the
+original rows. It must preserve `dataid` anchors such as `[dataid:42]` or
+`[dataid:42-47]` and should signal when exact omitted detail needs
+`session_history` with `mode: "recall"`. The backing `sessiondata` rows remain
+the source of truth for tool calls, tool results, errors, attachment references,
+and full JSON payloads.
+
 There is no manual history window control. Context reconstruction after a
 compact always includes the latest compact row and every later sessiondata row
 in append order. This keeps model request prefixes stable for provider KV-cache
@@ -174,7 +181,8 @@ exceptionally large tool-heavy turn cannot force early compaction for unrelated
 later turns.
 
 `sessionsearch` stores the searchable text projection of selected
-`sessiondata` rows:
+`sessiondata` rows. It is used by `session_history` `mode: "search"` when the
+agent does not know the relevant `dataid`:
 
 | Column | Contract |
 | --- | --- |
@@ -221,6 +229,11 @@ If `url` is omitted, `local` defaults to `http://127.0.0.1:11434/v1` and
 `openai` defaults to `https://api.openai.com/v1`. `NDX_EMBEDDINGS_URL` may
 override the endpoint for the detached worker and the `session_history` query
 embedding path.
+
+`session_history` `mode: "recall"` bypasses `sessionsearch` and reads
+`sessiondata` by exact `dataid` or ordered `startDataId` / `endDataId` range.
+Use recall for compact-summary anchors and search only when the anchor is not
+known.
 
 ## Runtime Selfcheck
 

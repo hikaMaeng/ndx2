@@ -52,7 +52,8 @@ solve this problem.
 ## Dockerfile
 
 * Dockerfile is not a project build script.
-* Do not run package install, Turbo, Yarn build, Vite build, TS compile, or equivalent project-build logic.
+* Do not install project dependencies, run Turbo, Yarn build, Vite build, TS compile, or equivalent project-build logic.
+* OS packages and global image-owned tools such as Docker CLI, Yarn, Chromium, or Playwright may be baked into the image when the service runtime contract requires them.
 * Copy already-built local artifacts, especially `dist/`, plus minimal runtime files only.
 * If `dist/` is absent, build elsewhere first; never build inside the Dockerfile.
 * Runtime start only.

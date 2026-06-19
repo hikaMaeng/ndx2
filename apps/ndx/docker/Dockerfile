@@ -1,10 +1,14 @@
+# check=skip=SecretsUsedInArgOrEnv
+
 ARG NDX2_PGVECTOR_TAG=0.2.0
+ARG PLAYWRIGHT_VERSION=1
 ARG YARN_VERSION=4.9.2
 
 FROM node:22-bookworm-slim AS node-runtime
 
 FROM ghcr.io/hikamaeng/ndx2-pgvector:${NDX2_PGVECTOR_TAG}
 
+ARG PLAYWRIGHT_VERSION=1
 ARG YARN_VERSION=4.9.2
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -15,8 +19,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && . /etc/os-release \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian ${VERSION_CODENAME} stable" > /etc/apt/sources.list.d/docker.list \
     && apt-get update && apt-get install -y --no-install-recommends \
-    bash \
-    coreutils findutils grep gawk perl git \
+    bash coreutils curl file findutils gawk git gnupg grep gzip \
+    iproute2 jq less make netcat-openbsd openssh-client perl procps \
+    python3 rsync sed tar unzip zip \
     chromium fonts-noto-cjk fonts-noto-color-emoji \
     docker-ce-cli docker-compose-plugin \
     && rm -rf /var/lib/apt/lists/*
@@ -33,7 +38,7 @@ ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 ENV PLAYWRIGHT_BROWSERS_PATH=0
 ENV NODE_PATH=/usr/local/lib/node_modules
 ENV NDX_HEADLESS_BROWSER_EXECUTABLE=/usr/bin/chromium
-RUN npm install -g playwright@1 @playwright/test@1 \
+RUN npm install -g playwright@${PLAYWRIGHT_VERSION} @playwright/test@${PLAYWRIGHT_VERSION} \
     && npm cache clean --force \
     && node -e "require('playwright'); require('@playwright/test')" \
     && playwright --version \

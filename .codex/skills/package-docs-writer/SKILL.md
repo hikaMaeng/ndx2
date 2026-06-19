@@ -21,7 +21,8 @@ Optimize for retrieval, not pedagogy.
 * Put durable contracts in docs, not comments.
 * For UI packages, record only durable locator contracts: landmarks, accessible naming, approved test ids, and known exceptions.
 * Code comments: anchors only.
-* JSDoc required.
+* Add JSDoc only when an exported API needs a durable contract that is not
+  already clear from its name and type.
 * TypeDoc optional; do not commit generated output.
 * Drop generic explanations the model already knows.
 

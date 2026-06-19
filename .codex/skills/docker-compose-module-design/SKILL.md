@@ -1,6 +1,6 @@
 ---
 name: docker-compose-module-design
-description: Enforce the repository Docker contract: Docker-first runtime, one root docker-compose.yml, module-owned Docker assets, apps service-module to container mapping, isolated networking, a standard npm deploy entrypoint, and runtime-only Dockerfiles that copy prebuilt local dist artifacts instead of building the project. Use when defining compose services, Dockerfiles, networks, volumes, env_file wiring, deploy scripts, or container ownership.
+description: Enforce the repository Docker contract: Docker-first runtime, one root docker-compose.yml, module-owned Docker assets, apps service-module to container mapping, isolated networking, Docker socket passthrough for container-spawning services, a standard npm deploy entrypoint, and runtime-only Dockerfiles that copy prebuilt local dist artifacts instead of building the project. Use when defining compose services, Dockerfiles, networks, volumes, env_file wiring, deploy scripts, Docker socket access, or container ownership.
 ---
 
 # Docker Compose Module Design
@@ -26,6 +26,19 @@ Enforce orchestration-only compose. Enforce non-build Dockerfiles. Enforce one d
 * Default network: isolated internal.
 * Cross-project connectivity: external `linker` only.
 * Keep build context minimal.
+* If a container may create or control Docker containers, mount the host Docker
+  socket in that service:
+
+```yaml
+volumes:
+  - /var/run/docker.sock:/var/run/docker.sock
+```
+
+This uses the Windows/WSL-level parent Docker daemon instead of creating nested
+Docker-in-Docker container layers. Require this mount for compose services that
+run agents, tools, CI workers, build workers, or any process likely to invoke
+Docker from inside the container. Do not add a Docker daemon inside the image to
+solve this problem.
 
 ## Deploy Entry
 
@@ -39,7 +52,8 @@ Enforce orchestration-only compose. Enforce non-build Dockerfiles. Enforce one d
 ## Dockerfile
 
 * Dockerfile is not a project build script.
-* Do not run package install, Turbo, Yarn build, Vite build, TS compile, or equivalent project-build logic.
+* Do not install project dependencies, run Turbo, Yarn build, Vite build, TS compile, or equivalent project-build logic.
+* OS packages and global image-owned tools such as Docker CLI, Yarn, Chromium, or Playwright may be baked into the image when the service runtime contract requires them.
 * Copy already-built local artifacts, especially `dist/`, plus minimal runtime files only.
 * If `dist/` is absent, build elsewhere first; never build inside the Dockerfile.
 * Runtime start only.

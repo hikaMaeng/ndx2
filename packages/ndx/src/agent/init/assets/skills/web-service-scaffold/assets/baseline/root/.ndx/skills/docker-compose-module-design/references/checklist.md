@@ -22,6 +22,7 @@
 * deploy = local build + compose refresh
 * tests target deployed server from `npm run deploy`
 * Dockerfile contains no project build logic
+* Dockerfile contains only image-owned runtime tools, not project dependency installation
 * Dockerfile copies prebuilt local `dist/`
 * Dockerfile never builds `dist/`
 * Dockerfile defines runtime start only

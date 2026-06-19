@@ -4,6 +4,8 @@ Use this only when a smoke test is not enough and you need a repeatable E2E path
 
 The scenario runner is intentionally smaller than full Playwright Test. It is for quick, script-backed verification. For long-lived test suites, use `write-playwright-e2e-template.sh` and convert the scenario into `.spec.ts`.
 
+If the flow requires WebSocket timing, a mock model/provider server, temporary NDX settings edits, or assertions against request payloads, skip the JSON format and write a focused Playwright `.mjs` or `.spec.ts` under `test/YYYYMMDD/<HHMMSS>_<name>/`.
+
 ## Scenario Shape
 
 Create a JSON array. Each object is one action:
@@ -20,7 +22,7 @@ Create a JSON array. Each object is one action:
 Run it:
 
 ```sh
-node .codex/skills/headless-browser-test/scripts/run-headless-browser-test.mjs --url http://localhost:18080 --spec test/scenario.json
+node .ndx/skills/headless-browser-test/scripts/run-headless-browser-test.mjs --url http://localhost:18080 --spec test/scenario.json
 ```
 
 ## Supported Actions
@@ -102,17 +104,23 @@ When creating UI that must be tested:
 * Provide one page-level `main` landmark.
 * Use native buttons, links, inputs, forms, lists, tables, dialogs, and headings where possible.
 * Give icon-only controls accessible names.
+* Give forms, dialogs, and submit controls accessible names when tests must target them directly.
 * Put row/item actions inside stable row/item containers.
 * Expose loading with `progressbar`, `status`, visible text, or a documented `data-testid`.
 * Expose errors with visible text and `role="alert"` when immediate attention is intended.
 
 Do not write tests that depend on Tailwind classes, DOM depth, generated ids, or repeated index positions unless no product-visible contract exists and the weakness is stated in the report.
 
+For disclosure UI, remember that `<details>/<summary>` is not a button. Expand collapsed sections through `details:not([open]) > summary` or fix the UI to expose the intended control semantics.
+
+If hidden or collapsed copies of the same text exist, broad text locators can fail strict matching or match the wrong area. Scope assertions to a visible assistant/message/dialog container, or use a final marker that appears only in the expected result and not in the prompt.
+
 ## Reliability Rules
 
 * Assert user-visible results after every meaningful action.
 * Use specific role/name locators instead of broad text matches for interactive controls.
 * Scope repeated items by an accessible container before clicking row or card actions.
+* Treat CSS selectors and positional indexes as a documented UI-contract gap, not a normal locator strategy.
 * Do not add fixed sleeps. Wait for a visible state, URL, role, text, or documented test id.
 * Do not test content from third-party sites unless the service owns that content contract.
 * Use unique test data when the scenario writes data.
@@ -166,4 +174,4 @@ Repeated row/card action:
 ]
 ```
 
-For complex scoping that JSON cannot express cleanly, create a `.spec.ts` file from the template instead of weakening locators.
+For complex scoping that JSON cannot express cleanly, create a `.spec.ts` or one-off `.mjs` Playwright script instead of weakening locators.

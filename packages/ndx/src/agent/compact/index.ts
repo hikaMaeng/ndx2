@@ -55,6 +55,14 @@ export type NDXCompactReplayContents = {
   rows: Array<{ dataid: string; type: string; contents: Record<string, unknown> | string; createdat: string }>;
 };
 
+type NDXCompactTranscriptEntry = {
+  startDataId: string;
+  endDataId: string;
+  text: string;
+  compactText: string;
+  important: boolean;
+};
+
 export async function initCompactDatabase(database: NDXDatabase): Promise<void> {
   await database.query(`
 CREATE TABLE IF NOT EXISTS turncontextusage (
@@ -269,10 +277,14 @@ async function summarizeCompactHistory(model: NDXModelConfig, previousCompact: N
     {
       role: "system",
       content: [
-        "You compact an agent session history into a durable summary.",
-        "Preserve user goals, constraints, decisions, completed work, unresolved work, file paths, commands, errors, and final answers.",
+        "You compact an agent session history into a durable recall index.",
+        "The original rows remain in sessiondata. Do not try to make this summary self-contained when exact details can be recalled.",
+        "Preserve dataid anchors exactly. Every item must include a [dataid:...] or [dataid:start-end] anchor.",
+        "For any item whose omitted details may matter, tell the next model to use session_history with mode=recall and the anchor range.",
+        "Spend more text on load-bearing turns: user constraints, decisions, file paths, commands, errors, failed tools, completed work, unresolved work, and final answers.",
+        "Omit or compress trivial acknowledgements and no-op turns.",
         "Use concise Korean unless the source text is clearly in another language.",
-        "Return only the compacted summary text."
+        "Return only the compacted recall index text."
       ].join("\n")
     },
     {
@@ -298,46 +310,173 @@ async function summarizeCompactHistory(model: NDXModelConfig, previousCompact: N
 }
 
 function compactTranscript(rows: NDXSessionDataRow[], maxTokens: number): string {
-  const entries = rows.flatMap((row) => {
-    const text = compactTurnText(row);
-    return text ? [{ dataid: String(row.dataid), text }] : [];
-  });
+  const entries = compactTranscriptEntries(rows);
   const output: string[] = [];
   let tokens = 0;
   let omitted = 0;
   for (const entry of entries) {
-    const nextTokens = estimateContextTokens(entry.text);
-    if (tokens + nextTokens > maxTokens) {
-      omitted += 1;
+    const preferredText = entry.important ? entry.text : entry.compactText;
+    const preferredTokens = estimateContextTokens(preferredText);
+    if (tokens + preferredTokens <= maxTokens) {
+      output.push(preferredText);
+      tokens += preferredTokens;
       continue;
     }
-    output.push(`[dataid:${entry.dataid}]\n${entry.text}`);
-    tokens += nextTokens;
+    const compactTokens = estimateContextTokens(entry.compactText);
+    if (preferredText !== entry.compactText && tokens + compactTokens <= maxTokens) {
+      output.push(entry.compactText);
+      tokens += compactTokens;
+      continue;
+    }
+    omitted += 1;
   }
-  return omitted > 0 ? `${output.join("\n\n")}\n\n[omitted ${omitted} older/larger entries that did not fit the compact prompt]` : output.join("\n\n");
+  return omitted > 0
+    ? `${output.join("\n\n")}\n\n[omitted ${omitted} low-priority entries that did not fit the compact prompt; use session_history search if their anchors are needed]`
+    : output.join("\n\n");
 }
 
-function compactTurnText(row: NDXSessionDataRow): string | undefined {
-  if (!row.contents || typeof row.contents !== "object") {
+function compactTranscriptEntries(rows: NDXSessionDataRow[]): NDXCompactTranscriptEntry[] {
+  const groups: NDXSessionDataRow[][] = [];
+  let current: NDXSessionDataRow[] = [];
+  for (const row of rows) {
+    if (isCompactUserRow(row) && current.length > 0) {
+      groups.push(current);
+      current = [];
+    }
+    current.push(row);
+  }
+  if (current.length > 0) {
+    groups.push(current);
+  }
+  return groups.map(compactTranscriptEntry).filter((entry): entry is NDXCompactTranscriptEntry => Boolean(entry));
+}
+
+function compactTranscriptEntry(rows: NDXSessionDataRow[]): NDXCompactTranscriptEntry | undefined {
+  const startDataId = String(rows[0]?.dataid ?? "");
+  const endDataId = String(rows.at(-1)?.dataid ?? startDataId);
+  if (!startDataId) {
     return undefined;
   }
-  const contents = row.contents as { kind?: unknown; text?: unknown; message?: unknown };
+  const userRequests: string[] = [];
+  const assistantResponses: string[] = [];
+  const errors: string[] = [];
+  const details: string[] = [];
+  let hasFailedTool = false;
+  let hasSkillContext = false;
+  let toolDetailRows = 0;
+  for (const row of rows) {
+    if (!row.contents || typeof row.contents !== "object") {
+      continue;
+    }
+    const contents = row.contents as {
+      kind?: unknown;
+      text?: unknown;
+      message?: unknown;
+      name?: unknown;
+      path?: unknown;
+      toolCalls?: unknown;
+      results?: unknown;
+      sources?: unknown;
+    };
+    if (contents.kind === "tool_generated_user_message" && Array.isArray(contents.sources)) {
+      if (contents.sources.some((source) => source && typeof source === "object" && ((source as { tool?: unknown }).tool === "reasoning_effort" || (source as { tool?: unknown }).tool === "thinking_level"))) {
+        continue;
+      }
+    }
+    if ((contents.kind === "user_message" || contents.kind === "tool_generated_user_message") && typeof contents.text === "string" && contents.text.trim()) {
+      userRequests.push(contents.text.trim());
+      continue;
+    }
+    if (contents.kind === "assistant_message" && typeof contents.text === "string" && contents.text.trim()) {
+      assistantResponses.push(contents.text.trim());
+      continue;
+    }
+    if (contents.kind === "error" && typeof contents.message === "string" && contents.message.trim()) {
+      errors.push(contents.message.trim());
+      continue;
+    }
+    if (contents.kind === "skill_context") {
+      hasSkillContext = true;
+      details.push(`Skill context: ${String(contents.name ?? "unknown")}${typeof contents.path === "string" ? ` ${contents.path}` : ""}`);
+      continue;
+    }
+    if (contents.kind === "tool_call" && Array.isArray(contents.toolCalls)) {
+      toolDetailRows += 1;
+      const names = contents.toolCalls.map((toolCall) => toolCall && typeof toolCall === "object" ? (toolCall as { name?: unknown }).name : undefined).filter((name): name is string => typeof name === "string" && name.length > 0);
+      details.push(names.length > 0 ? `Tool calls: ${names.join(", ")}` : "Tool calls recorded");
+      continue;
+    }
+    if (contents.kind === "tool_result" && Array.isArray(contents.results)) {
+      toolDetailRows += 1;
+      const failed = contents.results
+        .filter((result) => result && typeof result === "object" && (result as { success?: unknown }).success === false)
+        .map((result) => {
+          const next = result as { tool?: unknown; toolCallId?: unknown };
+          return `${String(next.tool ?? "tool")}${typeof next.toolCallId === "string" ? ` ${next.toolCallId}` : ""}`;
+        });
+      if (failed.length > 0) {
+        hasFailedTool = true;
+        details.push(`Failed tool results: ${failed.join(", ")}`);
+      } else {
+        details.push("Tool results recorded");
+      }
+      continue;
+    }
+    const text = sessionDataText(row);
+    if (text?.trim()) {
+      details.push(`${row.type}: ${truncateCompactLine(text.trim(), 320)}`);
+    }
+  }
+  if (userRequests.length === 0 && assistantResponses.length === 0 && errors.length === 0 && details.length === 0) {
+    return undefined;
+  }
+  const anchor = startDataId === endDataId ? startDataId : `${startDataId}-${endDataId}`;
+  const recall = startDataId === endDataId
+    ? `session_history {"mode":"recall","scope":"session","dataid":"${startDataId}"}`
+    : `session_history {"mode":"recall","scope":"session","startDataId":"${startDataId}","endDataId":"${endDataId}"}`;
+  const important = hasFailedTool
+    || hasSkillContext
+    || errors.length > 0
+    || userRequests.concat(assistantResponses).some((text) => /\/|\\|\b[A-Z][A-Za-z0-9_]*\b|error|failed|fail|결정|오류|실패|파일|경로|테스트/.test(text));
+  const compactText = [
+    `[dataid:${anchor}] ${compactOneLine(userRequests[0] ?? details[0] ?? "Session event")} -> ${compactOneLine(errors[0] ?? assistantResponses.at(-1) ?? "details available by recall")}`,
+    `Details: use ${recall}.`
+  ].join("\n");
+  const text = [
+    `[dataid:${anchor}]`,
+    `Recall: use ${recall} for exact original rows.`,
+    userRequests.length > 0 ? `User request:\n${userRequests.map((item) => truncateCompactBlock(item)).join("\n---\n")}` : "",
+    assistantResponses.length > 0 ? `Final assistant response:\n${assistantResponses.map((item) => truncateCompactBlock(item)).join("\n---\n")}` : "",
+    errors.length > 0 ? `Final assistant error:\n${errors.map((item) => truncateCompactBlock(item)).join("\n---\n")}` : "",
+    details.length > 0 ? `Detail signals:\n${details.slice(0, 8).map((item) => `- ${item}`).join("\n")}${toolDetailRows > 0 ? "\n- Tool detail rows are available by recall." : ""}` : ""
+  ].filter(Boolean).join("\n");
+  return { startDataId, endDataId, text, compactText, important };
+}
+
+function isCompactUserRow(row: NDXSessionDataRow): boolean {
+  if (!row.contents || typeof row.contents !== "object") {
+    return false;
+  }
+  const contents = row.contents as { kind?: unknown; sources?: unknown };
   if (contents.kind === "tool_generated_user_message" && Array.isArray((contents as { sources?: unknown }).sources)) {
     const sources = (contents as { sources: unknown[] }).sources;
     if (sources.some((source) => source && typeof source === "object" && ((source as { tool?: unknown }).tool === "reasoning_effort" || (source as { tool?: unknown }).tool === "thinking_level"))) {
-      return undefined;
+      return false;
     }
   }
-  if ((contents.kind === "user_message" || contents.kind === "tool_generated_user_message") && typeof contents.text === "string" && contents.text.trim()) {
-    return `User request:\n${contents.text.trim()}`;
-  }
-  if (contents.kind === "assistant_message" && typeof contents.text === "string" && contents.text.trim()) {
-    return `Final assistant response:\n${contents.text.trim()}`;
-  }
-  if (contents.kind === "error" && typeof contents.message === "string" && contents.message.trim()) {
-    return `Final assistant error:\n${contents.message.trim()}`;
-  }
-  return undefined;
+  return contents.kind === "user_message" || contents.kind === "tool_generated_user_message";
+}
+
+function compactOneLine(text: string): string {
+  return truncateCompactLine(text.replace(/\s+/g, " ").trim(), 180);
+}
+
+function truncateCompactLine(text: string, maxLength: number): string {
+  return text.length > maxLength ? `${text.slice(0, Math.max(0, maxLength - 3))}...` : text;
+}
+
+function truncateCompactBlock(text: string): string {
+  return text.length > 1200 ? `${text.slice(0, 1197)}...` : text;
 }
 
 function compactText(row: NDXSessionDataRow | undefined): string | undefined {
@@ -350,7 +489,7 @@ function compactText(row: NDXSessionDataRow | undefined): string | undefined {
 
 function fallbackCompactSummary(previous: string | undefined, transcript: string): string {
   return [
-    previous ? `Previous compact summary:\n${previous}` : "",
-    transcript ? `Recent session transcript summary source:\n${transcript}` : ""
+    previous ? `Previous compact recall index:\n${previous}` : "",
+    transcript ? `Recent session recall index source:\n${transcript}` : ""
   ].filter(Boolean).join("\n\n").slice(0, 48_000);
 }

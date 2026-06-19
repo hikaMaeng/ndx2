@@ -255,6 +255,80 @@ test("session_history function tool returns structured history search results", 
   assert.deepEqual(queries[0].values, ["018f0000-0000-7000-8000-000000000000", "이전 결정", ["이전", "결정"], 3]);
 });
 
+test("session_history recall returns exact sessiondata rows by dataid range", async () => {
+  const userHome = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-session-history-recall-"));
+  const queries: { text: string; values: unknown[] }[] = [];
+  const sidebarItems: unknown[] = [];
+  const result = await executeToolCall(
+    { call_id: "history_recall_1", name: "session_history", arguments: JSON.stringify({ mode: "recall", startDataId: "4", endDataId: "6" }) },
+    {
+      userHome,
+      sessionid: "018f0000-0000-7000-8000-000000000000",
+      session: {
+        sessionid: "018f0000-0000-7000-8000-000000000000",
+        userid: "ndev",
+        title: "recall session",
+        lastupdated: new Date(),
+        mode: "none",
+        path: "/repo",
+        projectname: "project",
+        model: { type: "openai", model: "test", url: "https://example.test", token: "", contextsize: 1000 },
+        isrunning: true,
+        turnphase: "model_request",
+        interruptrequested: false,
+        interruptrequestedat: null,
+        interruptcompletedat: null
+      },
+      agentCallHandlers: {
+        [NDX_SIDEBAR_ITEM_AGENTCALL_NAME]: (input: unknown) => {
+          sidebarItems.push(input);
+        }
+      },
+      database: {
+        async query(text, values) {
+          queries.push({ text, values: values ?? [] });
+          return {
+            rows: [
+              {
+                dataid: "4",
+                sessionid: "018f0000-0000-7000-8000-000000000000",
+                type: "user",
+                contents: { kind: "user_message", text: "원문 요청" },
+                createdat: new Date("2026-05-31T00:00:00.000Z"),
+                projectname: "project",
+                title: "recall session"
+              },
+              {
+                dataid: "5",
+                sessionid: "018f0000-0000-7000-8000-000000000000",
+                type: "assistant",
+                contents: { kind: "tool_result", iteration: 1, results: [{ toolCallId: "call-1", tool: "bash", success: true, output: "ok" }] },
+                createdat: new Date("2026-05-31T00:00:01.000Z"),
+                projectname: "project",
+                title: "recall session"
+              }
+            ],
+            rowCount: 2
+          } as never;
+        },
+        async close() {}
+      }
+    }
+  );
+
+  assert.equal(result.success, true);
+  const output = JSON.parse(result.output) as { mode: string; scope: { type: string }; rows: Array<{ dataid: string; text?: string; contents: unknown }> };
+  assert.equal(output.mode, "recall");
+  assert.equal(output.scope.type, "session");
+  assert.deepEqual(output.rows.map((row) => row.dataid), ["4", "5"]);
+  assert.equal(output.rows[0].text, "원문 요청");
+  assert.match(output.rows[1].text ?? "", /bash\(call-1\) succeeded/);
+  assert.match(queries[0].text, /FROM sessiondata sd/);
+  assert.match(queries[0].text, /sd\.dataid >= \$2::bigint/);
+  assert.deepEqual(queries[0].values, ["018f0000-0000-7000-8000-000000000000", "4", "6", 50]);
+  assert.match((sidebarItems[0] as { body?: string }).body ?? "", /2개 원문 행 · session · recall/);
+});
+
 test("tool registry can filter tools by session allowlist", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-tools-"));
   const tools = await listAvailableTools({

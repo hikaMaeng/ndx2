@@ -1,5 +1,6 @@
 import { readAgentRuntimeSettings, type NDXAgentRuntimeSettings } from "../runtime-settings/index.js";
 import { serverContainerUserHome, serverWorkspaceProjectPath } from "../../common/server-path/index.js";
+import { sessionDataText } from "./content.js";
 import { normalizeInternalRequestMarkers } from "./requestText.js";
 import type { NDXDatabase, NDXSessionDataRow } from "./types.js";
 
@@ -59,6 +60,33 @@ export type NDXSessionHistorySearchResult = {
       rank?: number;
       lexical?: number;
     };
+  }>;
+};
+
+export type NDXSessionHistoryRecallInput = {
+  scope: NDXSessionHistoryScope;
+  dataid?: string;
+  startDataId?: string;
+  endDataId?: string;
+  limit?: number;
+};
+
+export type NDXSessionHistoryRecallResult = {
+  mode: "recall";
+  scope: NDXSessionHistoryScope;
+  dataid?: string;
+  startDataId?: string;
+  endDataId?: string;
+  rows: Array<{
+    dataid: string;
+    sessionid: string;
+    projectname?: string;
+    path?: string;
+    title?: string;
+    type: string;
+    createdat: string;
+    text?: string;
+    contents: unknown;
   }>;
 };
 
@@ -144,6 +172,18 @@ export async function searchSessionHistory(database: NDXDatabase, input: NDXSess
     query,
     embedding: embeddingStatus,
     results: formatSessionHistoryRows(await selectSessionHistoryRows(database, input.scope, limit, query))
+  };
+}
+
+export async function recallSessionHistory(database: NDXDatabase, input: NDXSessionHistoryRecallInput): Promise<NDXSessionHistoryRecallResult> {
+  const limit = Math.min(Math.max(input.limit ?? 50, 1), 200);
+  return {
+    mode: "recall",
+    scope: input.scope,
+    ...(input.dataid ? { dataid: input.dataid } : {}),
+    ...(input.startDataId ? { startDataId: input.startDataId } : {}),
+    ...(input.endDataId ? { endDataId: input.endDataId } : {}),
+    rows: formatSessionHistoryRecallRows(await selectSessionHistoryRecallRows(database, input, limit))
   };
 }
 
@@ -303,6 +343,67 @@ function formatSessionHistoryRows(rows: NDXSessionSearchRow[]): NDXSessionHistor
       }
     } : {})
   }));
+}
+
+async function selectSessionHistoryRecallRows(
+  database: NDXDatabase,
+  input: NDXSessionHistoryRecallInput,
+  limit: number
+): Promise<Array<NDXSessionDataRow & { projectname?: string; title?: string }>> {
+  const values: unknown[] = [];
+  const where: string[] = [];
+  if (input.scope.type === "project") {
+    values.push(input.scope.projectname);
+    where.push(`s.projectname = $${values.length}`);
+  }
+  if (input.scope.type === "session") {
+    values.push(input.scope.sessionid);
+    where.push(`sd.sessionid = $${values.length}::uuid`);
+  }
+  if (input.dataid) {
+    values.push(input.dataid);
+    where.push(`sd.dataid = $${values.length}::bigint`);
+  } else {
+    if (input.startDataId) {
+      values.push(input.startDataId);
+      where.push(`sd.dataid >= $${values.length}::bigint`);
+    }
+    if (input.endDataId) {
+      values.push(input.endDataId);
+      where.push(`sd.dataid <= $${values.length}::bigint`);
+    }
+  }
+  values.push(limit);
+  const result = await database.query<NDXSessionDataRow & { projectname?: string; title?: string }>(
+    `
+SELECT sd.dataid::text AS dataid, sd.sessionid::text AS sessionid, sd.type, sd.contents, sd.createdat,
+       s.projectname::text AS projectname, s.title
+FROM sessiondata sd
+JOIN "session" s ON s.sessionid = sd.sessionid
+WHERE ${where.join(" AND ")}
+ORDER BY sd.dataid ASC
+LIMIT $${values.length};
+`,
+    values
+  );
+  return result.rows;
+}
+
+function formatSessionHistoryRecallRows(rows: Array<NDXSessionDataRow & { projectname?: string; title?: string }>): NDXSessionHistoryRecallResult["rows"] {
+  return rows.map((row) => {
+    const text = sessionDataText(row);
+    return {
+      dataid: String(row.dataid),
+      sessionid: String(row.sessionid),
+      ...(row.projectname ? { projectname: row.projectname } : {}),
+      ...(row.projectname ? { path: serverWorkspaceProjectPath(row.projectname) } : {}),
+      ...(row.title ? { title: row.title } : {}),
+      type: row.type,
+      createdat: row.createdat instanceof Date ? row.createdat.toISOString() : String(row.createdat),
+      ...(text ? { text } : {}),
+      contents: row.contents
+    };
+  });
 }
 
 export async function embedSessionSearchText(settings: NonNullable<NDXAgentRuntimeSettings["embeddings"]>, text: string): Promise<number[]> {

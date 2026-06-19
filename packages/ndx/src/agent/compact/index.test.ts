@@ -105,6 +105,23 @@ test("appendCompactSessionHistory throw fallback mode surfaces compact model fai
   assert.deepEqual(rows.map((item) => item.dataid), ["1", "2"]);
 });
 
+test("appendCompactSessionHistory fallback preserves recallable dataid range anchors", async () => {
+  const rows: NDXSessionDataRow[] = [
+    row("1", "user", { kind: "user_message", text: "packages/ndx/src/agent/compact/index.ts 오류를 고쳐줘" }),
+    row("2", "assistant", { kind: "tool_call", iteration: 1, toolCalls: [{ type: "function_call", call_id: "call-1", name: "bash", arguments: "{\"cmd\":\"yarn test\"}" }] }),
+    row("3", "assistant", { kind: "tool_result", iteration: 1, results: [{ toolCallId: "call-1", tool: "bash", success: false, output: "test failed" }] }),
+    row("4", "assistant", { kind: "assistant_message", text: "테스트 실패를 확인했고 수정이 필요합니다." })
+  ];
+  const database = memorySessionDataDatabase(rows);
+  const compact = await appendCompactSessionHistory(database, session(), compactReport(), rows, modelWithoutProvider());
+
+  assert.match(compact.text, /\[dataid:1-4\]/);
+  assert.match(compact.text, /session_history \{"mode":"recall","scope":"session","startDataId":"1","endDataId":"4"\}/);
+  assert.match(compact.text, /Failed tool results: bash call-1/);
+  assert.equal((compact.row.contents as { sourceStartDataId?: string }).sourceStartDataId, "1");
+  assert.equal((compact.row.contents as { sourceEndDataId?: string }).sourceEndDataId, "4");
+});
+
 test("compactReplayContents preserves rows after an iteration compact without making them compact source", () => {
   const replay = compactReplayContents([
     row("4", "user", { kind: "user_message", text: "current request" }),

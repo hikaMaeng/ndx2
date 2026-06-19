@@ -7,6 +7,12 @@ Docker Compose.
 App deployment builds and recreates only the requested app service. PostgreSQL
 runs inside the agent container from the prebuilt pgvector base image.
 
+The agent image preinstalls the runtime toolchain that NDX sessions and copied
+project skills expect: Yarn through Corepack, Docker CLI/Compose plugin,
+Chromium, global Playwright packages, Korean/emoji fonts, and standard
+shell/network utilities. These tools are image-owned runtime capabilities, not
+per-project dependencies installed during a turn.
+
 Current local commands:
 
 | Command | Purpose |

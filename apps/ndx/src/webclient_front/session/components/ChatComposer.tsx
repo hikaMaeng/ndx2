@@ -231,7 +231,7 @@ export function ChatComposer({
               <span>Rewrite</span>
             </button>
             <label
-              className={cotSolveSteps ? "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-cyan-400/50 bg-cyan-400/10 px-2 text-xs font-medium text-cyan-100 transition-colors focus-within:border-cyan-300 disabled:pointer-events-none disabled:opacity-45" : "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-zinc-800 bg-zinc-950 px-2 text-xs font-medium text-zinc-400 transition-colors focus-within:border-zinc-600 focus-within:text-zinc-100"}
+              className={cotSolveSteps ? "inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-cyan-400/50 bg-cyan-400/10 px-1.5 text-xs font-medium text-cyan-100 transition-colors focus-within:border-cyan-300" : "inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-zinc-800 bg-zinc-950 px-1.5 text-xs font-medium text-zinc-400 transition-colors focus-within:border-zinc-600 focus-within:text-zinc-100"}
               htmlFor={cotSolveInputId}
               title={cotSolveSteps ? `$cot-solve ${cotSolveSteps}` : "$cot-solve"}
             >
@@ -239,7 +239,7 @@ export function ChatComposer({
               <input
                 id={cotSolveInputId}
                 name="cotSolveSteps"
-                className="h-6 w-12 rounded-full border border-transparent bg-transparent px-1 text-center text-xs text-inherit outline-none [appearance:textfield] placeholder:text-zinc-600 disabled:pointer-events-none disabled:opacity-45 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                className="h-6 w-7 rounded-full border border-transparent bg-transparent p-0 text-center text-xs text-inherit outline-none [appearance:textfield] placeholder:text-zinc-600 disabled:pointer-events-none disabled:opacity-45 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                 type="number"
                 min={1}
                 step={1}

@@ -29,4 +29,4 @@ one-line summary
 * UI packages document markup and locator contracts in `constraints` and `testing`
 * README stays short
 * comments anchor docs
-* JSDoc present
+* JSDoc present only where exported API contracts need it

@@ -5,7 +5,7 @@ description: Run headless browser smoke and E2E tests for scaffolded web service
 
 # Headless Browser Test
 
-Use scripts first. Keep prompts short; let the checked scripts enforce browser setup, URL handling, artifacts, trace capture, and report shape.
+Use scripts first. This skill is for the NDX agent running inside its Docker runtime to test a project created or managed by NDX. Keep prompts short; let the checked scripts enforce browser setup, URL handling, artifacts, trace capture, and report shape.
 
 ## Default Flow
 
@@ -13,20 +13,26 @@ Use scripts first. Keep prompts short; let the checked scripts enforce browser s
 2. Run the environment check in the same environment that will execute the browser test before installing or changing dependencies:
 
 ```sh
-sh .codex/skills/headless-browser-test/scripts/check-headless-browser-env.sh
+sh .ndx/skills/headless-browser-test/scripts/check-headless-browser-env.sh
 ```
 
 3. Run a smoke test:
 
 ```sh
-node .codex/skills/headless-browser-test/scripts/run-headless-browser-test.mjs --url <url>
+node .ndx/skills/headless-browser-test/scripts/run-headless-browser-test.mjs --url <url>
 ```
 
-4. For real E2E, write a small JSON scenario and run it with `--spec`.
-5. If the user asks for durable repository tests, generate a Playwright template and fill only the marked TODOs:
+4. Verify the target URL from inside the NDX container before assuming host networking:
 
 ```sh
-sh .codex/skills/headless-browser-test/scripts/write-playwright-e2e-template.sh test/e2e
+curl -fsS <url> >/dev/null
+```
+
+5. For real E2E, write a small JSON scenario and run it with `--spec`.
+6. If the user asks for durable repository tests, generate a Playwright template and fill only the marked TODOs:
+
+```sh
+sh .ndx/skills/headless-browser-test/scripts/write-playwright-e2e-template.sh test/e2e
 ```
 
 ## Load Only What You Need
@@ -38,7 +44,9 @@ sh .codex/skills/headless-browser-test/scripts/write-playwright-e2e-template.sh 
 ## Hard Rules
 
 * Do not run `playwright install`, change package dependencies, or edit `yarn.lock` until `check-headless-browser-env.sh` proves the runtime is missing.
-* A host-side check failure does not prove the ndx Docker image is missing packages. Confirm the execution context before reporting missing runtime.
+* This skill expects `runtime: ndx-container`. If it is running on the Codex host, use the `.codex` headless-browser-test skill instead.
+* Missing Chromium or Playwright inside `runtime: ndx-container` is an agent image problem, not a generated-project dependency problem.
+* Do not let automatic `localhost` rewriting change the security model of the page. If browser APIs such as `crypto.randomUUID` require a secure local origin, use `--preserve-localhost`.
 * Test rendered behavior that a user can see or operate. Do not assert implementation details.
 * Prefer role/name, label, text, alt text, title, and test id locators. Use CSS/XPath only when no stable user-facing or documented test hook exists.
 * Keep tests isolated. Do not rely on execution order, shared browser storage, or state left by a previous test.

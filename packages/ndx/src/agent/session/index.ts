@@ -34,11 +34,19 @@ export {
   NDX_SESSION_SEARCH_EMBEDDING_DIMENSIONS,
   NDX_SESSION_SEARCH_HNSW_DIMENSIONS,
   embedSessionSearchText,
+  recallSessionHistory,
   recordSessionSearchFromSessionData,
   searchSessionHistory,
   sessionSearchText
 } from "./sessionSearch.js";
-export type { NDXSessionHistoryScope, NDXSessionHistorySearchInput, NDXSessionHistorySearchResult, NDXSessionSearchRow } from "./sessionSearch.js";
+export type {
+  NDXSessionHistoryRecallInput,
+  NDXSessionHistoryRecallResult,
+  NDXSessionHistoryScope,
+  NDXSessionHistorySearchInput,
+  NDXSessionHistorySearchResult,
+  NDXSessionSearchRow
+} from "./sessionSearch.js";
 export type {
   NDXModelMessage,
   NDXModelConfig,

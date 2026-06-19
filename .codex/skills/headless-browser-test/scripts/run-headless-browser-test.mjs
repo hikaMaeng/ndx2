@@ -9,6 +9,10 @@ function argValue(name) {
   return index >= 0 ? process.argv[index + 1] : undefined;
 }
 
+function hasFlag(name) {
+  return process.argv.includes(name);
+}
+
 function todayStamp() {
   const now = new Date();
   const pad = (value) => String(value).padStart(2, "0");
@@ -20,7 +24,8 @@ function todayStamp() {
 
 function browserUrl(input) {
   const parsed = new URL(input);
-  if (["localhost", "127.0.0.1"].includes(parsed.hostname) && process.env.NDX_ROOT) {
+  const preserveLocalhost = hasFlag("--preserve-localhost") || process.env.HEADLESS_BROWSER_PRESERVE_LOCALHOST === "1";
+  if (!preserveLocalhost && ["localhost", "127.0.0.1"].includes(parsed.hostname) && process.env.NDX_ROOT) {
     parsed.hostname = "host.docker.internal";
   }
   return parsed.toString();
@@ -47,7 +52,7 @@ async function loadPlaywright() {
 }
 
 function usage() {
-  console.error("Usage: run-headless-browser-test.mjs --url <url> [--spec scenario.json] [--out dir]");
+  console.error("Usage: run-headless-browser-test.mjs --url <url> [--spec scenario.json] [--out dir] [--preserve-localhost]");
 }
 
 const urlArg = argValue("--url");
@@ -80,7 +85,9 @@ const result = {
   status: "passed",
   mode: specPath ? "scenario" : "smoke",
   startedAt: new Date().toISOString(),
+  inputUrl: urlArg,
   testedUrl,
+  preserveLocalhost: hasFlag("--preserve-localhost") || process.env.HEADLESS_BROWSER_PRESERVE_LOCALHOST === "1",
   finalUrl: "",
   title: "",
   mainPresent: false,
@@ -171,7 +178,9 @@ const markdown = [
   ``,
   `- status: ${result.status}`,
   `- mode: ${result.mode}`,
+  `- inputUrl: ${result.inputUrl}`,
   `- testedUrl: ${result.testedUrl}`,
+  `- preserveLocalhost: ${result.preserveLocalhost}`,
   `- finalUrl: ${result.finalUrl}`,
   `- documentStatus: ${result.documentStatus ?? "unknown"}`,
   `- title: ${result.title || "(empty)"}`,
