@@ -9,7 +9,7 @@ NDX는 웹 서버가 에이전트 세션 서버, 세션 웹 클라이언트, 설
 | 1 | Docker Desktop 또는 Docker Engine을 준비한다. | 에이전트 컨테이너가 내부 PostgreSQL/pgvector와 웹 서버를 함께 실행할 수 있어야 한다. |
 | 2 | `npm install -g @neurondev/ndx2` 또는 `npx ndx2`를 실행한다. | npm 런처가 `~/.ndx2/docker-compose.yml`과 초기화 상태를 만든다. |
 | 3 | ndx root volume 경로를 선택한다. | 선택 경로는 컨테이너의 `/ndx`에 바인드되고, 워크스페이스/로그/DB 데이터가 이 하위에 생긴다. |
-| 4 | 런처가 GHCR 이미지를 시작한다. | `apps/ndx/docker/Dockerfile`로 만든 agent image가 `ghcr.io/hikamaeng/ndx2-pgvector:<version>` 기반에서 뜬다. |
+| 4 | 런처가 GHCR 이미지를 시작한다. | `apps/ndx/docker/Dockerfile`로 만든 `ghcr.io/hikamaeng/ndx2-agent:<version>` 단일 이미지가 뜬다. |
 | 5 | 출력된 Agent URL을 연다. | Express 서버가 Vite 빌드된 웹 클라이언트를 제공하고 `/session` WebSocket을 받는다. |
 
 개발 저장소에서 직접 실행하는 흐름은 다음 명령을 기준으로 한다.
@@ -45,6 +45,6 @@ npm run deploy -- apps/ndx
 | 모델 응답 없음 | 모델 설정 URL/token/model name |
 | 세션 복구 이상 | `session`, `sessiondata`, `runtimedata` 테이블 |
 | 도구 실행 실패 | `/ndx/.ndx/log/session/<sessionid>/YYYYMMDD.log` |
-| PostgreSQL 초기화 실패 | `/ndx/pgvector/pgdata` 권한과 pgvector base image |
+| PostgreSQL 초기화 실패 | `/ndx/pgvector/pgdata` 권한과 runtime-base image |
 
 NDX의 설치 문서는 단순 사용법으로 끝나면 안 된다. 사용자가 보는 화면, 세션 서버가 소유하는 권한, 컨테이너 내부 데이터 위치가 하나의 실행 흐름으로 연결되어야 한다.

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-repo_root="$(cd "$script_dir/.." && pwd)"
+repo_root="$(cd "$script_dir/../../.." && pwd)"
 
 default_owner="hikamaeng"
 if command -v git >/dev/null 2>&1; then
@@ -40,15 +40,19 @@ docker buildx use ndx2-multiarch >/dev/null
 
 printf '%s' "$token" | docker login ghcr.io -u "$username" --password-stdin
 
-image="ghcr.io/$owner/ndx2-runtime-base:$version"
+runtime_base_image="ghcr.io/$owner/ndx2-runtime-base:$version"
+agent_image="ghcr.io/$owner/ndx2-agent:$version"
+
+docker buildx imagetools inspect "$runtime_base_image" >/dev/null
 
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  -f "$script_dir/Dockerfile.pgvector" \
-  -t "$image" \
+  -f "$script_dir/Dockerfile" \
+  --build-arg "NDX2_RUNTIME_BASE_IMAGE=$runtime_base_image" \
+  -t "$agent_image" \
   --push \
-  "$script_dir"
+  "$repo_root"
 
-docker buildx imagetools inspect "$image" >/dev/null
+docker buildx imagetools inspect "$agent_image" >/dev/null
 
-echo "Published $image"
+echo "Published $agent_image"

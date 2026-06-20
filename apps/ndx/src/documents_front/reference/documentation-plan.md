@@ -67,7 +67,7 @@
 
 | 번호 | 작업 | 완료 조건 |
 | --- | --- | --- |
-| 28 | Docker image | agent image와 pgvector base image 설명. |
+| 28 | Docker image | agent image와 runtime-base image 설명. |
 | 29 | pgvector publish | GHCR publish script와 tag 정책 설명. |
 | 30 | npm release | npm launcher와 template compose 설명. |
 | 30.1 | pgvector publish | `pgvector/publish-ghcr.sh` multiarch publish 절차 설명. |

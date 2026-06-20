@@ -8,6 +8,7 @@ The compose stack uses one public GHCR runtime image:
 
 * `ghcr.io/hikamaeng/ndx2-agent:<version>`
 
-The agent image is built from the prebuilt PostgreSQL base image:
+The npm user pulls that single final image. Repository release builds create it
+from one source-image layer:
 
-* `ghcr.io/hikamaeng/ndx2-pgvector:<version>`
+* `ghcr.io/hikamaeng/ndx2-runtime-base:<version>`

@@ -47,9 +47,10 @@ For each npm package version, publish matching public GHCR tags first:
 
 * `ghcr.io/hikamaeng/ndx2-agent:<version>`
 
-The agent image is built from the separately managed pgvector base image:
+The npm compose template pulls only this final agent image. That image is built
+from one prebuilt source-image layer:
 
-* `ghcr.io/hikamaeng/ndx2-pgvector:<version>`
+* `ghcr.io/hikamaeng/ndx2-runtime-base:<version>`
 
-Only after those images are available should `@neurondev/ndx2@<version>` be
-published to npm.
+Only after both GHCR tags are public and immutable should
+`@neurondev/ndx2@<version>` be published to npmjs.

@@ -5,7 +5,7 @@ runs the required Yarn install check, builds the target service, and refreshes
 Docker Compose.
 
 App deployment builds and recreates only the requested app service. PostgreSQL
-runs inside the agent container from the prebuilt pgvector base image.
+runs inside the agent container from the prebuilt runtime-base image.
 
 The agent image preinstalls the runtime toolchain that NDX sessions and copied
 project skills expect: Yarn through Corepack, Docker CLI/Compose plugin,

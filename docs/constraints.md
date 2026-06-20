@@ -26,7 +26,7 @@ Product constraints:
 * Agent functionality is available only through the agent server session surface.
 * PostgreSQL is the only source of truth for session state and context history.
 * In-memory context assembled for a model request is temporary and must be rebuilt for every request from durable records.
-* PostgreSQL runs inside the agent container from `ghcr.io/hikamaeng/ndx2-pgvector:<version>`, with no external host port exposure and default account credentials `ndev/ndev`.
+* PostgreSQL runs inside the agent container from `ghcr.io/hikamaeng/ndx2-runtime-base:<version>`, with no external host port exposure and default account credentials `ndev/ndev`.
 * The DB working directory is `/ndx/pgvector/pgdata` in the container and `./volume/pgvector` under the host ndx root volume; this directory is intentionally ignored from version control.
 
 UI test contracts for frontend packages must document stable landmarks, accessible names, and approved test ids before relying on them in headless browser tests.

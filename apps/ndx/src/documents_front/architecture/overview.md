@@ -10,7 +10,7 @@ NDX는 TypeScript + Turbo monorepo다. 하나의 deployable app인 `apps/ndx`가
 | --- | --- |
 | `apps/ndx` | 배포 가능한 Express 서비스와 React UI composition. |
 | `packages/ndx` | agent, webclient, common domain contracts. |
-| `pgvector` | Korean text search 지원 pgvector base image 소스. |
+| `pgvector` | Korean text search, pgvector, Node/tooling runtime-base image 소스. |
 | `npm` | 최종 사용자용 Docker launcher 패키지. |
 | `docs` | durable product/runtime/operator 문서. |
 | `.codex/skills` | repo-local 작업 절차와 검증 가이드. |

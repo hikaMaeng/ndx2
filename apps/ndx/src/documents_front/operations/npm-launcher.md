@@ -23,7 +23,7 @@
 
 ## compose template
 
-Template compose는 `ghcr.io/hikamaeng/ndx2-agent:__IMAGE_TAG__`를 사용한다. 선택한 root volume은 `/ndx`에 bind mount되고, Docker socket도 agent container로 전달된다. 이 런처는 개발 저장소의 `docker-compose.yml`과 달리 npm 사용자용 standalone stack을 만든다.
+Template compose는 `ghcr.io/hikamaeng/ndx2-agent:__IMAGE_TAG__` 단일 이미지를 사용한다. 선택한 root volume은 `/ndx`에 bind mount되고, Docker socket도 agent container로 전달된다. 이 런처는 개발 저장소의 `docker-compose.yml`과 달리 npm 사용자용 standalone stack을 만든다.
 
 ## 설치 실패 지점
 
@@ -37,4 +37,4 @@ Template compose는 `ghcr.io/hikamaeng/ndx2-agent:__IMAGE_TAG__`를 사용한다
 
 ## 설계 이유
 
-NDX는 pgvector, Chromium, Docker CLI, Playwright runtime, Node runtime을 포함하는 복합 런타임이다. 사용자가 로컬 Node/Yarn/Turbo 빌드 체인을 모두 맞추게 하는 대신, npm 런처는 Docker stack을 만들고 browser URL만 알려준다. 이 방식은 개발자용 저장소 흐름과 최종 사용자 설치 흐름을 분리한다.
+NDX는 pgvector, Chromium, Docker CLI, Playwright runtime, Node runtime을 포함하는 복합 런타임이다. 릴리스 빌드는 이 느린 런타임을 하나의 runtime-base image로 사전에 굽고, npm 사용자는 그 위에 app artifact만 얹은 최종 agent image 하나를 실행한다. 사용자가 로컬 Node/Yarn/Turbo 빌드 체인을 모두 맞추게 하는 대신, npm 런처는 Docker stack을 만들고 browser URL만 알려준다. 이 방식은 개발자용 저장소 흐름과 최종 사용자 설치 흐름을 분리한다.

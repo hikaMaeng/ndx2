@@ -537,7 +537,7 @@ between hidden database state and the user-editable settings file.
 | 항목 | 값 |
 | --- | --- |
 | 서비스명 | `agent` |
-| 베이스 이미지 | `ghcr.io/hikamaeng/ndx2-pgvector:<version>` |
+| 베이스 이미지 | `ghcr.io/hikamaeng/ndx2-runtime-base:<version>` |
 | 컨테이너 | `agent` |
 | 사용자 | `ndev` |
 | 비밀번호 | `ndev` |

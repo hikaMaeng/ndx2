@@ -37,14 +37,23 @@ publish:
 
 * `ghcr.io/hikamaeng/ndx2-agent:<version>`
 
-The agent image is built from the separately managed pgvector base image:
+The npm launcher must reference only this final agent image. The final image is
+the single runtime image users pull and run.
 
-* `ghcr.io/hikamaeng/ndx2-pgvector:<version>`
+The final agent image is built from one prebuilt source-image layer:
 
-Each tag must be a multi-platform manifest for `linux/amd64` and `linux/arm64`.
-The npm compose template must reference the exact agent version tag. Do not
-publish an npm version that points at images that are missing, private, or still
-mutable.
+* `ghcr.io/hikamaeng/ndx2-runtime-base:<version>`
+
+`pgvector/Dockerfile.pgvector` is the source for this runtime-base image. It
+contains PostgreSQL/pgvector/Korean text search plus Node, Docker CLI,
+Chromium, Playwright, and shell-tool runtime libraries. The app Dockerfile at
+`apps/ndx/docker/Dockerfile` must stay thin: it starts from
+`ndx2-runtime-base:<version>` and copies prebuilt app artifacts only.
+
+Each GHCR tag must be a multi-platform manifest for `linux/amd64` and
+`linux/arm64`. The npm compose template must reference the exact final agent
+version tag. Do not publish an npm version that points at images that are
+missing, private, or still mutable.
 
 GHCR public packages are the default because public packages support anonymous
 pulls and avoid Docker Hub search/rate-policy coupling. If Docker Hub later
@@ -53,24 +62,29 @@ the same version/tag immutability rules are met.
 
 ## Release Order
 
-1. Run `bash pgvector/publish-ghcr.sh` when the pgvector base image must be
+1. Update `npm/package.json` to the release version.
+2. Run `bash pgvector/publish-ghcr.sh` when the runtime-base image must be
    created or refreshed for the target version.
-2. Build and push the agent GHCR image for the target version.
-3. Update `npm/package.json` to the release version.
+3. Run `bash apps/ndx/docker/publish-ghcr.sh` to build and push
+   `ndx2-agent:<version>`.
 4. Run `npm --prefix npm run check`.
-5. Publish from `npm/` to npmjs.
+5. Publish from `npm/` to npmjs. Do not publish to Verdaccio for public
+   releases.
 
 This keeps source pushes and npm distribution separate: GitHub users can clone
 and build, while npm users receive a Docker-only launcher.
 
 ## GitHub Actions
 
-`Publish GHCR Images` builds and pushes the `linux/amd64,linux/arm64` agent
-image to GHCR. It runs on `v*` tags or manual dispatch.
+`Publish GHCR Images` builds and pushes the `linux/amd64,linux/arm64`
+runtime-base and agent images to GHCR. It runs on `v*` tags or manual
+dispatch.
 
-`pgvector/publish-ghcr.sh` publishes the slow pgvector base image from local
-source after prompting for GHCR credentials. The script does not store tokens.
+`pgvector/publish-ghcr.sh` publishes the slow combined runtime-base image from
+local source after prompting for GHCR credentials. The script does not store
+tokens.
 
-`Publish npm Package` is manual. It verifies that the agent and pgvector GHCR
-image tags exist before publishing `npm/` to npmjs. Store the npm automation token as the
-repository secret `NPM_TOKEN`; never commit npm tokens to this repository.
+`Publish npm Package` is manual. It verifies that the agent and runtime-base
+GHCR image tags exist before publishing `npm/` to npmjs. Store the npm
+automation token as the repository secret `NPM_TOKEN`; never commit npm tokens
+to this repository.
