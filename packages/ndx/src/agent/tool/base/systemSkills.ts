@@ -11,7 +11,8 @@ const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
 export const NDX_SYSTEM_SKILL_ASSETS: NDXSystemSkillAsset[] = [
   systemSkillAsset("askUserQuestion", "ask_user_question"),
   systemSkillAsset("cot_work", "cot_solve"),
-  systemSkillAsset("session_history", "session_history")
+  systemSkillAsset("session_history", "session_history"),
+  systemSkillAsset("turnplan", "turnplan")
 ];
 
 function systemSkillAsset(toolDirectoryName: string, skillDirectoryName: string): NDXSystemSkillAsset {

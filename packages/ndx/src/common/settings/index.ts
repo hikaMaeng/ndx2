@@ -7,7 +7,7 @@ export const DEFAULT_NDX_SELFCHECK_INTERVAL_MS = 300_000;
 export const DEFAULT_NDX_SELFCHECK_BATCH_SIZE = 100;
 export const DEFAULT_NDX_SELFCHECK_MAX_LLM_ANALYSES_PER_RUN = 20;
 export const DEFAULT_NDX_SELFCHECK_MAX_EVIDENCE_CHARS = 12_000;
-export const SETTINGS_KNOWN_TOP_LEVEL_KEYS = new Set(["version", "model", "providers", "models", "embeddings", "runtime", "tools", "hooks", "websearch", "selfcheck"]);
+export const SETTINGS_KNOWN_TOP_LEVEL_KEYS = new Set(["version", "model", "providers", "models", "modeltype", "embeddings", "runtime", "tools", "hooks", "websearch", "selfcheck"]);
 
 export type NDXSettingsReasoningEffort = "low" | "medium" | "high";
 export type NDXSettingsModality = "text" | "image" | "file";
@@ -18,6 +18,7 @@ export type NDXSettingsDocument = {
   embeddings?: NDXSettingsEmbeddingSettings;
   providers?: Record<string, NDXSettingsProvider>;
   models?: Record<string, NDXSettingsModel>;
+  modeltype?: unknown;
   runtime?: Record<string, unknown>;
   tools?: Record<string, unknown>;
   hooks?: Record<string, unknown>;
@@ -199,6 +200,7 @@ export type NDXAgentRuntimeSettings = {
     maxLlmAnalysesPerRun: number;
     maxEvidenceChars: number;
   };
+  modeltype?: Record<string, string[]>;
 };
 
 export type NDXSettingsResolvedModelConfig = {
@@ -267,6 +269,7 @@ export function settingsDocumentToAgentRuntimeSettings(settings: NDXSettingsDocu
   const hooks = parseHookSettings(settings.hooks);
   const promptRewriteModel = promptRewriteModelSetting(settings.tools);
   const selfcheck = parseSelfcheckSettings(settings.selfcheck);
+  const modeltype = parseModelTypeSettings(settings.modeltype);
   const maxModelIterations = runtime && typeof runtime === "object" && !Array.isArray(runtime) ? runtime.maxModelIterations : undefined;
   const loopDetectionInterval = runtime && typeof runtime === "object" && !Array.isArray(runtime) ? runtime.loopDetectionInterval : undefined;
   const strictPrefixCache = runtime && typeof runtime === "object" && !Array.isArray(runtime) ? runtime.strictPrefixCache : undefined;
@@ -281,10 +284,22 @@ export function settingsDocumentToAgentRuntimeSettings(settings: NDXSettingsDocu
     ...(embeddings ? { embeddings } : {}),
     ...(hooks ? { hooks } : {}),
     ...(selfcheck ? { selfcheck } : {}),
+    ...(modeltype ? { modeltype } : {}),
     tools: {
       ...(promptRewriteModel ? { prompt_rewrite: { model: promptRewriteModel } } : {})
     }
   };
+}
+
+export function parseModelTypeSettings(value: unknown): Record<string, string[]> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const entries = Object.entries(value as Record<string, unknown>).flatMap(([key, raw]) => {
+    const name = key.trim();
+    if (!name || !Array.isArray(raw)) return [];
+    const models = [...new Set(raw.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean))];
+    return models.length > 0 ? [[name, models] as const] : [];
+  });
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 }
 
 export function defaultAgentRuntimeSettings(): NDXAgentRuntimeSettings {

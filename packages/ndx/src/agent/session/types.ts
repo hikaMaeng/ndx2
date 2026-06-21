@@ -25,6 +25,13 @@ export type NDXSessionRow = {
   lastupdated: Date;
   mode: NDXSessionMode;
   projectname: string;
+  parentsessionid?: string | null;
+  rootsessionid?: string;
+  createdbytoolcallid?: string | null;
+  createdbytoolname?: string | null;
+  subagenttype?: string | null;
+  subagentconfig?: Record<string, unknown>;
+  subagentstatus?: "none" | "created" | "running" | "completed" | "failed" | "interrupted";
   path: string;
   model: NDXModelConfig;
   isrunning: boolean;
@@ -56,6 +63,12 @@ export type NDXSessionCreateInput = {
   sessionid?: string;
   title?: string;
   mode?: NDXSessionMode;
+  parentsessionid?: string;
+  rootsessionid?: string;
+  createdbytoolcallid?: string;
+  createdbytoolname?: string;
+  subagenttype?: string;
+  subagentconfig?: Record<string, unknown>;
 };
 
 export function withSessionProjectPath<Row extends { projectname: string }>(row: Row): Row & { path: string } {

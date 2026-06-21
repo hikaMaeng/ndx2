@@ -19,6 +19,20 @@ export type SessionAttachmentDraft = {
   previewUrl?: string;
 };
 
+export type SubsessionBarState = {
+  id: string;
+  sessionid: string;
+  parentSessionid: string;
+  subagentType: string;
+  toolCallId?: string;
+  modeltype?: string;
+  assignedModelKey?: string;
+  parentcontext?: boolean;
+  status: "created" | "running" | "completed" | "failed" | "interrupted";
+  title?: string;
+  expanded: boolean;
+};
+
 export type SessionUiState = {
   chatInput: string;
   chatAttachments: SessionAttachmentDraft[];
@@ -30,6 +44,7 @@ export type SessionUiState = {
   turnFlows: TurnFlowState[];
   cotWork?: NDXCotWorkContents;
   requestQueue: NDXSessionRequestQueueItem[];
+  subsessions: SubsessionBarState[];
   requestQueueCollapsed: boolean;
   autoScrollEnabled: boolean;
   reportedContextUsage?: NDXAgentWebContextUsage;
@@ -55,6 +70,7 @@ export function createSessionUiState(): SessionUiState {
     chatMessages: [],
     turnFlows: [],
     requestQueue: [],
+    subsessions: [],
     requestQueueCollapsed: true,
     autoScrollEnabled: true,
     reportedContextUsage: undefined,

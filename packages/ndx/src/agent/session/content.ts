@@ -48,6 +48,30 @@ export function cotWorkReminderContents(iteration: number, sourceDataId: string,
   return { kind: "cot_work_reminder", iteration, sourceDataId, text };
 }
 
+export function parentContextContents(input: {
+  parentSessionid: string;
+  sourceStartDataId?: string;
+  sourceEndDataId?: string;
+  sourceRowCount: number;
+  text: string;
+}): NDXSessionDataContents {
+  return { kind: "parent_context", ...input };
+}
+
+export function subagentSessionContents(input: {
+  sessionid: string;
+  parentSessionid: string;
+  subagentType: string;
+  toolCallId?: string;
+  modeltype?: string;
+  assignedModelKey?: string;
+  parentcontext?: boolean;
+  status: "created" | "running" | "completed" | "failed" | "interrupted";
+  title?: string;
+}): NDXSessionDataContents {
+  return { kind: "subagent_session", ...input };
+}
+
 export function interruptContents(requestedAt: string): NDXSessionDataContents {
   return { kind: "interrupt", requestedAt };
 }
@@ -91,6 +115,12 @@ export function sessionDataText(row: Pick<NDXSessionDataRow, "type" | "contents"
   }
   if (contents.kind === "cot_work_reminder" && typeof contents.text === "string") {
     return contents.text;
+  }
+  if (contents.kind === "parent_context" && typeof contents.text === "string") {
+    return contents.text;
+  }
+  if (contents.kind === "subagent_session") {
+    return undefined;
   }
   if (contents.kind === NDX_COMPACT_CONTENT_KIND && typeof contents.text === "string") {
     return contents.text;

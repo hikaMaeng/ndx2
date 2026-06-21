@@ -69,6 +69,7 @@ export type UseSessionSocketControllerOptions = {
   applyRoutedSessionMessage: (message: SessionModelRoutedMessage, text: ProtocolEventUiText) => void;
   updateActiveUi: (update: (current: SessionUiState) => SessionUiState) => void;
   updateSessionUi: (key: string, update: (current: SessionUiState) => SessionUiState) => void;
+  upsertSessionModel: (session: NDXAgentWebSession) => void;
 };
 
 export type SessionSocketControllerActions = {

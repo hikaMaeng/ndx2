@@ -7,6 +7,7 @@ import type { SessionIdentityModel } from "./identity.js";
 import type { SessionRuntimeModel } from "./runtime.js";
 import type { SessionSidebarModel } from "./sidebar.js";
 import type { SessionViewportModel } from "./viewport.js";
+import type { SubsessionBarState } from "../uiState.js";
 
 export type SessionInstanceModel = {
   key: string;
@@ -19,6 +20,7 @@ export type SessionInstanceModel = {
   runtime: SessionRuntimeModel;
   sidebar: SessionSidebarModel;
   viewport: SessionViewportModel;
+  subsessions: SubsessionBarState[];
 };
 
 export type SessionModelSnapshot = Record<string, SessionInstanceModel>;

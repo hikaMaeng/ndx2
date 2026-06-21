@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { NDX_COT_WORK_CONTENT_KIND } from "../../common/protocol/index.js";
+import { createNDXSessionRequestQueueRegistry, sessionRequestQueueItemForSocket } from "../requestQue/index.js";
 import { executeToolCalls, listAvailableTools, toolSchemas } from "./index.js";
 import { createCotWorkAgentCallHandler } from "./base/cot_work/agentCall.js";
 import { NDX_SIDEBAR_ITEM_AGENTCALL_NAME } from "./execute/agentcall/index.js";
@@ -197,9 +198,83 @@ test("all builtin tool arg templates resolve against their own schema properties
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-tools-"));
   const tools = await listAvailableTools({ userHome: path.join(root, "user"), projectHome: path.join(root, "project") });
 
-  assert.deepEqual(tools.map((tool) => tool.name), ["askUserQuestion", "bash", "cot_work", "edit", "edit_lines", "getImage", "glob", "grep_search", "loadSkill", "read_file", "session_history", "web_fetch", "web_search", "write_file"]);
+  assert.deepEqual(tools.map((tool) => tool.name), ["agent", "askUserQuestion", "bash", "cot_work", "edit", "edit_lines", "getImage", "glob", "grep_search", "loadSkill", "read_file", "session_history", "turnplan", "web_fetch", "web_search", "write_file"]);
   assert.deepEqual(toolSchemas(tools).map((schema) => schema.name).filter((name) => name === "edit" || name === "edit_lines"), ["edit_lines"]);
   assert.ok(tools.every((tool) => tool.source === "builtin"));
+});
+
+test("turnplan function tool requires an active request queue bridge", async () => {
+  const result = await executeToolCall({ call_id: "turnplan_missing", name: "turnplan", arguments: JSON.stringify({ action: "list" }) });
+
+  assert.equal(result.success, false);
+  assert.match(result.output, /active session request queue/);
+});
+
+test("turnplan function tool expands work requests into reflection and summary queued turns", async () => {
+  const registry = createNDXSessionRequestQueueRegistry();
+  const sessionid = "018f0000-0000-7000-8000-000000000000";
+  const result = await executeToolCall(
+    {
+      call_id: "turnplan_plan",
+      name: "turnplan",
+      arguments: JSON.stringify({
+        action: "plan",
+        goal: "Ship turnplan",
+        requests: [{ text: "Implement queue support" }, { text: "Implement tool" }, { text: "Run tests" }]
+      })
+    },
+    {
+      sessionid,
+      sessionRequestQueueBridge: {
+        list: (nextSessionid) => registry.items(nextSessionid),
+        add: (input) => sessionRequestQueueItemForSocket(registry.insert(input)),
+        updateText: (nextSessionid, itemid, text) => {
+          const item = registry.updateText(nextSessionid, itemid, text);
+          return item ? sessionRequestQueueItemForSocket(item) : undefined;
+        },
+        delete: (nextSessionid, itemid) => registry.delete(nextSessionid, itemid),
+        clear: (nextSessionid) => registry.clear(nextSessionid)
+      }
+    }
+  );
+
+  assert.equal(result.success, true);
+  const items = registry.items(sessionid);
+  assert.equal(items.length, 6);
+  assert.deepEqual(items.map((item) => item.text.includes("turnplan reflection request") ? "reflection" : item.text.includes("turnplan final summary request") ? "summary" : item.text), [
+    "Implement queue support",
+    "reflection",
+    "Implement tool",
+    "reflection",
+    "Run tests",
+    "summary"
+  ]);
+  assert.equal((result.outputValue as { added?: unknown[] }).added?.length, 6);
+});
+
+test("turnplan function tool lists, adds, updates, deletes, and clears queue items", async () => {
+  const registry = createNDXSessionRequestQueueRegistry();
+  const sessionid = "018f0000-0000-7000-8000-000000000001";
+  const bridge = {
+    list: (nextSessionid: string) => registry.items(nextSessionid),
+    add: (input: Parameters<typeof registry.insert>[0]) => sessionRequestQueueItemForSocket(registry.insert(input)),
+    updateText: (nextSessionid: string, itemid: string, text: string) => {
+      const item = registry.updateText(nextSessionid, itemid, text);
+      return item ? sessionRequestQueueItemForSocket(item) : undefined;
+    },
+    delete: (nextSessionid: string, itemid: string) => registry.delete(nextSessionid, itemid),
+    clear: (nextSessionid: string) => registry.clear(nextSessionid)
+  };
+
+  const add = await executeToolCall({ name: "turnplan", arguments: JSON.stringify({ action: "add", text: "first", position: { type: "front" } }) }, { sessionid, sessionRequestQueueBridge: bridge });
+  const itemid = ((add.outputValue as { added: Array<{ itemid: string }> }).added[0]!).itemid;
+  await executeToolCall({ name: "turnplan", arguments: JSON.stringify({ action: "update", itemid, text: "changed" }) }, { sessionid, sessionRequestQueueBridge: bridge });
+  let list = await executeToolCall({ name: "turnplan", arguments: JSON.stringify({ action: "list" }) }, { sessionid, sessionRequestQueueBridge: bridge });
+  assert.deepEqual((list.outputValue as { items: Array<{ text: string }> }).items.map((item) => item.text), ["changed"]);
+
+  await executeToolCall({ name: "turnplan", arguments: JSON.stringify({ action: "delete", itemid }) }, { sessionid, sessionRequestQueueBridge: bridge });
+  list = await executeToolCall({ name: "turnplan", arguments: JSON.stringify({ action: "clear" }) }, { sessionid, sessionRequestQueueBridge: bridge });
+  assert.deepEqual((list.outputValue as { items: unknown[] }).items, []);
 });
 
 test("session_history function tool returns structured history search results", async () => {

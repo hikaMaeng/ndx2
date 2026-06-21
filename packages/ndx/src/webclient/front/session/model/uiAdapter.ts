@@ -14,6 +14,7 @@ export function sessionModelToUiState(model: SessionInstanceModel): SessionUiSta
     turnFlows: model.history.turns,
     cotWork: model.runtime.cotWork,
     requestQueue: model.runtime.requestQueue,
+    subsessions: model.subsessions,
     requestQueueCollapsed: model.runtime.requestQueueCollapsed,
     autoScrollEnabled: model.viewport.autoScrollEnabled,
     reportedContextUsage: model.runtime.contextUsage,
@@ -70,6 +71,7 @@ export function sessionModelWithUiState(model: SessionInstanceModel, ui: Session
       ...model.viewport,
       autoScrollEnabled: ui.autoScrollEnabled,
       chatScrollTop: ui.chatScrollTop
-    }
+    },
+    subsessions: ui.subsessions
   };
 }

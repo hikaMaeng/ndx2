@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createCotWorkTimingTracker } from "./timing.js";
+import { completeCotWorkContents, createCotWorkTimingTracker } from "./timing.js";
 
 test("cot work timing assigns the update interval to every newly completed step", () => {
   const originalNow = Date.now;
@@ -88,4 +88,22 @@ test("cot work timing preserves unfinished step status at turn completion", () =
   } finally {
     Date.now = originalNow;
   }
+});
+
+test("completeCotWorkContents finalizes elapsed time from a durable cot_work row", () => {
+  const completed = completeCotWorkContents({
+    kind: "cot_work",
+    steps: [
+      { task: "one", status: "completed", elapsed: "00:10", elapsedMs: 10_000 },
+      { task: "two", status: "in_progress", elapsed: "00:20", elapsedMs: 20_000 },
+      { task: "three", status: "pending", elapsed: "00:00", elapsedMs: 0 }
+    ],
+    totalElapsed: "00:30",
+    totalElapsedMs: 30_000,
+    timingUpdatedAt: "2026-05-31T00:00:00.000Z"
+  }, Date.parse("2026-05-31T00:00:15.000Z"));
+
+  assert.deepEqual(completed.steps.map((step) => step.elapsed), ["00:10", "00:35", "00:00"]);
+  assert.equal(completed.totalElapsed, "00:45");
+  assert.equal(completed.timingUpdatedAt, "2026-05-31T00:00:15.000Z");
 });

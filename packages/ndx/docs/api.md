@@ -21,6 +21,7 @@ Public exports:
 | `ndx/agent/selfcheck` | Agent self-check run/candidate/check persistence and execution. |
 | `ndx/agent/chat` | Chat folder/session persistence and chat turn authority. |
 | `ndx/agent/turnloop` | Agent turn orchestration boundary. |
+| `ndx/agent/requestQue` | Per-session request queue domain and bridge contracts. |
 | `ndx/agent/tool` | Tool registry and execution boundary. |
 | `ndx/agent/hook` | Hook plan/runtime boundary. |
 | `ndx/agent/context` | Agent context construction and skill metadata loading. |
@@ -147,8 +148,19 @@ No server-only initialization or database API is exported from this runtime-neut
 | --- | --- |
 | `runAgentTurn(database, session, request, model?, events?)` | Runs one agent turn against durable session state. |
 | `runAgentTurnWithCompactContinuation(...)` | Runs a turn and performs one bounded continuation after compaction. |
+| `runAgentTurnWithAfterResponseTriggers(...)` | Runs the current turn, then returns an optional launch handle for post-response queued work scheduled on a later macrotask. |
+| `runQueuedAgentTurns(...)` | Claims one queued request for an idle session and returns an optional launch handle for the scheduled turn. |
 | `buildTurnMessageParts(database, session)` | Builds developer, user prelude, and history message parts for context usage and request assembly. |
 | `requestRuntimeTurnInterrupt(state, reason?)` | Requests model/tool interruption for a running turn state. |
+
+## `ndx/agent/requestQue`
+
+| API | Purpose |
+| --- | --- |
+| `createNDXSessionRequestQueueRegistry()` | Creates the per-process queue registry used by the socket server. |
+| `NDXSessionRequestQueueEditBridge` | Queue list/add/update/delete/clear authority for clients and tools. |
+| `NDXSessionRequestQueueConsumerBridge` | Queue claim/release/complete authority for the base `turn.end` hook and root turn-loop launcher. |
+| `sessionRequestQueueItemForSocket(item)` | Projects an internal queue item to the shared socket DTO. |
 
 ## `ndx/agent/tool`
 

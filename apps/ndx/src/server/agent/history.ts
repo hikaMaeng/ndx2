@@ -18,7 +18,11 @@ type SessionHistoryTurn = {
 export async function buildSessionHistorySummary(database: NDXDatabase, session: NDXSessionRow) {
   const turns = await listSessionHistoryTurns(database, session.sessionid);
   const leadingCompactEvents = await listLeadingCompactEvents(database, session);
-  const visibleEvents = [...leadingCompactEvents, ...turns.flatMap((turn) => turn.finalEvent ? [turn.inputEvent, turn.finalEvent] : [turn.inputEvent])];
+  const visibleEvents = [...leadingCompactEvents, ...turns.flatMap((turn) => [
+    turn.inputEvent,
+    ...turn.events.filter((event) => event.event === NDX_TURN_EVENT.SubagentSession),
+    ...(turn.finalEvent ? [turn.finalEvent] : [])
+  ])];
   return {
     visibleEvents,
     turns: turns.map((turn) => ({ ...turn.summary, iterations: [] })),

@@ -264,6 +264,7 @@ export type NDXSessionEventMessage = {
 
 export type NDXSessionEventSessionState = {
   isrunning: boolean;
+  session?: Omit<NDXSessionCreatedMessage, "type" | "initialInputAccepted">;
 };
 
 export type NDXSessionSidebarItemMessage = {

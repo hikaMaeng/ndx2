@@ -69,7 +69,8 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
     socketRef,
     t,
     updateActiveUi,
-    updateSessionUi
+    updateSessionUi,
+    upsertSessionModel
   } = options;
   const { attachSession, liveSessionIdsRef } = runtime;
 
@@ -211,6 +212,9 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
 
   const onSessionEvent = (message: NDXSessionEventMessage) => {
     clearSessionError();
+    if (message.sessionState?.session) {
+      upsertSessionModel(message.sessionState.session);
+    }
     liveSessionIdsRef.current.add(message.sessionid);
     const isActiveSessionEvent = message.sessionid === activeSessionIdRef.current;
     const interruptRejectedOrStored = message.event === NDX_TURN_EVENT.Interrupted && !interruptWasAccepted(message.contents);

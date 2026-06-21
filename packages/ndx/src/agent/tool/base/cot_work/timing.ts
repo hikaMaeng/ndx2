@@ -10,6 +10,27 @@ export type NDXCotWorkTimingTracker = {
   complete: () => NDXCotWorkContents | undefined;
 };
 
+export function completeCotWorkContents(contents: NDXCotWorkContents, now = Date.now()): NDXCotWorkContents {
+  const previousUpdatedAt = Date.parse(contents.timingUpdatedAt ?? "");
+  const elapsedSinceUpdate = Number.isFinite(previousUpdatedAt) ? Math.max(0, now - previousUpdatedAt) : 0;
+  const steps = contents.steps.map((step) => {
+    const elapsedMs = (step.elapsedMs ?? 0) + (step.status === "in_progress" ? elapsedSinceUpdate : 0);
+    return {
+      ...step,
+      elapsed: formatNDXCotWorkElapsed(elapsedMs),
+      elapsedMs
+    };
+  });
+  const totalElapsedMs = (contents.totalElapsedMs ?? 0) + elapsedSinceUpdate;
+  return {
+    ...contents,
+    steps,
+    totalElapsed: formatNDXCotWorkElapsed(totalElapsedMs),
+    totalElapsedMs,
+    timingUpdatedAt: new Date(now).toISOString()
+  };
+}
+
 export function createCotWorkTimingTracker(): NDXCotWorkTimingTracker {
   let planStartedAt = 0;
   let lastUpdatedAt = 0;

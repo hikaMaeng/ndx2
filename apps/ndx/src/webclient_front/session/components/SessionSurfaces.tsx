@@ -25,6 +25,7 @@ type SessionSurfacesProps = {
   onQueueAdd: (cotSolveSteps: string) => void;
   onQueuedRequestDelete: (sessionid: string, itemid: string) => void;
   onQueuedRequestUpdate: (sessionid: string, itemid: string, text: string) => void;
+  onSubsessionToggle: (parentKey: string, sessionid: string, expanded: boolean) => void;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
   onUserMessageBranch: (sessionid: string, inputDataId: string) => void;
   onUserMessageDelete: (sessionid: string, inputDataId: string) => void;
@@ -58,6 +59,7 @@ export function SessionSurfaces({
   onQueueAdd,
   onQueuedRequestDelete,
   onQueuedRequestUpdate,
+  onSubsessionToggle,
   onSubmit,
   onUserMessageBranch,
   onUserMessageDelete,
@@ -88,6 +90,7 @@ export function SessionSurfaces({
         notice={ui.notice || notice}
         rewriteEnabled={session ? Boolean(rewriteEnabledBySession[session.sessionid]) : false}
         sessionError={ui.sessionError || sessionError}
+        sessionUiByKey={sessionUiByKey}
         t={t}
         submitPending={hasPendingAction(`session-submit:${key}`) || hasPendingAction("session-submit")}
         interruptPending={session ? hasPendingAction(`session-interrupt:${session.sessionid}`) || hasPendingAction("session-interrupt") : false}
@@ -105,6 +108,7 @@ export function SessionSurfaces({
         onQueueAdd={onQueueAdd}
         onQueuedRequestDelete={onQueuedRequestDelete}
         onQueuedRequestUpdate={onQueuedRequestUpdate}
+        onSubsessionToggle={onSubsessionToggle}
         onSubmit={onSubmit}
         onUserMessageBranch={onUserMessageBranch}
         onUserMessageDelete={onUserMessageDelete}

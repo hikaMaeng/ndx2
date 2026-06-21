@@ -239,7 +239,8 @@ export function MainSurface({
     onSkillListReceived: applySkillList,
     applyRoutedSessionMessage,
     updateActiveUi,
-    updateSessionUi
+    updateSessionUi,
+    upsertSessionModel
   });
   const sessionRequest = useSessionRequestController({
     activeProject,
@@ -316,6 +317,18 @@ export function MainSurface({
   const updateQueuedRequest = (sessionid: string, itemid: string, text: string) => {
     if (socketRef.current?.updateQueuedRequest(sessionid, itemid, text)) return;
     updateSessionUi(sessionid, (current) => ({ ...current, notice: t[RSC.APP_STATUS_SOCKET_REQUIRED_ALERT] }));
+  };
+  const toggleSubsession = (parentKey: string, sessionid: string, expanded: boolean) => {
+    updateSessionUi(parentKey, (current) => ({
+      ...current,
+      subsessions: current.subsessions.map((item) => item.sessionid === sessionid ? { ...item, expanded } : item)
+    }));
+    if (!expanded) return;
+    const parentSession = Object.values(sessionsByProject).flat().find((item) => item.sessionid === parentKey);
+    if (parentSession) {
+      socketRef.current?.attachSession({ projectName: parentSession.projectname, sessionid });
+    }
+    socketRef.current?.requestHistorySummary(sessionid);
   };
 
   React.useEffect(() => {
@@ -543,7 +556,7 @@ export function MainSurface({
 
   return (
     <>
-      <SessionSurfaces activeUiKey={activeUiKey} clientState={clientState} hasPendingAction={hasPendingAction} notice={notice} rewriteEnabledBySession={rewriteEnabledBySession} sessionError={sessionError} sessionsByProject={sessionsByProject} sessionUiByKey={sessionUiByKey} surfaceKeys={surfaceKeys} t={t} updateSessionUi={updateSessionUi} onOpenMenu={onOpenMenu} onChatScroll={(key, scrollTop) => updateSessionUi(key, (current) => ({ ...current, chatScrollTop: scrollTop }))} onDisableAutoScroll={(key) => updateSessionUi(key, (current) => ({ ...current, autoScrollEnabled: false }))} onDismissError={(key) => updateSessionUi(key, (current) => ({ ...current, sessionError: "" }))} onChatInputChange={(key, value) => updateSessionUi(key, (current) => ({ ...current, chatInput: value }))} onAddAttachments={addChatAttachments} onAttachmentRejected={(key, message) => updateSessionUi(key, (current) => ({ ...current, notice: message }))} onRemoveAttachment={removeChatAttachment} onModelClick={(key) => { activeUiKeyRef.current = key; modelDialog.setOpen(true); }} onRewriteToggle={toggleSessionRewrite} onSkillListRefresh={sessionSocket.refreshSkillList} onQueueAdd={sessionRequest.queueChatRequest} onQueuedRequestDelete={deleteQueuedRequest} onQueuedRequestUpdate={updateQueuedRequest} onSubmit={sessionRequest.submitChatRequest} onUserMessageBranch={createTurnBranch} onUserMessageDelete={deleteUserTurn} onTurnToggle={sessionSocket.toggleTurnDetail} onIterationToggle={sessionSocket.toggleIterationDetail} />
+      <SessionSurfaces activeUiKey={activeUiKey} clientState={clientState} hasPendingAction={hasPendingAction} notice={notice} rewriteEnabledBySession={rewriteEnabledBySession} sessionError={sessionError} sessionsByProject={sessionsByProject} sessionUiByKey={sessionUiByKey} surfaceKeys={surfaceKeys} t={t} updateSessionUi={updateSessionUi} onOpenMenu={onOpenMenu} onChatScroll={(key, scrollTop) => updateSessionUi(key, (current) => ({ ...current, chatScrollTop: scrollTop }))} onDisableAutoScroll={(key) => updateSessionUi(key, (current) => ({ ...current, autoScrollEnabled: false }))} onDismissError={(key) => updateSessionUi(key, (current) => ({ ...current, sessionError: "" }))} onChatInputChange={(key, value) => updateSessionUi(key, (current) => ({ ...current, chatInput: value }))} onAddAttachments={addChatAttachments} onAttachmentRejected={(key, message) => updateSessionUi(key, (current) => ({ ...current, notice: message }))} onRemoveAttachment={removeChatAttachment} onModelClick={(key) => { activeUiKeyRef.current = key; modelDialog.setOpen(true); }} onRewriteToggle={toggleSessionRewrite} onSkillListRefresh={sessionSocket.refreshSkillList} onQueueAdd={sessionRequest.queueChatRequest} onQueuedRequestDelete={deleteQueuedRequest} onQueuedRequestUpdate={updateQueuedRequest} onSubsessionToggle={toggleSubsession} onSubmit={sessionRequest.submitChatRequest} onUserMessageBranch={createTurnBranch} onUserMessageDelete={deleteUserTurn} onTurnToggle={sessionSocket.toggleTurnDetail} onIterationToggle={sessionSocket.toggleIterationDetail} />
       <ModalPortal>
         {sessionRename.dialog}
         {modelDialog.dialog}

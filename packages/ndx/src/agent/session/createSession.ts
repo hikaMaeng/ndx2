@@ -9,17 +9,26 @@ export async function createSession(database: NDXDatabase, input: NDXSessionCrea
     model: input.model.model
   });
   const projectname = normalizeWorkspaceProjectName(input.projectname);
+  const sessionid = input.sessionid ?? uuid7();
+  const rootsessionid = input.rootsessionid ?? input.parentsessionid ?? sessionid;
   const result = await database.query<NDXSessionRow>(
     `
-INSERT INTO "session" (sessionid, title, mode, projectname, model)
-VALUES ($1, $2, $3, $4, $5::jsonb)
-RETURNING sessionid, title, lastupdated, mode, projectname, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, runtimedata;
+INSERT INTO "session" (sessionid, title, mode, projectname, parentsessionid, rootsessionid, createdbytoolcallid, createdbytoolname, subagenttype, subagentconfig, subagentstatus, model)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12::jsonb)
+RETURNING sessionid, title, lastupdated, mode, projectname, parentsessionid, rootsessionid, createdbytoolcallid, createdbytoolname, subagenttype, subagentconfig, subagentstatus, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, runtimedata;
 `,
     [
-      input.sessionid ?? uuid7(),
+      sessionid,
       input.title ?? "",
       input.mode ?? "none",
       projectname,
+      input.parentsessionid ?? null,
+      rootsessionid,
+      input.createdbytoolcallid ?? null,
+      input.createdbytoolname ?? null,
+      input.subagenttype ?? null,
+      JSON.stringify(input.subagentconfig ?? {}),
+      input.subagenttype ? "created" : "none",
       JSON.stringify(input.model)
     ]
   );

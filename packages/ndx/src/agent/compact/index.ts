@@ -63,6 +63,10 @@ type NDXCompactTranscriptEntry = {
   important: boolean;
 };
 
+export type NDXCompactSummaryOptions = {
+  extraSystemLines?: string[];
+};
+
 export async function initCompactDatabase(database: NDXDatabase): Promise<void> {
   await database.query(`
 CREATE TABLE IF NOT EXISTS turncontextusage (
@@ -186,6 +190,15 @@ export async function appendCompactSessionHistory(
   return { row, text: summary.text, sourceRows, previousCompact, fallbackReason: summary.fallbackReason };
 }
 
+export async function summarizeSessionRowsForContext(
+  model: NDXModelConfig,
+  previousCompact: NDXSessionDataRow | undefined,
+  sourceRows: NDXSessionDataRow[],
+  options: NDXCompactSummaryOptions = {}
+): Promise<{ text: string; fallbackReason?: string }> {
+  return summarizeCompactHistory(model, previousCompact, sourceRows, options);
+}
+
 export async function rebuildTurnContextUsage(database: NDXDatabase): Promise<void> {
   await database.query(`
 WITH aggregate AS (
@@ -267,7 +280,7 @@ function replayContents(contents: unknown): Record<string, unknown> | string {
   return String(contents ?? "");
 }
 
-async function summarizeCompactHistory(model: NDXModelConfig, previousCompact: NDXSessionDataRow | undefined, sourceRows: NDXSessionDataRow[]): Promise<{ text: string; fallbackReason?: string }> {
+async function summarizeCompactHistory(model: NDXModelConfig, previousCompact: NDXSessionDataRow | undefined, sourceRows: NDXSessionDataRow[], options: NDXCompactSummaryOptions = {}): Promise<{ text: string; fallbackReason?: string }> {
   const previous = previousCompact ? compactText(previousCompact) : undefined;
   const transcript = compactTranscript(sourceRows, Math.max(4096, Math.floor(model.contextsize * 0.55)));
   if (!previous && !transcript.trim()) {
@@ -284,6 +297,7 @@ async function summarizeCompactHistory(model: NDXModelConfig, previousCompact: N
         "Spend more text on load-bearing turns: user constraints, decisions, file paths, commands, errors, failed tools, completed work, unresolved work, and final answers.",
         "Omit or compress trivial acknowledgements and no-op turns.",
         "Use concise Korean unless the source text is clearly in another language.",
+        ...(options.extraSystemLines ?? []),
         "Return only the compacted recall index text."
       ].join("\n")
     },

@@ -9,8 +9,10 @@ export {
   cotWorkReminderContents,
   errorContents,
   interruptContents,
+  parentContextContents,
   sessionDataText,
   sessionDataTitleText,
+  subagentSessionContents,
   toolCallContents,
   userMessageContents
 } from "./content.js";
@@ -23,7 +25,7 @@ export { deleteSessionTurn } from "./deleteSessionTurn.js";
 export type { NDXDeleteSessionTurnResult } from "./deleteSessionTurn.js";
 export { getSession } from "./getSession.js";
 export { completeSessionInterrupt, requestSessionInterrupt, updateSessionTurnPhase } from "./interruptSession.js";
-export { listSession } from "./listSession.js";
+export { listChildSessions, listSession } from "./listSession.js";
 export { listSessionData } from "./listSessionData.js";
 export { addInlineAttachmentDataIds, consumeInlineAttachmentDataIds, listInlineAttachmentDataIds } from "./runtimeData.js";
 export { runSessionTurn } from "./runSessionTurn.js";

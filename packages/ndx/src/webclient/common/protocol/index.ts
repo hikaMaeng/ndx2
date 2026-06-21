@@ -387,6 +387,9 @@ function sessionDataEventName(data: NDXAgentWebSessionData): NDXSessionEventName
   if (kind === "cot_work") {
     return NDX_TURN_EVENT.CotWork;
   }
+  if (kind === "subagent_session") {
+    return NDX_TURN_EVENT.SubagentSession;
+  }
   return undefined;
 }
 

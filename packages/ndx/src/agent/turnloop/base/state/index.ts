@@ -4,6 +4,7 @@ import { runTurnEndHook } from "../../../hook/turn.end/index.js";
 import { listInlineAttachmentDataIds } from "../../../session/runtimeData.js";
 import { buildTurnMessagesFromParts } from "../context/index.js";
 import type { NDXContextUsage } from "../../../contextusage/index.js";
+import type { NDXSessionRequestQueueConsumerBridge } from "../../../requestQue/index.js";
 import type { NDXSessionDataRow } from "../../../session/types.js";
 import type { NDXActiveTurnPipelineState, NDXTurnPipelineState } from "../../types.js";
 
@@ -54,9 +55,13 @@ export async function runTurnEndForState(
   assistant: NDXSessionDataRow,
   iteration: number,
   assistantText: string,
-  contextUsage: NDXContextUsage
+  contextUsage: NDXContextUsage,
+  options: { sessionRequestQueueConsumerBridge?: NDXSessionRequestQueueConsumerBridge | null } = {}
 ): Promise<void> {
-  await runTurnEndHook(state.hookRuntime, {
+  const sessionRequestQueueConsumerBridge = Object.prototype.hasOwnProperty.call(options, "sessionRequestQueueConsumerBridge")
+    ? options.sessionRequestQueueConsumerBridge ?? undefined
+    : state.events.sessionRequestQueueConsumerBridge;
+  const { result } = await runTurnEndHook(state.hookRuntime, {
     database: state.database,
     session: state.runningSession,
     input: state.input,
@@ -70,7 +75,11 @@ export async function runTurnEndForState(
     messages: state.messages,
     availableTools: state.availableTools,
     modelTools: state.modelTools,
+    sessionRequestQueueBridge: state.events.sessionRequestQueueBridge,
+    sessionRequestQueueConsumerBridge,
+    emitTurnEvent: state.events.onEvent,
     assistantText,
     contextUsage
   });
+  state.turnEndHookResult = result;
 }

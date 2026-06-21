@@ -21,6 +21,8 @@ export type NDXSessionDataContents =
   | { kind: "assistant_message"; text: string }
   | { kind: "compact"; text: string; fallbackReason?: string; previousCompactDataId?: string; sourceStartDataId?: string; sourceEndDataId?: string; sourceRowCount: number; createdReason: string; sourceInput?: { dataId: string; text: string } }
   | { kind: "compact_replay"; sourceStartDataId?: string; sourceEndDataId?: string; sourceRowCount: number; rows: Array<{ dataid: string; type: string; contents: Record<string, unknown> | string; createdat: string }> }
+  | { kind: "parent_context"; parentSessionid: string; sourceStartDataId?: string; sourceEndDataId?: string; sourceRowCount: number; text: string }
+  | { kind: "subagent_session"; sessionid: string; parentSessionid: string; subagentType: string; toolCallId?: string; modeltype?: string; assignedModelKey?: string; parentcontext?: boolean; status: "created" | "running" | "completed" | "failed" | "interrupted"; title?: string }
   | { kind: "compact_started"; phase: "turn_start" | "iteration"; reason: string; tokens: number; contextsize: number; percent: number; remainingTokens: number; requiredTokens: number; averageTurnTokens: number; outputReserveTokens: number }
   | { kind: "compact_completed"; phase: "turn_start" | "iteration"; reason: string; compactDataId: string; sourceRowCount: number; summaryTokens: number; fallbackReason?: string; tokens: number; contextsize: number; percent: number; remainingTokens: number; requiredTokens: number; averageTurnTokens: number; outputReserveTokens: number }
   | { kind: "assistant_delta"; iteration: number; delta: string; content: string }

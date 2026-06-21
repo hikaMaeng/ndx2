@@ -335,6 +335,90 @@ test("turn end system hooks write sessionsearch rows from durable sessiondata id
   assert.deepEqual(sessionSearchQueries[1]?.values.slice(0, 5), ["11", session.sessionid, "assistant", new Date("2026-05-31T00:00:01.000Z"), "검색할 최종 응답"]);
 });
 
+test("turn end system hooks complete cot_work before claiming queued work", async () => {
+  const order: string[] = [];
+  const appended: unknown[] = [];
+  const events: unknown[] = [];
+  const cotWorkContents = {
+    kind: "cot_work",
+    steps: [{ task: "Patch after-loop", status: "completed", elapsed: "00:03", elapsedMs: 3000 }],
+    totalElapsed: "00:03",
+    totalElapsedMs: 3000,
+    timingUpdatedAt: "2026-05-31T00:00:02.000Z"
+  };
+  const runtimeDatabase: NDXDatabase = {
+    async query(text, values) {
+      if (/FROM sessiondata/i.test(text) && /contents/i.test(text) && /LIMIT 1/i.test(text)) {
+        order.push("cot_work");
+        return {
+          rows: [{ contents: cotWorkContents }],
+          rowCount: 1,
+          command: "",
+          oid: 0,
+          fields: []
+        } as never;
+      }
+      if (/INSERT INTO sessiondata/i.test(text)) {
+        const contents = JSON.parse(String(values?.[2]));
+        appended.push(contents);
+        return {
+          rows: [{ dataid: "20", sessionid: values?.[0], type: values?.[1], contents, createdat: new Date("2026-05-31T00:00:02.000Z") }],
+          rowCount: 1,
+          command: "",
+          oid: 0,
+          fields: []
+        } as never;
+      }
+      return { rows: [], rowCount: 0, command: "", oid: 0, fields: [] } as never;
+    },
+    async close() {}
+  };
+
+  await runTurnEndHook(createNDXHookRuntime({ [NDX_TURN_EVENT.TurnEnd]: turnEndHooks }, {}), {
+    ...baseContext,
+    database: runtimeDatabase,
+    input: {
+      dataid: "10",
+      sessionid: session.sessionid,
+      type: "user",
+      contents: { kind: "user_message", text: "do work" },
+      createdat: new Date("2026-05-31T00:00:00.000Z")
+    },
+    assistant: {
+      dataid: "12",
+      sessionid: session.sessionid,
+      type: "assistant",
+      contents: { kind: "assistant_message", text: "done" },
+      createdat: new Date("2026-05-31T00:00:03.000Z")
+    },
+    iteration: 4,
+    contextUsage: { tokens: 10, messageTokens: 8, toolDefinitionTokens: 2, percent: 1, contextsize: 1000 },
+    emitTurnEvent(event) {
+      events.push(event);
+      return Promise.resolve();
+    },
+    sessionRequestQueueConsumerBridge: {
+      claimNextRunnable() {
+        order.push("request_queue");
+        return undefined;
+      },
+      completeClaim() {
+        return false;
+      },
+      releaseClaim() {
+        return false;
+      }
+    }
+  });
+
+  assert.deepEqual(order, ["cot_work", "request_queue"]);
+  assert.equal(turnEndHooks.at(-2)?.name, "system.turn.end.cot_work_completion");
+  assert.equal(turnEndHooks.at(-1)?.name, "system.turn.end.request_queue");
+  assert.equal(appended.length, 1);
+  assert.deepEqual((appended[0] as { kind?: unknown }).kind, "cot_work");
+  assert.deepEqual(events.map((event) => (event as { type: string }).type), [NDX_TURN_EVENT.SidebarItem, NDX_TURN_EVENT.CotWork]);
+});
+
 test("loadNDXHookPlan appends global, plugin, project, and project-plugin process hooks in priority order", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-hook-"));
   const userHome = path.join(root, "user");

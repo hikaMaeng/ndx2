@@ -12,7 +12,7 @@ import { interruptWasAccepted } from "./event.js";
 import { upsertRightSidebarItem } from "./rightSidebar.js";
 import { applyTurnEvent } from "./turn/index.js";
 import type { NDXAgentWebContextUsage } from "./chat.js";
-import type { SessionUiState } from "./uiState.js";
+import type { SessionUiState, SubsessionBarState } from "./uiState.js";
 
 export type ProtocolEventUiText = {
   compactCompleted: string;
@@ -47,6 +47,7 @@ export const PROTOCOL_EVENT_UI_REDUCERS = {
   [NDX_TURN_EVENT.ToolBatchStarted]: runningEvent,
   [NDX_TURN_EVENT.ToolProgress]: runningEvent,
   [NDX_TURN_EVENT.SidebarItem]: runningEvent,
+  [NDX_TURN_EVENT.SubagentSession]: subagentSessionEvent,
   [NDX_TURN_EVENT.CotWork]: cotWorkEvent,
   [NDX_TURN_EVENT.ToolResultsCollected]: runningEvent,
   [NDX_TURN_EVENT.ToolResultRecorded]: runningEvent,
@@ -178,6 +179,49 @@ function cotWorkSidebarItems(contents: NDXCotWorkContents): NDXSidebarItem[] {
       kind: "cot_work"
     }];
   });
+}
+
+function subagentSessionEvent(current: SessionUiState, message: NDXSessionEventMessage, text: ProtocolEventUiText): SessionUiState {
+  if (!message.contents || typeof message.contents !== "object" || (message.contents as { kind?: unknown }).kind !== "subagent_session") {
+    return runningEvent(current, message, text);
+  }
+  const contents = message.contents as {
+    sessionid?: unknown;
+    parentSessionid?: unknown;
+    subagentType?: unknown;
+    toolCallId?: unknown;
+    modeltype?: unknown;
+    assignedModelKey?: unknown;
+    parentcontext?: unknown;
+    status?: unknown;
+    title?: unknown;
+  };
+  if (typeof contents.sessionid !== "string" || typeof contents.parentSessionid !== "string" || typeof contents.subagentType !== "string") {
+    return runningEvent(current, message, text);
+  }
+  const status: SubsessionBarState["status"] = contents.status === "completed" || contents.status === "failed" || contents.status === "interrupted" || contents.status === "created" || contents.status === "running" ? contents.status : "running";
+  const next: SubsessionBarState = {
+    id: contents.sessionid,
+    sessionid: contents.sessionid,
+    parentSessionid: contents.parentSessionid,
+    subagentType: contents.subagentType,
+    ...(typeof contents.toolCallId === "string" ? { toolCallId: contents.toolCallId } : {}),
+    ...(typeof contents.modeltype === "string" ? { modeltype: contents.modeltype } : {}),
+    ...(typeof contents.assignedModelKey === "string" ? { assignedModelKey: contents.assignedModelKey } : {}),
+    ...(typeof contents.parentcontext === "boolean" ? { parentcontext: contents.parentcontext } : {}),
+    status,
+    ...(typeof contents.title === "string" ? { title: contents.title } : {}),
+    expanded: current.subsessions.find((item) => item.sessionid === contents.sessionid)?.expanded ?? false
+  };
+  return {
+    ...withContextAndTurn(current, message),
+    subsessions: [
+      ...current.subsessions.filter((item) => item.sessionid !== contents.sessionid),
+      next
+    ],
+    agentRunning: status === "running" ? true : current.agentRunning,
+    notice: status === "running" ? text.operationInProgress : current.notice
+  };
 }
 
 function rowMessageEvent(current: SessionUiState, message: NDXSessionEventMessage, text: ProtocolEventUiText): SessionUiState {

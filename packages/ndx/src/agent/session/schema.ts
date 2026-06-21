@@ -6,8 +6,15 @@ CREATE TABLE IF NOT EXISTS "session" (
   title text NOT NULL DEFAULT '',
 	  lastupdated timestamptz NOT NULL DEFAULT now(),
 	  mode text NOT NULL DEFAULT 'none' CHECK (mode IN ('none', 'light')),
-	  projectname text NOT NULL,
-	  model jsonb NOT NULL CHECK (
+  projectname text NOT NULL,
+  parentsessionid uuid REFERENCES "session" (sessionid) ON DELETE CASCADE,
+  rootsessionid uuid NOT NULL REFERENCES "session" (sessionid) ON DELETE CASCADE,
+  createdbytoolcallid text,
+  createdbytoolname text,
+  subagenttype text,
+  subagentconfig jsonb NOT NULL DEFAULT '{}'::jsonb,
+  subagentstatus text NOT NULL DEFAULT 'none' CHECK (subagentstatus IN ('none', 'created', 'running', 'completed', 'failed', 'interrupted')),
+  model jsonb NOT NULL CHECK (
     model->>'type' = 'openai'
     AND jsonb_typeof(model->'contextsize') = 'number'
     AND (model->>'contextsize')::integer > 0
@@ -27,6 +34,13 @@ ALTER TABLE "session" ADD COLUMN IF NOT EXISTS interruptrequested boolean NOT NU
 ALTER TABLE "session" ADD COLUMN IF NOT EXISTS interruptrequestedat timestamptz;
 	ALTER TABLE "session" ADD COLUMN IF NOT EXISTS interruptcompletedat timestamptz;
 	ALTER TABLE "session" ADD COLUMN IF NOT EXISTS runtimedata jsonb NOT NULL DEFAULT '{}'::jsonb;
+	ALTER TABLE "session" ADD COLUMN IF NOT EXISTS parentsessionid uuid;
+	ALTER TABLE "session" ADD COLUMN IF NOT EXISTS rootsessionid uuid;
+	ALTER TABLE "session" ADD COLUMN IF NOT EXISTS createdbytoolcallid text;
+	ALTER TABLE "session" ADD COLUMN IF NOT EXISTS createdbytoolname text;
+	ALTER TABLE "session" ADD COLUMN IF NOT EXISTS subagenttype text;
+	ALTER TABLE "session" ADD COLUMN IF NOT EXISTS subagentconfig jsonb NOT NULL DEFAULT '{}'::jsonb;
+	ALTER TABLE "session" ADD COLUMN IF NOT EXISTS subagentstatus text NOT NULL DEFAULT 'none';
 	ALTER TABLE "session" ADD COLUMN IF NOT EXISTS projectname text;
 	DO $$
 	BEGIN
@@ -63,7 +77,9 @@ ALTER TABLE "session" ADD COLUMN IF NOT EXISTS interruptrequestedat timestamptz;
 	  END IF;
 	END $$;
 	UPDATE "session" SET projectname = 'default' WHERE projectname IS NULL OR btrim(projectname) = '';
+	UPDATE "session" SET rootsessionid = sessionid WHERE rootsessionid IS NULL;
 	ALTER TABLE "session" ALTER COLUMN projectname SET NOT NULL;
+	ALTER TABLE "session" ALTER COLUMN rootsessionid SET NOT NULL;
 	DO $$
 	BEGIN
 	  IF NOT EXISTS (
@@ -80,6 +96,30 @@ ALTER TABLE "session" ADD COLUMN IF NOT EXISTS interruptrequestedat timestamptz;
 	      AND projectname <> '..'
 	    );
 	  END IF;
+	  IF NOT EXISTS (
+	    SELECT 1
+	    FROM pg_constraint
+	    WHERE conname = 'session_parentsessionid_fkey'
+	      AND conrelid = '"session"'::regclass
+	  ) THEN
+	    ALTER TABLE "session" ADD CONSTRAINT session_parentsessionid_fkey FOREIGN KEY (parentsessionid) REFERENCES "session" (sessionid) ON DELETE CASCADE;
+	  END IF;
+	  IF NOT EXISTS (
+	    SELECT 1
+	    FROM pg_constraint
+	    WHERE conname = 'session_rootsessionid_fkey'
+	      AND conrelid = '"session"'::regclass
+	  ) THEN
+	    ALTER TABLE "session" ADD CONSTRAINT session_rootsessionid_fkey FOREIGN KEY (rootsessionid) REFERENCES "session" (sessionid) ON DELETE CASCADE;
+	  END IF;
+	  IF NOT EXISTS (
+	    SELECT 1
+	    FROM pg_constraint
+	    WHERE conname = 'session_subagentstatus_check'
+	      AND conrelid = '"session"'::regclass
+	  ) THEN
+	    ALTER TABLE "session" ADD CONSTRAINT session_subagentstatus_check CHECK (subagentstatus IN ('none', 'created', 'running', 'completed', 'failed', 'interrupted'));
+	  END IF;
 	END $$;
 	DROP INDEX IF EXISTS session_projectid_lastupdated_idx;
 	DROP INDEX IF EXISTS session_userid_lastupdated_idx;
@@ -93,6 +133,10 @@ ALTER TABLE "session" ADD COLUMN IF NOT EXISTS interruptrequestedat timestamptz;
 	
 	export const SESSION_TABLE_INDEX_SQL = `
 	CREATE INDEX IF NOT EXISTS session_projectname_lastupdated_idx ON "session" (projectname, lastupdated DESC);
+	CREATE INDEX IF NOT EXISTS session_projectname_parent_lastupdated_idx ON "session" (projectname, parentsessionid, lastupdated DESC);
+	CREATE INDEX IF NOT EXISTS session_parent_lastupdated_idx ON "session" (parentsessionid, lastupdated DESC);
+	CREATE INDEX IF NOT EXISTS session_root_lastupdated_idx ON "session" (rootsessionid, lastupdated DESC);
+	CREATE INDEX IF NOT EXISTS session_createdbytoolcallid_idx ON "session" (createdbytoolcallid);
 	`;
 
 export const SESSIONDATA_TABLE_SQL = `

@@ -1,8 +1,8 @@
 import React from "react";
-import { AlertTriangle, Menu, X } from "lucide-react";
+import { AlertTriangle, Bot, ChevronDown, Menu, X } from "lucide-react";
 import type { NDXSessionIterationSummary } from "ndx/common/protocol";
 import type { NDXAgentWebSession, NDXWebClientProject } from "ndx/webclient/common";
-import { isPendingUserChatMessage, sessionTranscriptItems, type NDXAgentWebContextUsage, type SessionAttachmentDraft, type SessionUiState, type TurnFlowState } from "ndx/webclient/front";
+import { createSessionUiState, isPendingUserChatMessage, sessionTranscriptItems, type NDXAgentWebContextUsage, type SessionAttachmentDraft, type SessionUiState, type TurnFlowState } from "ndx/webclient/front";
 import { RSC } from "../../app/resource";
 import { CotWorkOverlay } from "../cotWork";
 import { RightSidebarRegion, type UpdateSessionUi } from "../rightsidebar";
@@ -22,6 +22,7 @@ type SessionSurfaceProps = {
   notice: string;
   rewriteEnabled: boolean;
   sessionError: string;
+  sessionUiByKey: Record<string, SessionUiState>;
   t: Record<string, string>;
   submitPending: boolean;
   interruptPending: boolean;
@@ -39,6 +40,7 @@ type SessionSurfaceProps = {
   onQueueAdd: (cotSolveSteps: string) => void;
   onQueuedRequestDelete: (sessionid: string, itemid: string) => void;
   onQueuedRequestUpdate: (sessionid: string, itemid: string, text: string) => void;
+  onSubsessionToggle: (parentKey: string, sessionid: string, expanded: boolean) => void;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
   onUserMessageBranch: (sessionid: string, inputDataId: string) => void;
   onUserMessageDelete: (sessionid: string, inputDataId: string) => void;
@@ -56,6 +58,7 @@ export function SessionSurface({
   notice,
   rewriteEnabled,
   sessionError,
+  sessionUiByKey,
   t,
   submitPending,
   interruptPending,
@@ -73,6 +76,7 @@ export function SessionSurface({
   onQueueAdd,
   onQueuedRequestDelete,
   onQueuedRequestUpdate,
+  onSubsessionToggle,
   onSubmit,
   onUserMessageBranch,
   onUserMessageDelete,
@@ -193,6 +197,37 @@ export function SessionSurface({
                   );
                 })}
               </ol>
+              {ui.subsessions.length > 0 ? (
+                <section className="grid gap-2" aria-label="Subagents">
+                  {ui.subsessions.map((subsession) => {
+                    const childUi = sessionUiByKey[subsession.sessionid] ?? createSessionUiState();
+                    const childTranscript = sessionTranscriptItems(childUi.chatMessages, childUi.turnFlows);
+                    return (
+                      <details key={subsession.sessionid} className="overflow-hidden rounded-md border border-zinc-800 bg-zinc-950/80 text-sm text-zinc-300" open={subsession.expanded} onToggle={(event) => onSubsessionToggle(surfaceKey, subsession.sessionid, event.currentTarget.open)}>
+                        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2">
+                          <span className="flex min-w-0 items-center gap-2">
+                            <Bot aria-hidden="true" className="h-4 w-4 shrink-0 text-sky-300" />
+                            <span className="truncate font-medium text-zinc-100">{subsession.subagentType}</span>
+                            <span className="shrink-0 text-xs text-zinc-500">{subsession.status}</span>
+                            {subsession.modeltype ? <span className="hidden shrink-0 text-xs text-zinc-600 sm:inline">{subsession.modeltype}</span> : null}
+                          </span>
+                          <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-zinc-500" />
+                        </summary>
+                        {subsession.expanded ? (
+                          <div className="max-h-[60vh] overflow-y-auto border-t border-zinc-800 px-3 py-3">
+                            <ol className="grid gap-3">
+                              {childTranscript.map((item) => item.kind === "turn"
+                                ? <li key={item.turn.id}><TurnFlow turns={[item.turn]} onTurnToggle={onTurnToggle} onIterationToggle={onIterationToggle} /></li>
+                                : <li key={item.message.id} className={item.message.role === "user" ? "ml-auto max-w-[85%] rounded-md bg-zinc-100 px-3 py-2 text-zinc-950" : "mr-auto max-w-[92%] rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-zinc-300"}>{item.message.role === "assistant" ? <AssistantChatMessage text={item.message.text} copyEnabled={item.message.text.trim().length > 0} /> : <UserChatMessage text={item.message.text} attachments={item.message.attachments} pending={false} actionsDisabled />}</li>
+                              )}
+                            </ol>
+                          </div>
+                        ) : null}
+                      </details>
+                    );
+                  })}
+                </section>
+              ) : null}
             </section>
           ) : null}
         </main>

@@ -35,7 +35,7 @@ import { sessionDataRowsForModelContext } from "../compact/index.js";
 import { prepareFinalModelRequestMessagesForCall } from "../turnloop/model-call/finalMessages/index.js";
 import { writeSessionAttachments } from "./attachments.js";
 import { createNDXHookRuntime } from "../hook/index.js";
-import { NDX_COMPACT_CONTINUATION_REQUEST_TEXT, requestRuntimeTurnInterrupt, runAgentTurnWithCompactContinuation } from "../turnloop/index.js";
+import { NDX_COMPACT_CONTINUATION_REQUEST_TEXT, requestRuntimeTurnInterrupt, runAgentTurnWithAfterResponseTriggers, runAgentTurnWithCompactContinuation } from "../turnloop/index.js";
 import { NDX_TURN_EVENT } from "../../common/protocol/index.js";
 import type { NDXSessionDataRow, NDXSessionRow } from "./index.js";
 import type { NDXDatabase } from "../init/index.js";
@@ -839,6 +839,147 @@ test("runAgentTurnWithCompactContinuation preserves the compact-ending turn and 
     const continuationJson = JSON.stringify(continuationMessages);
     assert.match(continuationJson, /현재 작업/);
     assert.match(continuationJson, /컨텍스트 compact로 직전 턴이 종료되었습니다/);
+  } finally {
+    modelServer.close();
+    await once(modelServer, "close");
+    await fs.rm(projectPath, { recursive: true, force: true });
+  }
+});
+
+test("turn end request queue hook triggers the next request after the finalized turn", async () => {
+  const projectPath = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-session-queued-continuation-"));
+  let responseIndex = 0;
+  const modelServer = http.createServer((request, response) => {
+    request.resume();
+    request.on("end", () => {
+      const text = responseIndex === 0 ? "첫 응답" : "큐 응답";
+      responseIndex += 1;
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.end(JSON.stringify({ output: [{ type: "message", content: [{ type: "output_text", text }] }] }));
+    });
+  });
+
+  await new Promise<void>((resolve) => {
+    modelServer.listen(0, "127.0.0.1", () => resolve());
+  });
+  const address = modelServer.address();
+  assert(address && typeof address === "object");
+
+  const session: NDXSessionRow = {
+    sessionid: "018f0000-0000-7000-8000-000000000098",
+    title: "",
+    mode: "none",
+    path: projectPath,
+    projectname: "project-1",
+    model: { ...modelConfig("test-model"), url: `http://127.0.0.1:${address.port}/v1` },
+    isrunning: false,
+    turnphase: "idle",
+    interruptrequested: false,
+    interruptrequestedat: null,
+    interruptcompletedat: null,
+    lastupdated: new Date("2026-05-12T00:00:00.000Z")
+  };
+  const rows: NDXSessionDataRow[] = [];
+  const database: NDXDatabase = {
+    async query(text, values) {
+      if (/SET\s+model = COALESCE/i.test(text)) {
+        session.isrunning = true;
+        session.turnphase = "starting";
+        return { rows: [session], rowCount: 1 } as never;
+      }
+      if (/SET\s+turnphase = \$2/i.test(text)) {
+        session.turnphase = String(values?.[1]);
+        return { rows: [session], rowCount: 1 } as never;
+      }
+      if (/FROM "session"/i.test(text) && /WHERE sessionid = \$1/i.test(text)) {
+        return { rows: [session], rowCount: 1 } as never;
+      }
+      if (/INSERT INTO sessiondata/i.test(text)) {
+        const row = {
+          dataid: String(rows.length + 1),
+          sessionid: String(values?.[0]),
+          type: String(values?.[1]),
+          contents: JSON.parse(String(values?.[2])),
+          createdat: new Date(`2026-05-12T00:00:${String(rows.length + 1).padStart(2, "0")}.000Z`)
+        };
+        rows.push(row);
+        return { rows: [row], rowCount: 1 } as never;
+      }
+      if (/FROM sessiondata/i.test(text)) {
+        return { rows: [...rows], rowCount: rows.length } as never;
+      }
+      if (/SET\s+isrunning = false/i.test(text)) {
+        session.isrunning = false;
+        session.turnphase = "idle";
+        return { rows: [session], rowCount: 1 } as never;
+      }
+      if (/UPDATE "session"/i.test(text)) {
+        return { rows: [session], rowCount: 1 } as never;
+      }
+      return { rows: [], rowCount: 0 } as never;
+    },
+    async close() {}
+  };
+  const queued = [
+    { itemid: "empty", sessionid: session.sessionid, text: "", attachments: [], createdat: "2026-05-12T00:00:10.000Z", updatedat: "2026-05-12T00:00:10.000Z" },
+    { itemid: "next", sessionid: session.sessionid, text: "큐 요청", attachments: [], createdat: "2026-05-12T00:00:11.000Z", updatedat: "2026-05-12T00:00:11.000Z" }
+  ];
+  const changedSessionIds: string[] = [];
+  const claimedItemIds: string[] = [];
+  const completedItemIds: string[] = [];
+  const releasedItemIds: string[] = [];
+
+  try {
+    const launch = await runAgentTurnWithAfterResponseTriggers(
+      database,
+      session,
+      { text: "첫 요청" },
+      undefined,
+      {
+        sessionRequestQueueConsumerBridge: {
+          claimNextRunnable(sessionid) {
+            changedSessionIds.push(sessionid);
+            while (queued[0] && !queued[0].text.trim() && queued[0].attachments.length === 0) {
+              queued.shift();
+            }
+            const item = queued[0];
+            if (item) claimedItemIds.push(item.itemid);
+            return item;
+          },
+          completeClaim(sessionid, itemid) {
+            changedSessionIds.push(sessionid);
+            completedItemIds.push(itemid);
+            const index = queued.findIndex((item) => item.itemid === itemid);
+            if (index >= 0) {
+              queued.splice(index, 1);
+              return true;
+            }
+            return false;
+          },
+          releaseClaim(sessionid, itemid) {
+            changedSessionIds.push(sessionid);
+            releasedItemIds.push(itemid);
+            return true;
+          }
+        }
+      }
+    );
+
+    assert.deepEqual(rows.filter((row) => row.type === "user").map((row) => (row.contents as { text?: unknown }).text), ["첫 요청"]);
+    assert.deepEqual(rows.filter((row) => row.type === "assistant").map((row) => (row.contents as { text?: unknown }).text), ["첫 응답"]);
+    assert.deepEqual(claimedItemIds, ["next"]);
+    assert.deepEqual(completedItemIds, []);
+    assert.equal(responseIndex, 1);
+
+    await launch?.finished;
+
+    assert.deepEqual(rows.filter((row) => row.type === "user").map((row) => (row.contents as { text?: unknown }).text), ["첫 요청", "큐 요청"]);
+    assert.deepEqual(rows.filter((row) => row.type === "assistant").map((row) => (row.contents as { text?: unknown }).text), ["첫 응답", "큐 응답"]);
+    assert.deepEqual(claimedItemIds, ["next"]);
+    assert.deepEqual(completedItemIds, ["next"]);
+    assert.deepEqual(releasedItemIds, []);
+    assert.deepEqual(changedSessionIds, [session.sessionid, session.sessionid, session.sessionid]);
+    assert.equal(responseIndex, 2);
   } finally {
     modelServer.close();
     await once(modelServer, "close");

@@ -16,6 +16,9 @@
 * Webclient front renders from model-render stores: screen = pure projection of
   the model, `state` version is the render trigger. Why: decouples React
   composition from domain state (see the `react-model-render` skill).
+* Request queue consumption uses a claim/release/complete bridge separate from
+  queue editing. Why: tools can plan future turns without authority to consume
+  them, and a failed scheduled launch can restore a claimed item.
 
 Add internals only when an implementation detail affects future maintenance.
 Agent server process-tool contracts are in [tool-process.md](tool-process.md).

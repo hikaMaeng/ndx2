@@ -86,12 +86,14 @@ export async function processToolCalls(state: NDXActiveTurnPipelineState, respon
       database: state.database,
       session: state.runningSession,
       model: state.runningSession.model,
+      onSubsessionEvent: state.events.onSubsessionEvent,
       sessionid: state.runningSession.sessionid,
       turnId: String(state.input.dataid),
       iteration,
       turnContext: await refreshCurrentMessageParts(state),
       signal: state.interrupt.signal,
       sessionClientBridge: state.events.sessionClientBridge,
+      sessionRequestQueueBridge: state.events.sessionRequestQueueBridge,
       observer: {
         async onToolStarted(event) {
           await state.interrupt.checkpoint();

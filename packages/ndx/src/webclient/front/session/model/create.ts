@@ -21,7 +21,8 @@ export function createDraftSessionModel(projectName: string): SessionInstanceMod
     history: createSessionHistoryModel(),
     runtime: createSessionRuntimeModel(),
     sidebar: createSessionSidebarModel(),
-    viewport: createSessionViewportModel()
+    viewport: createSessionViewportModel(),
+    subsessions: []
   };
 }
 
@@ -37,7 +38,8 @@ export function createSessionModelFromRow(session: NDXAgentWebSession): SessionI
     history: createSessionHistoryModel(),
     runtime: { ...createSessionRuntimeModel(), agentRunning: Boolean(session.isrunning) },
     sidebar: createSessionSidebarModel(),
-    viewport: createSessionViewportModel()
+    viewport: createSessionViewportModel(),
+    subsessions: []
   };
 }
 

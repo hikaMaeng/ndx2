@@ -1,7 +1,8 @@
 import type { NDXContextUsage } from "../contextusage/index.js";
 import type { NDXCompactReport } from "../compact/index.js";
-import type { NDXHookCompactEffect, NDXHookRuntime, NDXModelRequestPrefixDrift, NDXModelRequestPrefixSnapshot } from "../hook/index.js";
+import type { NDXHookCompactEffect, NDXHookRunResult, NDXHookRuntime, NDXModelRequestPrefixDrift, NDXModelRequestPrefixSnapshot } from "../hook/index.js";
 import type { NDXAgentRuntimeSettings } from "../runtime-settings/index.js";
+import type { NDXSessionRequestQueueConsumerBridge, NDXSessionRequestQueueEditBridge } from "../requestQue/index.js";
 import type { NDXModelConfig, NDXSessionDataRow, NDXSessionRow } from "../session/types.js";
 import type { NDXResolvedTool, NDXToolExecutionResult, NDXToolProcessEvent } from "../tool/types.js";
 import type { NDXSessionClientBridge } from "../tool/types.js";
@@ -15,6 +16,10 @@ import type { NDXTurnInterruptScope } from "./base/interrupt/index.js";
 export type NDXTurnInput = {
   text: string;
   attachments?: NDXSessionAttachmentReference[];
+};
+
+export type NDXTurnResult = {
+  turnEndHookResult?: NDXHookRunResult;
 };
 
 // Internal turn-loop observer events. Socket messages are defined in agent/common/protocol.
@@ -34,6 +39,7 @@ export type NDXTurnLoopEvent =
   | { type: typeof NDX_TURN_EVENT.ToolProgress; status: "started"; iteration: number; tool: string; callId?: string; args: Record<string, unknown>; startedAt: string; contextUsage: NDXContextUsage }
   | { type: typeof NDX_TURN_EVENT.ToolProgress; status: "progress"; iteration: number; tool: string; callId?: string; event: NDXToolProcessEvent; receivedAt: string; contextUsage: NDXContextUsage }
   | { type: typeof NDX_TURN_EVENT.SidebarItem; iteration: number; tool: string; callId?: string; item: NDXSidebarItem; contextUsage: NDXContextUsage }
+  | { type: typeof NDX_TURN_EVENT.SubagentSession; data: NDXSessionDataRow; contextUsage: NDXContextUsage }
   | { type: typeof NDX_TURN_EVENT.CotWork; iteration: number; tool: string; callId?: string; contents: NDXCotWorkContents; contextUsage: NDXContextUsage }
   | { type: typeof NDX_TURN_EVENT.ToolProgress; status: "cancelled" | "timeout"; iteration: number; tool: string; callId?: string; phase: string; signal?: NodeJS.Signals | null; receivedAt: string; contextUsage: NDXContextUsage }
   | { type: typeof NDX_TURN_EVENT.ToolProgress; status: "finished"; iteration: number; result: NDXToolExecutionResult; contextUsage: NDXContextUsage }
@@ -45,10 +51,13 @@ export type NDXTurnLoopEvent =
 
 export type NDXTurnLoopEvents = {
   onEvent?: (event: NDXTurnLoopEvent) => Promise<void>;
+  onSubsessionEvent?: (session: NDXSessionRow, event: NDXTurnLoopEvent) => Promise<void>;
   hooks?: NDXHookRuntime;
   language?: NDXAgentLanguage;
   resource?: NDXAgentResourceResolver;
   sessionClientBridge?: NDXSessionClientBridge;
+  sessionRequestQueueBridge?: NDXSessionRequestQueueEditBridge;
+  sessionRequestQueueConsumerBridge?: NDXSessionRequestQueueConsumerBridge;
 };
 
 export type NDXTurnTranslate = (key: Parameters<NDXAgentResourceResolver>[0], values?: Record<string, string | number>) => string;
@@ -92,6 +101,7 @@ export type NDXTurnPipelineState = {
   messageParts?: NDXTurnMessageParts;
   currentMessageParts?: NDXTurnMessageParts;
   messages: ResponseInputItem[];
+  turnEndHookResult?: NDXHookRunResult;
   lastModelRequestStablePrefix?: NDXModelRequestPrefixSnapshot;
   lastPreparedModelRequest?: ResponsePreparedRequest;
   availableTools: NDXResolvedTool[];

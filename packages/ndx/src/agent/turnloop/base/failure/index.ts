@@ -28,9 +28,10 @@ export async function handleTurnFailure(state: NDXTurnPipelineState, error: unkn
       state.assistantText.trim().length > 0 ? assistantMessageContents(state.assistantText) : errorContents(interruptedError.message)
     );
     await state.events.onEvent?.({ type: NDX_TURN_EVENT.AssistantRecorded, iteration: state.activeIteration || state.finalIteration, assistant, contextUsage });
-    await runTurnEndForState(state, assistant, state.activeIteration || state.finalIteration, state.assistantText, contextUsage);
     const updatedSession = await completeSessionInterrupt(state.database, state.runningSession.sessionid);
     await state.events.onEvent?.({ type: NDX_TURN_EVENT.InterruptCompleted, phase: interruptedError.phase, session: updatedSession, contextUsage });
+    state.runningSession = updatedSession;
+    await runTurnEndForState(state, assistant, state.activeIteration || state.finalIteration, state.assistantText, contextUsage);
     return;
   }
   state.database.logger?.warn(NDX_TURN_EVENT.Failed, {
@@ -50,5 +51,6 @@ export async function handleTurnFailure(state: NDXTurnPipelineState, error: unkn
   await state.events.onEvent?.({ type: NDX_TURN_EVENT.AssistantRecorded, iteration: state.activeIteration || state.finalIteration, assistant, contextUsage });
   const endedSession = await updateSessionEndTurn(state.database, state.runningSession.sessionid);
   await state.events.onEvent?.({ type: NDX_TURN_EVENT.TurnEnd, iteration: state.activeIteration || state.finalIteration, session: endedSession, contextUsage });
+  state.runningSession = endedSession;
   await runTurnEndForState(state, assistant, state.activeIteration || state.finalIteration, state.assistantText, contextUsage);
 }

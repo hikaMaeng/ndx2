@@ -9,6 +9,7 @@ export type NDXQueuedSessionRequest = {
   model?: NDXSessionModelConfig;
   createdat: string;
   updatedat: string;
+  claimedat?: string;
 };
 
 export type NDXSessionRequestQueueEnqueueInput = {
@@ -19,10 +20,36 @@ export type NDXSessionRequestQueueEnqueueInput = {
   now?: string;
 };
 
+export type NDXSessionRequestQueuePosition =
+  | { type: "front" | "end" }
+  | { type: "before" | "after"; itemid: string };
+
+export type NDXSessionRequestQueueInsertInput = NDXSessionRequestQueueEnqueueInput & {
+  position?: NDXSessionRequestQueuePosition;
+};
+
+export type NDXSessionRequestQueueEditBridge = {
+  list: (sessionid: string) => NDXSessionRequestQueueItem[] | Promise<NDXSessionRequestQueueItem[]>;
+  add: (input: NDXSessionRequestQueueInsertInput) => NDXSessionRequestQueueItem | Promise<NDXSessionRequestQueueItem>;
+  updateText: (sessionid: string, itemid: string, text: string) => NDXSessionRequestQueueItem | undefined | Promise<NDXSessionRequestQueueItem | undefined>;
+  delete: (sessionid: string, itemid: string) => boolean | Promise<boolean>;
+  clear: (sessionid: string) => void | Promise<void>;
+};
+
+export type NDXSessionRequestQueueConsumerBridge = {
+  claimNextRunnable: (sessionid: string) => NDXQueuedSessionRequest | undefined | Promise<NDXQueuedSessionRequest | undefined>;
+  releaseClaim: (sessionid: string, itemid: string) => boolean | Promise<boolean>;
+  completeClaim: (sessionid: string, itemid: string) => boolean | Promise<boolean>;
+};
+
 export class NDXSessionRequestQueueRegistry {
   readonly #queues = new Map<string, NDXQueuedSessionRequest[]>();
 
   enqueue(input: NDXSessionRequestQueueEnqueueInput): NDXQueuedSessionRequest {
+    return this.insert(input);
+  }
+
+  insert(input: NDXSessionRequestQueueInsertInput): NDXQueuedSessionRequest {
     const now = input.now ?? new Date().toISOString();
     const item: NDXQueuedSessionRequest = {
       itemid: randomUUID(),
@@ -34,7 +61,19 @@ export class NDXSessionRequestQueueRegistry {
       updatedat: now
     };
     const queue = this.#queues.get(input.sessionid) ?? [];
-    queue.push(item);
+    const position = input.position ?? { type: "end" as const };
+    if (position.type === "front") {
+      queue.unshift(item);
+    } else if (position.type === "before" || position.type === "after") {
+      const index = queue.findIndex((queued) => queued.itemid === position.itemid);
+      if (index < 0) {
+        queue.push(item);
+      } else {
+        queue.splice(position.type === "before" ? index : index + 1, 0, item);
+      }
+    } else {
+      queue.push(item);
+    }
     this.#queues.set(input.sessionid, queue);
     return item;
   }
@@ -59,15 +98,47 @@ export class NDXSessionRequestQueueRegistry {
     return true;
   }
 
-  shift(sessionid: string): NDXQueuedSessionRequest | undefined {
+  claimNextRunnable(sessionid: string, now: string = new Date().toISOString()): NDXQueuedSessionRequest | undefined {
     const queue = this.#queues.get(sessionid) ?? [];
-    const next = queue.shift();
-    if (queue.length > 0) {
-      this.#queues.set(sessionid, queue);
-    } else {
-      this.#queues.delete(sessionid);
+    while (queue.length > 0) {
+      const next = queue[0];
+      if (!next) break;
+      if (next.claimedat) {
+        break;
+      }
+      if (!next.text.trim() && next.attachments.length === 0) {
+        queue.shift();
+        continue;
+      }
+      break;
     }
-    return next;
+    const next = queue.find((item) => !item.claimedat && (item.text.trim() || item.attachments.length > 0));
+    if (next) {
+      next.claimedat = now;
+      this.#setQueue(sessionid, queue);
+      return next;
+    }
+    this.#setQueue(sessionid, queue);
+    return undefined;
+  }
+
+  releaseClaim(sessionid: string, itemid: string): boolean {
+    const item = this.#queues.get(sessionid)?.find((queued) => queued.itemid === itemid);
+    if (!item?.claimedat) return false;
+    delete item.claimedat;
+    return true;
+  }
+
+  completeClaim(sessionid: string, itemid: string): boolean {
+    return this.delete(sessionid, itemid);
+  }
+
+  #setQueue(sessionid: string, queue: NDXQueuedSessionRequest[]): void {
+    if (queue.length === 0) {
+      this.#queues.delete(sessionid);
+    } else {
+      this.#queues.set(sessionid, queue);
+    }
   }
 
   clear(sessionid: string): void {
@@ -75,7 +146,7 @@ export class NDXSessionRequestQueueRegistry {
   }
 
   items(sessionid: string): NDXSessionRequestQueueItem[] {
-    return (this.#queues.get(sessionid) ?? []).map(sessionRequestQueueItemForSocket);
+    return (this.#queues.get(sessionid) ?? []).filter((item) => !item.claimedat).map(sessionRequestQueueItemForSocket);
   }
 
   hasItems(sessionid: string): boolean {

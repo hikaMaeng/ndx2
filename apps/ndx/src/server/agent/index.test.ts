@@ -9,11 +9,11 @@ import express from "express";
 import request from "supertest";
 import WebSocket from "ws";
 import { acquireAgentServerInstanceLock, attachSessionRoutes, attachSessionSocketServer } from "./index.js";
-import { sessionGrantOwnerTargets, sessionSidebarItemSocketMessage, sessionSocketMessagesFromTurnLoopEvent } from "./connection.js";
+import { createSessionRequestQueueBridge, sessionGrantOwnerTargets, sessionSidebarItemSocketMessage, sessionSocketMessagesFromTurnLoopEvent } from "./connection.js";
 import { sendJson } from "./sendJson.js";
 import type { NDXDatabase } from "ndx/agent/init";
 import type { NDXSessionRow } from "ndx/agent/session";
-import { NDX_SESSION_EVENT, NDX_SESSION_READY, NDX_SESSION_SIDEBAR_ITEM, NDX_TURN_EVENT } from "ndx/common";
+import { NDX_SESSION_EVENT, NDX_SESSION_READY, NDX_SESSION_REQUEST_QUEUE_CHANGED, NDX_SESSION_SIDEBAR_ITEM, NDX_TURN_EVENT } from "ndx/common";
 import type { NDXSessionEventMessage } from "ndx/common";
 
 process.env.NDX_CONTAINER_ROOT = os.tmpdir();
@@ -38,7 +38,14 @@ function createDatabaseWithSessionInsert(): NDXDatabase {
           title: values?.[1],
           mode: values?.[2],
           projectname: values?.[3],
-          model: JSON.parse(String(values?.[4])),
+          parentsessionid: values?.[4] ?? null,
+          rootsessionid: values?.[5],
+          createdbytoolcallid: values?.[6] ?? null,
+          createdbytoolname: values?.[7] ?? null,
+          subagenttype: values?.[8] ?? null,
+          subagentconfig: JSON.parse(String(values?.[9] ?? "{}")),
+          subagentstatus: values?.[10] ?? "none",
+          model: JSON.parse(String(values?.[11])),
           isrunning: false,
           turnphase: "idle",
           interruptrequested: false,
@@ -791,6 +798,31 @@ test("session grant owner routing targets every connected client attached to the
   const targets = sessionGrantOwnerTargets(connectedClients, "session-a");
 
   assert.deepEqual(targets.map((target) => target.client.clientid), ["client-a", "client-b"]);
+});
+
+test("session request queue bridge broadcasts changed snapshots", async () => {
+  const sessionid = "bridge-session-a";
+  const sent: string[] = [];
+  const client = {
+    ...sessionClient("client-a", [sessionid]),
+    socket: {
+      readyState: WebSocket.OPEN,
+      send(message: string) {
+        sent.push(message);
+      }
+    } as never
+  };
+  const connectedClients = new Map([["connection-a", client]]);
+  const bridge = createSessionRequestQueueBridge(connectedClients);
+
+  const added = await bridge.add({ sessionid, text: "queued by turnplan" });
+  await bridge.updateText(sessionid, added.itemid, "changed by turnplan");
+
+  assert.equal(sent.length, 2);
+  const last = JSON.parse(sent[1]!) as { type: string; sessionid: string; items: Array<{ text: string }> };
+  assert.equal(last.type, NDX_SESSION_REQUEST_QUEUE_CHANGED);
+  assert.equal(last.sessionid, sessionid);
+  assert.deepEqual(last.items.map((item) => item.text), ["changed by turnplan"]);
 });
 
 function turnEventSessionRow(sessionid: string): NDXSessionRow {

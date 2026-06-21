@@ -7,9 +7,11 @@ import { systemNDXHookPlan } from "./system.js";
 import { NDX_TURN_EVENT } from "../../common/protocol/index.js";
 import type { NDXCompactReport } from "../compact/index.js";
 import type { NDXContextUsage } from "../contextusage/index.js";
-import type { NDXDatabase, NDXSessionDataRow, NDXSessionRow } from "../session/types.js";
+import type { NDXSessionRequestQueueConsumerBridge, NDXSessionRequestQueueEditBridge } from "../requestQue/index.js";
+import type { NDXDatabase, NDXModelConfig, NDXSessionDataRow, NDXSessionRow } from "../session/types.js";
 import type { NDXResolvedTool, NDXToolExecutionResult } from "../tool/types.js";
 import type { NDXAgentLanguage, NDXAgentResourceResolver } from "../../common/resource/index.js";
+import type { NDXCotWorkContents, NDXSessionAttachmentReference, NDXSidebarItem } from "../../common/protocol/index.js";
 import type { NDXModelRequestPrefixDrift, NDXModelRequestPrefixSnapshot } from "./base/prefixDrift/index.js";
 import type { ResponseInputItem, ResponsePreparedRequest } from "ndx/common/responseapi";
 
@@ -31,6 +33,20 @@ export type NDXHookCompactEffect = {
   report: NDXCompactReport;
   endTurn: boolean;
 };
+
+export type NDXHookTurnEndRequestEffect = {
+  text: string;
+  attachments?: NDXSessionAttachmentReference[];
+  model?: NDXModelConfig;
+  queueClaim?: {
+    sessionid: string;
+    itemid: string;
+  };
+};
+
+export type NDXHookTurnEvent =
+  | { type: typeof NDX_TURN_EVENT.SidebarItem; iteration: number; tool: string; callId?: string; item: NDXSidebarItem; contextUsage: NDXContextUsage }
+  | { type: typeof NDX_TURN_EVENT.CotWork; iteration: number; tool: string; callId?: string; contents: NDXCotWorkContents; contextUsage: NDXContextUsage };
 
 export type NDXHookContext = {
   event: NDXHookEventName;
@@ -56,6 +72,9 @@ export type NDXHookContext = {
   modelResponse?: NDXModelRespondingContext;
   toolCalls?: unknown[];
   toolResults?: NDXToolExecutionResult[];
+  sessionRequestQueueBridge?: NDXSessionRequestQueueEditBridge;
+  sessionRequestQueueConsumerBridge?: NDXSessionRequestQueueConsumerBridge;
+  emitTurnEvent?: (event: NDXHookTurnEvent) => Promise<void>;
   error?: unknown;
 };
 
@@ -71,6 +90,7 @@ export type NDXHookEffect = {
   interruptModelResponse?: boolean;
   interruptReason?: string;
   compact?: NDXHookCompactEffect;
+  turnEndRequest?: NDXHookTurnEndRequestEffect;
   prefixDrifts?: NDXModelRequestPrefixDrift[];
   stopTurn?: boolean;
   diagnostics?: string[];
@@ -271,6 +291,9 @@ export function mergeNDXHookEffects(effects: NDXHookEffect[]): NDXHookEffect {
     }
     if (effect.compact) {
       merged.compact = effect.compact;
+    }
+    if (effect.turnEndRequest && !merged.turnEndRequest) {
+      merged.turnEndRequest = effect.turnEndRequest;
     }
     if (effect.prefixDrifts) {
       merged.prefixDrifts = [...(merged.prefixDrifts ?? []), ...effect.prefixDrifts];

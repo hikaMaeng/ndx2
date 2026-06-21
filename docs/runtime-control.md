@@ -135,7 +135,45 @@ to `0`, including `0` and `-1`, disable this loop detection request.
 
 If a user sends another request while the agent loop is active, the request may be queued. Queued work starts after the current task turn ends.
 
-Queued requests are durable events, not process-local memory only.
+The request queue's item list is registered by the session socket server per
+session. Queued attachments are first written through session attachment
+storage; the queue item then keeps only the durable attachment references.
+
+Queued work is a post-response action, not a continuation of the current turn.
+`after-loop` finalizes exactly one turn, clears the running state, and emits
+`TurnEnd`; the existing `turn.end` hook surface then runs its base `cot_work`
+completion hook before the base request-queue hook. The completion hook
+persists the final timed `cot_work` payload and emits the matching
+sidebar/CotWork lifecycle events for the closed turn. The request-queue hook may
+claim one queued request and return a typed `turnEndRequest` effect. Claiming
+hides the item from the queue list, but the claim can be released if a fresh
+turn cannot be launched. The root turn-loop runner interprets the effect only
+after the current turn has closed, schedules a separate macrotask, and starts a
+fresh `REQUEST` turn with the queued input from that macrotask. It does not wait
+for the queued turn while completing the previous turn's call stack. Interrupt
+completion uses the same post-response action path: once the interrupted turn
+has ended, a queued item can start immediately through the same scheduled launch
+path.
+
+The socket server may trigger queued execution when a request is added to an
+idle session, but it must not own a separate queue drain loop. Its role is to
+register the queue, persist attachment references, broadcast queue snapshots,
+adapt turn-loop events to WebSocket messages, expose the request-queue edit
+bridge consumed by tools, and expose the separate request-queue consumer bridge
+consumed by the base `turn.end` hook and root turn-loop launcher.
+
+The built-in `turnplan` function tool may list, add, update, delete, or clear
+the current session request queue. It is only a queue producer and queue editor:
+it does not add a hook, scheduler, special turn phase, or separate execution
+engine. Items that `turnplan` inserts are drained by the same queued-work path
+as browser queued requests and run as ordinary turns.
+
+When `turnplan` receives several work requests for one goal, it inserts
+template reflection requests between work requests and a final summary request
+at the end. Those reflection and summary requests are normal queued turns. A
+reflection request invokes the `turnplan` skill, lists the remaining queue with
+the function tool, performs the goal-fit analysis in the model turn, and may
+call `turnplan` again to adjust the remaining queue.
 
 ## Compact Continuation
 
@@ -163,9 +201,10 @@ Interjection must preserve event ordering so every connected client can render t
 Tool-specific live progress rules belong to the base tool folder. For example,
 `cot_work` owns plan validation, elapsed-time calculation, and the model-facing
 active-plan reminder hook policy under
-`packages/ndx/src/agent/tool/base/cot_work`. The turn loop may call that policy
-when it records assistant sessiondata, emits `turn.cot_work`, or runs the
-registered context-prepared hook, but it must not own the policy itself.
+`packages/ndx/src/agent/tool/base/cot_work`. The final `turn.end` completion
+hook reads the current turn's durable `cot_work` row and calls the tool-owned
+timing/sidebar policy when it records assistant sessiondata or emits
+`turn.cot_work`; the turn loop must not own that policy itself.
 
 ## Interactive Client Requests
 

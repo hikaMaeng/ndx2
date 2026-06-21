@@ -25,7 +25,7 @@ import { handleModelResponse } from "../model-response/index.js";
 import { processToolCalls } from "../tool-call/index.js";
 import { finishAfterLoop, finishCompactTurn } from "../after-loop/index.js";
 import type { NDXDatabase, NDXModelConfig, NDXSessionRow } from "../../session/types.js";
-import type { NDXActiveTurnPipelineState, NDXTurnInput, NDXTurnLoopEvents, NDXTurnPipelineState } from "../types.js";
+import type { NDXActiveTurnPipelineState, NDXTurnInput, NDXTurnLoopEvents, NDXTurnPipelineState, NDXTurnResult } from "../types.js";
 
 export async function handleUserRequest(
   database: NDXDatabase,
@@ -33,7 +33,7 @@ export async function handleUserRequest(
   request: NDXTurnInput,
   model?: NDXModelConfig,
   events: NDXTurnLoopEvents = {}
-): Promise<void> {
+): Promise<NDXTurnResult> {
   const state: NDXTurnPipelineState = {
     database,
     sourceSession: session,
@@ -117,16 +117,17 @@ export async function handleUserRequest(
       await events.onEvent?.({ type: NDX_TURN_EVENT.AssistantRecorded, iteration: 1, assistant, contextUsage });
       const updatedSession = await updateSessionEndTurn(database, activeState.runningSession.sessionid);
       await events.onEvent?.({ type: NDX_TURN_EVENT.TurnEnd, iteration: 1, session: updatedSession, contextUsage });
+      activeState.runningSession = updatedSession;
       await runTurnEndForState(activeState, assistant, 1, assistantText, contextUsage);
-      return;
+      return { turnEndHookResult: activeState.turnEndHookResult };
     }
 
     await activeState.pipeline.prepareBeforeLoop(activeState);
-    return;
+    return { turnEndHookResult: activeState.turnEndHookResult };
   } catch (error) {
     if (state.input) {
       await state.pipeline.handleTurnFailure(state, error);
-      return;
+      return { turnEndHookResult: state.turnEndHookResult };
     }
     state.interrupt?.complete();
     throw error;

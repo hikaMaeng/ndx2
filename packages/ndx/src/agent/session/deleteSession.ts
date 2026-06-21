@@ -56,7 +56,7 @@ DELETE FROM "session" WHERE sessionid = $1;
 async function selectSessionForDelete(database: NDXDatabase, sessionid: string): Promise<NDXSessionRow | undefined> {
   const result = await database.query<NDXSessionRow>(
     `
-SELECT sessionid, title, lastupdated, mode, projectname, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, runtimedata
+SELECT sessionid, title, lastupdated, mode, projectname, parentsessionid, rootsessionid, createdbytoolcallid, createdbytoolname, subagenttype, subagentconfig, subagentstatus, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, runtimedata
 FROM "session"
 WHERE sessionid = $1;
 `,

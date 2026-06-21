@@ -1,4 +1,6 @@
 import { turnEndAssistantSessionSearchHook, turnEndInputSessionSearchHook } from "../../tool/base/session_history/sessionSearchHook.js";
+import { turnEndCotWorkCompletionHook } from "../base/cotWorkCompletion/index.js";
+import { turnEndRequestQueueHook } from "../base/requestQueue/index.js";
 import { turnEndContextUsageHook } from "../base/turnContextUsage/index.js";
 import { logNDXHookRunResult, runNDXHooks, type NDXHookCodeExecutor, type NDXHookContext, type NDXHookRunResult, type NDXHookRuntime } from "../index.js";
 import { NDX_TURN_EVENT } from "../../../common/protocol/index.js";
@@ -6,7 +8,9 @@ import { NDX_TURN_EVENT } from "../../../common/protocol/index.js";
 export const systemHooks: NDXHookCodeExecutor[] = [
   turnEndInputSessionSearchHook,
   turnEndAssistantSessionSearchHook,
-  turnEndContextUsageHook
+  turnEndContextUsageHook,
+  turnEndCotWorkCompletionHook,
+  turnEndRequestQueueHook
 ];
 
 export async function runTurnEndHook(runtime: NDXHookRuntime, context: Omit<NDXHookContext, "event">): Promise<{ result: NDXHookRunResult }> {
