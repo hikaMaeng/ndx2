@@ -3,14 +3,11 @@ import { readTurnContextUsageStats, type NDXCompactReport } from "../../../compa
 import { calculateDetailedContextUsage, judgeContextAvailability } from "../../../contextusage/index.js";
 import type { NDXHookCodeExecutor, NDXHookEffect } from "../../index.js";
 
-export type NDXContextLimitHookInsertionEvent =
-  | typeof NDX_TURN_EVENT.RequestReceived
-  | typeof NDX_TURN_EVENT.ContextPrepared;
+export type NDXContextLimitHookInsertionEvent = typeof NDX_TURN_EVENT.RequestReceived;
 
 export function createContextLimitHook(input: {
   name: string;
   phase: NDXCompactReport["phase"];
-  endTurn: boolean;
 }): NDXHookCodeExecutor {
   return {
     kind: "code",
@@ -36,7 +33,6 @@ export function createContextLimitHook(input: {
       }
       return {
         compact: {
-          endTurn: input.endTurn,
           report: {
             phase: input.phase,
             reason: availability.reason,
@@ -56,12 +52,5 @@ export function createContextLimitHook(input: {
 
 export const requestContextLimitHook = createContextLimitHook({
   name: "system.turn.request.received.context_limit",
-  phase: "turn_start",
-  endTurn: false
-});
-
-export const contextPreparedContextLimitHook = createContextLimitHook({
-  name: "system.turn.context.prepared.context_limit",
-  phase: "iteration",
-  endTurn: true
+  phase: "turn_start"
 });

@@ -94,6 +94,7 @@ export async function processToolCalls(state: NDXActiveTurnPipelineState, respon
       signal: state.interrupt.signal,
       sessionClientBridge: state.events.sessionClientBridge,
       sessionRequestQueueBridge: state.events.sessionRequestQueueBridge,
+      sessionRequestQueueConsumerBridge: state.events.sessionRequestQueueConsumerBridge,
       observer: {
         async onToolStarted(event) {
           await state.interrupt.checkpoint();

@@ -26,6 +26,8 @@ const database: NDXDatabase = {
 
 const session: NDXSessionRow = {
   sessionid: "018f0000-0000-7000-8000-000000000010",
+  parentsessionid: "018f0000-0000-7000-8000-000000000010",
+  rootsessionid: "018f0000-0000-7000-8000-000000000010",
   title: "title",
   lastupdated: new Date(0),
   mode: "none",

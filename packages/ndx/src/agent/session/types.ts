@@ -25,8 +25,8 @@ export type NDXSessionRow = {
   lastupdated: Date;
   mode: NDXSessionMode;
   projectname: string;
-  parentsessionid?: string | null;
-  rootsessionid?: string;
+  parentsessionid: string;
+  rootsessionid: string;
   createdbytoolcallid?: string | null;
   createdbytoolname?: string | null;
   subagenttype?: string | null;

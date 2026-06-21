@@ -147,7 +147,7 @@ No server-only initialization or database API is exported from this runtime-neut
 | API | Purpose |
 | --- | --- |
 | `runAgentTurn(database, session, request, model?, events?)` | Runs one agent turn against durable session state. |
-| `runAgentTurnWithCompactContinuation(...)` | Runs a turn and performs one bounded continuation after compaction. |
+| `runAgentTurnWithCompactContinuation(...)` | Compatibility alias for `runAgentTurn`; compaction now happens only while accepting a new request. |
 | `runAgentTurnWithAfterResponseTriggers(...)` | Runs the current turn, then returns an optional launch handle for post-response queued work scheduled on a later macrotask. |
 | `runQueuedAgentTurns(...)` | Claims one queued request for an idle session and returns an optional launch handle for the scheduled turn. |
 | `buildTurnMessageParts(database, session)` | Builds developer, user prelude, and history message parts for context usage and request assembly. |

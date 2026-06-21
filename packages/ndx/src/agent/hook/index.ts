@@ -31,7 +31,6 @@ export type NDXHookEffectType = "noeffect" | "stopturn";
 
 export type NDXHookCompactEffect = {
   report: NDXCompactReport;
-  endTurn: boolean;
 };
 
 export type NDXHookTurnEndRequestEffect = {

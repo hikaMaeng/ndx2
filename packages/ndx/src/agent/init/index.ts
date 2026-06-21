@@ -5,6 +5,7 @@ import { Pool, type QueryResultRow } from "pg";
 import type { NDXLogger } from "../../common/log/index.js";
 import { initSessionDatabase } from "../session/index.js";
 import { initWebClientStateDatabase } from "../../webclient/server/client-state/index.js";
+import { initWebSessionFavoriteDatabase } from "../../webclient/server/session-favorite/index.js";
 import { initChatDatabase } from "../chat/index.js";
 import { initCompactDatabase } from "../compact/index.js";
 import { initSelfcheckDatabase } from "../selfcheck/index.js";
@@ -46,6 +47,7 @@ export async function initServer(options: InitServerOptions): Promise<Initialize
     await initSessionDatabase(database);
     await initChatDatabase(database);
     await initWebClientStateDatabase(database);
+    await initWebSessionFavoriteDatabase(database);
     await initCompactDatabase(database);
     await initSelfcheckDatabase(database);
     options.logger?.info("agent.server.init.complete");

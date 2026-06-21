@@ -1205,8 +1205,9 @@ async function attachSessionGrant(
     await sendJson(client, { type: NDX_PROTOCOL_ERROR, error: resource(NDX_AGENT_RESOURCE.PROTOCOL_SESSION_ATTACH_UNAVAILABLE_ERROR, { language: client.language }) });
     return;
   }
-  if (session.parentsessionid && !client.grants.has(session.parentsessionid) && !await hasGrantedAncestor(client, database, session)) {
-    logger?.warn("agent.socket.protocol.session_attach.rejected_missing_parent_grant", { clientid: client.clientid, sessionid: message.sessionid, parentsessionid: session.parentsessionid });
+  const parentSessionid = session.parentsessionid ?? session.sessionid;
+  if (parentSessionid !== session.sessionid && !client.grants.has(parentSessionid) && !await hasGrantedAncestor(client, database, session)) {
+    logger?.warn("agent.socket.protocol.session_attach.rejected_missing_parent_grant", { clientid: client.clientid, sessionid: message.sessionid, parentsessionid: parentSessionid });
     await sendJson(client, { type: NDX_PROTOCOL_ERROR, error: resource(NDX_AGENT_RESOURCE.PROTOCOL_SESSION_GRANT_REQUIRED_ERROR, { language: client.language }) });
     return;
   }
@@ -1255,7 +1256,9 @@ async function requireSessionGrant(
 
 async function hasGrantedAncestor(client: SessionClientState, database: NDXDatabase, session: NDXSessionRow): Promise<boolean> {
   let current: NDXSessionRow | undefined = session;
-  while (current?.parentsessionid) {
+  const visited = new Set<string>();
+  while (current?.parentsessionid && current.parentsessionid !== current.sessionid && !visited.has(current.sessionid)) {
+    visited.add(current.sessionid);
     if (client.grants.has(current.parentsessionid)) return true;
     current = await getSession(database, current.parentsessionid);
   }

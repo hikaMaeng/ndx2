@@ -198,7 +198,7 @@ test("all builtin tool arg templates resolve against their own schema properties
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-tools-"));
   const tools = await listAvailableTools({ userHome: path.join(root, "user"), projectHome: path.join(root, "project") });
 
-  assert.deepEqual(tools.map((tool) => tool.name), ["agent", "askUserQuestion", "bash", "cot_work", "edit", "edit_lines", "getImage", "glob", "grep_search", "loadSkill", "read_file", "session_history", "turnplan", "web_fetch", "web_search", "write_file"]);
+  assert.deepEqual(tools.map((tool) => tool.name), ["askUserQuestion", "bash", "cot_work", "edit", "edit_lines", "getImage", "glob", "grep_search", "loadSkill", "read_file", "session_history", "turnplan", "web_fetch", "web_search", "write_file"]);
   assert.deepEqual(toolSchemas(tools).map((schema) => schema.name).filter((name) => name === "edit" || name === "edit_lines"), ["edit_lines"]);
   assert.ok(tools.every((tool) => tool.source === "builtin"));
 });
@@ -249,6 +249,8 @@ test("turnplan function tool expands work requests into reflection and summary q
     "Run tests",
     "summary"
   ]);
+  assert.match(items[1]!.text, /Classify every remaining queue item/);
+  assert.match(items[5]!.text, /If the original goal is complete/);
   assert.equal((result.outputValue as { added?: unknown[] }).added?.length, 6);
 });
 
@@ -287,6 +289,8 @@ test("session_history function tool returns structured history search results", 
       sessionid: "018f0000-0000-7000-8000-000000000000",
       session: {
         sessionid: "018f0000-0000-7000-8000-000000000000",
+        parentsessionid: "018f0000-0000-7000-8000-000000000000",
+        rootsessionid: "018f0000-0000-7000-8000-000000000000",
         title: "",
         lastupdated: new Date(),
         mode: "none",
@@ -340,6 +344,8 @@ test("session_history recall returns exact sessiondata rows by dataid range", as
       sessionid: "018f0000-0000-7000-8000-000000000000",
       session: {
         sessionid: "018f0000-0000-7000-8000-000000000000",
+        parentsessionid: "018f0000-0000-7000-8000-000000000000",
+        rootsessionid: "018f0000-0000-7000-8000-000000000000",
         title: "recall session",
         lastupdated: new Date(),
         mode: "none",

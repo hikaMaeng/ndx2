@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS "session" (
 	  lastupdated timestamptz NOT NULL DEFAULT now(),
 	  mode text NOT NULL DEFAULT 'none' CHECK (mode IN ('none', 'light')),
   projectname text NOT NULL,
-  parentsessionid uuid REFERENCES "session" (sessionid) ON DELETE CASCADE,
+  parentsessionid uuid NOT NULL REFERENCES "session" (sessionid) ON DELETE CASCADE,
   rootsessionid uuid NOT NULL REFERENCES "session" (sessionid) ON DELETE CASCADE,
   createdbytoolcallid text,
   createdbytoolname text,
@@ -78,8 +78,10 @@ ALTER TABLE "session" ADD COLUMN IF NOT EXISTS interruptrequestedat timestamptz;
 	END $$;
 	UPDATE "session" SET projectname = 'default' WHERE projectname IS NULL OR btrim(projectname) = '';
 	UPDATE "session" SET rootsessionid = sessionid WHERE rootsessionid IS NULL;
+	UPDATE "session" SET parentsessionid = sessionid WHERE parentsessionid IS NULL;
 	ALTER TABLE "session" ALTER COLUMN projectname SET NOT NULL;
 	ALTER TABLE "session" ALTER COLUMN rootsessionid SET NOT NULL;
+	ALTER TABLE "session" ALTER COLUMN parentsessionid SET NOT NULL;
 	DO $$
 	BEGIN
 	  IF NOT EXISTS (

@@ -1,4 +1,3 @@
-import { contextPreparedContextLimitHook } from "../base/contextLimit/index.js";
 import { cotWorkReminderHook } from "../../tool/base/cot_work/reminderHook.js";
 import { inlineInputImagesHook } from "../base/inlineInputImages/index.js";
 import { logNDXHookRunResult, runNDXHooks, type NDXHookCodeExecutor, type NDXHookContext, type NDXHookRunResult, type NDXHookRuntime } from "../index.js";
@@ -8,21 +7,19 @@ import type { ResponseInputItem } from "ndx/common/responseapi";
 
 export const systemHooks: NDXHookCodeExecutor[] = [
   cotWorkReminderHook,
-  inlineInputImagesHook,
-  contextPreparedContextLimitHook
+  inlineInputImagesHook
 ];
 
 export async function runTurnContextPreparedHook(
   runtime: NDXHookRuntime,
   context: Omit<NDXHookContext, "event">
-): Promise<{ messages: ResponseInputItem[]; modelTools: Record<string, unknown>[]; compact: NDXHookRunResult["effect"]["compact"]; stopTurn: boolean; finalAssistantText?: string; result: NDXHookRunResult }> {
+): Promise<{ messages: ResponseInputItem[]; modelTools: Record<string, unknown>[]; stopTurn: boolean; finalAssistantText?: string; result: NDXHookRunResult }> {
   const messages = context.messages ?? [];
   const modelTools = context.modelTools ?? [];
   if ((runtime.plan[NDX_TURN_EVENT.ContextPrepared]?.length ?? 0) === 0) {
     return {
       messages,
       modelTools,
-      compact: undefined,
       stopTurn: false,
       result: {
         event: NDX_TURN_EVENT.ContextPrepared,
@@ -47,7 +44,6 @@ export async function runTurnContextPreparedHook(
   return {
     messages: nextMessages,
     modelTools: result.effect.replaceModelTools ?? modelTools,
-    compact: result.effect.compact,
     stopTurn: Boolean(result.effect.stopTurn),
     finalAssistantText: result.effect.finalAssistantText,
     result

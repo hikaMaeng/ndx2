@@ -14,12 +14,25 @@ SET
   interruptrequestedat = NULL,
   interruptcompletedat = NULL
 WHERE sessionid = $1
+  AND isrunning = false
 RETURNING sessionid, title, lastupdated, mode, projectname, parentsessionid, rootsessionid, createdbytoolcallid, createdbytoolname, subagenttype, subagentconfig, subagentstatus, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, runtimedata;
 `,
     [sessionid, model ? JSON.stringify(model) : null]
   );
 
   if (!result.rows[0]) {
+    const current = await database.query<{ sessionid: string; isrunning: boolean }>(
+      `
+SELECT sessionid, isrunning
+FROM "session"
+WHERE sessionid = $1;
+`,
+      [sessionid]
+    );
+    if (current.rows[0]?.isrunning) {
+      database.logger?.warn("agent.server.session.turn.start_already_running", { sessionid });
+      throw new Error(`Session is already running: ${sessionid}`);
+    }
     database.logger?.warn("agent.server.session.turn.start_missing", { sessionid });
     throw new Error(`Session not found: ${sessionid}`);
   }

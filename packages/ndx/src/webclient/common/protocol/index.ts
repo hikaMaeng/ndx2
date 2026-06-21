@@ -34,6 +34,8 @@ export const NDX_AGENT_WEB_API = Object.freeze({
   chatSession: (chatsessionid: string) => `/api/agent/chat/sessions/${encodeURIComponent(chatsessionid)}`,
   chatSessionMessages: (chatsessionid: string) => `/api/agent/chat/sessions/${encodeURIComponent(chatsessionid)}/messages`,
   chatSessionData: (chatsessionid: string) => `/api/agent/chat/sessions/${encodeURIComponent(chatsessionid)}/data`,
+  sessionFavorites: "/api/agent/session-favorites",
+  sessionFavorite: (sessionid: string) => `/api/agent/sessions/${encodeURIComponent(sessionid)}/favorite`,
   projectSessions: (projectName: string) => `/api/agent/projects/${encodeURIComponent(projectName)}/sessions`,
   sessionData: (sessionid: string) => `/api/agent/sessions/${encodeURIComponent(sessionid)}/data`,
   sessionAttachment: (sessionid: string, dataid: string, index: number) =>
@@ -257,6 +259,14 @@ export type NDXAgentWebSession = {
 
 export type NDXAgentWebSessionsResponse = {
   sessions: NDXAgentWebSession[];
+};
+
+export type NDXAgentWebPinnedSession = NDXAgentWebSession & {
+  pinnedat: string;
+};
+
+export type NDXAgentWebSessionFavoritesResponse = {
+  sessions: NDXAgentWebPinnedSession[];
 };
 
 export type NDXAgentWebChatFolder = {

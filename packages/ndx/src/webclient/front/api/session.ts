@@ -1,7 +1,9 @@
 import {
   NDX_AGENT_WEB_API,
   type NDXAgentWebAppendSessionMessageRequest,
+  type NDXAgentWebPinnedSession,
   type NDXAgentWebSessionDataResponse,
+  type NDXAgentWebSessionFavoritesResponse,
   type NDXAgentWebSessionMessageResponse
 } from "ndx/webclient/common";
 import { requestJson } from "./request.js";
@@ -21,5 +23,22 @@ export function appendSessionMessage(sessionid: string, body: NDXAgentWebAppendS
 export function interruptSession(sessionid: string) {
   return requestJson<NDXAgentWebSessionMessageResponse>(NDX_AGENT_WEB_API.sessionInterrupt(sessionid), {
     method: "POST"
+  });
+}
+
+export async function listPinnedSessions() {
+  const data = await requestJson<NDXAgentWebSessionFavoritesResponse>(NDX_AGENT_WEB_API.sessionFavorites);
+  return data.sessions;
+}
+
+export function pinSession(sessionid: string) {
+  return requestJson<NDXAgentWebPinnedSession>(NDX_AGENT_WEB_API.sessionFavorite(sessionid), {
+    method: "PUT"
+  });
+}
+
+export function unpinSession(sessionid: string) {
+  return requestJson<void>(NDX_AGENT_WEB_API.sessionFavorite(sessionid), {
+    method: "DELETE"
   });
 }

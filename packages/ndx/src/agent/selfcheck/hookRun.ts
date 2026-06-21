@@ -46,7 +46,7 @@ VALUES ($1, $2, $3, now(), $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, $13::bi
         diagnostics: effect.diagnostics ?? [],
         hasFinalAssistantText: typeof effect.finalAssistantText === "string" && effect.finalAssistantText.length > 0,
         hasPrefixDrifts: (effect.prefixDrifts ?? []).length > 0,
-        compact: effect.compact ? { endTurn: effect.compact.endTurn } : undefined
+        compact: effect.compact ? { phase: effect.compact.report.phase } : undefined
       }),
       effect.stopTurn === true,
       effect.interruptModelResponse === true,

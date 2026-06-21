@@ -1,4 +1,4 @@
-import type { NDXAgentWebChatFolder, NDXAgentWebChatSession, NDXAgentWebMetadataResponse, NDXAgentWebSession, NDXWebClientProject, NDXWebClientStateDocument } from "ndx/webclient/common";
+import type { NDXAgentWebChatFolder, NDXAgentWebChatSession, NDXAgentWebMetadataResponse, NDXAgentWebPinnedSession, NDXAgentWebSession, NDXWebClientProject, NDXWebClientStateDocument } from "ndx/webclient/common";
 import { ChatSidebar } from "../chat/components/ChatSidebar";
 import { ProjectSidebar } from "../project/components/Sidebar";
 import { Sidebar as MenuSidebar } from "./Sidebar";
@@ -13,6 +13,7 @@ type WebClientSidebarProps = {
   hasPendingAction: (key: string) => boolean;
   idSuffix: string;
   metadata: Partial<NDXAgentWebMetadataResponse>;
+  pinnedSessions: NDXAgentWebPinnedSession[];
   sessionsByProject: Record<string, NDXAgentWebSession[]>;
   chatSessionsByFolder: Record<string, NDXAgentWebChatSession[]>;
   t: Record<string, string>;
@@ -33,6 +34,7 @@ type WebClientSidebarProps = {
   onRenameChatSession: (session: NDXAgentWebChatSession) => void;
   onSelectProject: (project: NDXWebClientProject) => void;
   onSelectSession: (project: NDXWebClientProject, sessionid: string) => void;
+  onToggleSessionPin: (project: NDXWebClientProject, session: NDXAgentWebSession) => void;
   onSelectChatFolder: (folder: NDXAgentWebChatFolder) => void;
   onSelectChatSession: (session: NDXAgentWebChatSession) => void;
   onToggleProjectSessions: (projectname: string) => void;
@@ -48,6 +50,7 @@ export function WebClientSidebar({
   hasPendingAction,
   idSuffix,
   metadata,
+  pinnedSessions,
   sessionsByProject,
   chatSessionsByFolder,
   t,
@@ -68,18 +71,19 @@ export function WebClientSidebar({
   onRenameChatSession,
   onSelectProject,
   onSelectSession,
+  onToggleSessionPin,
   onSelectChatFolder,
   onSelectChatSession,
   onToggleProjectSessions
 }: WebClientSidebarProps) {
   const pendingProjectIds = new Set(clientState.projects.filter((project) => hasPendingAction(`project-delete:${project.projectName}`) || hasPendingAction(`project-vscode:${project.projectName}`)).map((project) => project.projectName));
-  const pendingSessionIds = new Set(Object.values(sessionsByProject).flat().filter((session) => hasPendingAction(`session-delete:${session.sessionid}`) || hasPendingAction(`session-rename:${session.sessionid}`)).map((session) => session.sessionid));
+  const pendingSessionIds = new Set([...Object.values(sessionsByProject).flat(), ...pinnedSessions].filter((session) => hasPendingAction(`session-delete:${session.sessionid}`) || hasPendingAction(`session-rename:${session.sessionid}`) || hasPendingAction(`session-pin:${session.sessionid}`)).map((session) => session.sessionid));
   const pendingChatFolderIds = new Set(chatFolders.filter((folder) => hasPendingAction(`chat-folder-delete:${folder.folderid}`) || hasPendingAction(`chat-folder-rename:${folder.folderid}`)).map((folder) => folder.folderid));
   const pendingChatSessionIds = new Set(Object.values(chatSessionsByFolder).flat().filter((session) => hasPendingAction(`chat-session-delete:${session.chatsessionid}`) || hasPendingAction(`chat-session-rename:${session.chatsessionid}`)).map((session) => session.chatsessionid));
 
   return (
     <MenuSidebar metadata={metadata} t={t} onChangeLanguage={onChangeLanguage} onClose={onClose} onOpenSettings={onOpenSettings}>
-      <ProjectSidebar activeSessionId={activeSessionId} idSuffix={idSuffix} clientState={clientState} pendingProjectIds={pendingProjectIds} pendingSessionIds={pendingSessionIds} expandedProjectSessionIds={expandedProjectSessionIds} sessionsByProject={sessionsByProject} t={t} onPrepareSessionDraft={onPrepareSessionDraft} onDeleteProject={onDeleteProject} onDeleteSession={onDeleteSession} onOpenProjectInVSCode={onOpenProjectInVSCode} onOpenProjectPicker={onOpenProjectPicker} onRenameSession={onRenameSession} onSelectProject={onSelectProject} onSelectSession={onSelectSession} onToggleProjectSessions={onToggleProjectSessions} />
+      <ProjectSidebar activeSessionId={activeSessionId} idSuffix={idSuffix} clientState={clientState} pendingProjectIds={pendingProjectIds} pendingSessionIds={pendingSessionIds} pinnedSessions={pinnedSessions} expandedProjectSessionIds={expandedProjectSessionIds} sessionsByProject={sessionsByProject} t={t} onPrepareSessionDraft={onPrepareSessionDraft} onDeleteProject={onDeleteProject} onDeleteSession={onDeleteSession} onOpenProjectInVSCode={onOpenProjectInVSCode} onOpenProjectPicker={onOpenProjectPicker} onRenameSession={onRenameSession} onSelectProject={onSelectProject} onSelectSession={onSelectSession} onToggleSessionPin={onToggleSessionPin} onToggleProjectSessions={onToggleProjectSessions} />
       <ChatSidebar activeFolderId={activeChatFolderId} activeSessionId={activeChatSessionId} folders={chatFolders} pendingFolderIds={pendingChatFolderIds} pendingSessionIds={pendingChatSessionIds} sessionsByFolder={chatSessionsByFolder} onAddFolder={onAddChatFolder} onDeleteFolder={onDeleteChatFolder} onDeleteSession={onDeleteChatSession} onPrepareSessionDraft={onPrepareChatSessionDraft} onRenameFolder={onRenameChatFolder} onRenameSession={onRenameChatSession} onSelectFolder={onSelectChatFolder} onSelectSession={onSelectChatSession} />
     </MenuSidebar>
   );

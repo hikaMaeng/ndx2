@@ -22,6 +22,15 @@ export type { NDXWebEmbeddingSettingsRow, NDXWebModelRow, NDXWebProviderRow, NDX
 export { analyzeModelFolderPatch, applyModelFolderPatch, draftModelFolderPatch } from "./settings/index.js";
 export type { NDXModelFolderPatchOptions } from "./settings/index.js";
 export { getWebSelfcheck, listWebSelfcheck, listWebSelfcheckCandidates, listWebSelfcheckCursors, listWebSelfcheckRuns, runWebSelfcheck, updateWebSelfcheckStatus } from "./selfcheck/index.js";
+export {
+  WEB_SESSION_FAVORITE_TABLE_INDEX_SQL,
+  WEB_SESSION_FAVORITE_TABLE_SQL,
+  deleteWebSessionFavorite,
+  initWebSessionFavoriteDatabase,
+  listWebSessionFavorite,
+  upsertWebSessionFavorite
+} from "./session-favorite/index.js";
+export type { NDXWebSessionFavoriteRow } from "./session-favorite/index.js";
 
 export {
   DEFAULT_NDX_WEB_CLIENT_LOCALE,

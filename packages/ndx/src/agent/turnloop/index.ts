@@ -1,14 +1,8 @@
 import { handleUserRequest } from "./request/index.js";
 import { getSession } from "../session/getSession.js";
-import { NDX_TURN_EVENT } from "../../common/protocol/index.js";
 import type { NDXHookTurnEndRequestEffect } from "../hook/index.js";
 import type { NDXDatabase, NDXModelConfig, NDXSessionRow } from "../session/types.js";
-import type { NDXTurnInput, NDXTurnLoopEvent, NDXTurnLoopEvents, NDXTurnResult } from "./types.js";
-
-export const NDX_COMPACT_CONTINUATION_REQUEST_TEXT = [
-  "컨텍스트 compact로 직전 턴이 종료되었습니다.",
-  "compact 뒤에 보존된 직전 턴의 직접 히스토리를 기준으로, 사용자 요청을 계속 수행하세요."
-].join("\n");
+import type { NDXTurnInput, NDXTurnLoopEvents, NDXTurnResult } from "./types.js";
 
 export async function runAgentTurn(
   database: NDXDatabase,
@@ -25,37 +19,9 @@ export async function runAgentTurnWithCompactContinuation(
   session: NDXSessionRow,
   request: NDXTurnInput,
   model?: NDXModelConfig,
-  events: NDXTurnLoopEvents = {},
-  options: { maxContinuations?: number } = {}
+  events: NDXTurnLoopEvents = {}
 ): Promise<NDXTurnResult> {
-  let currentSession = session;
-  let currentRequest = request;
-  let currentModel = model;
-  const maxContinuations = options.maxContinuations ?? 1;
-
-  for (let turnIndex = 0; turnIndex <= maxContinuations; turnIndex += 1) {
-    let compactEndedTurn = false;
-    const result = await runAgentTurn(database, currentSession, currentRequest, currentModel, {
-      ...events,
-      async onEvent(event: NDXTurnLoopEvent) {
-        if (event.type === NDX_TURN_EVENT.CompactCompleted && event.report.phase === "iteration") {
-          compactEndedTurn = true;
-        }
-        await events.onEvent?.(event);
-      }
-    });
-    if (!compactEndedTurn || turnIndex >= maxContinuations) {
-      return result;
-    }
-    const nextSession = await getSession(database, currentSession.sessionid);
-    if (!nextSession) {
-      return result;
-    }
-    currentSession = nextSession;
-    currentRequest = { text: NDX_COMPACT_CONTINUATION_REQUEST_TEXT };
-    currentModel = undefined;
-  }
-  return {};
+  return runAgentTurn(database, session, request, model, events);
 }
 
 export async function runAgentTurnWithAfterResponseTriggers(
@@ -64,11 +30,9 @@ export async function runAgentTurnWithAfterResponseTriggers(
   request: NDXTurnInput,
   model: NDXModelConfig | undefined,
   events: NDXTurnLoopEvents,
-  options: { maxCompactContinuations?: number; maxTriggeredRequests?: number } = {}
+  options: { maxTriggeredRequests?: number } = {}
 ): Promise<NDXAfterResponseTriggerLaunch | undefined> {
-  const result = await runAgentTurnWithCompactContinuation(database, session, request, model, events, {
-    maxContinuations: options.maxCompactContinuations
-  });
+  const result = await runAgentTurn(database, session, request, model, events);
   const turnEndRequest = result.turnEndHookResult?.effect.turnEndRequest;
   if (!turnEndRequest) {
     return undefined;
@@ -90,7 +54,7 @@ function launchTurnEndRequestChain(
   sessionid: string,
   request: NDXHookTurnEndRequestEffect,
   events: NDXTurnLoopEvents,
-  options: { maxCompactContinuations?: number; maxTriggeredRequests?: number },
+  options: { maxTriggeredRequests?: number },
   requestNumber: number
 ): NDXAfterResponseTriggerLaunch {
   const finished = new Promise<void>((resolve) => {
@@ -112,7 +76,7 @@ export async function runQueuedAgentTurns(
   database: NDXDatabase,
   session: NDXSessionRow,
   events: NDXTurnLoopEvents,
-  options: { maxCompactContinuations?: number; maxTriggeredRequests?: number } = {}
+  options: { maxTriggeredRequests?: number } = {}
 ): Promise<NDXAfterResponseTriggerLaunch | undefined> {
   if (session.isrunning || !events.sessionRequestQueueConsumerBridge || (options.maxTriggeredRequests ?? 100) <= 0) {
     return undefined;
@@ -137,13 +101,26 @@ async function runTurnEndRequestChain(
   sessionid: string,
   request: NDXHookTurnEndRequestEffect,
   events: NDXTurnLoopEvents,
-  options: { maxCompactContinuations?: number; maxTriggeredRequests?: number },
+  options: { maxTriggeredRequests?: number },
   requestNumber: number
 ): Promise<void> {
   const nextSession = await getSession(database, sessionid);
   if (!nextSession || nextSession.isrunning) {
     await releaseTurnEndRequestClaim(events, request);
     return;
+  }
+  let result: NDXTurnResult;
+  try {
+    result = await runAgentTurn(
+      database,
+      nextSession,
+      { text: request.text, attachments: request.attachments ?? [] },
+      request.model,
+      events
+    );
+  } catch (error) {
+    await releaseTurnEndRequestClaim(events, request);
+    throw error;
   }
   if (request.queueClaim) {
     const completed = await events.sessionRequestQueueConsumerBridge?.completeClaim(request.queueClaim.sessionid, request.queueClaim.itemid);
@@ -155,14 +132,6 @@ async function runTurnEndRequestChain(
       return;
     }
   }
-  const result = await runAgentTurnWithCompactContinuation(
-    database,
-    nextSession,
-    { text: request.text, attachments: request.attachments ?? [] },
-    request.model,
-    events,
-    { maxContinuations: options.maxCompactContinuations }
-  );
   const nextRequest = result.turnEndHookResult?.effect.turnEndRequest;
   if (!nextRequest) {
     return;

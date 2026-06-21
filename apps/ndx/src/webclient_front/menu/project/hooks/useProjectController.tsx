@@ -1,6 +1,6 @@
 import React from "react";
-import type { NDXAgentWebMetadataResponse, NDXAgentWebSession, NDXWebClientProject, NDXWebClientStateDocument } from "ndx/webclient/common";
-import { deleteWebProject, getProjectMenuModel, listProjectSessions, listWebProjects, openWebProjectInVSCode, createWebProject } from "ndx/webclient/front";
+import type { NDXAgentWebMetadataResponse, NDXAgentWebPinnedSession, NDXAgentWebSession, NDXWebClientProject, NDXWebClientStateDocument } from "ndx/webclient/common";
+import { deleteWebProject, getProjectMenuModel, listPinnedSessions, listProjectSessions, listWebProjects, openWebProjectInVSCode, createWebProject, pinSession, unpinSession } from "ndx/webclient/front";
 import { ProjectWarningDialog } from "../modals/ProjectWarningDialog";
 import type { NDXSessionDeletedMessage, NDXSessionListChangedMessage } from "../socket/projectSocket";
 import { RSC } from "../../../app/resource";
@@ -30,6 +30,12 @@ export async function refreshProjectSessions(
   setSessionsByProject(Object.fromEntries(entries));
 }
 
+export async function refreshPinnedSessions(
+  setPinnedSessions: React.Dispatch<React.SetStateAction<NDXAgentWebPinnedSession[]>>
+) {
+  setPinnedSessions(await listPinnedSessions().catch(() => []));
+}
+
 export function useProjectController({
   bridge,
   clientState,
@@ -47,14 +53,17 @@ export function useProjectController({
   const model = getProjectMenuModel();
   const projectWarning = useModel(model.projectWarning).value;
   const projectWarningTitle = useModel(model.projectWarningTitle).value;
+  const pinnedSessions = useModel(model.pinnedSessions).value;
   const sessionsByProject = useModel(model.sessionsByProject).value;
   const expandedProjectSessionIds = useModel(model.expandedProjectSessionIds).value;
   const setProjectWarning = (update: React.SetStateAction<string>) => model.projectWarning.set(update);
   const setProjectWarningTitle = (update: React.SetStateAction<string>) => model.projectWarningTitle.set(update);
+  const setPinnedSessions = (update: React.SetStateAction<NDXAgentWebPinnedSession[]>) => model.pinnedSessions.set(update);
   const setSessionsByProject = (update: React.SetStateAction<Record<string, NDXAgentWebSession[]>>) => model.sessionsByProject.set(update);
 
   React.useEffect(() => {
     void refreshProjectSessions(clientState.projects, setSessionsByProject);
+    void refreshPinnedSessions(setPinnedSessions);
   }, [clientState.projects]);
 
   const reloadProjectMenu = async (preferredActiveProjectName?: string) => {
@@ -76,6 +85,7 @@ export function useProjectController({
     }
     saveState(nextState);
     await refreshProjectSessions(projects, setSessionsByProject);
+    await refreshPinnedSessions(setPinnedSessions);
     return projects;
   };
 
@@ -135,6 +145,26 @@ export function useProjectController({
     }
   };
 
+  const toggleSessionPin = (project: NDXWebClientProject, session: NDXAgentWebSession) => {
+    const actionKey = `session-pin:${session.sessionid}`;
+    if (!startAction(actionKey)) return;
+    void (async () => {
+      if (model.pinnedSessions.value.some((item) => item.sessionid === session.sessionid)) {
+        await unpinSession(session.sessionid);
+      } else {
+        await pinSession(session.sessionid);
+      }
+      await refreshPinnedSessions(setPinnedSessions);
+      const pinnedProject = stateRef.current.projects.find((item) => item.projectName === project.projectName);
+      if (pinnedProject) {
+        const sessions = await listProjectSessions(pinnedProject);
+        setSessionsByProject((current) => ({ ...current, [pinnedProject.projectName]: sessions }));
+      }
+    })().catch((error) => {
+      setNotice(error instanceof Error && error.message ? error.message : t[RSC.APP_STATUS_STATE_UNAVAILABLE_ALERT]);
+    }).finally(() => finishAction(actionKey));
+  };
+
   const toggleProjectSessions = (projectname: string) => {
     model.toggleProjectSessions(projectname);
   };
@@ -179,6 +209,7 @@ export function useProjectController({
       ...current,
       [message.projectname]: (current[message.projectname] ?? []).filter((session) => session.sessionid !== message.sessionid)
     }));
+    setPinnedSessions((current) => current.filter((session) => session.sessionid !== message.sessionid));
     const project = stateRef.current.projects.find((item) => item.projectName === message.projectname);
     if (project) {
       void listProjectSessions(project).then((sessions) => {
@@ -212,14 +243,19 @@ export function useProjectController({
     prepareSessionDraft,
     deleteProject,
     deleteSessionRow,
+    pinnedSessions,
     reloadProjectMenu,
-    refreshSessions: () => refreshProjectSessions(stateRef.current.projects, setSessionsByProject),
+    refreshSessions: async () => {
+      await refreshProjectSessions(stateRef.current.projects, setSessionsByProject);
+      await refreshPinnedSessions(setPinnedSessions);
+    },
     selectProject,
     selectSession,
     sessionsByProject,
     setProjectWarning,
     setProjectWarningTitle,
     setSessionsByProject,
+    toggleSessionPin,
     toggleProjectSessions
   };
 }

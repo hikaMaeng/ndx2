@@ -2,7 +2,7 @@ import React from "react";
 import { AlertTriangle, Bot, ChevronDown, Menu, X } from "lucide-react";
 import type { NDXSessionIterationSummary } from "ndx/common/protocol";
 import type { NDXAgentWebSession, NDXWebClientProject } from "ndx/webclient/common";
-import { createSessionUiState, isPendingUserChatMessage, sessionTranscriptItems, type NDXAgentWebContextUsage, type SessionAttachmentDraft, type SessionUiState, type TurnFlowState } from "ndx/webclient/front";
+import { createSessionUiState, isPendingUserChatMessage, sessionTranscriptItems, toModelConfig, type NDXAgentWebContextUsage, type SessionAttachmentDraft, type SessionUiState, type TurnFlowState } from "ndx/webclient/front";
 import { RSC } from "../../app/resource";
 import { CotWorkOverlay } from "../cotWork";
 import { RightSidebarRegion, type UpdateSessionUi } from "../rightsidebar";
@@ -47,6 +47,12 @@ type SessionSurfaceProps = {
   onTurnToggle: (turn: TurnFlowState, open: boolean) => void;
   onIterationToggle: (turn: TurnFlowState, iteration: Pick<NDXSessionIterationSummary, "iteration">, open: boolean, userInitiated?: boolean) => void;
   updateSessionUi: UpdateSessionUi;
+  embedded?: boolean;
+  composerVisible?: boolean;
+  menuButtonVisible?: boolean;
+  rightSidebarVisible?: boolean;
+  depth?: number;
+  maxDepth?: number;
 };
 
 export function SessionSurface({
@@ -83,6 +89,12 @@ export function SessionSurface({
   onTurnToggle,
   onIterationToggle,
   updateSessionUi,
+  embedded = false,
+  composerVisible = true,
+  menuButtonVisible = true,
+  rightSidebarVisible = true,
+  depth = 0,
+  maxDepth = 5
 }: SessionSurfaceProps) {
   const surfaceHasChat = Boolean(session || project);
   const surfaceAgentRunning = Boolean(ui.agentRunning || session?.isrunning);
@@ -147,10 +159,12 @@ export function SessionSurface({
     updateVisibleTurnInputDataId();
   }, [isActive, surfaceKey, updateVisibleTurnInputDataId]);
 
+  const rootClassName = !isActive ? "hidden" : embedded ? "flex h-full min-h-[28rem] min-w-0 overflow-hidden rounded-md border border-zinc-800 bg-zinc-950" : "contents";
+
   return (
-    <div className={isActive ? "contents" : "hidden"}>
+    <div className={rootClassName}>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <button type="button" className="fixed left-4 top-4 z-20 inline-flex h-9 w-9 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900/95 p-0 text-sm font-medium text-zinc-300 shadow-lg shadow-black/30 transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 md:hidden" aria-label={t[RSC.APP_SHELL_MENU_OPEN_BUTTON]} onClick={onOpenMenu}><Menu aria-hidden="true" className="h-4 w-4" /></button>
+        {menuButtonVisible ? <button type="button" className="fixed left-4 top-4 z-20 inline-flex h-9 w-9 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900/95 p-0 text-sm font-medium text-zinc-300 shadow-lg shadow-black/30 transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 md:hidden" aria-label={t[RSC.APP_SHELL_MENU_OPEN_BUTTON]} onClick={onOpenMenu}><Menu aria-hidden="true" className="h-4 w-4" /></button> : null}
         <main ref={chatScrollRef} className="relative min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-8" onScroll={(event) => {
           onChatScroll(event.currentTarget.scrollTop);
           updateVisibleTurnInputDataId();
@@ -201,7 +215,16 @@ export function SessionSurface({
                 <section className="grid gap-2" aria-label="Subagents">
                   {ui.subsessions.map((subsession) => {
                     const childUi = sessionUiByKey[subsession.sessionid] ?? createSessionUiState();
-                    const childTranscript = sessionTranscriptItems(childUi.chatMessages, childUi.turnFlows);
+                    const childSession: NDXAgentWebSession = {
+                      sessionid: subsession.sessionid,
+                      title: subsession.title || subsession.subagentType,
+                      lastupdated: session?.lastupdated ?? new Date(0).toISOString(),
+                      mode: session?.mode ?? "none",
+                      projectname: session?.projectname ?? project?.projectName ?? "",
+                      path: session?.path ?? project?.path ?? "",
+                      model: session?.model ?? toModelConfig(ui.selectedModel),
+                      isrunning: childUi.agentRunning || subsession.status === "running"
+                    };
                     return (
                       <details key={subsession.sessionid} className="overflow-hidden rounded-md border border-zinc-800 bg-zinc-950/80 text-sm text-zinc-300" open={subsession.expanded} onToggle={(event) => onSubsessionToggle(surfaceKey, subsession.sessionid, event.currentTarget.open)}>
                         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2">
@@ -214,13 +237,52 @@ export function SessionSurface({
                           <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-zinc-500" />
                         </summary>
                         {subsession.expanded ? (
-                          <div className="max-h-[60vh] overflow-y-auto border-t border-zinc-800 px-3 py-3">
-                            <ol className="grid gap-3">
-                              {childTranscript.map((item) => item.kind === "turn"
-                                ? <li key={item.turn.id}><TurnFlow turns={[item.turn]} onTurnToggle={onTurnToggle} onIterationToggle={onIterationToggle} /></li>
-                                : <li key={item.message.id} className={item.message.role === "user" ? "ml-auto max-w-[85%] rounded-md bg-zinc-100 px-3 py-2 text-zinc-950" : "mr-auto max-w-[92%] rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-zinc-300"}>{item.message.role === "assistant" ? <AssistantChatMessage text={item.message.text} copyEnabled={item.message.text.trim().length > 0} /> : <UserChatMessage text={item.message.text} attachments={item.message.attachments} pending={false} actionsDisabled />}</li>
-                              )}
-                            </ol>
+                          <div className="h-[min(70vh,42rem)] min-h-[28rem] border-t border-zinc-800">
+                            {depth + 1 >= maxDepth ? (
+                              <div className="grid h-full place-items-center px-4 text-xs text-zinc-500">Nested session depth limit reached.</div>
+                            ) : (
+                              <SessionSurface
+                                surfaceKey={subsession.sessionid}
+                                ui={childUi}
+                                session={childSession}
+                                project={project}
+                                isActive
+                                notice={childUi.notice || notice}
+                                rewriteEnabled={false}
+                                sessionError={childUi.sessionError}
+                                sessionUiByKey={sessionUiByKey}
+                                t={t}
+                                submitPending={false}
+                                interruptPending={interruptPending}
+                                onOpenMenu={() => undefined}
+                                onChatScroll={(scrollTop) => updateSessionUi(subsession.sessionid, (current) => ({ ...current, chatScrollTop: scrollTop }))}
+                                onDisableAutoScroll={() => updateSessionUi(subsession.sessionid, (current) => ({ ...current, autoScrollEnabled: false }))}
+                                onDismissError={() => updateSessionUi(subsession.sessionid, (current) => ({ ...current, sessionError: "" }))}
+                                onInputChange={(value) => updateSessionUi(subsession.sessionid, (current) => ({ ...current, chatInput: value }))}
+                                onAddAttachments={onAddAttachments}
+                                onAttachmentRejected={(message) => updateSessionUi(subsession.sessionid, (current) => ({ ...current, notice: message }))}
+                                onRemoveAttachment={onRemoveAttachment}
+                                onModelClick={() => undefined}
+                                onRewriteToggle={() => undefined}
+                                onSkillListRefresh={onSkillListRefresh}
+                                onQueueAdd={onQueueAdd}
+                                onQueuedRequestDelete={onQueuedRequestDelete}
+                                onQueuedRequestUpdate={onQueuedRequestUpdate}
+                                onSubsessionToggle={onSubsessionToggle}
+                                onSubmit={onSubmit}
+                                onUserMessageBranch={onUserMessageBranch}
+                                onUserMessageDelete={onUserMessageDelete}
+                                onTurnToggle={onTurnToggle}
+                                onIterationToggle={onIterationToggle}
+                                updateSessionUi={updateSessionUi}
+                                embedded
+                                composerVisible={false}
+                                menuButtonVisible={false}
+                                rightSidebarVisible={rightSidebarVisible}
+                                depth={depth + 1}
+                                maxDepth={maxDepth}
+                              />
+                            )}
                           </div>
                         ) : null}
                       </details>
@@ -250,9 +312,9 @@ export function SessionSurface({
             onUpdate={(itemid, text) => onQueuedRequestUpdate(session.sessionid, itemid, text)}
           />
         ) : null}
-        {surfaceHasChat ? <ChatComposer idSuffix={suffix} agentRunning={surfaceAgentRunning} compactRunning={surfaceCompactRunning} interruptPending={interruptPending} requestPending={submitPending} contextUsage={surfaceContextUsage} input={ui.chatInput} attachments={attachments} skills={ui.availableSkills} modelLabel={surfaceModelLabel} modelModalities={ui.selectedModel.modalities} notice={notice} rewriteEnabled={rewriteEnabled} rewriteToggleDisabled={!session} t={t} onInputChange={onInputChange} onAddAttachments={onAddAttachments} onAttachmentRejected={onAttachmentRejected} onRemoveAttachment={onRemoveAttachment} onModelClick={onModelClick} onRewriteToggle={onRewriteToggle} onSkillListRefresh={onSkillListRefresh} onQueueAdd={onQueueAdd} onSubmit={onSubmit} /> : null}
+        {surfaceHasChat && composerVisible ? <ChatComposer idSuffix={suffix} agentRunning={surfaceAgentRunning} compactRunning={surfaceCompactRunning} interruptPending={interruptPending} requestPending={submitPending} contextUsage={surfaceContextUsage} input={ui.chatInput} attachments={attachments} skills={ui.availableSkills} modelLabel={surfaceModelLabel} modelModalities={ui.selectedModel.modalities} notice={notice} rewriteEnabled={rewriteEnabled} rewriteToggleDisabled={!session} t={t} onInputChange={onInputChange} onAddAttachments={onAddAttachments} onAttachmentRejected={onAttachmentRejected} onRemoveAttachment={onRemoveAttachment} onModelClick={onModelClick} onRewriteToggle={onRewriteToggle} onSkillListRefresh={onSkillListRefresh} onQueueAdd={onQueueAdd} onSubmit={onSubmit} /> : null}
       </div>
-      {surfaceHasChat ? <RightSidebarRegion isActive={isActive} surfaceKey={surfaceKey} t={t} ui={ui} updateSessionUi={updateSessionUi} /> : null}
+      {surfaceHasChat && rightSidebarVisible ? <RightSidebarRegion isActive={isActive} surfaceKey={surfaceKey} t={t} ui={ui} updateSessionUi={updateSessionUi} /> : null}
     </div>
   );
 }

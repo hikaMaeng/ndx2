@@ -35,7 +35,7 @@ import { sessionDataRowsForModelContext } from "../compact/index.js";
 import { prepareFinalModelRequestMessagesForCall } from "../turnloop/model-call/finalMessages/index.js";
 import { writeSessionAttachments } from "./attachments.js";
 import { createNDXHookRuntime } from "../hook/index.js";
-import { NDX_COMPACT_CONTINUATION_REQUEST_TEXT, requestRuntimeTurnInterrupt, runAgentTurnWithAfterResponseTriggers, runAgentTurnWithCompactContinuation } from "../turnloop/index.js";
+import { requestRuntimeTurnInterrupt, runAgentTurnWithAfterResponseTriggers, runAgentTurnWithCompactContinuation } from "../turnloop/index.js";
 import { NDX_TURN_EVENT } from "../../common/protocol/index.js";
 import type { NDXSessionDataRow, NDXSessionRow } from "./index.js";
 import type { NDXDatabase } from "../init/index.js";
@@ -86,10 +86,14 @@ test("session schema SQL defines the required metadata and history tables", () =
   assert.match(SESSION_TABLE_SQL, /interruptrequested boolean NOT NULL DEFAULT false/);
   assert.doesNotMatch(SESSION_TABLE_SQL, /slidewindow/);
   assert.match(SESSION_TABLE_SQL, /runtimedata jsonb NOT NULL DEFAULT '\{\}'::jsonb/);
+  assert.match(SESSION_TABLE_SQL, /parentsessionid uuid NOT NULL REFERENCES "session" \(sessionid\) ON DELETE CASCADE/);
+  assert.match(SESSION_TABLE_SQL, /rootsessionid uuid NOT NULL REFERENCES "session" \(sessionid\) ON DELETE CASCADE/);
   assert.match(SESSION_TABLE_MIGRATION_SQL, /ADD COLUMN IF NOT EXISTS interruptrequested/);
   assert.match(SESSION_TABLE_MIGRATION_SQL, /DROP CONSTRAINT IF EXISTS session_slidewindow_range_check/);
   assert.match(SESSION_TABLE_MIGRATION_SQL, /DROP COLUMN IF EXISTS slidewindow/);
   assert.match(SESSION_TABLE_MIGRATION_SQL, /ADD COLUMN IF NOT EXISTS runtimedata jsonb NOT NULL DEFAULT '\{\}'::jsonb/);
+  assert.match(SESSION_TABLE_MIGRATION_SQL, /UPDATE "session" SET parentsessionid = sessionid WHERE parentsessionid IS NULL/);
+  assert.match(SESSION_TABLE_MIGRATION_SQL, /ALTER TABLE "session" ALTER COLUMN parentsessionid SET NOT NULL/);
   assert.match(SESSIONDATA_TABLE_SQL, /sessionid uuid NOT NULL REFERENCES "session" \(sessionid\) ON DELETE CASCADE/);
   assert.match(SESSIONDATA_TABLE_SQL, /contents jsonb NOT NULL/);
   assert.match(SESSIONSEARCH_TABLE_SQL, /CREATE TABLE IF NOT EXISTS sessionsearch/);
@@ -131,8 +135,20 @@ test("createSession inserts uuid7-shaped ids and default title and mode", async 
             title: values?.[1],
             mode: values?.[2],
             projectname: values?.[3],
-            model: JSON.parse(String(values?.[4])),
+            parentsessionid: values?.[4],
+            rootsessionid: values?.[5],
+            createdbytoolcallid: values?.[6] ?? null,
+            createdbytoolname: values?.[7] ?? null,
+            subagenttype: values?.[8] ?? null,
+            subagentconfig: JSON.parse(String(values?.[9] ?? "{}")),
+            subagentstatus: values?.[10] ?? "none",
+            model: JSON.parse(String(values?.[11])),
             isrunning: false,
+            turnphase: "idle",
+            interruptrequested: false,
+            interruptrequestedat: null,
+            interruptcompletedat: null,
+            runtimedata: {},
             lastupdated: new Date()
           }
         ],
@@ -151,6 +167,10 @@ test("createSession inserts uuid7-shaped ids and default title and mode", async 
   assert.equal(session.title, "");
   assert.equal(session.mode, "none");
   assert.equal(valuesSeen[0][3], "project-1");
+  assert.equal(valuesSeen[0][4], session.sessionid);
+  assert.equal(valuesSeen[0][5], session.sessionid);
+  assert.equal(session.parentsessionid, session.sessionid);
+  assert.equal(session.rootsessionid, session.sessionid);
 });
 
 test("listSession selects sessions by project newest first", async () => {
@@ -166,8 +186,20 @@ test("listSession selects sessions by project newest first", async () => {
             mode: "none",
             path: "/ndx/workspace",
             projectname: values?.[0],
+            parentsessionid: "018f0000-0000-7000-8000-000000000001",
+            rootsessionid: "018f0000-0000-7000-8000-000000000001",
+            createdbytoolcallid: null,
+            createdbytoolname: null,
+            subagenttype: null,
+            subagentconfig: {},
+            subagentstatus: "none",
             model: modelConfig(),
             isrunning: false,
+            turnphase: "idle",
+            interruptrequested: false,
+            interruptrequestedat: null,
+            interruptcompletedat: null,
+            runtimedata: {},
             lastupdated: new Date()
           }
         ],
@@ -182,6 +214,7 @@ test("listSession selects sessions by project newest first", async () => {
   assert.equal(sessions.length, 1);
   assert.equal(queries[0].values[0], "project-1");
   assert.match(queries[0].text, /WHERE projectname = \$1/);
+  assert.match(queries[0].text, /parentsessionid = sessionid/);
   assert.match(queries[0].text, /ORDER BY lastupdated DESC, sessionid DESC/);
 });
 
@@ -547,8 +580,20 @@ test("session lifecycle updates start, end, and title separately", async () => {
             mode: "none",
             path: "/ndx/workspace",
             projectname: "project-1",
+            parentsessionid: values?.[0],
+            rootsessionid: values?.[0],
+            createdbytoolcallid: null,
+            createdbytoolname: null,
+            subagenttype: null,
+            subagentconfig: {},
+            subagentstatus: "none",
             model: modelConfig(),
             isrunning: true,
+            turnphase: "starting",
+            interruptrequested: false,
+            interruptrequestedat: null,
+            interruptcompletedat: null,
+            runtimedata: {},
             lastupdated: new Date()
           }
         ],
@@ -567,12 +612,35 @@ test("session lifecycle updates start, end, and title separately", async () => {
   assert.match(queries[0].text, /interruptrequestedat = NULL/);
   assert.match(queries[0].text, /interruptcompletedat = NULL/);
   assert.match(queries[0].text, /turnphase = 'starting'/);
+  assert.match(queries[0].text, /WHERE sessionid = \$1\s+AND isrunning = false/);
   assert.doesNotMatch(queries[0].text, /lastupdated = now\(\)/);
   assert.equal(queries[0].values[1], null);
   assert.match(queries[1].text, /isrunning = false/);
   assert.match(queries[1].text, /lastupdated = now\(\)/);
   assert.match(queries[2].text, /title = \$2/);
   assert.match(queries[2].text, /lastupdated = now\(\)/);
+});
+
+test("updateSessionStartTurn rejects a concurrent turn when the database guard does not acquire the row", async () => {
+  const queries: { text: string; values: unknown[] }[] = [];
+  const database: NDXDatabase = {
+    async query(text, values) {
+      queries.push({ text, values: values ?? [] });
+      if (/SELECT sessionid, isrunning/i.test(text)) {
+        return { rows: [{ sessionid: values?.[0], isrunning: true }], rowCount: 1 } as never;
+      }
+      return { rows: [], rowCount: 0 } as never;
+    },
+    async close() {}
+  };
+
+  await assert.rejects(
+    () => updateSessionStartTurn(database, "018f0000-0000-7000-8000-000000000000"),
+    /Session is already running/
+  );
+
+  assert.match(queries[0].text, /AND isrunning = false/);
+  assert.match(queries[1].text, /SELECT sessionid, isrunning/);
 });
 
 test("runSessionTurn appends user first, rebuilds history from sessiondata, calls model, and stores assistant", async () => {
@@ -606,6 +674,8 @@ test("runSessionTurn appends user first, rebuilds history from sessiondata, call
 
   const session: NDXSessionRow = {
     sessionid: "018f0000-0000-7000-8000-000000000000",
+    parentsessionid: "018f0000-0000-7000-8000-000000000000",
+    rootsessionid: "018f0000-0000-7000-8000-000000000000",
     title: "",
     mode: "none",
     path: projectPath,
@@ -692,8 +762,8 @@ test("runSessionTurn appends user first, rebuilds history from sessiondata, call
   }
 });
 
-test("runAgentTurnWithCompactContinuation preserves the compact-ending turn and starts a continuation turn", async () => {
-  const projectPath = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-session-compact-continuation-"));
+test("runAgentTurnWithCompactContinuation compacts before a new request and does not start a continuation turn", async () => {
+  const projectPath = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-session-request-compact-"));
   const seenModelMessages: Array<Array<{ role?: string; content?: unknown; type?: unknown; call_id?: unknown }>> = [];
   let responseIndex = 0;
   const modelServer = http.createServer((request, response) => {
@@ -708,7 +778,7 @@ test("runAgentTurnWithCompactContinuation preserves the compact-ending turn and 
       } else if (typeof payload.input === "string") {
         seenModelMessages.push([{ role: "text", content: payload.input }]);
       }
-      const text = responseIndex === 0 ? "older compact summary" : "continued response";
+      const text = responseIndex === 0 ? "older compact summary" : "response after compact";
       responseIndex += 1;
       response.writeHead(200, { "Content-Type": "application/json" });
       response.end(JSON.stringify({ output: [{ type: "message", content: [{ type: "output_text", text }] }] }));
@@ -723,6 +793,8 @@ test("runAgentTurnWithCompactContinuation preserves the compact-ending turn and 
 
   const session: NDXSessionRow = {
     sessionid: "018f0000-0000-7000-8000-000000000099",
+    parentsessionid: "018f0000-0000-7000-8000-000000000099",
+    rootsessionid: "018f0000-0000-7000-8000-000000000099",
     title: "",
     mode: "none",
     path: projectPath,
@@ -799,9 +871,9 @@ test("runAgentTurnWithCompactContinuation preserves the compact-ending turn and 
   try {
     await runAgentTurnWithCompactContinuation(database, session, { text: "현재 작업" }, undefined, {
       hooks: createNDXHookRuntime({
-        [NDX_TURN_EVENT.ContextPrepared]: [{
+        [NDX_TURN_EVENT.RequestReceived]: [{
           kind: "code",
-          name: "test.context.compact_once",
+          name: "test.request.compact_once",
           source: "system",
           run(context) {
             if (compactRequested || context.requestText !== "현재 작업") {
@@ -810,9 +882,8 @@ test("runAgentTurnWithCompactContinuation preserves the compact-ending turn and 
             compactRequested = true;
             return {
               compact: {
-                endTurn: true,
                 report: {
-                  phase: "iteration",
+                  phase: "turn_start",
                   reason: "test_limit",
                   tokens: 950,
                   contextsize: 1000,
@@ -832,13 +903,14 @@ test("runAgentTurnWithCompactContinuation preserves the compact-ending turn and 
     const compact = rows.find((row) => row.type === "compact");
     const replay = rows.find((row) => row.contents && typeof row.contents === "object" && (row.contents as { kind?: unknown }).kind === "compact_replay");
     assert.equal((compact?.contents as { sourceEndDataId?: unknown }).sourceEndDataId, "2");
-    assert.equal((replay?.contents as { sourceStartDataId?: unknown }).sourceStartDataId, "3");
-    assert.equal(rows.filter((row) => row.type === "user").at(-1)?.contents && (rows.filter((row) => row.type === "user").at(-1)?.contents as { text?: unknown }).text, NDX_COMPACT_CONTINUATION_REQUEST_TEXT);
-    assert.equal(rows.at(-1)?.contents && (rows.at(-1)?.contents as { text?: unknown }).text, "continued response");
-    const continuationMessages = seenModelMessages.at(-1) ?? [];
-    const continuationJson = JSON.stringify(continuationMessages);
-    assert.match(continuationJson, /현재 작업/);
-    assert.match(continuationJson, /컨텍스트 compact로 직전 턴이 종료되었습니다/);
+    assert.equal(replay, undefined);
+    assert.equal(rows.filter((row) => row.type === "user").at(-1)?.contents && (rows.filter((row) => row.type === "user").at(-1)?.contents as { text?: unknown }).text, "현재 작업");
+    assert.equal(rows.at(-1)?.contents && (rows.at(-1)?.contents as { text?: unknown }).text, "response after compact");
+    const turnMessages = seenModelMessages.at(-1) ?? [];
+    const turnJson = JSON.stringify(turnMessages);
+    assert.match(turnJson, /현재 작업/);
+    assert.match(turnJson, /older compact summary/);
+    assert.equal(responseIndex, 2);
   } finally {
     modelServer.close();
     await once(modelServer, "close");
@@ -867,6 +939,8 @@ test("turn end request queue hook triggers the next request after the finalized 
 
   const session: NDXSessionRow = {
     sessionid: "018f0000-0000-7000-8000-000000000098",
+    parentsessionid: "018f0000-0000-7000-8000-000000000098",
+    rootsessionid: "018f0000-0000-7000-8000-000000000098",
     title: "",
     mode: "none",
     path: projectPath,
@@ -928,6 +1002,7 @@ test("turn end request queue hook triggers the next request after the finalized 
   const claimedItemIds: string[] = [];
   const completedItemIds: string[] = [];
   const releasedItemIds: string[] = [];
+  const claimedQueueItemIds = new Set<string>();
 
   try {
     const launch = await runAgentTurnWithAfterResponseTriggers(
@@ -942,8 +1017,11 @@ test("turn end request queue hook triggers the next request after the finalized 
             while (queued[0] && !queued[0].text.trim() && queued[0].attachments.length === 0) {
               queued.shift();
             }
-            const item = queued[0];
-            if (item) claimedItemIds.push(item.itemid);
+            const item = queued.find((queuedItem) => !claimedQueueItemIds.has(queuedItem.itemid));
+            if (item) {
+              claimedQueueItemIds.add(item.itemid);
+              claimedItemIds.push(item.itemid);
+            }
             return item;
           },
           completeClaim(sessionid, itemid) {
@@ -952,6 +1030,7 @@ test("turn end request queue hook triggers the next request after the finalized 
             const index = queued.findIndex((item) => item.itemid === itemid);
             if (index >= 0) {
               queued.splice(index, 1);
+              claimedQueueItemIds.delete(itemid);
               return true;
             }
             return false;
@@ -959,6 +1038,7 @@ test("turn end request queue hook triggers the next request after the finalized 
           releaseClaim(sessionid, itemid) {
             changedSessionIds.push(sessionid);
             releasedItemIds.push(itemid);
+            claimedQueueItemIds.delete(itemid);
             return true;
           }
         }
@@ -981,6 +1061,187 @@ test("turn end request queue hook triggers the next request after the finalized 
     assert.deepEqual(changedSessionIds, [session.sessionid, session.sessionid, session.sessionid]);
     assert.equal(responseIndex, 2);
   } finally {
+    modelServer.close();
+    await once(modelServer, "close");
+    await fs.rm(projectPath, { recursive: true, force: true });
+  }
+});
+
+test("interrupted turn safely completes a queued request after the queued turn launches", async () => {
+  const projectPath = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-session-interrupt-queued-turn-"));
+  const previousWorkspace = process.env.NDX_CONTAINER_WORKSPACE;
+  process.env.NDX_CONTAINER_WORKSPACE = path.dirname(projectPath);
+  const projectName = path.basename(projectPath);
+  await fs.mkdir(path.join(projectPath, ".ndx", "tools", "hang"), { recursive: true });
+  await fs.writeFile(
+    path.join(projectPath, ".ndx", "tools", "hang", "tool.json"),
+    JSON.stringify({
+      tool: { command: process.execPath, args: ["./index.mjs"] },
+      schema: {
+        type: "function",
+        name: "hang",
+        parameters: { type: "object", properties: {}, additionalProperties: false }
+      }
+    }),
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(projectPath, ".ndx", "tools", "hang", "index.mjs"),
+    "process.stdout.write(JSON.stringify({ type: 'progress', message: 'running' }) + '\\n');\nsetInterval(() => {}, 1000);\n",
+    "utf8"
+  );
+
+  let responseIndex = 0;
+  const modelServer = http.createServer((request, response) => {
+    request.resume();
+    request.on("end", () => {
+      response.writeHead(200, { "Content-Type": "application/json" });
+      if (responseIndex === 0) {
+        responseIndex += 1;
+        response.end(JSON.stringify({ output: [{ type: "function_call", call_id: "call_hang_queued", name: "hang", arguments: "{}" }] }));
+        return;
+      }
+      responseIndex += 1;
+      response.end(JSON.stringify({ output: [{ type: "message", content: [{ type: "output_text", text: "큐 응답" }] }] }));
+    });
+  });
+
+  await new Promise<void>((resolve) => {
+    modelServer.listen(0, "127.0.0.1", () => resolve());
+  });
+  const address = modelServer.address();
+  assert(address && typeof address === "object");
+
+  const session: NDXSessionRow = {
+    sessionid: "018f0000-0000-7000-8000-000000000099",
+    parentsessionid: "018f0000-0000-7000-8000-000000000099",
+    rootsessionid: "018f0000-0000-7000-8000-000000000099",
+    title: "",
+    mode: "none",
+    path: projectPath,
+    projectname: projectName,
+    model: { ...modelConfig("test-model"), url: `http://127.0.0.1:${address.port}/v1` },
+    isrunning: false,
+    turnphase: "idle",
+    interruptrequested: false,
+    interruptrequestedat: null,
+    interruptcompletedat: null,
+    lastupdated: new Date("2026-05-12T00:00:00.000Z")
+  };
+  const rows: NDXSessionDataRow[] = [];
+  const database: NDXDatabase = {
+    async query(text, values) {
+      if (/SET\s+model = COALESCE/i.test(text)) {
+        session.isrunning = true;
+        session.turnphase = "starting";
+        session.interruptrequested = false;
+        return { rows: [session], rowCount: 1 } as never;
+      }
+      if (/SET\s+turnphase = \$2/i.test(text)) {
+        session.turnphase = String(values?.[1]);
+        return { rows: [session], rowCount: 1 } as never;
+      }
+      if (/SELECT COALESCE\(runtimedata->\$2/i.test(text)) {
+        return { rows: [{ ids: [] }], rowCount: 1 } as never;
+      }
+      if (/FROM "session"/i.test(text) && /WHERE sessionid = \$1/i.test(text)) {
+        return { rows: [session], rowCount: 1 } as never;
+      }
+      if (/INSERT INTO sessiondata/i.test(text)) {
+        const row = {
+          dataid: String(rows.length + 1),
+          sessionid: String(values?.[0]),
+          type: String(values?.[1]),
+          contents: JSON.parse(String(values?.[2])),
+          createdat: new Date(`2026-05-12T00:00:${String(rows.length + 1).padStart(2, "0")}.000Z`)
+        };
+        rows.push(row);
+        return { rows: [row], rowCount: 1 } as never;
+      }
+      if (/FROM sessiondata/i.test(text)) {
+        return { rows: [...rows], rowCount: rows.length } as never;
+      }
+      if (/interruptcompletedat = now\(\)/i.test(text)) {
+        session.isrunning = false;
+        session.turnphase = "idle";
+        session.interruptrequested = false;
+        session.interruptcompletedat = new Date("2026-05-12T00:01:00.000Z");
+        return { rows: [session], rowCount: 1 } as never;
+      }
+      if (/SET\s+isrunning = false/i.test(text)) {
+        session.isrunning = false;
+        session.turnphase = "idle";
+        return { rows: [session], rowCount: 1 } as never;
+      }
+      if (/UPDATE "session"/i.test(text)) {
+        return { rows: [session], rowCount: 1 } as never;
+      }
+      return { rows: [], rowCount: 0 } as never;
+    },
+    async close() {}
+  };
+  const queued = [{ itemid: "next-after-interrupt", sessionid: session.sessionid, text: "인터럽트 뒤 큐 요청", attachments: [], createdat: "2026-05-12T00:00:10.000Z", updatedat: "2026-05-12T00:00:10.000Z" }];
+  const claimedItemIds: string[] = [];
+  const completedItemIds: string[] = [];
+  const releasedItemIds: string[] = [];
+  const claimedQueueItemIds = new Set<string>();
+
+  try {
+    const launch = await runAgentTurnWithAfterResponseTriggers(
+      database,
+      session,
+      { text: "멈출 도구를 실행해" },
+      undefined,
+      {
+        async onEvent(event) {
+          if (event.type === NDX_TURN_EVENT.ToolProgress && event.status === "progress") {
+            requestRuntimeTurnInterrupt(session.sessionid);
+          }
+        },
+        sessionRequestQueueConsumerBridge: {
+          claimNextRunnable() {
+            const item = queued.find((queuedItem) => !claimedQueueItemIds.has(queuedItem.itemid));
+            if (item) {
+              claimedQueueItemIds.add(item.itemid);
+              claimedItemIds.push(item.itemid);
+            }
+            return item;
+          },
+          completeClaim(_sessionid, itemid) {
+            completedItemIds.push(itemid);
+            const index = queued.findIndex((item) => item.itemid === itemid);
+            if (index >= 0) {
+              queued.splice(index, 1);
+              claimedQueueItemIds.delete(itemid);
+              return true;
+            }
+            return false;
+          },
+          releaseClaim(_sessionid, itemid) {
+            releasedItemIds.push(itemid);
+            claimedQueueItemIds.delete(itemid);
+            return true;
+          }
+        }
+      }
+    );
+
+    assert.deepEqual(rows.filter((row) => row.type === "user").map((row) => (row.contents as { text?: unknown }).text), ["멈출 도구를 실행해"]);
+    assert.deepEqual(claimedItemIds, ["next-after-interrupt"]);
+    assert.deepEqual(completedItemIds, []);
+    assert.equal(queued.length, 1);
+
+    await launch?.finished;
+
+    assert.deepEqual(rows.filter((row) => row.type === "user").map((row) => (row.contents as { text?: unknown }).text), ["멈출 도구를 실행해", "인터럽트 뒤 큐 요청"]);
+    assert.deepEqual(rows.filter((row) => row.type === "assistant").at(-1)?.contents, { kind: "assistant_message", text: "큐 응답" });
+    assert.deepEqual(completedItemIds, ["next-after-interrupt"]);
+    assert.deepEqual(releasedItemIds, []);
+    assert.equal(queued.length, 0);
+    assert.equal(responseIndex, 2);
+  } finally {
+    if (previousWorkspace === undefined) delete process.env.NDX_CONTAINER_WORKSPACE;
+    else process.env.NDX_CONTAINER_WORKSPACE = previousWorkspace;
     modelServer.close();
     await once(modelServer, "close");
     await fs.rm(projectPath, { recursive: true, force: true });
@@ -1013,6 +1274,8 @@ test("runSessionTurn sends provider reasoning effort without inserting prompt co
 
   const session: NDXSessionRow = {
     sessionid: "018f0000-0000-7000-8000-000000000001",
+    parentsessionid: "018f0000-0000-7000-8000-000000000001",
+    rootsessionid: "018f0000-0000-7000-8000-000000000001",
     title: "",
     mode: "none",
     path: projectPath,
@@ -1118,6 +1381,8 @@ test("runSessionTurn updates the session model before requesting the provider", 
 
   const session: NDXSessionRow = {
     sessionid: "018f0000-0000-7000-8000-000000000011",
+    parentsessionid: "018f0000-0000-7000-8000-000000000011",
+    rootsessionid: "018f0000-0000-7000-8000-000000000011",
     title: "",
     mode: "none",
     path: projectPath,
@@ -1403,6 +1668,8 @@ test("runSessionTurn rebuilds tool continuation from sessiondata before the next
 
   const session: NDXSessionRow = {
     sessionid: "018f0000-0000-7000-8000-000000000001",
+    parentsessionid: "018f0000-0000-7000-8000-000000000001",
+    rootsessionid: "018f0000-0000-7000-8000-000000000001",
     title: "",
     mode: "none",
     path: projectPath,
@@ -1537,6 +1804,8 @@ test("runSessionTurn records cancelled tool outputs before completing an interru
 
   const session: NDXSessionRow = {
     sessionid: "018f0000-0000-7000-8000-000000000012",
+    parentsessionid: "018f0000-0000-7000-8000-000000000012",
+    rootsessionid: "018f0000-0000-7000-8000-000000000012",
     title: "",
     mode: "none",
     path: projectPath,
@@ -1697,6 +1966,8 @@ test("runSessionTurn appends tool-generated image input and inlines it on the ne
 
   const session: NDXSessionRow = {
     sessionid: "018f0000-0000-7000-8000-000000000001",
+    parentsessionid: "018f0000-0000-7000-8000-000000000001",
+    rootsessionid: "018f0000-0000-7000-8000-000000000001",
     title: "",
     mode: "none",
     path: projectPath,
@@ -1815,6 +2086,8 @@ test("deleteSession clears session-owned tables after stopping stale running sta
   const queries: { text: string; values: unknown[] }[] = [];
   const row: NDXSessionRow = {
     sessionid: "018f0000-0000-7000-8000-000000000000",
+    parentsessionid: "018f0000-0000-7000-8000-000000000000",
+    rootsessionid: "018f0000-0000-7000-8000-000000000000",
     title: "삭제 대상",
     mode: "none",
     path: "/ndx/workspace",

@@ -32,6 +32,7 @@ export { runSessionTurn } from "./runSessionTurn.js";
 export { compactSourceForRows, sessionRowsThroughTurn, sessionTurnRangeForInput } from "./sessionTurnRange.js";
 export type { NDXSessionTurnRange } from "./sessionTurnRange.js";
 export { updateSessionEndTurn, updateSessionStartTurn, updateSessionTitle } from "./updateSession.js";
+export { withSessionProjectPath } from "./types.js";
 export {
   NDX_SESSION_SEARCH_EMBEDDING_DIMENSIONS,
   NDX_SESSION_SEARCH_HNSW_DIMENSIONS,

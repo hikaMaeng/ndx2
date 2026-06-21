@@ -1,7 +1,7 @@
 import type { NDXTurnMessageParts } from "../turnloop/base/context/index.js";
 import type { NDXToolAgentCallHandlers } from "./execute/agentcall/index.js";
 import type { NDXAskUserQuestionRequest, NDXAskUserQuestionResponse } from "../../common/protocol/index.js";
-import type { NDXSessionRequestQueueEditBridge } from "../requestQue/index.js";
+import type { NDXSessionRequestQueueConsumerBridge, NDXSessionRequestQueueEditBridge } from "../requestQue/index.js";
 import type { NDXDatabase, NDXModelConfig, NDXSessionRow } from "../session/types.js";
 import type { NDXTurnLoopEvent } from "../turnloop/types.js";
 
@@ -59,6 +59,7 @@ export type NDXToolExecutionOptions = NDXToolRegistryOptions & {
   agentCallHandlers?: NDXToolAgentCallHandlers;
   sessionClientBridge?: NDXSessionClientBridge;
   sessionRequestQueueBridge?: NDXSessionRequestQueueEditBridge;
+  sessionRequestQueueConsumerBridge?: NDXSessionRequestQueueConsumerBridge;
   database?: NDXDatabase;
   session?: NDXSessionRow;
   model?: NDXModelConfig;

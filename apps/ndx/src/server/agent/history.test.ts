@@ -144,6 +144,8 @@ function session(title = "test"): NDXSessionRow {
     mode: "none",
     path: "/ndx/workspace/project-1",
     projectname: "project-1",
+    parentsessionid: "session-1",
+    rootsessionid: "session-1",
     model: { type: "openai", model: "gpt-test", url: "https://example.test", token: "", contextsize: 100000 },
     isrunning: false,
     turnphase: "idle",

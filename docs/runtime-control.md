@@ -175,18 +175,19 @@ reflection request invokes the `turnplan` skill, lists the remaining queue with
 the function tool, performs the goal-fit analysis in the model turn, and may
 call `turnplan` again to adjust the remaining queue.
 
-## Compact Continuation
+## Request-Time Compaction
 
-Iteration-time compaction is a terminal turn outcome. The active turn still
-ends, but the session server can automatically start one fresh continuation
-turn with a fixed continuation request. This keeps turn boundaries explicit
-while avoiding a manual "continue" click when the next requested action is
-unambiguous.
+Compaction runs only when accepting a new request and the reconstructed context
+does not have enough room to unfold that request. A completed turn is left as
+durable history even if the next model request would exceed the context limit;
+there is no value in compacting merely because the just-finished turn filled
+the window.
 
-To preserve continuity, iteration compaction summarizes only rows before the
-current input turn. The just-ended turn is appended after the compact row as a
-model-only `compact_replay` row and is expanded during model context assembly.
-Clients do not render `compact_replay` as a duplicate chat message or turn.
+The request-received context-limit system hook returns a typed `compact` effect.
+The turn loop interprets that effect in `turnloop/base/compact` before the new
+user row is appended. Compact is not another hook event, is not a
+`turn.context.prepared` hook, and is not implemented as a post-response
+`turn.end` hook.
 
 ## Interjection
 

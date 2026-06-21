@@ -11,10 +11,13 @@ type ProjectCardProps = {
   idSuffix: string;
   pending: boolean;
   pendingSessionIds: Set<string>;
+  pinnedSessionIds: Set<string>;
+  pinSessionLabel: string;
   project: NDXWebClientProject;
   renameSessionLabel: string;
   sessions: NDXAgentWebSession[];
   t: Record<string, string>;
+  unpinSessionLabel: string;
   onDeleteProject: (project: NDXWebClientProject) => void;
   onDeleteSession: (project: NDXWebClientProject, session: NDXAgentWebSession) => void;
   onOpenProjectInVSCode: (project: NDXWebClientProject) => void;
@@ -22,6 +25,7 @@ type ProjectCardProps = {
   onRenameSession: (project: NDXWebClientProject, session: NDXAgentWebSession) => void;
   onSelectProject: (project: NDXWebClientProject) => void;
   onSelectSession: (project: NDXWebClientProject, sessionid: string) => void;
+  onToggleSessionPin: (project: NDXWebClientProject, session: NDXAgentWebSession) => void;
   onToggleProjectSessions: (projectname: string) => void;
 };
 
@@ -32,10 +36,13 @@ export const ProjectCard = React.memo(function ProjectCard({
   idSuffix,
   pending,
   pendingSessionIds,
+  pinnedSessionIds,
+  pinSessionLabel,
   project,
   renameSessionLabel,
   sessions,
   t,
+  unpinSessionLabel,
   onDeleteProject,
   onDeleteSession,
   onOpenProjectInVSCode,
@@ -43,6 +50,7 @@ export const ProjectCard = React.memo(function ProjectCard({
   onRenameSession,
   onSelectProject,
   onSelectSession,
+  onToggleSessionPin,
   onToggleProjectSessions
 }: ProjectCardProps) {
   const visibleSessions = expanded ? sessions : sessions.slice(0, 4);
@@ -71,7 +79,7 @@ export const ProjectCard = React.memo(function ProjectCard({
           <>
             <ul id={sessionListId} className="mt-2 grid min-w-0 gap-1" aria-label={t[RSC.PROJECT_SIDEBAR_PROJECTS_SELECTED_LIST_LABEL]}>
               {visibleSessions.map((session) => (
-                <ProjectSessionRow key={session.sessionid} activeSessionId={activeSessionId} pending={pendingSessionIds.has(session.sessionid)} project={project} renameSessionLabel={renameSessionLabel} session={session} t={t} onDeleteSession={onDeleteSession} onRenameSession={onRenameSession} onSelectSession={onSelectSession} />
+                <ProjectSessionRow key={session.sessionid} activeSessionId={activeSessionId} pending={pendingSessionIds.has(session.sessionid)} pinned={pinnedSessionIds.has(session.sessionid)} pinSessionLabel={pinSessionLabel} project={project} renameSessionLabel={renameSessionLabel} session={session} t={t} unpinSessionLabel={unpinSessionLabel} onDeleteSession={onDeleteSession} onRenameSession={onRenameSession} onSelectSession={onSelectSession} onToggleSessionPin={onToggleSessionPin} />
               ))}
             </ul>
             {hiddenSessionCount > 0 ? (

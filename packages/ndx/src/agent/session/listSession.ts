@@ -8,7 +8,7 @@ export async function listSession(database: NDXDatabase, projectname: string): P
 SELECT sessionid, title, lastupdated, mode, projectname, parentsessionid, rootsessionid, createdbytoolcallid, createdbytoolname, subagenttype, subagentconfig, subagentstatus, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, runtimedata
 FROM "session"
 WHERE projectname = $1
-  AND parentsessionid IS NULL
+  AND parentsessionid = sessionid
 ORDER BY lastupdated DESC, sessionid DESC;
 `,
     [projectname]
@@ -25,6 +25,7 @@ export async function listChildSessions(database: NDXDatabase, parentSessionid: 
 SELECT sessionid, title, lastupdated, mode, projectname, parentsessionid, rootsessionid, createdbytoolcallid, createdbytoolname, subagenttype, subagentconfig, subagentstatus, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, runtimedata
 FROM "session"
 WHERE parentsessionid = $1
+  AND sessionid <> $1
 ORDER BY lastupdated DESC, sessionid DESC;
 `,
     [parentSessionid]

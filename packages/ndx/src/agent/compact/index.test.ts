@@ -122,7 +122,7 @@ test("appendCompactSessionHistory fallback preserves recallable dataid range anc
   assert.equal((compact.row.contents as { sourceEndDataId?: string }).sourceEndDataId, "4");
 });
 
-test("compactReplayContents preserves rows after an iteration compact without making them compact source", () => {
+test("compactReplayContents preserves explicit replay rows without making them compact source", () => {
   const replay = compactReplayContents([
     row("4", "user", { kind: "user_message", text: "current request" }),
     row("5", "tool_call", { kind: "tool_call", iteration: 1, toolCalls: [{ type: "function_call", call_id: "call-1", name: "read", arguments: "{}" }] }),
@@ -149,6 +149,8 @@ function row(dataid: string, type: string, contents: unknown): NDXSessionDataRow
 function session(): NDXSessionRow {
   return {
     sessionid: "018f0000-0000-7000-8000-000000000001",
+    parentsessionid: "018f0000-0000-7000-8000-000000000001",
+    rootsessionid: "018f0000-0000-7000-8000-000000000001",
     title: "",
     lastupdated: new Date("2026-05-12T00:00:00.000Z"),
     mode: "none",

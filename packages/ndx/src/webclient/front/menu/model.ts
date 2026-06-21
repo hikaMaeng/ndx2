@@ -1,9 +1,10 @@
-import type { NDXAgentWebChatFolder, NDXAgentWebChatSession, NDXAgentWebSession } from "ndx/webclient/common";
+import type { NDXAgentWebChatFolder, NDXAgentWebChatSession, NDXAgentWebPinnedSession, NDXAgentWebSession } from "ndx/webclient/common";
 import { SliceModel } from "../model/SliceModel.js";
 
 export class ProjectMenuModel {
   readonly projectWarning = new SliceModel("");
   readonly projectWarningTitle = new SliceModel("");
+  readonly pinnedSessions = new SliceModel<NDXAgentWebPinnedSession[]>([]);
   readonly sessionsByProject = new SliceModel<Record<string, NDXAgentWebSession[]>>({});
   readonly expandedProjectSessionIds = new SliceModel<Set<string>>(new Set());
 

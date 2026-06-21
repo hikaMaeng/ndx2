@@ -1,8 +1,13 @@
+import fs from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { failedWithoutProcess } from "../../execute/process.js";
 import type { NDXSessionRequestQueuePosition } from "../../../requestQue/index.js";
 import type { NDXToolExecutionOptions, NDXToolExecutionResult } from "../../types.js";
 
 export const NDX_TURNPLAN_TOOL_NAME = "turnplan";
+
+const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
 
 export function turnplanToolSchema(): Record<string, unknown> {
   return {
@@ -111,14 +116,22 @@ export async function executeTurnplanTool(
     if (!goal || requests.length === 0) {
       return failedWithoutProcess(NDX_TURNPLAN_TOOL_NAME, callId, "turnplan plan requires goal and at least one non-empty request.", "failed", startedAtDate);
     }
+    let reflectionRequest;
+    let summaryRequest;
+    try {
+      reflectionRequest = await turnplanTemplateRequest("reflection.md", goal);
+      summaryRequest = await turnplanTemplateRequest("summary.md", goal);
+    } catch (error) {
+      return failedWithoutProcess(NDX_TURNPLAN_TOOL_NAME, callId, `turnplan failed to load request templates: ${error instanceof Error ? error.message : String(error)}`, "failed", startedAtDate);
+    }
     const added = [];
     for (let index = 0; index < requests.length; index += 1) {
       added.push(await options.sessionRequestQueueBridge.add({ sessionid: options.sessionid, text: requests[index]! }));
       if (index < requests.length - 1) {
-        added.push(await options.sessionRequestQueueBridge.add({ sessionid: options.sessionid, text: turnplanReflectionRequest(goal) }));
+        added.push(await options.sessionRequestQueueBridge.add({ sessionid: options.sessionid, text: reflectionRequest }));
       }
     }
-    added.push(await options.sessionRequestQueueBridge.add({ sessionid: options.sessionid, text: turnplanSummaryRequest(goal) }));
+    added.push(await options.sessionRequestQueueBridge.add({ sessionid: options.sessionid, text: summaryRequest }));
     return turnplanResult(callId, startedAtDate, { action, goal, added, items: await options.sessionRequestQueueBridge.list(options.sessionid) });
   }
   return failedWithoutProcess(NDX_TURNPLAN_TOOL_NAME, callId, "turnplan action must be plan, list, add, update, delete, or clear.", "failed", startedAtDate);
@@ -134,31 +147,23 @@ function normalizeTurnplanPosition(value: unknown): NDXSessionRequestQueuePositi
   return undefined;
 }
 
-function turnplanReflectionRequest(goal: string): string {
-  return [
-    "$turnplan",
-    "",
-    "turnplan reflection request.",
-    "",
-    `Original goal: ${goal}`,
-    "",
-    "Use the turnplan skill. Call turnplan with action=\"list\", then review the session history and the remaining request queue.",
-    "Decide whether the completed queued turns and remaining queued turns still lead to the original goal.",
-    "If the queue is stale, incomplete, redundant, or wrongly ordered, use turnplan add/update/delete/clear to adjust it.",
-    "Do not summarize for the user unless that is the best next action; this is a normal agent turn whose purpose is queue reassessment."
-  ].join("\n");
-}
-
-function turnplanSummaryRequest(goal: string): string {
-  return [
-    "turnplan final summary request.",
-    "",
-    `Original goal: ${goal}`,
-    "",
-    "Review all completed queued turns against the original goal.",
-    "Summarize what was accomplished, what remains incomplete, and whether more queued requests are needed.",
-    "If more work is required, use turnplan to add the next concrete requests before giving the final user-facing summary."
-  ].join("\n");
+async function turnplanTemplateRequest(filename: "reflection.md" | "summary.md", goal: string): Promise<string> {
+  const candidatePaths = [
+    path.join(moduleDirectory, "templates", filename),
+    path.join(moduleDirectory, "..", "..", "..", "..", "..", "src", "agent", "tool", "base", "turnplan", "templates", filename),
+    path.join(process.cwd(), "packages", "ndx", "src", "agent", "tool", "base", "turnplan", "templates", filename),
+    path.join(process.cwd(), "src", "agent", "tool", "base", "turnplan", "templates", filename)
+  ];
+  for (const candidatePath of candidatePaths) {
+    try {
+      return (await fs.readFile(candidatePath, "utf8")).replaceAll("{{GOAL}}", goal).trim();
+    } catch (error) {
+      if (!error || typeof error !== "object" || (error as NodeJS.ErrnoException).code !== "ENOENT") {
+        throw error;
+      }
+    }
+  }
+  throw new Error(`${filename} not found`);
 }
 
 function turnplanResult(callId: string | undefined, startedAtDate: Date, outputValue: Record<string, unknown>): NDXToolExecutionResult {

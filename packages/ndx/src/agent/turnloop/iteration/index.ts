@@ -37,10 +37,6 @@ export async function prepareTurnIteration(state: NDXActiveTurnPipelineState): P
         state.finalIteration = iteration;
         return state.pipeline.finishAfterLoop(state);
       }
-      const preparedContextUsage = state.turnContextUsage("", []);
-      if (contextPreparedHook.compact) {
-        return state.pipeline.finishCompactTurn(state, contextPreparedHook.compact, state.currentMessageParts?.historyRows ?? [], preparedContextUsage);
-      }
       return state.pipeline.callTurnModel(state, { finalizingAfterIterationLimit: true, contextUsage: finalContextUsage });
     }
 
@@ -70,9 +66,6 @@ export async function prepareTurnIteration(state: NDXActiveTurnPipelineState): P
       return state.pipeline.finishAfterLoop(state);
     }
     const modelRequestContextUsage = state.turnContextUsage();
-    if (contextPreparedHook.compact) {
-      return state.pipeline.finishCompactTurn(state, contextPreparedHook.compact, state.currentMessageParts?.historyRows ?? [], modelRequestContextUsage);
-    }
     return state.pipeline.callTurnModel(state, { contextUsage: modelRequestContextUsage });
   } catch (error) {
     return state.pipeline.handleTurnFailure(state, error);

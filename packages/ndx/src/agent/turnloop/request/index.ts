@@ -23,7 +23,7 @@ import { prepareTurnIteration } from "../iteration/index.js";
 import { callTurnModel } from "../model-call/index.js";
 import { handleModelResponse } from "../model-response/index.js";
 import { processToolCalls } from "../tool-call/index.js";
-import { finishAfterLoop, finishCompactTurn } from "../after-loop/index.js";
+import { finishAfterLoop } from "../after-loop/index.js";
 import type { NDXDatabase, NDXModelConfig, NDXSessionRow } from "../../session/types.js";
 import type { NDXActiveTurnPipelineState, NDXTurnInput, NDXTurnLoopEvents, NDXTurnPipelineState, NDXTurnResult } from "../types.js";
 
@@ -47,7 +47,6 @@ export async function handleUserRequest(
       handleModelResponse,
       processToolCalls,
       finishAfterLoop,
-      finishCompactTurn,
       handleTurnFailure
     },
     requestText: request.text,

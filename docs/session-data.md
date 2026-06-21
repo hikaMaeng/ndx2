@@ -140,15 +140,14 @@ Compaction can happen before the current user input is recorded. In that case
 only previous history is compacted, then the user input is appended normally so
 the turn semantics are preserved.
 
-If an iteration reaches the limit after the current input has already produced
-tool results or hook output, compaction must not blur that just-finished turn.
-The compact source window ends before the current input row. The turn loop then
-appends a `compact_replay` row after the compact row with the current input
-turn's model-visible rows. Browser history ignores `compact_replay`, but model
-context reconstruction expands it in place using the normal user/tool/result
-row projections. The turn loop records a final assistant message explaining
-that the turn ended because history was compacted, and session-server request
-handling may start a fresh continuation turn after that terminal turn.
+Once a turn is already running, context pressure is handled by normal turn
+limits rather than by compacting mid-turn. If the completed turn leaves the
+session too large for a later request, the next request-received context check
+compacts previous history before that new user row is appended.
+
+`compact_replay` rows are preserved for compatibility with existing stored
+history and non-turn-loop callers, but the session turn loop no longer writes
+them as part of iteration-time compaction.
 
 `turncontextusage` stores one global aggregate row:
 

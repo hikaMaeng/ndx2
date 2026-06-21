@@ -10,7 +10,8 @@ export async function createSession(database: NDXDatabase, input: NDXSessionCrea
   });
   const projectname = normalizeWorkspaceProjectName(input.projectname);
   const sessionid = input.sessionid ?? uuid7();
-  const rootsessionid = input.rootsessionid ?? input.parentsessionid ?? sessionid;
+  const parentsessionid = input.parentsessionid ?? sessionid;
+  const rootsessionid = input.rootsessionid ?? (parentsessionid === sessionid ? sessionid : parentsessionid);
   const result = await database.query<NDXSessionRow>(
     `
 INSERT INTO "session" (sessionid, title, mode, projectname, parentsessionid, rootsessionid, createdbytoolcallid, createdbytoolname, subagenttype, subagentconfig, subagentstatus, model)
@@ -22,7 +23,7 @@ RETURNING sessionid, title, lastupdated, mode, projectname, parentsessionid, roo
       input.title ?? "",
       input.mode ?? "none",
       projectname,
-      input.parentsessionid ?? null,
+      parentsessionid,
       rootsessionid,
       input.createdbytoolcallid ?? null,
       input.createdbytoolname ?? null,

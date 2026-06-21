@@ -1,6 +1,6 @@
 import type { NDXContextUsage } from "../contextusage/index.js";
 import type { NDXCompactReport } from "../compact/index.js";
-import type { NDXHookCompactEffect, NDXHookRunResult, NDXHookRuntime, NDXModelRequestPrefixDrift, NDXModelRequestPrefixSnapshot } from "../hook/index.js";
+import type { NDXHookRunResult, NDXHookRuntime, NDXModelRequestPrefixDrift, NDXModelRequestPrefixSnapshot } from "../hook/index.js";
 import type { NDXAgentRuntimeSettings } from "../runtime-settings/index.js";
 import type { NDXSessionRequestQueueConsumerBridge, NDXSessionRequestQueueEditBridge } from "../requestQue/index.js";
 import type { NDXModelConfig, NDXSessionDataRow, NDXSessionRow } from "../session/types.js";
@@ -69,7 +69,6 @@ export type NDXTurnPipelineContinuations = {
   handleModelResponse: (state: NDXActiveTurnPipelineState, response: ModelResponse) => Promise<void>;
   processToolCalls: (state: NDXActiveTurnPipelineState, response: ModelResponse) => Promise<void>;
   finishAfterLoop: (state: NDXActiveTurnPipelineState) => Promise<void>;
-  finishCompactTurn: (state: NDXActiveTurnPipelineState, compactEffect: NDXHookCompactEffect, contextRows: NDXSessionDataRow[], contextUsage: NDXContextUsage) => Promise<void>;
   handleTurnFailure: (state: NDXTurnPipelineState, error: unknown) => Promise<void>;
 };
 

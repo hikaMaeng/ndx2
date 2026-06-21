@@ -36,7 +36,7 @@ export async function listAvailableTools(options: NDXToolRegistryOptions = {}): 
       command: "",
       args: [],
       env: {},
-      schema: await functionTool.schema(options)
+      schema: functionTool.schema()
     });
   }
 
