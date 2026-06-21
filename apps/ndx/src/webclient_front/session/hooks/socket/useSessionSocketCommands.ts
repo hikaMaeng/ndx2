@@ -17,7 +17,6 @@ export function useSessionSocketCommands({
     if (attachedSessionIdsRef.current.has(session.sessionid)) return true;
     if (socketState !== "connected" || !socketRef.current?.isOpen()) return false;
     return Boolean(socketRef.current?.attachSession({
-      userid: session.userid,
       projectName: session.projectname,
       sessionid: session.sessionid
     }));

@@ -1,8 +1,7 @@
 import React from "react";
-import type { NDXAgentWebMetadataResponse, NDXAgentWebSession, NDXAgentWebUser, NDXWebClientProject, NDXWebClientStateDocument } from "ndx/webclient/common";
-import { createUser, deleteWebProject, getProjectMenuModel, listProjectSessions, listUsers, listWebProjects, openWebProjectInVSCode, updateProjectUser, createWebProject } from "ndx/webclient/front";
+import type { NDXAgentWebMetadataResponse, NDXAgentWebSession, NDXWebClientProject, NDXWebClientStateDocument } from "ndx/webclient/common";
+import { deleteWebProject, getProjectMenuModel, listProjectSessions, listWebProjects, openWebProjectInVSCode, createWebProject } from "ndx/webclient/front";
 import { ProjectWarningDialog } from "../modals/ProjectWarningDialog";
-import { UserDialog } from "../modals/UserDialog";
 import type { NDXSessionDeletedMessage, NDXSessionListChangedMessage } from "../socket/projectSocket";
 import { RSC } from "../../../app/resource";
 import type { WebClientBridge } from "../../../app/bridge/WebClientBridge";
@@ -24,7 +23,7 @@ type UseProjectControllerOptions = {
 };
 
 export async function refreshProjectSessions(
-  projects: Array<{ projectName: string; userid: string }>,
+  projects: Array<{ projectName: string }>,
   setSessionsByProject: React.Dispatch<React.SetStateAction<Record<string, NDXAgentWebSession[]>>>
 ) {
   const entries = await Promise.all(projects.map(async (project) => [project.projectName, await listProjectSessions(project).catch(() => [])] as const));
@@ -48,16 +47,11 @@ export function useProjectController({
   const model = getProjectMenuModel();
   const projectWarning = useModel(model.projectWarning).value;
   const projectWarningTitle = useModel(model.projectWarningTitle).value;
-  const users = useModel(model.users).value;
   const sessionsByProject = useModel(model.sessionsByProject).value;
   const expandedProjectSessionIds = useModel(model.expandedProjectSessionIds).value;
-  const userModalProjectName = useModel(model.userModalProjectName).value;
-  const newUserid = useModel(model.newUserid).value;
   const setProjectWarning = (update: React.SetStateAction<string>) => model.projectWarning.set(update);
   const setProjectWarningTitle = (update: React.SetStateAction<string>) => model.projectWarningTitle.set(update);
-  const setUsers = (update: React.SetStateAction<NDXAgentWebUser[]>) => model.users.set(update);
   const setSessionsByProject = (update: React.SetStateAction<Record<string, NDXAgentWebSession[]>>) => model.sessionsByProject.set(update);
-  const setNewUserid = (update: React.SetStateAction<string>) => model.newUserid.set(update);
 
   React.useEffect(() => {
     void refreshProjectSessions(clientState.projects, setSessionsByProject);
@@ -88,31 +82,20 @@ export function useProjectController({
   const selectProject = (project: NDXWebClientProject) => {
     clearSessionError();
     bridge?.openProject(project.projectName);
-    saveState({ ...stateRef.current, activeProjectName: project.projectName, selectedUserid: project.userid });
+    saveState({ ...stateRef.current, activeProjectName: project.projectName });
   };
 
   const selectSession = (project: NDXWebClientProject, sessionid: string) => {
     clearSessionError();
     bridge?.openProjectSession(project.projectName, sessionid);
-    saveState({ ...stateRef.current, activeProjectName: project.projectName, selectedUserid: project.userid });
+    saveState({ ...stateRef.current, activeProjectName: project.projectName });
   };
 
   const prepareSessionDraft = (project: NDXWebClientProject) => {
     bridge?.openProjectDraft(project.projectName);
     bridge?.openModal({ kind: "model", sourceSurfaceKey: `draft:${project.projectName}` });
-    saveState({ ...stateRef.current, activeProjectName: project.projectName, selectedUserid: project.userid });
+    saveState({ ...stateRef.current, activeProjectName: project.projectName });
     clearSessionError();
-  };
-
-  const changeProjectUser = (project: NDXWebClientProject, userid: string) => {
-    const actionKey = `project-user:${project.projectName}`;
-    if (!startAction(actionKey)) return;
-    void updateProjectUser(project.projectName, userid).then((row) => {
-      const projects = stateRef.current.projects.map((item) => item.projectName === row.projectName ? { ...item, userid: row.userid } : item);
-      saveState({ ...stateRef.current, projects, selectedUserid: row.userid });
-      model.userModalProjectName.set(undefined);
-      void refreshProjectSessions(projects, setSessionsByProject);
-    }).catch(() => setNotice(t[RSC.APP_STATUS_STATE_UNAVAILABLE_ALERT])).finally(() => finishAction(actionKey));
   };
 
   const deleteProject = (project: NDXWebClientProject) => {
@@ -166,21 +149,6 @@ export function useProjectController({
       .finally(() => finishAction(actionKey));
   };
 
-  const createAndSelectUser = (project: NDXWebClientProject) => {
-    const actionKey = `user-create:${project.projectName}`;
-    if (!startAction(actionKey)) return;
-    const userid = newUserid.trim();
-    if (!userid) {
-      finishAction(actionKey);
-      return;
-    }
-    void createUser({ userid }).then(() => listUsers()).then((data) => {
-      setUsers(data.users);
-      setNewUserid("");
-      changeProjectUser(project, userid);
-    }).catch(() => setNotice(t[RSC.APP_STATUS_STATE_UNAVAILABLE_ALERT])).finally(() => finishAction(actionKey));
-  };
-
   const openProjectPicker = () => {
     if (!startAction("project-add")) return;
     void (async () => {
@@ -192,8 +160,7 @@ export function useProjectController({
       }
 
       const project = await createWebProject({
-        name: folderName,
-        userid: stateRef.current.selectedUserid ?? "ndev",
+        name: folderName
       });
       await reloadProjectMenu(project.projectName);
       setNotice(t[RSC.PROJECT_SIDEBAR_PROJECTS_ADDED_ALERT]);
@@ -212,7 +179,7 @@ export function useProjectController({
       ...current,
       [message.projectname]: (current[message.projectname] ?? []).filter((session) => session.sessionid !== message.sessionid)
     }));
-    const project = stateRef.current.projects.find((item) => item.projectName === message.projectname && item.userid === message.userid);
+    const project = stateRef.current.projects.find((item) => item.projectName === message.projectname);
     if (project) {
       void listProjectSessions(project).then((sessions) => {
         setSessionsByProject((current) => ({ ...current, [project.projectName]: sessions }));
@@ -222,17 +189,15 @@ export function useProjectController({
   };
 
   const reloadChangedSessionList = (message: NDXSessionListChangedMessage) => {
-    const project = stateRef.current.projects.find((item) => item.projectName === message.projectname && item.userid === message.userid);
+    const project = stateRef.current.projects.find((item) => item.projectName === message.projectname);
     if (!project) return;
     void listProjectSessions(project).then((sessions) => {
       setSessionsByProject((current) => ({ ...current, [project.projectName]: sessions }));
     }).catch(() => setStateSynced(false));
   };
 
-  const userDialogProject = clientState.projects.find((project) => project.projectName === userModalProjectName);
   const dialogs = (
     <>
-      {userDialogProject ? <UserDialog busy={hasPendingAction(`user-create:${userDialogProject.projectName}`) || hasPendingAction(`project-user:${userDialogProject.projectName}`)} newUserid={newUserid} project={userDialogProject} t={t} users={users} onClose={() => model.userModalProjectName.set(undefined)} onCreate={() => createAndSelectUser(userDialogProject)} onNewUseridChange={setNewUserid} onSelect={(userid) => changeProjectUser(userDialogProject, userid)} /> : null}
       {projectWarning ? <ProjectWarningDialog title={projectWarningTitle} message={projectWarning} t={t} onClose={() => model.closeProjectWarning()} /> : null}
     </>
   );
@@ -255,8 +220,6 @@ export function useProjectController({
     setProjectWarning,
     setProjectWarningTitle,
     setSessionsByProject,
-    setUsers,
-    toggleProjectSessions,
-    openUserDialog: (projectName: string | undefined) => model.userModalProjectName.set(projectName)
+    toggleProjectSessions
   };
 }

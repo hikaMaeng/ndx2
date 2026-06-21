@@ -26,7 +26,6 @@ Target API surfaces:
 | Surface | Transport | Contract owner |
 | --- | --- | --- |
 | Session stream | WebSocket | Agent server session surface |
-| Account management | HTTP API | Account server |
 | Settings operations | HTTP API plus web UI | Webclient settings surface |
 | History restoration | HTTP API or WebSocket request-response | Agent server session surface |
 
@@ -34,17 +33,15 @@ Session socket clients submit a UUID `clientid` query parameter during the WebSo
 
 Connection setup is ordered:
 
-1. Server sends `account.selection.required` with selectable `users`.
-2. Client sends `account.select` with `userid`.
-3. Server sends `account.selected`, then `project.negotiation.required`.
-4. Client sends one `project.configure` message with `projectName`.
-5. Server sends `project.negotiated`, then `session.ready`.
+1. Server sends `project.negotiation.required`.
+2. Client sends one `project.configure` message with `projectName`.
+3. Server sends `project.negotiated`, then `session.ready`.
 
-Until account selection completes, the server ignores all other work and repeats `account.selection.required`. Until project negotiation completes, the server requires `project.configure`.
+Until project negotiation completes, the server requires `project.configure`.
 
 After `session.ready`, clients enter a session with `session.attach`, including
-`userid`, `projectName`, and `sessionid`. The server verifies the account,
-workspace project folder, and session ownership, then records a socket-local
+`projectName` and `sessionid`. The server verifies the workspace project folder
+and session project, then records a socket-local
 grant for that `sessionid` and returns `session.attached`.
 
 `session.input` and `session.interrupt` messages carry `sessionid` and are
@@ -56,7 +53,7 @@ message and are not reconstructed from turn or iteration events.
 Project session-list actions also use the socket: `session.rename` updates the
 session title and replies with `session.renamed`, while `session.delete` removes
 the session and replies with `session.deleted`. Both actions broadcast
-`session.list.changed` to clients owned by the same account.
+`session.list.changed` to clients viewing the same project.
 
 `GET /api/agent/sessions/:sessionid/data` remains an HTTP inspection endpoint
 for durable `sessiondata` rows. Browser session rendering restores history over

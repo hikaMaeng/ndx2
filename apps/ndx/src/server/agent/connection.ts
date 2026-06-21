@@ -11,6 +11,7 @@ import {
   NDX_SESSION_INPUT,
   NDX_SESSION_ITERATION_DETAIL_RESULT,
   NDX_SESSION_LIST_CHANGED,
+  NDX_SESSION_REQUEST_QUEUE_CHANGED,
   NDX_SESSION_RENAMED,
   NDX_SESSION_SIDEBAR_ITEM,
   NDX_SESSION_SKILL_LIST_RESULT,
@@ -18,8 +19,10 @@ import {
   NDX_SESSION_TURN_DELETED,
   NDX_TURN_EVENT,
   NDX_AGENT_RESOURCE,
+  NDX_PROJECT_NEGOTIATION_REQUIRED,
   createNDXAgentResourceResolver,
   normalizeNDXAgentLanguage,
+  type NDXAgentLanguage,
   type NDXAgentResourceResolver,
   isNDXSessionAttachMessage,
   isNDXSessionBranchCreateMessage,
@@ -30,6 +33,9 @@ import {
   isNDXSessionInputMessage,
   isNDXSessionIterationDetailMessage,
   isNDXSessionInterruptMessage,
+  isNDXSessionRequestQueueAddMessage,
+  isNDXSessionRequestQueueDeleteMessage,
+  isNDXSessionRequestQueueUpdateMessage,
   isNDXSessionClientResponseMessage,
   isNDXSessionRenameMessage,
   isNDXSessionSkillListMessage,
@@ -38,7 +44,7 @@ import {
   NDX_SESSION_CLIENT_REQUEST_CLOSED,
   NDX_SESSION_CLIENT_REQUEST_KIND_ASK_USER_QUESTION
 } from "ndx/common";
-import type { NDXAskUserQuestionRequest, NDXAskUserQuestionResponse, NDXSessionAttachMessage, NDXSessionBranchCreateMessage, NDXSessionClientRequestClosedMessage, NDXSessionCreateInitialInput, NDXSessionCreateMessage, NDXSessionDeleteMessage, NDXSessionEventMessage, NDXSessionRenameMessage, NDXSessionSidebarItemMessage, NDXSessionSkillListMessage, NDXSessionTurnDeleteMessage } from "ndx/common/protocol";
+import type { NDXAskUserQuestionRequest, NDXAskUserQuestionResponse, NDXSessionAttachMessage, NDXSessionBranchCreateMessage, NDXSessionClientRequestClosedMessage, NDXSessionCreateInitialInput, NDXSessionCreateMessage, NDXSessionDeleteMessage, NDXSessionEventMessage, NDXSessionRenameMessage, NDXSessionRequestQueueChangedMessage, NDXSessionSidebarItemMessage, NDXSessionSkillListMessage, NDXSessionTurnDeleteMessage } from "ndx/common/protocol";
 import {
   appendSessionData,
   compactBranchSession,
@@ -72,10 +78,10 @@ import {
   runAgentTurnWithCompactContinuation,
   type NDXTurnLoopEvent
 } from "ndx/agent/turnloop";
+import { createNDXSessionRequestQueueRegistry } from "ndx/agent/requestQue";
 import type { NDXLogger } from "ndx/common";
 import { serverContainerUserHome, serverWorkspaceProjectPath, toServerProjectPath } from "ndx/common/server-path";
 import type { RawData, WebSocket } from "ws";
-import { acceptAccountSelection, requireAccountSelection } from "./accountSelection.js";
 import { buildSessionHistorySummary, buildSessionIterationDetail, buildSessionTurnDetail } from "./history.js";
 import { acceptProjectNegotiation } from "./projectNegotiation.js";
 import { sendJson } from "./sendJson.js";
@@ -86,6 +92,9 @@ const pendingClientRequests = new Map<string, {
   request: NDXAskUserQuestionRequest;
   finish: (response: NDXAskUserQuestionResponse | undefined, reason: NDXSessionClientRequestClosedMessage["reason"]) => void;
 }>();
+
+const sessionRequestQueues = createNDXSessionRequestQueueRegistry();
+const drainingSessionRequestQueues = new Set<string>();
 
 export async function handleSessionConnection(
   socket: WebSocket,
@@ -128,7 +137,7 @@ export async function handleSessionConnection(
     logger?.error("agent.socket.connection.error", { clientid, error });
   });
 
-  await requireAccountSelection(client, database, undefined, logger);
+  await sendJson(client, { type: NDX_PROJECT_NEGOTIATION_REQUIRED });
 }
 
 async function handleSessionMessage(
@@ -171,9 +180,48 @@ async function handleSessionMessage(
     return;
   }
 
-  if (!client.userid) {
-    logger?.info("agent.socket.protocol.account_selection", { clientid: client.clientid, messageType: messageType(message) });
-    await acceptAccountSelection(client, message, database, logger, resource);
+  if (isNDXSessionRequestQueueAddMessage(message)) {
+    const grant = await requireSessionGrant(client, message.sessionid, logger, resource);
+    if (!grant) return;
+    const session = await getSession(database, grant.sessionid);
+    if (!session) {
+      await sendJson(client, { type: NDX_PROTOCOL_ERROR, error: resource(NDX_AGENT_RESOURCE.PROTOCOL_SESSION_GRANT_UNAVAILABLE_ERROR, { language }) });
+      return;
+    }
+    const turnModel = message.model ?? session.model;
+    let attachments;
+    try {
+      assertModelSupportsAttachments(turnModel, message.attachments);
+      attachments = await writeSessionAttachments(toServerProjectPath(session.path), session.sessionid, message.attachments);
+    } catch (error) {
+      logger?.warn("agent.socket.protocol.session_request_queue.attachment_rejected", { clientid: client.clientid, sessionid: session.sessionid, error });
+      await sendJson(client, { type: NDX_PROTOCOL_ERROR, error: error instanceof Error ? error.message : resource(NDX_AGENT_RESOURCE.PROTOCOL_UNSUPPORTED_SESSION_MESSAGE_ERROR, { language }) });
+      return;
+    }
+    sessionRequestQueues.enqueue({
+      sessionid: session.sessionid,
+      text: message.text.trim(),
+      attachments,
+      model: turnModel
+    });
+    await broadcastSessionRequestQueueChanged(connectedClients, session.sessionid, logger);
+    void drainSessionRequestQueue(connectedClients, database, session.sessionid, language, resource, logger);
+    return;
+  }
+
+  if (isNDXSessionRequestQueueUpdateMessage(message)) {
+    const grant = await requireSessionGrant(client, message.sessionid, logger, resource);
+    if (!grant) return;
+    sessionRequestQueues.updateText(grant.sessionid, message.itemid, message.text);
+    await broadcastSessionRequestQueueChanged(connectedClients, grant.sessionid, logger);
+    return;
+  }
+
+  if (isNDXSessionRequestQueueDeleteMessage(message)) {
+    const grant = await requireSessionGrant(client, message.sessionid, logger, resource);
+    if (!grant) return;
+    sessionRequestQueues.delete(grant.sessionid, message.itemid);
+    await broadcastSessionRequestQueueChanged(connectedClients, grant.sessionid, logger);
     return;
   }
 
@@ -221,6 +269,7 @@ async function handleSessionMessage(
         await sendTurnLoopEventToSessionGrantOwners(connectedClients, session, event, logger);
       }
     });
+    void drainSessionRequestQueue(connectedClients, database, session.sessionid, language, resource, logger);
     logger?.info("agent.socket.protocol.session_input.complete", {
       clientid: client.clientid,
       sessionid: session.sessionid
@@ -353,7 +402,6 @@ async function handleSessionMessage(
   if (!client.projectName) {
     logger?.info("agent.socket.protocol.project_negotiation", {
       clientid: client.clientid,
-      userid: client.userid,
       messageType: messageType(message)
     });
     await acceptProjectNegotiation(client, message, database, logger, resource);
@@ -363,7 +411,6 @@ async function handleSessionMessage(
   if (isNDXSessionCreateMessage(message)) {
     logger?.info("agent.socket.protocol.session_create.start", {
       clientid: client.clientid,
-      userid: message.userid ?? client.userid,
       projectName: message.projectName ?? client.projectName,
       model: message.model?.model
     });
@@ -386,7 +433,6 @@ async function handleSessionMessage(
     const session = await createSession(database, input);
     client.grants.set(session.sessionid, {
       sessionid: session.sessionid,
-      userid: session.userid,
       projectName: session.projectname,
       createdat: new Date()
     });
@@ -395,7 +441,7 @@ async function handleSessionMessage(
       ...(initialInput ? { initialInputAccepted: true } : {}),
       ...toSocketSession(session)
     });
-    await broadcastSessionListChanged(connectedClients, session.userid, session.projectname, logger);
+    await broadcastSessionListChanged(connectedClients, session.projectname, logger);
     if (initialInput) {
       await handleSessionMessage(
         client,
@@ -636,6 +682,79 @@ async function broadcastClientRequestClosed(
   })));
 }
 
+async function drainSessionRequestQueue(
+  connectedClients: Map<string, SessionClientState>,
+  database: NDXDatabase,
+  sessionid: string,
+  language: NDXAgentLanguage | undefined,
+  resource: NDXAgentResourceResolver,
+  logger?: NDXLogger
+) {
+  if (drainingSessionRequestQueues.has(sessionid)) return;
+  drainingSessionRequestQueues.add(sessionid);
+  try {
+    while (true) {
+      const session = await getSession(database, sessionid);
+      if (!session) {
+        sessionRequestQueues.clear(sessionid);
+        await broadcastSessionRequestQueueChanged(connectedClients, sessionid, logger);
+        return;
+      }
+      if (session.isrunning) return;
+      const next = sessionRequestQueues.shift(sessionid);
+      if (!next) {
+        await broadcastSessionRequestQueueChanged(connectedClients, sessionid, logger);
+        return;
+      }
+      await broadcastSessionRequestQueueChanged(connectedClients, sessionid, logger);
+      if (!next.text.trim() && next.attachments.length === 0) {
+        logger?.warn("agent.socket.protocol.session_request_queue.drain.skipped_empty", { sessionid, itemid: next.itemid });
+        continue;
+      }
+      logger?.info("agent.socket.protocol.session_request_queue.drain.start", { sessionid, itemid: next.itemid });
+      try {
+        await runAgentTurnWithCompactContinuation(database, session, { text: next.text, attachments: next.attachments }, next.model, {
+          language,
+          resource,
+          sessionClientBridge: {
+            requestUserQuestion(request, bridgeOptions) {
+              return requestSessionClientQuestion(connectedClients, session.sessionid, { ...request, sessionid: session.sessionid }, bridgeOptions?.signal, logger);
+            }
+          },
+          async onEvent(event) {
+            await sendTurnLoopEventToSessionGrantOwners(connectedClients, session, event, logger);
+          }
+        });
+        logger?.info("agent.socket.protocol.session_request_queue.drain.complete", { sessionid, itemid: next.itemid });
+      } catch (error) {
+        logger?.error("agent.socket.protocol.session_request_queue.drain.failed", { sessionid, itemid: next.itemid, error });
+        return;
+      }
+    }
+  } finally {
+    drainingSessionRequestQueues.delete(sessionid);
+  }
+}
+
+async function broadcastSessionRequestQueueChanged(
+  connectedClients: Map<string, SessionClientState>,
+  sessionid: string,
+  logger?: NDXLogger
+) {
+  const targets = sessionGrantOwnerTargets(connectedClients, sessionid);
+  await Promise.all(targets.map((target) => sendSessionRequestQueueChanged(target.client, sessionid)));
+  logger?.debug("agent.socket.session_request_queue.changed.broadcast", { sessionid, count: targets.length });
+}
+
+async function sendSessionRequestQueueChanged(client: SessionClientState, sessionid: string) {
+  await sendJson(client, {
+    type: NDX_SESSION_REQUEST_QUEUE_CHANGED,
+    sessionid,
+    items: sessionRequestQueues.items(sessionid),
+    language: client.language
+  } satisfies NDXSessionRequestQueueChangedMessage);
+}
+
 function hasAskUserQuestionAnswers(response: NDXAskUserQuestionResponse): boolean {
   return Object.values(response.answers).some((answer) => answer.answers.length > 0 || Boolean(answer.attachments?.length));
 }
@@ -655,9 +774,8 @@ async function resolveCreateSessionInput(
   logger?: NDXLogger,
   resource: NDXAgentResourceResolver = createNDXAgentResourceResolver()
 ) {
-  const userid = message.userid ?? client.userid;
   const projectName = message.projectName ?? client.projectName;
-  if (!userid || !projectName) {
+  if (!projectName) {
     logger?.warn("agent.socket.protocol.session_create.rejected", { clientid: client.clientid, reason: "missing_project" });
     await sendJson(client, { type: NDX_PROTOCOL_ERROR, error: resource(NDX_AGENT_RESOURCE.PROTOCOL_SESSION_CREATE_TARGET_REQUIRED_ERROR, { language: client.language }) });
     return undefined;
@@ -670,7 +788,6 @@ async function resolveCreateSessionInput(
   }
 
   return {
-    userid,
     projectname: projectName,
     model: message.model ?? defaultModelConfig()
   };
@@ -728,13 +845,12 @@ async function renameSessionFromSocket(
 ) {
   logger?.info("agent.socket.protocol.session_rename.start", {
     clientid: client.clientid,
-    userid: message.userid,
     projectName: message.projectName,
     sessionid: message.sessionid,
     titleLength: message.title.trim().length
   });
   const session = await getSession(database, message.sessionid);
-  if (!session || session.userid !== message.userid || session.projectname !== message.projectName) {
+  if (!session || session.projectname !== message.projectName) {
     logger?.warn("agent.socket.protocol.session_rename.rejected", { clientid: client.clientid, sessionid: message.sessionid });
     await sendJson(client, { type: NDX_PROTOCOL_ERROR, error: resource(NDX_AGENT_RESOURCE.PROTOCOL_SESSION_RENAME_UNAVAILABLE_ERROR, { language: client.language }) });
     return;
@@ -746,7 +862,7 @@ async function renameSessionFromSocket(
       type: NDX_SESSION_RENAMED,
       ...toSocketSession(renamed)
     });
-    await broadcastSessionListChanged(connectedClients, renamed.userid, renamed.projectname, logger);
+    await broadcastSessionListChanged(connectedClients, renamed.projectname, logger);
     logger?.info("agent.socket.protocol.session_rename.complete", { clientid: client.clientid, sessionid: renamed.sessionid });
   } catch (error) {
     logger?.warn("agent.socket.protocol.session_rename.failed", { clientid: client.clientid, sessionid: message.sessionid, error });
@@ -764,12 +880,11 @@ async function deleteSessionFromSocket(
 ) {
   logger?.info("agent.socket.protocol.session_delete.start", {
     clientid: client.clientid,
-    userid: message.userid,
     projectName: message.projectName,
     sessionid: message.sessionid
   });
   const session = await getSession(database, message.sessionid);
-  if (!session || session.userid !== message.userid || session.projectname !== message.projectName) {
+  if (!session || session.projectname !== message.projectName) {
     logger?.warn("agent.socket.protocol.session_delete.rejected", { clientid: client.clientid, sessionid: message.sessionid });
     await sendJson(client, { type: NDX_PROTOCOL_ERROR, error: resource(NDX_AGENT_RESOURCE.PROTOCOL_SESSION_DELETE_UNAVAILABLE_ERROR, { language: client.language }) });
     return;
@@ -793,10 +908,9 @@ async function deleteSessionFromSocket(
   await sendJson(client, {
     type: NDX_SESSION_DELETED,
     sessionid: deleted.sessionid,
-    userid: deleted.userid,
     projectname: deleted.projectname
   });
-  await broadcastSessionListChanged(connectedClients, deleted.userid, deleted.projectname, logger);
+  await broadcastSessionListChanged(connectedClients, deleted.projectname, logger);
   logger?.info("agent.socket.protocol.session_delete.complete", { clientid: client.clientid, sessionid: deleted.sessionid });
 }
 
@@ -835,7 +949,7 @@ async function deleteSessionTurnFromSocket(
     inputDataId: deleted.inputDataId,
     deletedDataIds: deleted.deletedDataIds
   })));
-  await broadcastSessionListChanged(connectedClients, deleted.session.userid, deleted.session.projectname, logger);
+  await broadcastSessionListChanged(connectedClients, deleted.session.projectname, logger);
   logger?.info("agent.socket.protocol.session_turn_delete.complete", { clientid: client.clientid, sessionid: deleted.session.sessionid, deletedCount: deleted.deletedDataIds.length });
 }
 
@@ -870,7 +984,6 @@ async function createSessionBranchFromSocket(
 
   client.grants.set(branch.session.sessionid, {
     sessionid: branch.session.sessionid,
-    userid: branch.session.userid,
     projectName: branch.session.projectname,
     createdat: new Date()
   });
@@ -882,7 +995,7 @@ async function createSessionBranchFromSocket(
     compactStatus: "running"
   });
   await sendBranchCompactEvent(connectedClients, branch, "started", logger);
-  await broadcastSessionListChanged(connectedClients, branch.session.userid, branch.session.projectname, logger);
+  await broadcastSessionListChanged(connectedClients, branch.session.projectname, logger);
   void finishBranchSessionCompact(client, branch, connectedClients, database, logger);
   logger?.info("agent.socket.protocol.session_branch_create.accepted", { clientid: client.clientid, sourceSessionid: branch.sourceSession.sessionid, sessionid: branch.session.sessionid });
 }
@@ -897,7 +1010,7 @@ async function finishBranchSessionCompact(
   try {
     const completed = await compactBranchSession(database, branch);
     await sendBranchCompactEvent(connectedClients, branch, "completed", logger, completed.compact);
-    await broadcastSessionListChanged(connectedClients, branch.session.userid, branch.session.projectname, logger);
+    await broadcastSessionListChanged(connectedClients, branch.session.projectname, logger);
     logger?.info("agent.socket.protocol.session_branch_create.complete", { clientid: client.clientid, sourceSessionid: branch.sourceSession.sessionid, sessionid: branch.session.sessionid });
   } catch (error) {
     logger?.warn("agent.socket.protocol.session_branch_compact.failed", { clientid: client.clientid, sourceSessionid: branch.sourceSession.sessionid, sessionid: branch.session.sessionid, error });
@@ -905,7 +1018,7 @@ async function finishBranchSessionCompact(
       ? error.message
       : "이전 히스토리 compact 생성에 실패했습니다.";
     await sendBranchCompactFailedEvent(connectedClients, branch, message, database, logger);
-    await broadcastSessionListChanged(connectedClients, branch.session.userid, branch.session.projectname, logger);
+    await broadcastSessionListChanged(connectedClients, branch.session.projectname, logger);
   }
 }
 
@@ -973,13 +1086,12 @@ function compactFallbackReason(compact: NDXSessionDataRow | undefined): { fallba
 
 async function broadcastSessionListChanged(
   connectedClients: Map<string, SessionClientState>,
-  userid: string,
   projectname: string,
   logger?: NDXLogger
 ) {
-  const targets = [...connectedClients.values()].filter((client) => client.userid === userid);
-  await Promise.all(targets.map((target) => sendJson(target, { type: NDX_SESSION_LIST_CHANGED, userid, projectname })));
-  logger?.debug("agent.socket.session_list.changed.broadcast", { userid, projectname, count: targets.length });
+  const targets = [...connectedClients.values()].filter((client) => client.projectName === projectname);
+  await Promise.all(targets.map((target) => sendJson(target, { type: NDX_SESSION_LIST_CHANGED, projectname })));
+  logger?.debug("agent.socket.session_list.changed.broadcast", { projectname, count: targets.length });
 }
 
 async function attachSessionGrant(
@@ -991,12 +1103,11 @@ async function attachSessionGrant(
 ) {
   logger?.info("agent.socket.protocol.session_attach.start", {
     clientid: client.clientid,
-    userid: message.userid,
     projectName: message.projectName,
     sessionid: message.sessionid
   });
   const session = await getSession(database, message.sessionid);
-  if (!session || session.userid !== message.userid || session.projectname !== message.projectName) {
+  if (!session || session.projectname !== message.projectName) {
     logger?.warn("agent.socket.protocol.session_attach.rejected", { clientid: client.clientid, sessionid: message.sessionid });
     await sendJson(client, { type: NDX_PROTOCOL_ERROR, error: resource(NDX_AGENT_RESOURCE.PROTOCOL_SESSION_ATTACH_UNAVAILABLE_ERROR, { language: client.language }) });
     return;
@@ -1004,7 +1115,6 @@ async function attachSessionGrant(
 
   client.grants.set(session.sessionid, {
     sessionid: session.sessionid,
-    userid: session.userid,
     projectName: session.projectname,
     createdat: new Date()
   });
@@ -1012,10 +1122,10 @@ async function attachSessionGrant(
     type: NDX_SESSION_ATTACHED,
     createdat: new Date().toISOString(),
     sessionid: session.sessionid,
-    userid: session.userid,
     projectName: session.projectname
   });
   await sendPendingClientRequestsForSession(client, session.sessionid);
+  await sendSessionRequestQueueChanged(client, session.sessionid);
   logger?.info("agent.socket.protocol.session_attach.complete", { clientid: client.clientid, sessionid: session.sessionid });
 }
 

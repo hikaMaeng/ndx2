@@ -196,7 +196,6 @@ test("draft promotion preserves existing model substate under the created sessio
   const created: NDXSessionCreatedMessage = {
     type: NDX_SESSION_CREATED,
     sessionid: "session-a",
-    userid: "ndev",
     title: "새 요청",
     lastupdated: "2026-06-04T00:00:00.000Z",
     mode: "none",
@@ -224,7 +223,6 @@ test("draft promotion preserves existing model substate under the created sessio
 function sessionRow(sessionid: string, projectname: string): NDXAgentWebSession {
   return {
     sessionid,
-    userid: "ndev",
     title: sessionid,
     lastupdated: "2026-06-04T00:00:00.000Z",
     mode: "none",

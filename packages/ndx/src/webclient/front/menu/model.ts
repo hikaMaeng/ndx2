@@ -1,14 +1,11 @@
-import type { NDXAgentWebChatFolder, NDXAgentWebChatSession, NDXAgentWebSession, NDXAgentWebUser } from "ndx/webclient/common";
+import type { NDXAgentWebChatFolder, NDXAgentWebChatSession, NDXAgentWebSession } from "ndx/webclient/common";
 import { SliceModel } from "../model/SliceModel.js";
 
 export class ProjectMenuModel {
   readonly projectWarning = new SliceModel("");
   readonly projectWarningTitle = new SliceModel("");
-  readonly users = new SliceModel<NDXAgentWebUser[]>([]);
   readonly sessionsByProject = new SliceModel<Record<string, NDXAgentWebSession[]>>({});
   readonly expandedProjectSessionIds = new SliceModel<Set<string>>(new Set());
-  readonly userModalProjectName = new SliceModel<string | undefined>(undefined);
-  readonly newUserid = new SliceModel("");
 
   toggleProjectSessions(projectname: string): void {
     const next = new Set(this.expandedProjectSessionIds.value);

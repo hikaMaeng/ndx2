@@ -5,7 +5,6 @@ export enum RSC {
   PROJECT_SESSION_RENAME_DIALOG_TITLE_INPUT_LABEL = "project.session.rename.dialog.title.input.label",
   PROJECT_SESSION_RENAME_DIALOG_TITLE_TEXT = "project.session.rename.dialog.title.text",
   PROJECT_SIDEBAR_CHATS_TITLE_TEXT = "project.sidebar.chats.title.text",
-  PROJECT_SIDEBAR_PROJECT_CHANGE_USER_BUTTON = "project.sidebar.project.changeUser.button",
   PROJECT_SIDEBAR_PROJECT_DELETE_BUTTON = "project.sidebar.project.delete.button",
   PROJECT_SIDEBAR_PROJECT_NEW_SESSION_BUTTON = "project.sidebar.project.newSession.button",
   PROJECT_SIDEBAR_PROJECT_OPEN_VSCODE_BUTTON = "project.sidebar.project.openVSCode.button",
@@ -17,9 +16,4 @@ export enum RSC {
   PROJECT_SIDEBAR_SESSION_RENAME_BUTTON = "project.sidebar.session.rename.button",
   PROJECT_SIDEBAR_SESSIONS_COLLAPSE_BUTTON = "project.sidebar.sessions.collapse.button",
   PROJECT_SIDEBAR_SESSIONS_SHOW_MORE_BUTTON = "project.sidebar.sessions.showMore.button",
-  PROJECT_USER_DIALOG_ADD_USER_BUTTON = "project.user.dialog.addUser.button",
-  PROJECT_USER_DIALOG_CLOSE_BUTTON = "project.user.dialog.close.button",
-  PROJECT_USER_DIALOG_NEW_USER_INPUT_LABEL = "project.user.dialog.newUser.input.label",
-  PROJECT_USER_DIALOG_PENDING_STATUS = "project.user.dialog.pending.status",
-  PROJECT_USER_DIALOG_TITLE_TEXT = "project.user.dialog.title.text",
 }

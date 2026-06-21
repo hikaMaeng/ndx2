@@ -212,7 +212,6 @@ test("session_history function tool returns structured history search results", 
       sessionid: "018f0000-0000-7000-8000-000000000000",
       session: {
         sessionid: "018f0000-0000-7000-8000-000000000000",
-        userid: "ndev",
         title: "",
         lastupdated: new Date(),
         mode: "none",
@@ -266,7 +265,6 @@ test("session_history recall returns exact sessiondata rows by dataid range", as
       sessionid: "018f0000-0000-7000-8000-000000000000",
       session: {
         sessionid: "018f0000-0000-7000-8000-000000000000",
-        userid: "ndev",
         title: "recall session",
         lastupdated: new Date(),
         mode: "none",

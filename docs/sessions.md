@@ -6,14 +6,11 @@ Session identity is scoped by:
 
 | Part | Meaning |
 | --- | --- |
-| Account | User account that owns the session |
-| Project id | UUIDv7-shaped id resolved from the server `project` table |
-| Session id | Unique session id within the account and project category |
+| Project name | Direct child folder name under `/ndx/workspace` |
+| Session id | Unique session id |
 
 Session metadata records properties about the session itself:
 
-* immutable account owner (`userid`);
-* project id;
 * UUIDv7-shaped session id;
 * title, initially empty for empty sessions and derived from the first user request
   when an initial request exists unless renamed;
@@ -45,20 +42,20 @@ request bodies and final assistant answer bodies, keyed by the original
 `dataid`, so clients and context reconstruction still read canonical history
 from `sessiondata`.
 
-The session server is a multi-user socket server. Multiple clients may connect to the same session. The server streams downstream events from agent execution to every connected client that is authorized for the session.
+The session server may serve multiple browser clients. Multiple clients may connect to the same session. The server streams downstream events from agent execution to every connected client that has attached that session on its socket.
 
 A physical WebSocket connection may hold multiple runtime session grants. When
 a client opens a session view, it sends a session attach request. The server
 records that `sessionid` in the socket-local grant set. All later session
 actions on that socket carry the `sessionid`, so one physical socket can carry
-independent sessions across accounts and projects. Grants are runtime-only;
+independent sessions across projects. Grants are runtime-only;
 clients receive no separate token and must attach again on a fresh site load.
 
 Function tools may use the active session grant to ask connected clients for
 structured input. `askUserQuestion` sends `session.client.request` to every
 currently connected client with a grant for that session, and the first valid
 `session.client.response` resolves the tool call. Clients without a grant cannot
-answer even if they can see the project or account in their browser state. If
+answer even if they can see the project in their browser state. If
 the browser disconnects before answering, a later attach for the same session
 receives the pending request again. Once the request is answered, cancelled, or
 interrupted, the server sends `session.client.request.closed` to attached
@@ -71,12 +68,12 @@ The `all` scope searches every session stored in the same PostgreSQL/pgvector
 datastore.
 
 The session web client is separate from the socket server. It manages its own
-project menu state and then connects to the socket server with a selected
-`userid`, workspace child-folder `projectName`, and model config. Model selection is
+project menu state and then connects to the socket server with a workspace
+child-folder `projectName` and model config. Model selection is
 rendered from the web client's provider/model tables, but the socket server
 still only receives the final `NDXModelConfig` payload. The socket server owns
 agent execution; the web client only requests session lists, creates sessions,
-selects accounts, and opens socket connections.
+and opens socket connections.
 
 When an existing session receives `session.input` with a model config, the
 socket server treats that config as the session's new active model for the turn.
@@ -92,7 +89,7 @@ client and any future CLI client. The socket server rejects both operations
 while the source session is running, compacting, interrupting, or carrying a
 pending interrupt request.
 
-`session.branch.create` copies the source session account, project, mode, and
+`session.branch.create` copies the source session project, mode, and
 model config, creates a new session, and then stores one initial `compact`
 `sessiondata` row summarizing source history through the selected turn. The new
 session title is the selected user request title with a leading `🚩`. The
@@ -107,7 +104,7 @@ the socket emits `turn.failed` on the new session and records an assistant
 
 For a new project session with a first request, the browser sends that request
 inside `session.create.initialInput`. The socket server validates the target
-account/project, model, attachments, session row, and session token before it
+project, model, attachments, session row, and session token before it
 emits `session.created`. That message carries the token, the first-request
 title, and `initialInputAccepted`; the web client must promote its draft surface
 to the returned session without sending a second `session.input`. The server

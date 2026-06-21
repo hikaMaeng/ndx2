@@ -1,17 +1,9 @@
 export { parseSSEDataFrame } from "./sse.js";
 export {
-  NDX_ACCOUNT_SELECTED,
-  NDX_ACCOUNT_SELECTION_REQUIRED,
-  NDX_ACCOUNT_SELECT,
   NDX_CLIENT_ID_QUERY_PARAM,
-  isNDXAccountSelectMessage,
   isNDXClientId
 } from "./identity/index.js";
 export type {
-  NDXAccountSelectedMessage,
-  NDXAccountSelectionRequiredMessage,
-  NDXAccountSelectMessage,
-  NDXAccountSummary,
   NDXClientId
 } from "./identity/index.js";
 export { NDX_PROTOCOL_ERROR } from "./error/index.js";
@@ -43,6 +35,10 @@ export {
   NDX_SESSION_ITERATION_DETAIL,
   NDX_SESSION_ITERATION_DETAIL_RESULT,
   NDX_SESSION_INTERRUPT,
+  NDX_SESSION_REQUEST_QUEUE_ADD,
+  NDX_SESSION_REQUEST_QUEUE_CHANGED,
+  NDX_SESSION_REQUEST_QUEUE_DELETE,
+  NDX_SESSION_REQUEST_QUEUE_UPDATE,
   NDX_SESSION_CLIENT_REQUEST,
   NDX_SESSION_CLIENT_REQUEST_CLOSED,
   NDX_SESSION_CLIENT_REQUEST_KIND_ASK_USER_QUESTION,
@@ -67,6 +63,9 @@ export {
   isNDXSessionInputMessage,
   isNDXSessionIterationDetailMessage,
   isNDXSessionInterruptMessage,
+  isNDXSessionRequestQueueAddMessage,
+  isNDXSessionRequestQueueDeleteMessage,
+  isNDXSessionRequestQueueUpdateMessage,
   isNDXSessionClientResponseMessage,
   isNDXAskUserQuestionResponse,
   isNDXSessionRenameMessage,
@@ -107,6 +106,12 @@ export type {
   NDXSessionInterruptMessage,
   NDXSessionListChangedMessage,
   NDXSessionModelConfig,
+  NDXSessionRequestQueueAddMessage,
+  NDXSessionRequestQueueAttachment,
+  NDXSessionRequestQueueChangedMessage,
+  NDXSessionRequestQueueDeleteMessage,
+  NDXSessionRequestQueueItem,
+  NDXSessionRequestQueueUpdateMessage,
   NDXSessionRenameMessage,
   NDXSessionRenamedMessage,
   NDXSessionSkillListMessage,

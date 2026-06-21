@@ -42,7 +42,6 @@ export async function createBranchSessionFromTurn(database: NDXDatabase, session
   }
 
   const created = await createSession(database, {
-    userid: sourceSession.userid,
     projectname: sourceSession.projectname,
     mode: sourceSession.mode,
     model: sourceSession.model,

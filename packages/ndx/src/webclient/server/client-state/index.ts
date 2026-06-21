@@ -1,5 +1,4 @@
 export {
-  DEFAULT_NDX_WEB_CLIENT_USERID,
   DEFAULT_NDX_WEB_CLIENT_LOCALE,
   createInitialWebClientState,
   isAbsoluteProjectPath,
@@ -15,7 +14,6 @@ export {
   deleteWebProject,
   listWebProject,
   upsertWebProject,
-  updateWebProjectUser,
   getWebClientState,
   initWebClientStateDatabase,
   upsertWebClientState

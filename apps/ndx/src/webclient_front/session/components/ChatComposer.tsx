@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { ChevronDown, Paperclip, Send, Square, WandSparkles, X } from "lucide-react";
+import { ChevronDown, ListPlus, Paperclip, Send, Square, WandSparkles, X } from "lucide-react";
 import { Mention, MentionsInput } from "react-mentions-ts";
 import { ContextUsageRing } from "./ContextUsageRing";
 import { modelAttachmentInputAccept, modelSupportsAttachmentMimeType, type NDXAgentWebContextUsage } from "ndx/webclient/front";
@@ -29,6 +29,7 @@ export function ChatComposer({
   onModelClick,
   onRewriteToggle,
   onSkillListRefresh,
+  onQueueAdd,
   onSubmit
 }: {
   agentRunning: boolean;
@@ -53,6 +54,7 @@ export function ChatComposer({
   onModelClick: () => void;
   onRewriteToggle: () => void;
   onSkillListRefresh: () => void;
+  onQueueAdd: (cotSolveSteps: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   const [previewAttachmentId, setPreviewAttachmentId] = useState<string>();
@@ -61,6 +63,7 @@ export function ChatComposer({
   const cotSolveInputId = idSuffix ? `session-cot-solve-input-${idSuffix}` : "session-cot-solve-input";
   const attachmentInputId = idSuffix ? `session-attachment-input-${idSuffix}` : "session-attachment-input";
   const submitDisabled = compactRunning || interruptPending || (!agentRunning && requestPending);
+  const queueAddVisible = agentRunning && !compactRunning && !interruptPending && (input.trim().length > 0 || attachments.length > 0);
   const previewAttachment = attachments.find((attachment) => attachment.id === previewAttachmentId && attachment.previewUrl);
   const skillSuggestions = skills.map((skill) => ({
     id: encodeURIComponent(skill.name),
@@ -285,16 +288,29 @@ export function ChatComposer({
               <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" />
             </button>
             <ContextUsageRing usage={contextUsage} label={t[RSC.SESSION_CONTEXT_USAGE_LABEL]} title={t[RSC.SESSION_CONTEXT_USAGE_POPOVER_TITLE_TEXT]} t={t} />
-            <button
-              type="submit"
-              className={agentRunning ? "inline-flex h-8 w-8 items-center justify-center rounded-full bg-red-500 p-0 text-sm font-medium text-white transition-colors hover:bg-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" : "inline-flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 p-0 text-sm font-medium text-zinc-950 transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50"}
-              aria-label={agentRunning ? t[RSC.SESSION_COMPOSER_INTERRUPT_BUTTON] : t[RSC.SESSION_COMPOSER_SEND_BUTTON]}
-              aria-busy={submitDisabled}
-              disabled={submitDisabled}
-              title={agentRunning ? t[RSC.SESSION_COMPOSER_INTERRUPT_BUTTON] : t[RSC.SESSION_COMPOSER_SEND_BUTTON]}
-            >
-              {agentRunning ? <Square aria-hidden="true" className="h-3.5 w-3.5 fill-current" /> : <Send aria-hidden="true" className="h-4 w-4" />}
-            </button>
+            <div className="grid shrink-0 gap-1">
+              <button
+                type="submit"
+                className={agentRunning ? "inline-flex h-8 w-8 items-center justify-center rounded-full bg-red-500 p-0 text-sm font-medium text-white transition-colors hover:bg-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" : "inline-flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 p-0 text-sm font-medium text-zinc-950 transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50"}
+                aria-label={agentRunning ? t[RSC.SESSION_COMPOSER_INTERRUPT_BUTTON] : t[RSC.SESSION_COMPOSER_SEND_BUTTON]}
+                aria-busy={submitDisabled}
+                disabled={submitDisabled}
+                title={agentRunning ? t[RSC.SESSION_COMPOSER_INTERRUPT_BUTTON] : t[RSC.SESSION_COMPOSER_SEND_BUTTON]}
+              >
+                {agentRunning ? <Square aria-hidden="true" className="h-3.5 w-3.5 fill-current" /> : <Send aria-hidden="true" className="h-4 w-4" />}
+              </button>
+              {queueAddVisible ? (
+                <button
+                  type="button"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-cyan-400/60 bg-cyan-400/10 p-0 text-cyan-100 transition-colors hover:bg-cyan-400/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950"
+                  aria-label="요청 큐에 추가"
+                  title="요청 큐에 추가"
+                  onClick={() => onQueueAdd(cotSolveSteps)}
+                >
+                  <ListPlus aria-hidden="true" className="h-4 w-4" />
+                </button>
+              ) : null}
+            </div>
           </div>
         </div>
       </form>

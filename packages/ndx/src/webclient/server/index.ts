@@ -25,7 +25,6 @@ export { getWebSelfcheck, listWebSelfcheck, listWebSelfcheckCandidates, listWebS
 
 export {
   DEFAULT_NDX_WEB_CLIENT_LOCALE,
-  DEFAULT_NDX_WEB_CLIENT_USERID,
   WEB_CLIENT_STATE_TABLE_INDEX_SQL,
   WEB_CLIENT_STATE_TABLE_SQL,
   WEB_PROJECT_TABLE_INDEX_SQL,
@@ -39,7 +38,6 @@ export {
   listWebProject,
   makeLocalProject,
   normalizeWebClientState,
-  updateWebProjectUser,
   upsertWebClientState,
   upsertWebProject
 } from "./client-state/index.js";

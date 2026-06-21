@@ -69,7 +69,6 @@ root as `/ndx/workspace/<projectName>`.
 | Column | Contract |
 | --- | --- |
 | `sessionid` | UUID primary key. Runtime-generated ids are UUIDv7-shaped for index locality. |
-| `userid` | Required immutable owner account id. |
 | `title` | Starts as `''` for an empty session. When `session.create` carries an initial input, the session row is created with the first input text as title; otherwise the first string `user` history item promotes to title unless already set. |
 | `lastupdated` | Updated whenever session metadata or history changes. |
 | `mode` | `none` or `light`; default `none`. |
@@ -500,8 +499,7 @@ tool-call, inference, or context-reconstruction state.
 | Column | Contract |
 | --- | --- |
 | `clientid` | UUID primary key used by the web client when opening `/session`. |
-| `userid` | Optional selected account reference; set null if the account is deleted. |
-| `state` | JSONB browser state document, currently locale, local projects, active project, selected account, and last successful socket negotiation. |
+| `state` | JSONB browser state document, currently locale, local projects, active project, and last successful socket negotiation. |
 | `updatedat` | Updated whenever the browser state document is written. |
 
 The web client state SQL is maintained in
@@ -517,7 +515,6 @@ workspace folders. It is not the source of project truth; the folder under
 | --- | --- |
 | `projectname` | Workspace direct child folder name; primary key. |
 | `screenorder` | Project menu order. Larger values appear first. Project add/reactivation assigns current maximum `screenorder + 1`; future manual reordering changes this value. |
-| `userid` | Current account id used by the web client for this project. Defaults to `ndev` under the repository account contract. |
 | `updatedat` | Updated when project menu metadata changes. |
 
 Creating a web project creates a new workspace child folder and upserts a

@@ -28,7 +28,6 @@ export async function putWebClientState(clientid: string, state: NDXWebClientSta
   const normalized = normalizeWebClientState(state);
   const body: NDXAgentWebUpdateClientStateRequest = {
     clientid,
-    userid: normalized.selectedUserid,
     state: normalized
   };
   return requestJson<NDXAgentWebClientStateResponse>(NDX_AGENT_WEB_API.webClientState, {

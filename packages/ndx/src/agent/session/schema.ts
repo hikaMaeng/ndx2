@@ -3,7 +3,6 @@ import type { NDXDatabase } from "./types.js";
 export const SESSION_TABLE_SQL = `
 CREATE TABLE IF NOT EXISTS "session" (
   sessionid uuid PRIMARY KEY,
-  userid text NOT NULL,
   title text NOT NULL DEFAULT '',
 	  lastupdated timestamptz NOT NULL DEFAULT now(),
 	  mode text NOT NULL DEFAULT 'none' CHECK (mode IN ('none', 'light')),
@@ -83,15 +82,16 @@ ALTER TABLE "session" ADD COLUMN IF NOT EXISTS interruptrequestedat timestamptz;
 	  END IF;
 	END $$;
 	DROP INDEX IF EXISTS session_projectid_lastupdated_idx;
+	DROP INDEX IF EXISTS session_userid_lastupdated_idx;
 	DROP TABLE IF EXISTS sessiontoken;
 	ALTER TABLE "session" DROP CONSTRAINT IF EXISTS session_slidewindow_range_check;
 	ALTER TABLE "session" DROP COLUMN IF EXISTS slidewindow;
 	ALTER TABLE "session" DROP COLUMN IF EXISTS path;
 	ALTER TABLE "session" DROP COLUMN IF EXISTS projectid;
+	ALTER TABLE "session" DROP COLUMN IF EXISTS userid;
 	`;
 	
 	export const SESSION_TABLE_INDEX_SQL = `
-	CREATE INDEX IF NOT EXISTS session_userid_lastupdated_idx ON "session" (userid, lastupdated DESC);
 	CREATE INDEX IF NOT EXISTS session_projectname_lastupdated_idx ON "session" (projectname, lastupdated DESC);
 	`;
 

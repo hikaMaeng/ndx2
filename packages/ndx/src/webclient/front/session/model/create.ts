@@ -49,7 +49,6 @@ export function promoteDraftSessionModel(model: SessionInstanceModel, message: N
     identity,
     metadata: {
       sessionid: message.sessionid,
-      userid: message.userid,
       title: message.title,
       lastupdated: message.lastupdated,
       mode: message.mode,

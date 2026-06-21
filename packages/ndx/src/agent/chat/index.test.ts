@@ -11,6 +11,7 @@ import {
 } from "./index.js";
 import {
   CHATFOLDER_TABLE_SQL,
+  CHAT_TABLE_MIGRATION_SQL,
   CHATSESSIONDATA_TABLE_SQL,
   CHATSESSION_TABLE_SQL
 } from "./schema.js";
@@ -36,26 +37,26 @@ test("initChatDatabase runs chat schema in dependency order", async () => {
   await initChatDatabase(database);
 
   assert.equal(queries[0], CHATFOLDER_TABLE_SQL);
-  assert.equal(queries[2], CHATSESSION_TABLE_SQL);
-  assert.equal(queries[4], CHATSESSIONDATA_TABLE_SQL);
+  assert.equal(queries[1], CHATSESSION_TABLE_SQL);
+  assert.equal(queries[2], CHAT_TABLE_MIGRATION_SQL);
+  assert.equal(queries[5], CHATSESSIONDATA_TABLE_SQL);
 });
 
-test("ensureRootChatFolder inserts or returns the user root folder", async () => {
+test("ensureRootChatFolder inserts or returns the global root folder", async () => {
   const valuesSeen: unknown[][] = [];
   const database: NDXDatabase = {
     async query(_text, values) {
       valuesSeen.push(values ?? []);
       return {
-        rows: [{ folderid: values?.[0], userid: values?.[1], title: "root", kind: "root", screenorder: 0, createdat: new Date(), updatedat: new Date() }],
+        rows: [{ folderid: values?.[0], title: "root", kind: "root", screenorder: 0, createdat: new Date(), updatedat: new Date() }],
         rowCount: 1
       } as never;
     },
     async close() {}
   };
 
-  const root = await ensureRootChatFolder(database, "ndev");
+  const root = await ensureRootChatFolder(database);
 
-  assert.equal(root.userid, "ndev");
   assert.equal(root.kind, "root");
   assert.match(String(valuesSeen[0][0]), /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
 });
@@ -67,7 +68,7 @@ test("listChatFolder always ensures root before selecting folders", async () => 
       queries.push(text);
       if (/WITH inserted AS/i.test(text)) {
         return {
-          rows: [{ folderid: values?.[0], userid: values?.[1], title: "root", kind: "root", screenorder: 0, createdat: new Date(), updatedat: new Date() }],
+          rows: [{ folderid: values?.[0], title: "root", kind: "root", screenorder: 0, createdat: new Date(), updatedat: new Date() }],
           rowCount: 1
         } as never;
       }
@@ -76,7 +77,7 @@ test("listChatFolder always ensures root before selecting folders", async () => 
     async close() {}
   };
 
-  await listChatFolder(database, "ndev");
+  await listChatFolder(database);
 
   assert.match(queries[0], /INSERT INTO chatfolder/);
   assert.match(queries[1], /ORDER BY CASE WHEN kind = 'root' THEN 0 ELSE 1 END/);
@@ -91,8 +92,8 @@ test("root chat folder cannot be renamed or deleted through domain functions", a
     async close() {}
   };
 
-  await assert.rejects(() => updateChatFolderTitle(database, "018f0000-0000-7000-8000-000000000000", "ndev", "next"), /root folder cannot be renamed/);
-  assert.equal(await deleteChatFolder(database, "018f0000-0000-7000-8000-000000000000", "ndev"), undefined);
+  await assert.rejects(() => updateChatFolderTitle(database, "018f0000-0000-7000-8000-000000000000", "next"), /root folder cannot be renamed/);
+  assert.equal(await deleteChatFolder(database, "018f0000-0000-7000-8000-000000000000"), undefined);
 });
 
 test("chat session data lists by numeric append order instead of text alias order", async () => {

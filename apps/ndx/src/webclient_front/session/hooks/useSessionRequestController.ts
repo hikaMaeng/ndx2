@@ -84,6 +84,7 @@ export function useSessionRequestController({
 }: UseSessionRequestControllerOptions) {
   const sessionSubmitActionKey = activeUiKey ? `session-submit:${activeUiKey}` : "session-submit";
   const sessionInterruptActionKey = activeSessionId ? `session-interrupt:${activeSessionId}` : "session-interrupt";
+  const sessionQueueAddActionKey = activeSessionId ? `session-request-queue-add:${activeSessionId}` : "session-request-queue-add";
 
   const submitChatRequest = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -203,7 +204,6 @@ export function useSessionRequestController({
           const model = toModelConfig(selectedModel);
           updateActiveUi((current) => ({ ...current, pendingInitialRequest: { text: requestText, model, attachments: encodedAttachments } }));
           if (getSocket()?.createSession({
-            userid: project.userid,
             projectName: project.projectName,
             model,
             initialInput: { text: requestText, ...(encodedAttachments.length ? { attachments: encodedAttachments } : {}) }
@@ -252,7 +252,64 @@ export function useSessionRequestController({
     });
   };
 
+  const queueChatRequest = (cotSolveSteps: string) => {
+    const sessionid = activeSessionId;
+    if (!sessionid || !agentRunning || !activeSession) return;
+    if (!attachedSessionIdsRef.current.has(sessionid)) {
+      setSessionNotice(t[RSC.APP_STATUS_SOCKET_REQUIRED_ALERT]);
+      return;
+    }
+    const text = chatInput.trim();
+    const pendingAttachments = chatAttachments;
+    if (!text && pendingAttachments.length === 0) return;
+    if (!selectedModel.model.trim()) {
+      modelDialog.setOpen(true);
+      setSessionNotice(t[RSC.SESSION_MODEL_SELECT_PLACEHOLDER] || "모델 선택");
+      return;
+    }
+    if (pendingAttachments.some((attachment) => !modelSupportsAttachmentMimeType(selectedModel.modalities, attachment.mimeType))) {
+      const supportsImageAttachments = selectedModel.modalities.includes("image");
+      const supportsFileAttachments = selectedModel.modalities.includes("file");
+      setSessionNotice(
+        supportsImageAttachments && !supportsFileAttachments
+          ? t[RSC.SESSION_COMPOSER_ATTACHMENT_IMAGE_ONLY_STATUS] || "현재 모델은 이미지 첨부만 지원합니다."
+          : supportsFileAttachments && !supportsImageAttachments
+            ? t[RSC.SESSION_COMPOSER_ATTACHMENT_FILE_ONLY_STATUS] || "현재 모델은 일반 파일 첨부만 지원합니다."
+            : t[RSC.SESSION_COMPOSER_ATTACHMENT_UNSUPPORTED_STATUS] || "현재 모델은 첨부 입력을 지원하지 않습니다."
+      );
+      return;
+    }
+    if (!startAction(sessionQueueAddActionKey)) return;
+    setChatInput("");
+    clearChatAttachments();
+    const rawCotSolveSteps = cotSolveSteps.trim().replace(/^0+/u, "");
+    const requestText = withRewriterMarker(withCotSolveMarker(withThinkingMarker(text, selectedModel.reasoningEffort), /^\d+$/u.test(rawCotSolveSteps) ? rawCotSolveSteps : ""), rewriteEnabled);
+    void (async () => {
+      const encodedAttachments = await encodeAttachments(pendingAttachments);
+      if (getSocket()?.addQueuedRequest(sessionid, requestText, toModelConfig(selectedModel), encodedAttachments)) {
+        updateSessionUi(sessionid, (current) => ({
+          ...current,
+          requestQueueCollapsed: true,
+          notice: "요청을 큐에 추가했습니다."
+        }));
+        finishAction(sessionQueueAddActionKey);
+        return;
+      }
+      finishAction(sessionQueueAddActionKey);
+      setChatInput(text);
+      setChatAttachments(pendingAttachments);
+      setSessionNotice(t[RSC.APP_STATUS_SOCKET_REQUIRED_ALERT]);
+    })().catch((error) => {
+      finishAction(sessionQueueAddActionKey);
+      setChatInput(text);
+      setChatAttachments(pendingAttachments);
+      setSessionNotice(error instanceof Error && error.message ? error.message : t[RSC.APP_STATUS_STATE_UNAVAILABLE_ALERT]);
+    });
+  };
+
   return {
+    queueChatRequest,
+    sessionQueueAddActionKey,
     sessionInterruptActionKey,
     sessionSubmitActionKey,
     submitChatRequest

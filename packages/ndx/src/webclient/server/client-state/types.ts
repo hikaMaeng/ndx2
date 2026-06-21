@@ -9,13 +9,11 @@ export type NDXWebClientProject = {
   name: string;
   path: string;
   screenorder: number;
-  userid: string;
   source: "local";
 };
 
 export type NDXWebClientSession = {
   clientid: string;
-  userid: string;
   projectName: string;
   connectedAt: string;
 };
@@ -25,32 +23,27 @@ export type NDXWebClientStateDocument = {
   locale: NDXWebClientLocale;
   projects: NDXWebClientProject[];
   activeProjectName?: string;
-  selectedUserid?: string;
   lastSession?: NDXWebClientSession;
 };
 
 export type NDXWebClientStateRow = {
   clientid: string;
-  userid: string | null;
   state: NDXWebClientStateDocument;
   updatedat: Date;
 };
 
 export type NDXWebClientStateInput = {
   clientid: string;
-  userid?: string | null;
   state: unknown;
 };
 
 export type NDXWebProjectRow = {
   projectname: string;
   screenorder: number;
-  userid: string;
   updatedat: Date;
 };
 
 export type NDXWebProjectInput = {
   projectname: string;
   screenorder?: number;
-  userid?: string;
 };

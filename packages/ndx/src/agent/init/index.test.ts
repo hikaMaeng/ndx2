@@ -3,12 +3,11 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { DEFAULT_NDX_USERID, DEFAULT_USER_RECORD_SQL, USERS_TABLE_SQL, initAccountDatabase } from "../account/schema.js";
 import { SESSION_TABLE_SQL, initSessionDatabase } from "../session/schema.js";
 import { initWebClientStateDatabase } from "../../webclient/server/client-state/index.js";
 import { seedServerAssets, type NDXDatabase } from "./index.js";
 
-test("server database initialization creates the default account before session storage", async () => {
+test("server database initialization creates session and web client storage", async () => {
   const queries: { text: string; values: unknown[] }[] = [];
   const database: NDXDatabase = {
     async query(text, values) {
@@ -18,14 +17,10 @@ test("server database initialization creates the default account before session 
     async close() {}
   };
 
-  await initAccountDatabase(database);
   await initSessionDatabase(database);
   await initWebClientStateDatabase(database);
 
-  assert.equal(queries[0].text, USERS_TABLE_SQL);
-  assert.equal(queries[1].text, DEFAULT_USER_RECORD_SQL);
-  assert.deepEqual(queries[1].values, [DEFAULT_NDX_USERID]);
-  assert.equal(queries[2].text, SESSION_TABLE_SQL);
+  assert.equal(queries[0].text, SESSION_TABLE_SQL);
 });
 
 test("server asset seeding copies registered system skills from base tool owners", async () => {

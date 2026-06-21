@@ -27,7 +27,6 @@ import {
   type NDXAgentWebSessionDataResponse,
   type NDXAgentWebSessionsResponse
 } from "ndx/webclient/common";
-import { DEFAULT_NDX_WEB_CLIENT_USERID } from "ndx/webclient/server/client-state";
 import type { NDXLogger } from "ndx/common";
 import { normalizeWorkspaceProjectName, serverContainerUserHome, serverWorkspaceProjectPath, toServerProjectPath } from "ndx/common/server-path";
 
@@ -36,15 +35,14 @@ export function attachAgentWebSessionRoutes(app: express.Express, database?: NDX
     try {
       const language = requestLanguage(request);
       const projectName = normalizeWorkspaceProjectName(request.params.projectName);
-      logger?.debug("web.sessions.list.start", { projectName, userid: request.query.userid });
+      logger?.debug("web.sessions.list.start", { projectName });
       if (!database) {
         response.status(503).json({ error: resources(NDX_AGENT_RESOURCE.WEB_DATABASE_UNAVAILABLE_ERROR, { language }) });
         return;
       }
 
-      const userid = typeof request.query.userid === "string" ? request.query.userid : DEFAULT_NDX_WEB_CLIENT_USERID;
       const body: NDXAgentWebSessionsResponse = {
-        sessions: (await listSession(database, userid, projectName)).map(toWebSession)
+        sessions: (await listSession(database, projectName)).map(toWebSession)
       };
       response.json(body);
       logger?.debug("web.sessions.list.complete", { projectName, count: body.sessions.length });
@@ -64,7 +62,6 @@ export function attachAgentWebSessionRoutes(app: express.Express, database?: NDX
       }
 
       const body = request.body as Partial<NDXAgentWebCreateSessionRequest>;
-      const userid = typeof body.userid === "string" ? body.userid.trim() : DEFAULT_NDX_WEB_CLIENT_USERID;
 
       const model: NDXModelConfig =
         body.model && typeof body.model === "object"
@@ -79,13 +76,12 @@ export function attachAgentWebSessionRoutes(app: express.Express, database?: NDX
       response.status(201).json(
         toWebSession(
           await createSession(database, {
-            userid,
             projectname: projectName,
             model
           })
         )
       );
-      logger?.info("web.sessions.create.complete", { projectName, userid });
+      logger?.info("web.sessions.create.complete", { projectName });
     } catch (error) {
       next(error);
     }

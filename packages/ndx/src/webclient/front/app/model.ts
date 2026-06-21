@@ -14,13 +14,11 @@ export type WebClientSurface =
 
 export type WebClientModalRequest =
   | { kind: "model"; sourceSurfaceKey: string; revision: number }
-  | { kind: "project-user"; projectName: string; revision: number }
   | { kind: "project-warning"; title: string; message: string; revision: number }
   | { kind: "session-rename"; projectName: string; sessionId: string; revision: number };
 
 export type WebClientModalCommand =
   | { kind: "model"; sourceSurfaceKey: string }
-  | { kind: "project-user"; projectName: string }
   | { kind: "project-warning"; title: string; message: string }
   | { kind: "session-rename"; projectName: string; sessionId: string };
 

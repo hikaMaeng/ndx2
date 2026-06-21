@@ -5,7 +5,6 @@ export type NDXChatFolderKind = "root" | "normal";
 
 export type NDXChatFolderRow = {
   folderid: string;
-  userid: string;
   title: string;
   kind: NDXChatFolderKind;
   screenorder: number;
@@ -16,7 +15,6 @@ export type NDXChatFolderRow = {
 export type NDXChatSessionRow = {
   chatsessionid: string;
   folderid: string;
-  userid: string;
   title: string;
   model: NDXModelConfig;
   isrunning: boolean;
@@ -39,7 +37,6 @@ export type NDXChatSessionDataRow = {
 
 export type NDXChatSessionCreateInput = {
   folderid: string;
-  userid: string;
   model: NDXModelConfig;
   chatsessionid?: string;
   title?: string;

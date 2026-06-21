@@ -20,8 +20,8 @@ export type NDXAgentWebChatStreamEvent =
   | { kind: "complete"; session: NDXAgentWebChatSession; data: NDXAgentWebSessionDataResponse["data"] }
   | { kind: "error"; error: string };
 
-export function listChatFolders(userid = "ndev") {
-  return requestJson<NDXAgentWebChatFoldersResponse>(`${NDX_AGENT_WEB_API.chatFolders}?userid=${encodeURIComponent(userid)}`);
+export function listChatFolders() {
+  return requestJson<NDXAgentWebChatFoldersResponse>(NDX_AGENT_WEB_API.chatFolders);
 }
 
 export function createChatFolder(body: NDXAgentWebCreateChatFolderRequest) {
@@ -40,14 +40,14 @@ export function updateChatFolder(folderid: string, body: NDXAgentWebUpdateChatFo
   });
 }
 
-export function deleteChatFolder(folderid: string, userid = "ndev") {
-  return requestJson<NDXAgentWebChatFolder>(`${NDX_AGENT_WEB_API.chatFolder(folderid)}?userid=${encodeURIComponent(userid)}`, {
+export function deleteChatFolder(folderid: string) {
+  return requestJson<NDXAgentWebChatFolder>(NDX_AGENT_WEB_API.chatFolder(folderid), {
     method: "DELETE"
   });
 }
 
-export function listChatSessions(folderid: string, userid = "ndev") {
-  return requestJson<NDXAgentWebChatSessionsResponse>(`${NDX_AGENT_WEB_API.chatFolderSessions(folderid)}?userid=${encodeURIComponent(userid)}`);
+export function listChatSessions(folderid: string) {
+  return requestJson<NDXAgentWebChatSessionsResponse>(NDX_AGENT_WEB_API.chatFolderSessions(folderid));
 }
 
 export function createChatSession(folderid: string, body: NDXAgentWebCreateChatSessionRequest) {
@@ -66,17 +66,17 @@ export function updateChatSession(chatsessionid: string, body: NDXAgentWebUpdate
   });
 }
 
-export function deleteChatSession(chatsessionid: string, userid = "ndev") {
-  return requestJson<NDXAgentWebChatSession>(`${NDX_AGENT_WEB_API.chatSession(chatsessionid)}?userid=${encodeURIComponent(userid)}`, {
+export function deleteChatSession(chatsessionid: string) {
+  return requestJson<NDXAgentWebChatSession>(NDX_AGENT_WEB_API.chatSession(chatsessionid), {
     method: "DELETE"
   });
 }
 
-export function listChatSessionData(chatsessionid: string, userid = "ndev") {
-  return requestJson<NDXAgentWebSessionDataResponse>(`${NDX_AGENT_WEB_API.chatSessionData(chatsessionid)}?userid=${encodeURIComponent(userid)}`);
+export function listChatSessionData(chatsessionid: string) {
+  return requestJson<NDXAgentWebSessionDataResponse>(NDX_AGENT_WEB_API.chatSessionData(chatsessionid));
 }
 
-export function appendChatSessionMessage(chatsessionid: string, body: { text: string; model?: NDXAgentWebModelConfig; userid?: string }) {
+export function appendChatSessionMessage(chatsessionid: string, body: { text: string; model?: NDXAgentWebModelConfig }) {
   return requestJson<NDXAgentWebSessionDataResponse & { session?: NDXAgentWebChatSession }>(NDX_AGENT_WEB_API.chatSessionMessages(chatsessionid), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -86,7 +86,7 @@ export function appendChatSessionMessage(chatsessionid: string, body: { text: st
 
 export async function appendChatSessionMessageStream(
   chatsessionid: string,
-  body: { text: string; model?: NDXAgentWebModelConfig; userid?: string },
+  body: { text: string; model?: NDXAgentWebModelConfig },
   onEvent: (event: NDXAgentWebChatStreamEvent) => void
 ) {
   const response = await fetch(NDX_AGENT_WEB_API.chatSessionMessages(chatsessionid), {

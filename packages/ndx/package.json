@@ -35,10 +35,6 @@
       "types": "./dist/agent/index.d.ts",
       "import": "./dist/agent/index.js"
     },
-    "./agent/account": {
-      "types": "./dist/agent/account/index.d.ts",
-      "import": "./dist/agent/account/index.js"
-    },
     "./agent/chat": {
       "types": "./dist/agent/chat/index.d.ts",
       "import": "./dist/agent/chat/index.js"
@@ -66,6 +62,10 @@
     "./agent/runtime-settings": {
       "types": "./dist/agent/runtime-settings/index.d.ts",
       "import": "./dist/agent/runtime-settings/index.js"
+    },
+    "./agent/requestQue": {
+      "types": "./dist/agent/requestQue/index.d.ts",
+      "import": "./dist/agent/requestQue/index.js"
     },
     "./agent/session": {
       "types": "./dist/agent/session/index.d.ts",

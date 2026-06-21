@@ -8,8 +8,10 @@ import { CotWorkOverlay } from "../cotWork";
 import { RightSidebarRegion, type UpdateSessionUi } from "../rightsidebar";
 import { AssistantChatMessage } from "./AssistantChatMessage";
 import { ChatComposer } from "./ChatComposer";
+import { TurnNavigation } from "./TurnNavigation";
 import { UserChatMessage } from "./UserChatMessage";
 import { TurnFlow } from "../turn";
+import { RequestQueueBar } from "../requestQueue";
 
 type SessionSurfaceProps = {
   surfaceKey: string;
@@ -34,6 +36,9 @@ type SessionSurfaceProps = {
   onModelClick: () => void;
   onRewriteToggle: () => void;
   onSkillListRefresh: () => void;
+  onQueueAdd: (cotSolveSteps: string) => void;
+  onQueuedRequestDelete: (sessionid: string, itemid: string) => void;
+  onQueuedRequestUpdate: (sessionid: string, itemid: string, text: string) => void;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
   onUserMessageBranch: (sessionid: string, inputDataId: string) => void;
   onUserMessageDelete: (sessionid: string, inputDataId: string) => void;
@@ -65,6 +70,9 @@ export function SessionSurface({
   onModelClick,
   onRewriteToggle,
   onSkillListRefresh,
+  onQueueAdd,
+  onQueuedRequestDelete,
+  onQueuedRequestUpdate,
   onSubmit,
   onUserMessageBranch,
   onUserMessageDelete,
@@ -83,28 +91,75 @@ export function SessionSurface({
   const surfaceTitle = session ? (session.title || session.sessionid) : surfaceKey.startsWith("draft:") ? t[RSC.SESSION_PAGE_NEW_DRAFT_TITLE_TEXT] : surfaceKey;
   const transcript = sessionTranscriptItems(ui.chatMessages, ui.turnFlows);
   const chatScrollRef = React.useRef<HTMLElement | null>(null);
+  const turnRequestRefs = React.useRef(new Map<string, HTMLLIElement>());
+  const [visibleTurnInputDataId, setVisibleTurnInputDataId] = React.useState<string | undefined>(ui.turnFlows[0]?.inputDataId);
+  const turnInputDataIds = React.useMemo(() => new Set(ui.turnFlows.map((turn) => turn.inputDataId)), [ui.turnFlows]);
+  const updateVisibleTurnInputDataId = React.useCallback(() => {
+    const root = chatScrollRef.current;
+    if (!root || ui.turnFlows.length === 0) {
+      setVisibleTurnInputDataId(undefined);
+      return;
+    }
+    const rootBounds = root.getBoundingClientRect();
+    const viewportLine = root.scrollTop + 72;
+    let nextInputDataId: string | undefined;
+    let closestTop = -Infinity;
+    for (const turn of ui.turnFlows) {
+      const target = turnRequestRefs.current.get(turn.inputDataId);
+      if (!target) continue;
+      const targetTop = root.scrollTop + target.getBoundingClientRect().top - rootBounds.top;
+      if (targetTop <= viewportLine && targetTop >= closestTop) {
+        closestTop = targetTop;
+        nextInputDataId = turn.inputDataId;
+      }
+    }
+    setVisibleTurnInputDataId((current) => {
+      const fallback = turnRequestRefs.current.get(ui.turnFlows[0]?.inputDataId ?? "") ? ui.turnFlows[0]?.inputDataId : current;
+      return current === (nextInputDataId ?? fallback) ? current : nextInputDataId ?? fallback;
+    });
+  }, [ui.turnFlows]);
+
+  React.useEffect(() => {
+    for (const inputDataId of Array.from(turnRequestRefs.current.keys())) {
+      if (!turnInputDataIds.has(inputDataId)) {
+        turnRequestRefs.current.delete(inputDataId);
+      }
+    }
+    if (!visibleTurnInputDataId || turnInputDataIds.has(visibleTurnInputDataId)) return;
+    setVisibleTurnInputDataId(ui.turnFlows[0]?.inputDataId);
+  }, [turnInputDataIds, ui.turnFlows, visibleTurnInputDataId]);
 
   React.useEffect(() => {
     if (!isActive || !ui.autoScrollEnabled || !chatScrollRef.current) return;
     chatScrollRef.current.scrollTo({ top: chatScrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [isActive, ui.autoScrollEnabled, ui.chatMessages, ui.turnFlows]);
+    window.requestAnimationFrame(updateVisibleTurnInputDataId);
+  }, [isActive, ui.autoScrollEnabled, ui.chatMessages, ui.turnFlows, updateVisibleTurnInputDataId]);
 
   React.useLayoutEffect(() => {
     if (!isActive) return;
     if (chatScrollRef.current) {
       chatScrollRef.current.scrollTop = ui.chatScrollTop;
     }
-  }, [isActive, surfaceKey]);
+    updateVisibleTurnInputDataId();
+  }, [isActive, surfaceKey, updateVisibleTurnInputDataId]);
 
   return (
     <div className={isActive ? "contents" : "hidden"}>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <button type="button" className="fixed left-4 top-4 z-20 inline-flex h-9 w-9 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900/95 p-0 text-sm font-medium text-zinc-300 shadow-lg shadow-black/30 transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 md:hidden" aria-label={t[RSC.APP_SHELL_MENU_OPEN_BUTTON]} onClick={onOpenMenu}><Menu aria-hidden="true" className="h-4 w-4" /></button>
-        <main ref={chatScrollRef} className="relative min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-8" onScroll={(event) => onChatScroll(event.currentTarget.scrollTop)} onWheel={onDisableAutoScroll} onTouchMove={onDisableAutoScroll} onPointerDown={(event) => {
+        <main ref={chatScrollRef} className="relative min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-8" onScroll={(event) => {
+          onChatScroll(event.currentTarget.scrollTop);
+          updateVisibleTurnInputDataId();
+        }} onWheel={onDisableAutoScroll} onTouchMove={onDisableAutoScroll} onPointerDown={(event) => {
           if (event.currentTarget === event.target) {
             onDisableAutoScroll();
           }
         }}>
+          {surfaceHasChat ? <TurnNavigation turns={ui.turnFlows} activeInputDataId={visibleTurnInputDataId} onSelect={(inputDataId) => {
+            onDisableAutoScroll();
+            turnRequestRefs.current.get(inputDataId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+            setVisibleTurnInputDataId(inputDataId);
+          }} /> : null}
           {surfaceHasChat ? <div className="pointer-events-none sticky right-0 top-0 z-10 ml-auto w-fit rounded-sm bg-zinc-950/80 px-1.5 py-0.5 text-[10px] text-zinc-500">{ui.autoScrollEnabled ? "autoscroll" : "manual scroll"}</div> : null}
           {surfaceHasChat ? (
             <section className="mx-auto flex min-h-full w-full max-w-4xl min-w-0 flex-col justify-end gap-5" aria-labelledby={`session-page-title-${suffix}`}>
@@ -121,7 +176,18 @@ export function SessionSurface({
                   const message = item.message;
                   const userHistoryActionsDisabled = historyMutationDisabled || Boolean(message.historyActionsDisabled);
                   return (
-                    <li key={message.id} className={message.role === "user" ? "ndx-wrap-anywhere max-w-[85%] min-w-0 overflow-hidden justify-self-end rounded-lg bg-zinc-100 px-4 py-3 text-sm leading-6 text-zinc-950" : "ndx-wrap-anywhere max-w-[92%] min-w-0 overflow-hidden justify-self-start rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm leading-6 text-zinc-300"}>
+                    <li
+                      key={message.id}
+                      ref={message.role === "user" && turnInputDataIds.has(message.id) ? (node) => {
+                        if (node) {
+                          turnRequestRefs.current.set(message.id, node);
+                        } else {
+                          turnRequestRefs.current.delete(message.id);
+                        }
+                      } : undefined}
+                      data-turn-user-input-id={message.role === "user" && turnInputDataIds.has(message.id) ? message.id : undefined}
+                      className={message.role === "user" ? "ndx-wrap-anywhere max-w-[85%] min-w-0 scroll-mt-20 overflow-hidden justify-self-end rounded-lg bg-zinc-100 px-4 py-3 text-sm leading-6 text-zinc-950" : "ndx-wrap-anywhere max-w-[92%] min-w-0 overflow-hidden justify-self-start rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm leading-6 text-zinc-300"}
+                    >
                       {message.role === "assistant" ? <AssistantChatMessage text={message.text} copyEnabled={!message.id.startsWith("pending-") && !message.id.startsWith("stream:") && message.text.trim().length > 0} /> : <UserChatMessage text={message.text} attachments={message.attachments} pending={isPendingUserChatMessage(message)} pendingLabel={rewriteEnabled && submitPending ? t[RSC.SESSION_COMPOSER_REWRITE_PENDING_STATUS] || "프롬프트 재작성 중..." : undefined} actionsDisabled={userHistoryActionsDisabled} onBranch={session && !isPendingUserChatMessage(message) && !message.historyActionsDisabled ? () => onUserMessageBranch(session.sessionid, message.id) : undefined} onDelete={session && !isPendingUserChatMessage(message) && !message.historyActionsDisabled ? () => onUserMessageDelete(session.sessionid, message.id) : undefined} />}
                     </li>
                   );
@@ -140,7 +206,16 @@ export function SessionSurface({
           </section>
         ) : null}
         {surfaceHasChat && ui.cotWork ? <CotWorkOverlay agentRunning={surfaceAgentRunning} work={ui.cotWork} /> : null}
-        {surfaceHasChat ? <ChatComposer idSuffix={suffix} agentRunning={surfaceAgentRunning} compactRunning={surfaceCompactRunning} interruptPending={interruptPending} requestPending={submitPending} contextUsage={surfaceContextUsage} input={ui.chatInput} attachments={attachments} skills={ui.availableSkills} modelLabel={surfaceModelLabel} modelModalities={ui.selectedModel.modalities} notice={notice} rewriteEnabled={rewriteEnabled} rewriteToggleDisabled={!session} t={t} onInputChange={onInputChange} onAddAttachments={onAddAttachments} onAttachmentRejected={onAttachmentRejected} onRemoveAttachment={onRemoveAttachment} onModelClick={onModelClick} onRewriteToggle={onRewriteToggle} onSkillListRefresh={onSkillListRefresh} onSubmit={onSubmit} /> : null}
+        {surfaceHasChat && session ? (
+          <RequestQueueBar
+            collapsed={ui.requestQueueCollapsed}
+            items={ui.requestQueue}
+            onCollapsedChange={(collapsed) => updateSessionUi(session.sessionid, (current) => ({ ...current, requestQueueCollapsed: collapsed }))}
+            onDelete={(itemid) => onQueuedRequestDelete(session.sessionid, itemid)}
+            onUpdate={(itemid, text) => onQueuedRequestUpdate(session.sessionid, itemid, text)}
+          />
+        ) : null}
+        {surfaceHasChat ? <ChatComposer idSuffix={suffix} agentRunning={surfaceAgentRunning} compactRunning={surfaceCompactRunning} interruptPending={interruptPending} requestPending={submitPending} contextUsage={surfaceContextUsage} input={ui.chatInput} attachments={attachments} skills={ui.availableSkills} modelLabel={surfaceModelLabel} modelModalities={ui.selectedModel.modalities} notice={notice} rewriteEnabled={rewriteEnabled} rewriteToggleDisabled={!session} t={t} onInputChange={onInputChange} onAddAttachments={onAddAttachments} onAttachmentRejected={onAttachmentRejected} onRemoveAttachment={onRemoveAttachment} onModelClick={onModelClick} onRewriteToggle={onRewriteToggle} onSkillListRefresh={onSkillListRefresh} onQueueAdd={onQueueAdd} onSubmit={onSubmit} /> : null}
       </div>
       {surfaceHasChat ? <RightSidebarRegion isActive={isActive} surfaceKey={surfaceKey} t={t} ui={ui} updateSessionUi={updateSessionUi} /> : null}
     </div>

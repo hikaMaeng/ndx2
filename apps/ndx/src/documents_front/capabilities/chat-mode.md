@@ -15,7 +15,7 @@ NDX chat은 project coding session과 다른 runtime이다. 사용자는 같은 
 
 ## chat context
 
-`packages/ndx/src/agent/chat/context`는 chat 전용 base messages를 만든다. developer message는 이 session이 repository development나 file editing이 아니라고 명시하고, user message에는 `userid`, `folderid`, `chatsessionid`, `user_home`만 넣는다.
+`packages/ndx/src/agent/chat/context`는 chat 전용 base messages를 만든다. developer message는 이 session이 repository development나 file editing이 아니라고 명시하고, user message에는 `folderid`, `chatsessionid`, `user_home`만 넣는다.
 
 ## 허용 도구
 

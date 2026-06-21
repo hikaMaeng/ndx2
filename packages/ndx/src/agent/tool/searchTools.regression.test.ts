@@ -184,7 +184,6 @@ test("session_history FTS mode uses lexical prefix fallback for code identifiers
 
 const SESSION: NDXSessionRow = {
   sessionid: "018f0000-0000-7000-8000-000000000000",
-  userid: "ndev",
   title: "",
   lastupdated: new Date(),
   mode: "none",

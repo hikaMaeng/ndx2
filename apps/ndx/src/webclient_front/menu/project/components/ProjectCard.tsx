@@ -1,5 +1,5 @@
 import React from "react";
-import { ChevronDown, ChevronUp, Code2, Folder, Plus, Trash2, UserRound } from "lucide-react";
+import { ChevronDown, ChevronUp, Code2, Folder, Plus, Trash2 } from "lucide-react";
 import type { NDXAgentWebSession, NDXWebClientProject } from "ndx/webclient/common";
 import { RSC } from "../resource";
 import { ProjectSessionRow } from "./ProjectSessionRow";
@@ -18,7 +18,6 @@ type ProjectCardProps = {
   onDeleteProject: (project: NDXWebClientProject) => void;
   onDeleteSession: (project: NDXWebClientProject, session: NDXAgentWebSession) => void;
   onOpenProjectInVSCode: (project: NDXWebClientProject) => void;
-  onOpenUserDialog: (projectname: string) => void;
   onPrepareSessionDraft: (project: NDXWebClientProject) => void;
   onRenameSession: (project: NDXWebClientProject, session: NDXAgentWebSession) => void;
   onSelectProject: (project: NDXWebClientProject) => void;
@@ -40,7 +39,6 @@ export const ProjectCard = React.memo(function ProjectCard({
   onDeleteProject,
   onDeleteSession,
   onOpenProjectInVSCode,
-  onOpenUserDialog,
   onPrepareSessionDraft,
   onRenameSession,
   onSelectProject,
@@ -64,9 +62,6 @@ export const ProjectCard = React.memo(function ProjectCard({
           </button>
           <button type="button" className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 p-0 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-label={t[RSC.PROJECT_SIDEBAR_PROJECT_NEW_SESSION_BUTTON]} disabled={pending} title={t[RSC.PROJECT_SIDEBAR_PROJECT_NEW_SESSION_BUTTON]} onClick={() => onPrepareSessionDraft(project)}>
             <Plus aria-hidden="true" className="h-3 w-3" />
-          </button>
-          <button type="button" className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 p-0 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-label={t[RSC.PROJECT_SIDEBAR_PROJECT_CHANGE_USER_BUTTON]} disabled={pending} title={t[RSC.PROJECT_SIDEBAR_PROJECT_CHANGE_USER_BUTTON]} onClick={() => onOpenUserDialog(project.projectName)}>
-            <UserRound aria-hidden="true" className="h-3 w-3" />
           </button>
           <button type="button" className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 p-0 text-sm font-medium text-zinc-400 transition-colors hover:bg-red-950 hover:text-red-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-label={t[RSC.PROJECT_SIDEBAR_PROJECT_DELETE_BUTTON]} disabled={pending} title={t[RSC.PROJECT_SIDEBAR_PROJECT_DELETE_BUTTON]} onClick={(event) => { event.preventDefault(); event.stopPropagation(); onDeleteProject(project); }}>
             <Trash2 aria-hidden="true" className="h-3 w-3" />

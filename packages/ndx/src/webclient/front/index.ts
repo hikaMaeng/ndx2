@@ -14,7 +14,7 @@ export { SettingsSurfaceModel, getSettingsSlice, getSettingsSurfaceModel } from 
 export type { LocalDirectoryHandleModel, LocalFileHandleModel, LocalFolderSnapshotModel, SettingsStateSetter, SettingsTab } from "./settings/model.js";
 export { getMetadata, getWebClientState, listWorkspaceDirectories, putWebClientState } from "./api/app.js";
 export { listWebSelfcheck, listWebSelfcheckCandidates, listWebSelfcheckCursors, listWebSelfcheckRuns, runWebSelfcheck, updateWebSelfcheckStatus } from "./api/selfcheck.js";
-export { createProjectSession, createUser, createWebProject, createWebProvider, createWebProviderEmbeddingModel, createWebProviderModel, deleteWebProject, deleteWebProvider, deleteWebProviderModel, getWebEmbeddingSettings, getWebSettings, listProjectSessions, listUsers, listWebProjects, listWebProviderEmbeddingModels, listWebProviderModels, listWebProviders, openWebProjectInVSCode, readProviderModelNames, syncWebProviderEmbeddingModels, syncWebProviderModels, updateProjectUser, updateWebEmbeddingSettings, updateWebProvider, updateWebProviderModel, updateWebSettings } from "./api/project.js";
+export { createProjectSession, createWebProject, createWebProvider, createWebProviderEmbeddingModel, createWebProviderModel, deleteWebProject, deleteWebProvider, deleteWebProviderModel, getWebEmbeddingSettings, getWebSettings, listProjectSessions, listWebProjects, listWebProviderEmbeddingModels, listWebProviderModels, listWebProviders, openWebProjectInVSCode, readProviderModelNames, syncWebProviderEmbeddingModels, syncWebProviderModels, updateWebEmbeddingSettings, updateWebProvider, updateWebProviderModel, updateWebSettings } from "./api/project.js";
 export { appendSessionMessage, interruptSession, listSessionData } from "./api/session.js";
 export {
   createChatFolder,
@@ -121,7 +121,7 @@ export type {
   SessionSidebarModel,
   SessionViewportModel
 } from "./session/model/index.js";
-export { selectSocketUserid, sessionAccountSelectMessage, sessionAttachMessage, sessionBranchCreateMessage, sessionClientResponseMessage, sessionCreateMessage, sessionHistorySummaryMessage, sessionInputMessage, sessionInterruptMessage, sessionIterationDetailMessage, sessionProjectConfigureMessage, sessionSkillListMessage, sessionSocketUrl, sessionTurnDeleteMessage, sessionTurnDetailMessage, stateAfterSessionReady } from "./session/socketProtocol.js";
+export { sessionAttachMessage, sessionBranchCreateMessage, sessionClientResponseMessage, sessionCreateMessage, sessionHistorySummaryMessage, sessionInputMessage, sessionInterruptMessage, sessionIterationDetailMessage, sessionProjectConfigureMessage, sessionRequestQueueAddMessage, sessionRequestQueueDeleteMessage, sessionRequestQueueUpdateMessage, sessionSkillListMessage, sessionSocketUrl, sessionTurnDeleteMessage, sessionTurnDetailMessage, stateAfterSessionReady } from "./session/socketProtocol.js";
 export { applyTurnEvent, eventContentText, toolCallIdFromCall, toolNameFromCall, toolProgressText } from "./session/turn/index.js";
 export type { TurnBatchState, TurnEventMessage, TurnFlowState, TurnToolState } from "./session/turn/index.js";
 export { projectNameForVSCode } from "./project/path.js";

@@ -77,7 +77,7 @@ async function waitFor(check: () => boolean): Promise<void> {
 
 test("session schema SQL defines the required metadata and history tables", () => {
   assert.match(SESSION_TABLE_SQL, /sessionid uuid PRIMARY KEY/);
-  assert.match(SESSION_TABLE_SQL, /userid text NOT NULL/);
+  assert.doesNotMatch(SESSION_TABLE_SQL, /userid text NOT NULL/);
   assert.match(SESSION_TABLE_SQL, /mode text NOT NULL DEFAULT 'none' CHECK \(mode IN \('none', 'light'\)\)/);
   assert.match(SESSION_TABLE_SQL, /model jsonb NOT NULL CHECK \(/);
   assert.match(SESSION_TABLE_SQL, /model->>'type' = 'openai'/);
@@ -128,11 +128,10 @@ test("createSession inserts uuid7-shaped ids and default title and mode", async 
         rows: [
           {
             sessionid: values?.[0],
-            userid: values?.[1],
-            title: values?.[2],
-            mode: values?.[3],
-            projectname: values?.[4],
-            model: JSON.parse(String(values?.[5])),
+            title: values?.[1],
+            mode: values?.[2],
+            projectname: values?.[3],
+            model: JSON.parse(String(values?.[4])),
             isrunning: false,
             lastupdated: new Date()
           }
@@ -144,7 +143,6 @@ test("createSession inserts uuid7-shaped ids and default title and mode", async 
   };
 
   const session = await createSession(database, {
-    userid: "ndev",
     projectname: "project-1",
     model: modelConfig()
   });
@@ -152,10 +150,10 @@ test("createSession inserts uuid7-shaped ids and default title and mode", async 
   assert.match(session.sessionid, /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
   assert.equal(session.title, "");
   assert.equal(session.mode, "none");
-  assert.equal(valuesSeen[0][1], "ndev");
+  assert.equal(valuesSeen[0][3], "project-1");
 });
 
-test("listSession selects sessions by owner and project newest first", async () => {
+test("listSession selects sessions by project newest first", async () => {
   const queries: { text: string; values: unknown[] }[] = [];
   const database: NDXDatabase = {
     async query(text, values) {
@@ -164,11 +162,10 @@ test("listSession selects sessions by owner and project newest first", async () 
         rows: [
           {
             sessionid: "018f0000-0000-7000-8000-000000000001",
-            userid: values?.[0],
             title: "최근 세션",
             mode: "none",
             path: "/ndx/workspace",
-            projectname: values?.[1],
+            projectname: values?.[0],
             model: modelConfig(),
             isrunning: false,
             lastupdated: new Date()
@@ -180,12 +177,11 @@ test("listSession selects sessions by owner and project newest first", async () 
     async close() {}
   };
 
-  const sessions = await listSession(database, "ndev", "project-1");
+  const sessions = await listSession(database, "project-1");
 
   assert.equal(sessions.length, 1);
-  assert.equal(queries[0].values[0], "ndev");
-  assert.equal(queries[0].values[1], "project-1");
-  assert.match(queries[0].text, /WHERE userid = \$1\s+AND projectname = \$2/);
+  assert.equal(queries[0].values[0], "project-1");
+  assert.match(queries[0].text, /WHERE projectname = \$1/);
   assert.match(queries[0].text, /ORDER BY lastupdated DESC, sessionid DESC/);
 });
 
@@ -547,7 +543,6 @@ test("session lifecycle updates start, end, and title separately", async () => {
         rows: [
           {
             sessionid: values?.[0],
-            userid: "ndev",
             title: values?.[1] ?? "",
             mode: "none",
             path: "/ndx/workspace",
@@ -611,7 +606,6 @@ test("runSessionTurn appends user first, rebuilds history from sessiondata, call
 
   const session: NDXSessionRow = {
     sessionid: "018f0000-0000-7000-8000-000000000000",
-    userid: "ndev",
     title: "",
     mode: "none",
     path: projectPath,
@@ -729,7 +723,6 @@ test("runAgentTurnWithCompactContinuation preserves the compact-ending turn and 
 
   const session: NDXSessionRow = {
     sessionid: "018f0000-0000-7000-8000-000000000099",
-    userid: "ndev",
     title: "",
     mode: "none",
     path: projectPath,
@@ -879,7 +872,6 @@ test("runSessionTurn sends provider reasoning effort without inserting prompt co
 
   const session: NDXSessionRow = {
     sessionid: "018f0000-0000-7000-8000-000000000001",
-    userid: "ndev",
     title: "",
     mode: "none",
     path: projectPath,
@@ -985,7 +977,6 @@ test("runSessionTurn updates the session model before requesting the provider", 
 
   const session: NDXSessionRow = {
     sessionid: "018f0000-0000-7000-8000-000000000011",
-    userid: "ndev",
     title: "",
     mode: "none",
     path: projectPath,
@@ -1271,7 +1262,6 @@ test("runSessionTurn rebuilds tool continuation from sessiondata before the next
 
   const session: NDXSessionRow = {
     sessionid: "018f0000-0000-7000-8000-000000000001",
-    userid: "ndev",
     title: "",
     mode: "none",
     path: projectPath,
@@ -1406,7 +1396,6 @@ test("runSessionTurn records cancelled tool outputs before completing an interru
 
   const session: NDXSessionRow = {
     sessionid: "018f0000-0000-7000-8000-000000000012",
-    userid: "ndev",
     title: "",
     mode: "none",
     path: projectPath,
@@ -1567,7 +1556,6 @@ test("runSessionTurn appends tool-generated image input and inlines it on the ne
 
   const session: NDXSessionRow = {
     sessionid: "018f0000-0000-7000-8000-000000000001",
-    userid: "ndev",
     title: "",
     mode: "none",
     path: projectPath,
@@ -1652,7 +1640,6 @@ test("session interrupt state is updated in the session table", async () => {
   const queries: { text: string; values: unknown[] }[] = [];
   const row = {
     sessionid: "018f0000-0000-7000-8000-000000000000",
-    userid: "ndev",
     title: "",
     mode: "none",
     path: "/ndx/workspace",
@@ -1687,7 +1674,6 @@ test("deleteSession clears session-owned tables after stopping stale running sta
   const queries: { text: string; values: unknown[] }[] = [];
   const row: NDXSessionRow = {
     sessionid: "018f0000-0000-7000-8000-000000000000",
-    userid: "ndev",
     title: "삭제 대상",
     mode: "none",
     path: "/ndx/workspace",

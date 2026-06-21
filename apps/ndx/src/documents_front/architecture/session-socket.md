@@ -9,7 +9,7 @@ Session WebSocket은 `apps/ndx/src/server/agent`가 소유하는 transport surfa
 | upgrade path 검사 | `socketServer.ts` | 요청 path가 socket path와 다르면 404로 거절한다. |
 | client id 검사 | `NDX_CLIENT_ID_QUERY_PARAM` | client id가 UUID가 아니면 400으로 거절한다. |
 | connection state | `SessionClientState` | client id, socket, grants, heartbeat 상태를 저장한다. |
-| account selection | `requireAccountSelection` | 명시 계정이 없으면 default `ndev` 흐름을 보장한다. |
+| project negotiation | `handleProjectConfigureMessage` | workspace 직계 자식 프로젝트 폴더를 협상한다. |
 | heartbeat | `startSessionHeartbeat` | missed ping이 누적된 연결을 정리한다. |
 
 ## 메시지 책임
@@ -17,7 +17,7 @@ Session WebSocket은 `apps/ndx/src/server/agent`가 소유하는 transport surfa
 | 메시지 | 처리 |
 | --- | --- |
 | attach | session 소유권을 검증하고 현재 socket에 sessionid grant를 부여한다. |
-| create | project negotiation과 account selection 후 새 session을 만든다. |
+| create | project negotiation 후 새 session을 만든다. |
 | input | attachment를 쓰고 `runAgentTurn`을 호출한다. |
 | interrupt | session interrupt request를 durable state에 남긴다. |
 | history summary/detail | PostgreSQL sessiondata를 요약해 browser 복구에 사용한다. |

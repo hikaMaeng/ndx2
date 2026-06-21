@@ -104,7 +104,7 @@ test("GET /api/agent/web-client-state returns initial state when no row exists",
     .expect(200);
 
   assert.equal(response.body.clientid, "018f90d0-75cb-7d37-bfc9-6f9d0bb60cf5");
-  assert.equal(response.body.userid, null);
+  assert.equal("userid" in response.body, false);
   assert.equal(response.body.state.locale, "ko");
   assert.deepEqual(response.body.state.projects, []);
 });
@@ -118,8 +118,7 @@ test("PUT /api/agent/web-client-state persists normalized browser state", async 
         rows: [
           {
             clientid: values?.[0],
-            userid: values?.[1],
-            state: JSON.parse(String(values?.[2])),
+            state: JSON.parse(String(values?.[1])),
             updatedat: new Date("2026-05-12T00:00:00.000Z")
           }
         ],
@@ -133,7 +132,6 @@ test("PUT /api/agent/web-client-state persists normalized browser state", async 
     .put("/api/agent/web-client-state")
     .send({
       clientid: "018f90d0-75cb-7d37-bfc9-6f9d0bb60cf5",
-      userid: "ndev",
       state: {
         locale: "en",
         projects: [{ projectName: "project-1", name: "NDX", path: "/mnt/f/dev/ndx2", source: "local" }],
@@ -142,7 +140,7 @@ test("PUT /api/agent/web-client-state persists normalized browser state", async 
     })
     .expect(200);
 
-  assert.equal(response.body.userid, "ndev");
+  assert.equal("userid" in response.body, false);
   assert.equal(response.body.state.version, 1);
   assert.equal(response.body.state.activeProjectName, "project-1");
   assert.match(queries[0].text, /INSERT INTO webclientstate/);
@@ -164,7 +162,6 @@ test("POST /api/agent/web-projects creates project rows without project id files
             {
               projectname: values?.[0],
               screenorder: 0,
-              userid: values?.[2],
               updatedat: new Date("2026-05-12T00:00:00.000Z")
             }
           ],
@@ -179,7 +176,7 @@ test("POST /api/agent/web-projects creates project rows without project id files
   try {
     const response = await request(createApp({ database }))
       .post("/api/agent/web-projects")
-      .send({ name: "project-a", userid: "ndev" })
+      .send({ name: "project-a" })
       .expect(201);
 
     assert.equal(response.body.path, projectPath);
@@ -220,7 +217,6 @@ test("DELETE /api/agent/web-projects/:projectName accepts asynchronous project f
             {
               projectname: values?.[0],
               screenorder: 0,
-              userid: "ndev",
               updatedat: new Date("2026-05-12T00:00:00.000Z")
             }
           ],
@@ -324,7 +320,6 @@ test("GET /api/agent/projects/:projectName/sessions lists sessions by workspace 
           rows: [
             {
               sessionid: "018f0000-0000-7000-8000-000000000001",
-              userid: "ndev",
               title: "현재 프로젝트 세션",
               mode: "none",
               projectname: "test3",
@@ -348,12 +343,11 @@ test("GET /api/agent/projects/:projectName/sessions lists sessions by workspace 
   try {
     const response = await request(createApp({ database }))
       .get("/api/agent/projects/test3/sessions")
-      .query({ userid: "ndev" })
       .expect(200);
 
     assert.equal(response.body.sessions.length, 1);
     assert.equal(response.body.sessions[0].projectname, "test3");
-    assert.deepEqual(queries[0].values, ["ndev", "test3"]);
+    assert.deepEqual(queries[0].values, ["test3"]);
   } finally {
     if (previousRoot === undefined) delete process.env.NDX_ROOT;
     else process.env.NDX_ROOT = previousRoot;
@@ -382,7 +376,6 @@ test("GET /api/agent/sessions/:sessionid/attachments/:dataid/:index serves store
         return {
           rows: [{
             sessionid,
-            userid: "ndev",
             title: "이미지 세션",
             mode: "none",
             projectname: projectName,

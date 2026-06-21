@@ -48,13 +48,6 @@ export async function acceptProjectNegotiation(
   }
 
   client.projectName = projectName;
-  if (!client.userid) {
-    await sendJson(client, {
-      type: NDX_PROTOCOL_ERROR,
-      error: resource(NDX_AGENT_RESOURCE.PROTOCOL_ACCOUNT_SELECTION_REQUIRED_ERROR, { language: client.language })
-    });
-    return false;
-  }
   await sendJson(client, {
     type: NDX_PROJECT_NEGOTIATED,
     projectName: client.projectName
@@ -62,12 +55,10 @@ export async function acceptProjectNegotiation(
   await sendJson(client, {
     type: NDX_SESSION_READY,
     clientid: client.clientid,
-    userid: client.userid,
     projectName: client.projectName
   });
   logger?.info("agent.socket.project_negotiation.accepted", {
     clientid: client.clientid,
-    userid: client.userid,
     projectName: client.projectName
   });
   return true;

@@ -7,7 +7,6 @@
 | 컬럼 | 계약 |
 | --- | --- |
 | `sessionid` | UUID primary key. |
-| `userid` | 세션 소유 account. |
 | `title` | 사용자 표시 제목. |
 | `mode` | `none` 또는 `light`. |
 | `projectname` | `/ndx/workspace` 바로 아래 프로젝트 폴더명. |

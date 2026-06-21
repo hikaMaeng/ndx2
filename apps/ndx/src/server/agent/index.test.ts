@@ -22,12 +22,6 @@ process.env.NDX_ROOT = os.tmpdir();
 function createDatabase(): NDXDatabase {
   return {
     async query(text, values) {
-      if (/FROM users/i.test(text)) {
-        return {
-          rows: [{ userid: "ndev", created: new Date("2026-05-12T00:00:00.000Z") }],
-          rowCount: 1
-        } as never;
-      }
       return { rows: [], rowCount: 0 } as never;
     },
     async close() {}
@@ -38,21 +32,13 @@ function createDatabaseWithSessionInsert(): NDXDatabase {
   const sessions = new Map<string, Record<string, unknown>>();
   return {
     async query(text, values) {
-      if (/FROM users/i.test(text)) {
-        return {
-          rows: [{ userid: "ndev", created: new Date("2026-05-12T00:00:00.000Z") }],
-          rowCount: 1
-        } as never;
-      }
-
       if (/INSERT INTO "session"/i.test(text)) {
         const session = {
           sessionid: values?.[0],
-          userid: values?.[1],
-          title: values?.[2],
-          mode: values?.[3],
-          projectname: values?.[4],
-          model: JSON.parse(String(values?.[5])),
+          title: values?.[1],
+          mode: values?.[2],
+          projectname: values?.[3],
+          model: JSON.parse(String(values?.[4])),
           isrunning: false,
           turnphase: "idle",
           interruptrequested: false,
@@ -82,19 +68,11 @@ function createDatabaseWithSessionInsert(): NDXDatabase {
 function createDatabaseWithExistingSession(input: { projectName: string; sessionid: string }): NDXDatabase {
   return {
     async query(text, values) {
-      if (/FROM users/i.test(text)) {
-        return {
-          rows: [{ userid: "ndev", created: new Date("2026-05-12T00:00:00.000Z") }],
-          rowCount: 1
-        } as never;
-      }
-
       if (/FROM "session"/i.test(text) && /WHERE sessionid = \$1/i.test(text)) {
         return {
           rows: [
             {
               sessionid: values?.[0],
-              userid: "ndev",
               title: "기존 세션",
               mode: "none",
               projectname: input.projectName,
@@ -274,7 +252,7 @@ test("agent server singleton lock replaces a same-pid stale lock from an older p
   }
 });
 
-test("session websocket forces account selection before project negotiation", async () => {
+test("session websocket negotiates project before ready", async () => {
   const projectPath = await createWorkspaceProjectPath();
   const projectName = path.basename(projectPath);
   const server = http.createServer();
@@ -294,27 +272,15 @@ test("session websocket forces account selection before project negotiation", as
     await once(socket, "open");
 
     await waitForMessages(messages, 1);
-    assert.equal(JSON.parse(messages[0].toString()).type, "account.selection.required");
+    assert.equal(JSON.parse(messages[0].toString()).type, "project.negotiation.required");
 
     socket.send(JSON.stringify({ type: "project.configure", projectName }));
-    await waitForMessages(messages, 2);
-    const forced = JSON.parse(messages[1].toString()) as { type: string; error: string };
-    assert.equal(forced.type, "account.selection.required");
-    assert.match(forced.error, /account selection is required/i);
-
-    socket.send(JSON.stringify({ type: "account.select", userid: "ndev" }));
-    await waitForMessages(messages, 4);
-    assert.equal(JSON.parse(messages[2].toString()).type, "account.selected");
-    assert.equal(JSON.parse(messages[3].toString()).type, "project.negotiation.required");
-
-    socket.send(JSON.stringify({ type: "project.configure", projectName }));
-    await waitForMessages(messages, 6);
-    const negotiated = JSON.parse(messages[4].toString()) as { type: string; projectName: string };
+    await waitForMessages(messages, 3);
+    const negotiated = JSON.parse(messages[1].toString()) as { type: string; projectName: string };
     assert.equal(negotiated.type, "project.negotiated");
     assert.equal(negotiated.projectName, projectName);
-    const ready = JSON.parse(messages[5].toString()) as { type: string; userid: string; projectName: string };
+    const ready = JSON.parse(messages[2].toString()) as { type: string; projectName: string };
     assert.equal(ready.type, "session.ready");
-    assert.equal(ready.userid, "ndev");
     assert.equal(ready.projectName, negotiated.projectName);
     await assertNoProjectIdFile(projectPath);
 
@@ -326,7 +292,7 @@ test("session websocket forces account selection before project negotiation", as
   }
 });
 
-test("session websocket creates a new session after account and project negotiation", async () => {
+test("session websocket creates a new session after project negotiation", async () => {
   const projectPath = await createWorkspaceProjectPath();
   const projectName = path.basename(projectPath);
   const server = http.createServer();
@@ -345,11 +311,9 @@ test("session websocket creates a new session after account and project negotiat
     await once(socket, "open");
 
     await waitForMessages(messages, 1);
-    socket.send(JSON.stringify({ type: "account.select", userid: "ndev" }));
-    await waitForMessages(messages, 3);
     socket.send(JSON.stringify({ type: "project.configure", projectName }));
-    await waitForMessages(messages, 5);
-    const ready = JSON.parse(messages[4].toString()) as { type: string; projectName: string };
+    await waitForMessages(messages, 3);
+    const ready = JSON.parse(messages[2].toString()) as { type: string; projectName: string };
     assert.equal(ready.type, "session.ready");
 
     socket.send(
@@ -359,12 +323,11 @@ test("session websocket creates a new session after account and project negotiat
         initialInput: { text: "첫 요청 제목" }
       })
     );
-    await waitForMessages(messages, 7);
-    const created = JSON.parse(messages[5].toString()) as {
+    await waitForMessages(messages, 5);
+    const created = JSON.parse(messages[3].toString()) as {
       type: string;
       initialInputAccepted?: boolean;
       sessionid: string;
-      userid: string;
       title: string;
       projectname: string;
       path: string;
@@ -374,14 +337,12 @@ test("session websocket creates a new session after account and project negotiat
     assert.equal(created.type, "session.created");
     assert.equal(created.initialInputAccepted, true);
     assert.match(created.sessionid, /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
-    assert.equal(created.userid, "ndev");
     assert.equal(created.title, "첫 요청 제목");
     assert.equal(created.projectname, ready.projectName);
     assert.equal(created.path, projectPath);
     assert.equal(created.model.model, "qwen3.6-35b.mm");
-    const changed = JSON.parse(messages[6].toString()) as { type: string; userid: string; projectname: string };
+    const changed = JSON.parse(messages[4].toString()) as { type: string; projectname: string };
     assert.equal(changed.type, "session.list.changed");
-    assert.equal(changed.userid, "ndev");
     assert.equal(changed.projectname, ready.projectName);
     await assertNoProjectIdFile(projectPath);
 
@@ -412,21 +373,19 @@ test("session websocket rejects idle interrupts without recording interrupt even
     await once(socket, "open");
 
     await waitForMessages(messages, 1);
-    socket.send(JSON.stringify({ type: "account.select", userid: "ndev" }));
-    await waitForMessages(messages, 3);
     socket.send(JSON.stringify({ type: "project.configure", projectName }));
-    await waitForMessages(messages, 5);
+    await waitForMessages(messages, 3);
     socket.send(JSON.stringify({
       type: "session.create",
       model: { type: "openai", model: "qwen3.6-35b.mm", url: "", token: "", contextsize: 100_000 }
     }));
-    await waitForMessages(messages, 7);
-    const created = JSON.parse(messages[5].toString()) as { type: string; sessionid: string };
+    await waitForMessages(messages, 5);
+    const created = JSON.parse(messages[3].toString()) as { type: string; sessionid: string };
     assert.equal(created.type, "session.created");
 
     socket.send(JSON.stringify({ type: "session.interrupt", sessionid: created.sessionid }));
-    await waitForMessages(messages, 8);
-    const rejected = JSON.parse(messages[7].toString()) as { type: string; error: string };
+    await waitForMessages(messages, 6);
+    const rejected = JSON.parse(messages[5].toString()) as { type: string; error: string };
     assert.equal(rejected.type, "protocol.error");
     assert.match(rejected.error, /실행 중이 아닙니다/);
     assert.equal(messages.some((message) => message.toString().includes("interrupt_started")), false);
@@ -461,14 +420,12 @@ test("session websocket lists skills for the negotiated project", async () => {
     await once(socket, "open");
 
     await waitForMessages(messages, 1);
-    socket.send(JSON.stringify({ type: "account.select", userid: "ndev" }));
-    await waitForMessages(messages, 3);
     socket.send(JSON.stringify({ type: "project.configure", projectName }));
-    await waitForMessages(messages, 5);
+    await waitForMessages(messages, 3);
     socket.send(JSON.stringify({ type: "session.skill.list" }));
-    await waitForMessages(messages, 6);
+    await waitForMessages(messages, 4);
 
-    const result = JSON.parse(messages[5].toString()) as { type: string; projectName: string; skills: Array<{ name: string; description: string; scope: string }> };
+    const result = JSON.parse(messages[3].toString()) as { type: string; projectName: string; skills: Array<{ name: string; description: string; scope: string }> };
     assert.equal(result.type, "session.skill.list.result");
     assert.equal(result.projectName, projectName);
     assert.deepEqual(result.skills, [{ name: "demo", description: "demo skill", scope: "repo" }]);
@@ -503,12 +460,10 @@ test("session websocket lists skills for a draft project target", async () => {
     await once(socket, "open");
 
     await waitForMessages(messages, 1);
-    socket.send(JSON.stringify({ type: "account.select", userid: "ndev" }));
-    await waitForMessages(messages, 3);
     socket.send(JSON.stringify({ type: "session.skill.list", projectName }));
-    await waitForMessages(messages, 4);
+    await waitForMessages(messages, 2);
 
-    const result = JSON.parse(messages[3].toString()) as { type: string; projectName: string; skills: Array<{ name: string; description: string; scope: string }> };
+    const result = JSON.parse(messages[1].toString()) as { type: string; projectName: string; skills: Array<{ name: string; description: string; scope: string }> };
     assert.equal(result.type, "session.skill.list.result");
     assert.equal(result.projectName, projectName);
     assert.deepEqual(result.skills, [{ name: "draft-demo", description: "draft project skill", scope: "repo" }]);
@@ -568,32 +523,25 @@ test("session websocket creates a new session for the explicit project in the cr
     await once(socket, "open");
 
     await waitForMessages(messages, 1);
-    socket.send(JSON.stringify({ type: "account.select", userid: "ndev" }));
-    await waitForMessages(messages, 3);
     socket.send(JSON.stringify({ type: "project.configure", projectName: negotiatedProjectName }));
-    await waitForMessages(messages, 5);
-    const ready = JSON.parse(messages[4].toString()) as { type: string; projectName: string };
+    await waitForMessages(messages, 3);
+    const ready = JSON.parse(messages[2].toString()) as { type: string; projectName: string };
     assert.equal(ready.type, "session.ready");
     assert.notEqual(ready.projectName, targetProjectName);
 
     socket.send(
       JSON.stringify({
         type: "session.create",
-        userid: "ndev",
         projectName: targetProjectName,
         model: { type: "openai", model: "qwen3.6-35b.mm", url: "", token: "", contextsize: 100_000 }
       })
     );
-    await waitForMessages(messages, 7);
-    const created = JSON.parse(messages[5].toString()) as { type: string; userid: string; projectname: string; path: string };
-    const changed = JSON.parse(messages[6].toString()) as { type: string; userid: string; projectname: string };
+    await waitForMessages(messages, 4);
+    const created = JSON.parse(messages[3].toString()) as { type: string; projectname: string; path: string };
 
     assert.equal(created.type, "session.created");
-    assert.equal(created.userid, "ndev");
     assert.equal(created.projectname, targetProjectName);
     assert.equal(created.path, targetProjectPath);
-    assert.equal(changed.type, "session.list.changed");
-    assert.equal(changed.projectname, targetProjectName);
     await assertNoProjectIdFile(negotiatedProjectPath);
     await assertNoProjectIdFile(targetProjectPath);
 
@@ -623,12 +571,10 @@ test("session websocket rejects unattached session input before project negotiat
     await once(socket, "open");
 
     await waitForMessages(messages, 1);
-    socket.send(JSON.stringify({ type: "account.select", userid: "ndev" }));
-    await waitForMessages(messages, 3);
     socket.send(JSON.stringify({ type: "session.input", sessionid: "019e2783-4512-70d0-b75b-40200d1d4fe8", text: "hello" }));
-    await waitForMessages(messages, 4);
+    await waitForMessages(messages, 2);
 
-    const rejected = JSON.parse(messages[3].toString()) as { type: string; error: string };
+    const rejected = JSON.parse(messages[1].toString()) as { type: string; error: string };
     assert.equal(rejected.type, "protocol.error");
     assert.match(rejected.error, /session is not attached to this socket/i);
 
@@ -659,19 +605,17 @@ test("session websocket attaches an existing session before project ready withou
     await once(socket, "open");
 
     await waitForMessages(messages, 1);
-    assert.equal(JSON.parse(messages[0].toString()).type, "account.selection.required");
-    socket.send(JSON.stringify({ type: "session.attach", userid: "ndev", projectName, sessionid }));
+    assert.equal(JSON.parse(messages[0].toString()).type, "project.negotiation.required");
+    socket.send(JSON.stringify({ type: "session.attach", projectName, sessionid }));
     await waitForMessages(messages, 2);
     const attached = JSON.parse(messages[1].toString()) as {
       type: string;
       sessionid: string;
-      userid: string;
       projectName: string;
     };
 
     assert.equal(attached.type, "session.attached");
     assert.equal(attached.sessionid, sessionid);
-    assert.equal(attached.userid, "ndev");
     assert.equal(attached.projectName, projectName);
 
     await assertNoProjectIdFile(projectPath);
@@ -704,11 +648,9 @@ test("session websocket rejects attachments unsupported by the selected model", 
     await once(socket, "open");
 
     await waitForMessages(messages, 1);
-    socket.send(JSON.stringify({ type: "account.select", userid: "ndev" }));
-    await waitForMessages(messages, 3);
-    socket.send(JSON.stringify({ type: "session.attach", userid: "ndev", projectName, sessionid }));
-    await waitForMessages(messages, 4);
-    const attached = JSON.parse(messages[3].toString()) as { type: string; sessionid: string };
+    socket.send(JSON.stringify({ type: "session.attach", projectName, sessionid }));
+    await waitForMessages(messages, 2);
+    const attached = JSON.parse(messages[1].toString()) as { type: string; sessionid: string };
     assert.equal(attached.type, "session.attached");
 
     socket.send(JSON.stringify({
@@ -718,9 +660,9 @@ test("session websocket rejects attachments unsupported by the selected model", 
       model: { type: "openai", model: "minimax-m2.7", url: "", token: "", contextsize: 196_000, modalities: ["text"] },
       attachments: [{ name: "screen.png", mimeType: "image/png", size: 3, data: "AQID" }]
     }));
-    await waitForMessages(messages, 5);
+    await waitForMessages(messages, 4);
 
-    const rejected = JSON.parse(messages[4].toString()) as { type: string; error: string };
+    const rejected = JSON.parse(messages[3].toString()) as { type: string; error: string };
     assert.equal(rejected.type, "protocol.error");
     assert.match(rejected.error, /image modality support/);
 
@@ -746,7 +688,6 @@ test("socket send writes the provided message unchanged", async () => {
             sent.push(data);
           }
         } as never,
-        userid: "ndev",
         projectName: "memory-project",
         grants: new Map(),
         missedPings: 0,
@@ -755,7 +696,6 @@ test("socket send writes the provided message unchanged", async () => {
       {
         type: NDX_SESSION_READY,
         clientid: "018f90d0-75cb-7d37-bfc9-6f9d0bb60cf5",
-        userid: "ndev",
         projectName: "message-project"
       }
     );
@@ -856,7 +796,6 @@ test("session grant owner routing targets every connected client attached to the
 function turnEventSessionRow(sessionid: string): NDXSessionRow {
   return {
     sessionid,
-    userid: "ndev",
     title: "test session",
     lastupdated: new Date("2026-06-05T00:00:00.000Z"),
     mode: "none",
@@ -879,11 +818,9 @@ function sessionClient(clientid: string, grants: string[]) {
       readyState: WebSocket.OPEN,
       send() {}
     } as never,
-    userid: "ndev",
     projectName: "project-a",
     grants: new Map(grants.map((sessionid) => [sessionid, {
       sessionid,
-      userid: "ndev",
       projectName: "project-a",
       createdat: new Date("2026-06-05T00:00:00.000Z")
     }])),

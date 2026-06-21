@@ -5,7 +5,7 @@ export async function getSession(database: NDXDatabase, sessionid: string): Prom
   database.logger?.debug("agent.server.session.get.start", { sessionid });
   const result = await database.query<NDXSessionRow>(
     `
-SELECT sessionid, userid, title, lastupdated, mode, projectname, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, runtimedata
+SELECT sessionid, title, lastupdated, mode, projectname, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, runtimedata
 FROM "session"
 WHERE sessionid = $1;
 `,

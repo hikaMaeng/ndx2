@@ -3,6 +3,10 @@ import type { NDXAgentLanguage } from "../../resource/index.js";
 import type { NDXCotWorkContents, NDXSidebarItem } from "../turn/index.js";
 
 export const NDX_SESSION_INPUT = "session.input";
+export const NDX_SESSION_REQUEST_QUEUE_ADD = "session.request_queue.add";
+export const NDX_SESSION_REQUEST_QUEUE_UPDATE = "session.request_queue.update";
+export const NDX_SESSION_REQUEST_QUEUE_DELETE = "session.request_queue.delete";
+export const NDX_SESSION_REQUEST_QUEUE_CHANGED = "session.request_queue.changed";
 export const NDX_SESSION_INTERRUPT = "session.interrupt";
 export const NDX_SESSION_EVENT = "session.event";
 export const NDX_SESSION_SIDEBAR_ITEM = "session.sidebar.item";
@@ -49,7 +53,6 @@ export type NDXSessionModelConfig = {
 
 export type NDXSessionCreateMessage = {
   type: typeof NDX_SESSION_CREATE;
-  userid?: string;
   projectName?: string;
   model?: NDXSessionModelConfig;
   initialInput?: NDXSessionCreateInitialInput;
@@ -65,7 +68,6 @@ export type NDXSessionCreatedMessage = {
   type: typeof NDX_SESSION_CREATED;
   initialInputAccepted?: boolean;
   sessionid: string;
-  userid: string;
   title: string;
   lastupdated: string;
   mode: "none" | "light";
@@ -77,7 +79,6 @@ export type NDXSessionCreatedMessage = {
 
 export type NDXSessionAttachMessage = {
   type: typeof NDX_SESSION_ATTACH;
-  userid: string;
   projectName: string;
   sessionid: string;
   language?: NDXAgentLanguage;
@@ -87,13 +88,11 @@ export type NDXSessionAttachedMessage = {
   type: typeof NDX_SESSION_ATTACHED;
   createdat: string;
   sessionid: string;
-  userid: string;
   projectName: string;
 };
 
 export type NDXSessionDeleteMessage = {
   type: typeof NDX_SESSION_DELETE;
-  userid: string;
   projectName: string;
   sessionid: string;
   language?: NDXAgentLanguage;
@@ -102,7 +101,6 @@ export type NDXSessionDeleteMessage = {
 export type NDXSessionDeletedMessage = {
   type: typeof NDX_SESSION_DELETED;
   sessionid: string;
-  userid: string;
   projectname: string;
 };
 
@@ -146,7 +144,6 @@ export type NDXSessionBranchCreatedMessage = {
 
 export type NDXSessionRenameMessage = {
   type: typeof NDX_SESSION_RENAME;
-  userid: string;
   projectName: string;
   sessionid: string;
   title: string;
@@ -156,7 +153,6 @@ export type NDXSessionRenameMessage = {
 export type NDXSessionRenamedMessage = {
   type: typeof NDX_SESSION_RENAMED;
   sessionid: string;
-  userid: string;
   title: string;
   lastupdated: string;
   mode: "none" | "light";
@@ -168,7 +164,6 @@ export type NDXSessionRenamedMessage = {
 
 export type NDXSessionListChangedMessage = {
   type: typeof NDX_SESSION_LIST_CHANGED;
-  userid: string;
   projectname: string;
 };
 
@@ -186,6 +181,49 @@ export type NDXSessionInputAttachment = {
   mimeType: string;
   size: number;
   data: string;
+};
+
+export type NDXSessionRequestQueueAttachment = Pick<NDXSessionInputAttachment, "name" | "mimeType" | "size">;
+
+export type NDXSessionRequestQueueItem = {
+  itemid: string;
+  sessionid: string;
+  text: string;
+  attachments?: NDXSessionRequestQueueAttachment[];
+  model?: NDXSessionModelConfig;
+  createdat: string;
+  updatedat: string;
+};
+
+export type NDXSessionRequestQueueAddMessage = {
+  type: typeof NDX_SESSION_REQUEST_QUEUE_ADD;
+  sessionid: string;
+  text: string;
+  attachments?: NDXSessionInputAttachment[];
+  model?: NDXSessionModelConfig;
+  language?: NDXAgentLanguage;
+};
+
+export type NDXSessionRequestQueueUpdateMessage = {
+  type: typeof NDX_SESSION_REQUEST_QUEUE_UPDATE;
+  sessionid: string;
+  itemid: string;
+  text: string;
+  language?: NDXAgentLanguage;
+};
+
+export type NDXSessionRequestQueueDeleteMessage = {
+  type: typeof NDX_SESSION_REQUEST_QUEUE_DELETE;
+  sessionid: string;
+  itemid: string;
+  language?: NDXAgentLanguage;
+};
+
+export type NDXSessionRequestQueueChangedMessage = {
+  type: typeof NDX_SESSION_REQUEST_QUEUE_CHANGED;
+  sessionid: string;
+  items: NDXSessionRequestQueueItem[];
+  language?: NDXAgentLanguage;
 };
 
 export type NDXSessionSkillSummary = {
@@ -373,6 +411,48 @@ export function isNDXSessionInputMessage(value: unknown): value is NDXSessionInp
   );
 }
 
+export function isNDXSessionRequestQueueAddMessage(value: unknown): value is NDXSessionRequestQueueAddMessage {
+  if (!value || typeof value !== "object") return false;
+  const message = value as { type?: unknown; sessionid?: unknown; text?: unknown; attachments?: unknown; model?: unknown; language?: unknown };
+  return (
+    message.type === NDX_SESSION_REQUEST_QUEUE_ADD &&
+    typeof message.sessionid === "string" &&
+    message.sessionid.trim().length > 0 &&
+    typeof message.text === "string" &&
+    (message.text.trim().length > 0 || isValidSessionInputAttachments(message.attachments)) &&
+    (message.attachments === undefined || isValidSessionInputAttachments(message.attachments)) &&
+    (message.model === undefined || isValidSessionModelConfig(message.model)) &&
+    (message.language === undefined || message.language === "en" || message.language === "ko")
+  );
+}
+
+export function isNDXSessionRequestQueueUpdateMessage(value: unknown): value is NDXSessionRequestQueueUpdateMessage {
+  if (!value || typeof value !== "object") return false;
+  const message = value as { type?: unknown; sessionid?: unknown; itemid?: unknown; text?: unknown; language?: unknown };
+  return (
+    message.type === NDX_SESSION_REQUEST_QUEUE_UPDATE &&
+    typeof message.sessionid === "string" &&
+    message.sessionid.trim().length > 0 &&
+    typeof message.itemid === "string" &&
+    message.itemid.trim().length > 0 &&
+    typeof message.text === "string" &&
+    (message.language === undefined || message.language === "en" || message.language === "ko")
+  );
+}
+
+export function isNDXSessionRequestQueueDeleteMessage(value: unknown): value is NDXSessionRequestQueueDeleteMessage {
+  if (!value || typeof value !== "object") return false;
+  const message = value as { type?: unknown; sessionid?: unknown; itemid?: unknown; language?: unknown };
+  return (
+    message.type === NDX_SESSION_REQUEST_QUEUE_DELETE &&
+    typeof message.sessionid === "string" &&
+    message.sessionid.trim().length > 0 &&
+    typeof message.itemid === "string" &&
+    message.itemid.trim().length > 0 &&
+    (message.language === undefined || message.language === "en" || message.language === "ko")
+  );
+}
+
 export function isNDXSessionClientResponseMessage(value: unknown): value is NDXSessionClientResponseMessage {
   if (!value || typeof value !== "object") return false;
   const message = value as { type?: unknown; requestId?: unknown; sessionid?: unknown; response?: unknown; language?: unknown };
@@ -432,6 +512,28 @@ function isValidSessionInputAttachments(value: unknown): value is NDXSessionInpu
   });
 }
 
+function isValidSessionModelConfig(value: unknown): value is NDXSessionModelConfig {
+  if (!value || typeof value !== "object") return false;
+  const model = value as { type?: unknown; model?: unknown; url?: unknown; token?: unknown; contextsize?: unknown; modalities?: unknown; reasoningEffort?: unknown };
+  return (
+    model.type === "openai" &&
+    typeof model.model === "string" &&
+    model.model.trim().length > 0 &&
+    typeof model.url === "string" &&
+    typeof model.token === "string" &&
+    typeof model.contextsize === "number" &&
+    Number.isFinite(model.contextsize) &&
+    model.contextsize > 0 &&
+    (model.reasoningEffort === undefined ||
+      model.reasoningEffort === "low" ||
+      model.reasoningEffort === "medium" ||
+      model.reasoningEffort === "high") &&
+    (model.modalities === undefined ||
+      (Array.isArray(model.modalities) &&
+        model.modalities.every((modality) => modality === "text" || modality === "image" || modality === "file")))
+  );
+}
+
 export function isNDXSessionSkillListMessage(value: unknown): value is NDXSessionSkillListMessage {
   if (!value || typeof value !== "object") {
     return false;
@@ -450,11 +552,9 @@ export function isNDXSessionAttachMessage(value: unknown): value is NDXSessionAt
     return false;
   }
 
-  const message = value as { type?: unknown; userid?: unknown; projectName?: unknown; sessionid?: unknown };
+  const message = value as { type?: unknown; projectName?: unknown; sessionid?: unknown };
   return (
     message.type === NDX_SESSION_ATTACH &&
-    typeof message.userid === "string" &&
-    message.userid.trim().length > 0 &&
     typeof message.projectName === "string" &&
     message.projectName.trim().length > 0 &&
     typeof message.sessionid === "string" &&
@@ -467,17 +567,15 @@ export function isNDXSessionCreateMessage(value: unknown): value is NDXSessionCr
     return false;
   }
 
-  const message = value as { type?: unknown; userid?: unknown; projectName?: unknown; model?: unknown; initialInput?: unknown };
+  const message = value as { type?: unknown; projectName?: unknown; model?: unknown; initialInput?: unknown };
   if (message.type !== NDX_SESSION_CREATE) {
     return false;
   }
 
-  const hasCreateTarget = message.userid !== undefined || message.projectName !== undefined;
+  const hasCreateTarget = message.projectName !== undefined;
   if (
     hasCreateTarget &&
     !(
-      typeof message.userid === "string" &&
-      message.userid.trim().length > 0 &&
       typeof message.projectName === "string" &&
       message.projectName.trim().length > 0
     )
@@ -532,11 +630,9 @@ export function isNDXSessionDeleteMessage(value: unknown): value is NDXSessionDe
     return false;
   }
 
-  const message = value as { type?: unknown; userid?: unknown; projectName?: unknown; sessionid?: unknown };
+  const message = value as { type?: unknown; projectName?: unknown; sessionid?: unknown };
   return (
     message.type === NDX_SESSION_DELETE &&
-    typeof message.userid === "string" &&
-    message.userid.trim().length > 0 &&
     typeof message.projectName === "string" &&
     message.projectName.trim().length > 0 &&
     typeof message.sessionid === "string" &&
@@ -579,11 +675,9 @@ export function isNDXSessionRenameMessage(value: unknown): value is NDXSessionRe
     return false;
   }
 
-  const message = value as { type?: unknown; userid?: unknown; projectName?: unknown; sessionid?: unknown; title?: unknown };
+  const message = value as { type?: unknown; projectName?: unknown; sessionid?: unknown; title?: unknown };
   return (
     message.type === NDX_SESSION_RENAME &&
-    typeof message.userid === "string" &&
-    message.userid.trim().length > 0 &&
     typeof message.projectName === "string" &&
     message.projectName.trim().length > 0 &&
     typeof message.sessionid === "string" &&

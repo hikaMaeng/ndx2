@@ -11,7 +11,6 @@ export type SessionIdentityModel =
     kind: "session";
     key: string;
     sessionid: string;
-    userid: string;
     projectName: string;
   };
 
@@ -32,7 +31,6 @@ export function createSessionIdentityFromRow(session: NDXAgentWebSession): Sessi
     kind: "session",
     key: session.sessionid,
     sessionid: session.sessionid,
-    userid: session.userid,
     projectName: session.projectname
   };
 }
@@ -42,7 +40,6 @@ export function createSessionIdentityFromCreated(message: NDXSessionCreatedMessa
     kind: "session",
     key: message.sessionid,
     sessionid: message.sessionid,
-    userid: message.userid,
     projectName: message.projectname
   };
 }

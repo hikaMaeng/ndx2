@@ -12,7 +12,7 @@ export type ChatInstanceModel = {
   identity:
     | { kind: "folder"; key: string; folderId: string }
     | { kind: "draft"; key: string; folderId: string }
-    | { kind: "session"; key: string; sessionId: string; folderId?: string; userid?: string };
+    | { kind: "session"; key: string; sessionId: string; folderId?: string };
   metadata?: NDXAgentWebChatSession;
   composer: SessionComposerModel;
   history: Pick<SessionHistoryModel, "messages">;
@@ -62,7 +62,7 @@ export function createChatSessionModel(session: NDXAgentWebChatSession): ChatIns
   const key = chatSessionModelKey(session.chatsessionid);
   return {
     key,
-    identity: { kind: "session", key, sessionId: session.chatsessionid, folderId: session.folderid, userid: session.userid },
+    identity: { kind: "session", key, sessionId: session.chatsessionid, folderId: session.folderid },
     metadata: session,
     composer: {
       ...createSessionComposerModel(),
@@ -133,7 +133,7 @@ export function applyChatSessionLoaded(model: ChatInstanceModel, session: NDXAge
     ...loaded,
     ...model,
     key: chatSessionModelKey(session.chatsessionid),
-    identity: { kind: "session", key: chatSessionModelKey(session.chatsessionid), sessionId: session.chatsessionid, folderId: session.folderid, userid: session.userid },
+    identity: { kind: "session", key: chatSessionModelKey(session.chatsessionid), sessionId: session.chatsessionid, folderId: session.folderid },
     metadata: session,
     composer: {
       ...model.composer,

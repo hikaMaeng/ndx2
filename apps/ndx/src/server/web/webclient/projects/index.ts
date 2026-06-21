@@ -4,18 +4,15 @@ import type express from "express";
 import { NDX_AGENT_RESOURCE, createNDXAgentResourceResolver, type NDXAgentResourceResolver } from "ndx/common";
 import type { NDXDatabase } from "ndx/agent/init";
 import {
-  DEFAULT_NDX_WEB_CLIENT_USERID,
   deleteWebProject,
   listWebProject,
-  updateWebProjectUser,
   upsertWebProject
 } from "ndx/webclient/server/client-state";
 import {
   NDX_AGENT_WEB_API,
   type NDXAgentWebCreateProjectRequest,
   type NDXAgentWebProject,
-  type NDXAgentWebProjectsResponse,
-  type NDXAgentWebUpdateProjectUserRequest
+  type NDXAgentWebProjectsResponse
 } from "ndx/webclient/common";
 import type { NDXLogger } from "ndx/common";
 import { normalizeWorkspaceProjectName, serverContainerWorkspace, serverWorkspaceProjectPath, toHostWorkspacePath } from "ndx/common/server-path";
@@ -36,8 +33,7 @@ export function attachAgentWebProjectRoutes(app: express.Express, database?: NDX
       for (const projectName of projects) {
         if (!preferences.has(projectName)) {
           preferences.set(projectName, await upsertWebProject(database, {
-            projectname: projectName,
-            userid: DEFAULT_NDX_WEB_CLIENT_USERID
+            projectname: projectName
           }));
         }
       }
@@ -47,7 +43,6 @@ export function attachAgentWebProjectRoutes(app: express.Express, database?: NDX
           .map((projectName) => webProjectResponse(preferences.get(projectName) ?? {
             projectname: projectName,
             screenorder: 0,
-            userid: DEFAULT_NDX_WEB_CLIENT_USERID,
             updatedat: new Date(0)
           }))
           .sort((left, right) => right.screenorder - left.screenorder || left.projectName.localeCompare(right.projectName))
@@ -93,32 +88,11 @@ export function attachAgentWebProjectRoutes(app: express.Express, database?: NDX
 
       const project = await upsertWebProject(database, {
         projectname: projectName,
-        screenorder: body.screenorder,
-        userid: typeof body.userid === "string" ? body.userid : DEFAULT_NDX_WEB_CLIENT_USERID
+        screenorder: body.screenorder
       });
       const responseBody = webProjectResponse(project);
       response.status(201).json(responseBody);
       logger?.info("web.projects.create.complete", { projectName: responseBody.projectName, path: responseBody.path });
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  app.put("/api/agent/web-projects/:projectName/user", async (request, response, next) => {
-    try {
-      const projectName = normalizeWorkspaceProjectName(request.params.projectName);
-      logger?.info("web.projects.user.update.start", { projectName });
-      if (!database) {
-        response.status(503).json({ error: resource(NDX_AGENT_RESOURCE.WEB_DATABASE_UNAVAILABLE_ERROR, { language: request.body?.language }) });
-        return;
-      }
-
-      const body = request.body as Partial<NDXAgentWebUpdateProjectUserRequest>;
-      const userid = typeof body.userid === "string" ? body.userid.trim() : "";
-      const project = await updateWebProjectUser(database, projectName, userid);
-      const responseBody = webProjectResponse(project);
-      response.json(responseBody);
-      logger?.info("web.projects.user.update.complete", { projectName: responseBody.projectName, userid: responseBody.userid });
     } catch (error) {
       next(error);
     }
@@ -191,13 +165,12 @@ async function listWorkspaceProjectNames(): Promise<string[]> {
     .sort((left, right) => left.localeCompare(right));
 }
 
-function webProjectResponse(project: { projectname: string; screenorder: number; userid: string; updatedat: Date }): NDXAgentWebProject {
+function webProjectResponse(project: { projectname: string; screenorder: number; updatedat: Date }): NDXAgentWebProject {
   return {
     projectName: project.projectname,
     name: project.projectname,
     path: serverWorkspaceProjectPath(project.projectname),
     screenorder: project.screenorder,
-    userid: project.userid,
     updatedat: project.updatedat.toISOString()
   };
 }

@@ -6,7 +6,6 @@ import { attachAgentWebProjectRoutes } from "./projects/index.js";
 import { attachAgentWebModelRoutes } from "./web-models/index.js";
 import { attachAgentWebSessionRoutes } from "./sessions/index.js";
 import type { AttachAgentWebRoutesOptions } from "../common/types.js";
-import { attachAgentWebUserRoutes } from "./users/index.js";
 import { attachAgentWebWorkspaceRoutes } from "./workspace/index.js";
 import { attachAgentWebSettingsRoutes } from "./settings/index.js";
 import { attachAgentWebSelfcheckRoutes } from "./selfcheck/index.js";
@@ -38,7 +37,6 @@ export function attachAgentWebRoutes(app: express.Express, options: AttachAgentW
     version: options.version,
     logger: options.logger
   });
-  attachAgentWebUserRoutes(app, database, options.logger, options.resource);
   attachAgentWebWorkspaceRoutes(app, options.logger);
   attachAgentWebSettingsRoutes(app, options.logger, options.resource);
   attachAgentWebProjectRoutes(app, database, options.logger, options.resource);

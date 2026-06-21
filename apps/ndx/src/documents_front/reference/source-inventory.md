@@ -39,6 +39,7 @@
 | `apps/ndx/src/webclient_front/session/cotWork` | cot work overlay composition. |
 | `apps/ndx/src/webclient_front/session/hooks` | session UI/request/socket controllers. |
 | `apps/ndx/src/webclient_front/session/modals` | model and session title dialogs. |
+| `apps/ndx/src/webclient_front/session/requestQueue` | queued session request display. |
 | `apps/ndx/src/webclient_front/session/rightsidebar` | session right sidebar resources. |
 | `apps/ndx/src/webclient_front/session/socket` | browser session socket client. |
 | `apps/ndx/src/webclient_front/session/turn` | turn-flow rendering for model/tool/reasoning steps. |
@@ -50,7 +51,6 @@
 | 경로 | 문서화 책임 |
 | --- | --- |
 | `packages/ndx/src/agent` | agent runtime authority namespace. |
-| `packages/ndx/src/agent/account` | default account and user persistence domain. |
 | `packages/ndx/src/agent/chat` | project-independent chat runtime. |
 | `packages/ndx/src/agent/chat/context` | chat context reconstruction. |
 | `packages/ndx/src/agent/chat/folder` | chat folder persistence. |
@@ -79,6 +79,7 @@
 | `packages/ndx/src/agent/init` | runtime initialization and bundled assets. |
 | `packages/ndx/src/agent/init/assets` | scaffolded skills, tools, and baseline assets. |
 | `packages/ndx/src/agent/project` | durable project identity. |
+| `packages/ndx/src/agent/requestQue` | queued request persistence for agent sessions. |
 | `packages/ndx/src/agent/runtime-settings` | runtime settings reader and defaults. |
 | `packages/ndx/src/agent/selfcheck` | self-check run storage and hook-run diagnostics. |
 | `packages/ndx/src/agent/session` | PostgreSQL session/sessiondata/sessionsearch domain. |
@@ -99,7 +100,7 @@
 | `packages/ndx/src/common/log` | JSONL logging helper. |
 | `packages/ndx/src/common/protocol` | shared protocol namespace. |
 | `packages/ndx/src/common/protocol/error` | protocol error contracts. |
-| `packages/ndx/src/common/protocol/identity` | client/account identity protocol. |
+| `packages/ndx/src/common/protocol/identity` | client identity protocol. |
 | `packages/ndx/src/common/protocol/project` | project negotiation protocol. |
 | `packages/ndx/src/common/protocol/session` | session socket message/data contracts. |
 | `packages/ndx/src/common/protocol/turn` | turn event/card/cot-work protocol. |

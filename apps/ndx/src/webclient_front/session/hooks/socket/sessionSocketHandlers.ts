@@ -7,6 +7,7 @@ import {
   type NDXSessionEventMessage,
   type NDXSessionHistorySummaryResultMessage,
   type NDXSessionIterationDetailResultMessage,
+  type NDXSessionRequestQueueChangedMessage,
   type NDXSessionSidebarItemMessage,
   type NDXSessionSkillListResultMessage,
   type NDXSessionTurnDetailResultMessage,
@@ -28,6 +29,7 @@ export type SessionSocketHandlers = {
   onIterationDetail: (message: NDXSessionIterationDetailResultMessage) => void;
   onTurnDeleted: (message: NDXSessionTurnDeletedMessage) => void;
   onBranchCreated: (message: NDXSessionBranchCreatedMessage) => void;
+  onRequestQueueChanged: (message: NDXSessionRequestQueueChangedMessage) => void;
   onSessionEvent: (message: NDXSessionEventMessage) => void;
   onSessionCreated: (message: NDXSessionCreatedMessage) => void;
   onSessionAttached: (message: NDXSessionAttachedMessage) => void;
@@ -158,7 +160,6 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
       [session.projectname]: [
         {
           sessionid: session.sessionid,
-          userid: session.userid,
           title: session.title,
           lastupdated: session.lastupdated,
           mode: session.mode,
@@ -194,6 +195,18 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
     }
     socketRef.current?.requestSkillList(session.sessionid);
     void project.refreshSessions();
+  };
+
+  const onRequestQueueChanged = (message: NDXSessionRequestQueueChangedMessage) => {
+    updateSessionUi(message.sessionid, (current) => ({
+      ...current,
+      requestQueue: message.items,
+      requestQueueCollapsed: message.items.length === 0
+        ? true
+        : current.requestQueue.length === 0
+          ? true
+          : current.requestQueueCollapsed
+    }));
   };
 
   const onSessionEvent = (message: NDXSessionEventMessage) => {
@@ -258,7 +271,6 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
       [message.projectname]: [
         {
           sessionid: message.sessionid,
-          userid: message.userid,
           title: message.title,
           lastupdated: message.lastupdated,
           mode: message.mode,
@@ -362,6 +374,7 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
     onIterationDetail,
     onTurnDeleted,
     onBranchCreated,
+    onRequestQueueChanged,
     onSessionEvent,
     onSessionCreated,
     onSessionAttached,

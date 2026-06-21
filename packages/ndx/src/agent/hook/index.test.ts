@@ -24,7 +24,6 @@ const database: NDXDatabase = {
 
 const session: NDXSessionRow = {
   sessionid: "session-1",
-  userid: "ndev",
   title: "title",
   lastupdated: new Date(0),
   mode: "none",

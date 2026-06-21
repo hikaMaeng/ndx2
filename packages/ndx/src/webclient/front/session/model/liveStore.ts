@@ -161,7 +161,6 @@ function modelForUiKey(key: string): SessionInstanceModel {
       kind: "session",
       key,
       sessionid: key,
-      userid: "",
       projectName: ""
     }
   };

@@ -1,6 +1,4 @@
 import {
-  NDX_ACCOUNT_SELECTED,
-  NDX_ACCOUNT_SELECTION_REQUIRED,
   NDX_PROJECT_NEGOTIATED,
   NDX_PROJECT_NEGOTIATION_REQUIRED,
   NDX_PROTOCOL_ERROR,
@@ -11,6 +9,7 @@ import {
   NDX_SESSION_ITERATION_DETAIL_RESULT,
   NDX_SESSION_CLIENT_REQUEST,
   NDX_SESSION_CLIENT_REQUEST_CLOSED,
+  NDX_SESSION_REQUEST_QUEUE_CHANGED,
   NDX_SESSION_ATTACHED,
   NDX_SESSION_SKILL_LIST_RESULT,
   NDX_SESSION_SIDEBAR_ITEM,
@@ -19,7 +18,6 @@ import {
   NDX_SESSION_READY,
   isNDXSocketServerMessage,
   type NDXSocketServerMessage,
-  type NDXAccountSelectionRequiredMessage,
   type NDXProjectNegotiatedMessage,
   type NDXProtocolErrorMessage,
   type NDXSessionAttachedMessage,
@@ -33,6 +31,7 @@ import {
   type NDXSessionClientResponseMessage,
   type NDXSessionCreateMessage,
   type NDXSessionModelConfig,
+  type NDXSessionRequestQueueChangedMessage,
   type NDXSessionSkillListResultMessage,
   type NDXSessionSidebarItemMessage,
   type NDXSessionReadyMessage,
@@ -40,16 +39,19 @@ import {
   type NDXSessionTurnDeletedMessage
 } from "ndx/common/protocol";
 import { type NDXAgentWebMetadataResponse, type NDXWebClientProject, type NDXWebClientStateDocument } from "ndx/webclient/common";
-import { selectSocketUserid, sessionAccountSelectMessage, sessionAttachMessage, sessionBranchCreateMessage, sessionClientResponseMessage, sessionCreateMessage, sessionHistorySummaryMessage, sessionInputMessage, sessionInterruptMessage, sessionIterationDetailMessage, sessionProjectConfigureMessage, sessionSkillListMessage, sessionSocketUrl, sessionTurnDeleteMessage, sessionTurnDetailMessage, stateAfterSessionReady, type SocketState } from "ndx/webclient/front";
+import { sessionAttachMessage, sessionBranchCreateMessage, sessionClientResponseMessage, sessionCreateMessage, sessionHistorySummaryMessage, sessionInputMessage, sessionInterruptMessage, sessionIterationDetailMessage, sessionProjectConfigureMessage, sessionRequestQueueAddMessage, sessionRequestQueueDeleteMessage, sessionRequestQueueUpdateMessage, sessionSkillListMessage, sessionSocketUrl, sessionTurnDeleteMessage, sessionTurnDetailMessage, stateAfterSessionReady, type SocketState } from "ndx/webclient/front";
 import { RSC } from "../resource";
 
 export type SessionSocketClient = {
   socket: WebSocket;
   isOpen: () => boolean;
-  attachSession: (input: { userid: string; projectName: string; sessionid: string }) => boolean;
+  attachSession: (input: { projectName: string; sessionid: string }) => boolean;
   createSession: (input: Omit<NDXSessionCreateMessage, "type" | "language">) => boolean;
   sendInput: (sessionid: string, text: string, model: NDXSessionModelConfig, attachments?: Array<{ name: string; mimeType: string; size: number; data: string }>) => boolean;
   sendInterrupt: (sessionid: string) => boolean;
+  addQueuedRequest: (sessionid: string, text: string, model: NDXSessionModelConfig, attachments?: Array<{ name: string; mimeType: string; size: number; data: string }>) => boolean;
+  updateQueuedRequest: (sessionid: string, itemid: string, text: string) => boolean;
+  deleteQueuedRequest: (sessionid: string, itemid: string) => boolean;
   requestSkillList: (sessionid?: string, projectName?: string) => boolean;
   requestHistorySummary: (sessionid: string) => boolean;
   requestTurnDetail: (sessionid: string, inputDataId: string) => boolean;
@@ -81,6 +83,7 @@ export type SessionSocketOptions = {
   onBranchCreated: (message: NDXSessionBranchCreatedMessage) => void;
   onClientRequest: (message: NDXSessionClientRequestMessage) => void;
   onClientRequestClosed: (message: NDXSessionClientRequestClosedMessage) => void;
+  onRequestQueueChanged: (message: NDXSessionRequestQueueChangedMessage) => void;
   onUnhandledMessage?: (message: NDXSocketServerMessage) => boolean;
   onProtocolError?: (message: NDXProtocolErrorMessage) => void;
   onTransportError?: (message: string) => void;
@@ -113,26 +116,6 @@ export function openSessionSocket(options: SessionSocketOptions): SessionSocketC
       return;
     }
     const message = parsed;
-
-    if (message.type === NDX_ACCOUNT_SELECTION_REQUIRED) {
-      const required = message;
-      const state = options.getState();
-      const userid = selectSocketUserid(required, state);
-      if (!userid) {
-        options.setSocketState("error");
-        options.setNotice(required.error ?? options.t[RSC.SESSION_SOCKET_ERROR_ALERT]);
-        return;
-      }
-
-      options.setState({ ...state, selectedUserid: userid });
-      socket.send(JSON.stringify(sessionAccountSelectMessage(userid, state.locale)));
-      return;
-    }
-
-    if (message.type === NDX_ACCOUNT_SELECTED) {
-      options.setSocketState("negotiating");
-      return;
-    }
 
     if (message.type === NDX_PROJECT_NEGOTIATION_REQUIRED) {
       const project = options.getState().projects.find((item) => item.projectName === options.getState().activeProjectName);
@@ -220,6 +203,11 @@ export function openSessionSocket(options: SessionSocketOptions): SessionSocketC
       return;
     }
 
+    if (message.type === NDX_SESSION_REQUEST_QUEUE_CHANGED) {
+      options.onRequestQueueChanged(message);
+      return;
+    }
+
     if (options.onUnhandledMessage?.(message)) {
       return;
     }
@@ -276,6 +264,27 @@ export function openSessionSocket(options: SessionSocketOptions): SessionSocketC
         return false;
       }
       socket.send(JSON.stringify(sessionInterruptMessage(sessionid, options.getState().locale)));
+      return true;
+    },
+    addQueuedRequest: (sessionid, text, model, attachments) => {
+      if (socket.readyState !== WebSocket.OPEN) {
+        return false;
+      }
+      socket.send(JSON.stringify(sessionRequestQueueAddMessage(sessionid, text, model, attachments, options.getState().locale)));
+      return true;
+    },
+    updateQueuedRequest: (sessionid, itemid, text) => {
+      if (socket.readyState !== WebSocket.OPEN) {
+        return false;
+      }
+      socket.send(JSON.stringify(sessionRequestQueueUpdateMessage(sessionid, itemid, text, options.getState().locale)));
+      return true;
+    },
+    deleteQueuedRequest: (sessionid, itemid) => {
+      if (socket.readyState !== WebSocket.OPEN) {
+        return false;
+      }
+      socket.send(JSON.stringify(sessionRequestQueueDeleteMessage(sessionid, itemid, options.getState().locale)));
       return true;
     },
     requestSkillList: (sessionid, projectName) => {

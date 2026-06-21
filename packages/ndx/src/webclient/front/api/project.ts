@@ -6,7 +6,6 @@ import {
   type NDXAgentWebEmbeddingSettingsResponse,
   type NDXAgentWebCreateProjectRequest,
   type NDXAgentWebCreateSessionRequest,
-  type NDXAgentWebCreateUserRequest,
   type NDXAgentWebProject,
   type NDXAgentWebProvider,
   type NDXAgentWebProvidersResponse,
@@ -18,9 +17,7 @@ import {
   type NDXAgentWebModelsResponse,
   type NDXAgentWebUpdateEmbeddingSettingsRequest,
   type NDXAgentWebUpdateModelRequest,
-  type NDXAgentWebUpdateProjectUserRequest,
   type NDXAgentWebUpdateSettingsRequest,
-  type NDXAgentWebUsersResponse,
   type NDXWebClientProject
 } from "ndx/webclient/common";
 import { requestJson } from "./request.js";
@@ -39,21 +36,9 @@ export async function createWebProject(body: NDXAgentWebCreateProjectRequest) {
   return webProjectToClientProject(project);
 }
 
-export function listUsers() {
-  return requestJson<NDXAgentWebUsersResponse>(NDX_AGENT_WEB_API.users);
-}
-
-export function createUser(body: NDXAgentWebCreateUserRequest) {
-  return requestJson(NDX_AGENT_WEB_API.users, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body)
-  });
-}
-
-export async function listProjectSessions(project: Pick<NDXWebClientProject, "projectName" | "userid">) {
+export async function listProjectSessions(project: Pick<NDXWebClientProject, "projectName">) {
   const data = await requestJson<NDXAgentWebSessionsResponse>(
-    `${NDX_AGENT_WEB_API.projectSessions(project.projectName)}?userid=${encodeURIComponent(project.userid)}`
+    NDX_AGENT_WEB_API.projectSessions(project.projectName)
   );
   return data.sessions;
 }
@@ -62,16 +47,7 @@ export function createProjectSession(project: NDXWebClientProject, body?: Partia
   return requestJson<NDXAgentWebSession>(NDX_AGENT_WEB_API.projectSessions(project.projectName), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userid: project.userid, ...body })
-  });
-}
-
-export function updateProjectUser(projectName: string, userid: string) {
-  const body: NDXAgentWebUpdateProjectUserRequest = { userid };
-  return requestJson<NDXAgentWebProject>(NDX_AGENT_WEB_API.webProjectUser(projectName), {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body)
+    body: JSON.stringify(body ?? {})
   });
 }
 
@@ -80,8 +56,7 @@ function webProjectToClientProject(project: NDXAgentWebProject) {
     projectName: project.projectName,
     name: project.name,
     path: project.path,
-    screenorder: project.screenorder,
-    userid: project.userid
+    screenorder: project.screenorder
   } as Parameters<typeof makeLocalProject>[0]);
 }
 

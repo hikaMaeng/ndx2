@@ -13,6 +13,8 @@ export function sessionModelToUiState(model: SessionInstanceModel): SessionUiSta
     chatMessages: model.history.messages,
     turnFlows: model.history.turns,
     cotWork: model.runtime.cotWork,
+    requestQueue: model.runtime.requestQueue,
+    requestQueueCollapsed: model.runtime.requestQueueCollapsed,
     autoScrollEnabled: model.viewport.autoScrollEnabled,
     reportedContextUsage: model.runtime.contextUsage,
     notice: model.runtime.notice,
@@ -51,6 +53,8 @@ export function sessionModelWithUiState(model: SessionInstanceModel, ui: Session
       agentRunning: ui.agentRunning,
       compactRunning: ui.compactRunning,
       cotWork: ui.cotWork,
+      requestQueue: ui.requestQueue,
+      requestQueueCollapsed: ui.requestQueueCollapsed,
       contextUsage: ui.reportedContextUsage,
       notice: ui.notice,
       error: ui.sessionError

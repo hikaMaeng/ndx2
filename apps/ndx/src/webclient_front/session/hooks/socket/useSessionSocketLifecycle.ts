@@ -80,6 +80,7 @@ export function useSessionSocketLifecycle(options: UseSessionSocketControllerOpt
       onBranchCreated: handlers.onBranchCreated,
       onClientRequest,
       onClientRequestClosed,
+      onRequestQueueChanged: handlers.onRequestQueueChanged,
       onUnhandledMessage: (message) => applyProjectSocketMessage(message, {
         onSessionDeleted: (deleted) => {
           liveSessionIdsRef.current.delete(deleted.sessionid);

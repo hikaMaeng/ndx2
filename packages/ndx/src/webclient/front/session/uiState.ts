@@ -1,4 +1,4 @@
-import type { NDXCotWorkContents, NDXSessionSkillSummary, NDXSidebarItem } from "ndx/common/protocol";
+import type { NDXCotWorkContents, NDXSessionRequestQueueItem, NDXSessionSkillSummary, NDXSidebarItem } from "ndx/common/protocol";
 import { DEFAULT_MODEL, toModelConfig } from "../model/config.js";
 import type { EncodedAttachment } from "./attachment.js";
 import type { ChatMessage, NDXAgentWebContextUsage } from "./chat.js";
@@ -29,6 +29,8 @@ export type SessionUiState = {
   chatMessages: ChatMessage[];
   turnFlows: TurnFlowState[];
   cotWork?: NDXCotWorkContents;
+  requestQueue: NDXSessionRequestQueueItem[];
+  requestQueueCollapsed: boolean;
   autoScrollEnabled: boolean;
   reportedContextUsage?: NDXAgentWebContextUsage;
   notice: string;
@@ -52,6 +54,8 @@ export function createSessionUiState(): SessionUiState {
     selectedModel: DEFAULT_MODEL,
     chatMessages: [],
     turnFlows: [],
+    requestQueue: [],
+    requestQueueCollapsed: true,
     autoScrollEnabled: true,
     reportedContextUsage: undefined,
     notice: "",

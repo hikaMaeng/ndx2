@@ -20,7 +20,6 @@ import type { NDXModelConfig } from "ndx/agent/session";
 import { NDX_AGENT_RESOURCE, type NDXAgentResourceResolver } from "ndx/common";
 import { NDX_TURN_EVENT } from "ndx/common/protocol";
 import type { NDXLogger } from "ndx/common";
-import { DEFAULT_NDX_WEB_CLIENT_USERID } from "ndx/webclient/server/client-state";
 import type {
   NDXAgentWebChatFolder,
   NDXAgentWebChatFoldersResponse,
@@ -39,9 +38,8 @@ export function attachAgentWebChatRoutes(app: express.Express, database?: NDXDat
         response.status(503).json({ error: resource?.(NDX_AGENT_RESOURCE.WEB_DATABASE_UNAVAILABLE_ERROR, { language: request.query.language }) ?? "database unavailable" });
         return;
       }
-      const userid = queryUserid(request);
-      await ensureRootChatFolder(database, userid);
-      const body: NDXAgentWebChatFoldersResponse = { folders: (await listChatFolder(database, userid)).map(toWebChatFolder) };
+      await ensureRootChatFolder(database);
+      const body: NDXAgentWebChatFoldersResponse = { folders: (await listChatFolder(database)).map(toWebChatFolder) };
       response.json(body);
     } catch (error) {
       next(error);
@@ -56,7 +54,7 @@ export function attachAgentWebChatRoutes(app: express.Express, database?: NDXDat
       }
       const body = request.body as Partial<NDXAgentWebCreateChatFolderRequest>;
       const title = typeof body.title === "string" ? body.title : "";
-      response.status(201).json(toWebChatFolder(await createChatFolder(database, body.userid?.trim() || DEFAULT_NDX_WEB_CLIENT_USERID, title)));
+      response.status(201).json(toWebChatFolder(await createChatFolder(database, title)));
       logger?.info("web.chat.folder.create.complete");
     } catch (error) {
       next(error);
@@ -70,7 +68,7 @@ export function attachAgentWebChatRoutes(app: express.Express, database?: NDXDat
         return;
       }
       const body = request.body as Partial<NDXAgentWebUpdateChatFolderRequest>;
-      response.json(toWebChatFolder(await updateChatFolderTitle(database, request.params.folderid, body.userid?.trim() || DEFAULT_NDX_WEB_CLIENT_USERID, typeof body.title === "string" ? body.title : "")));
+      response.json(toWebChatFolder(await updateChatFolderTitle(database, request.params.folderid, typeof body.title === "string" ? body.title : "")));
     } catch (error) {
       next(error);
     }
@@ -82,7 +80,7 @@ export function attachAgentWebChatRoutes(app: express.Express, database?: NDXDat
         response.status(503).json({ error: "database unavailable" });
         return;
       }
-      const deleted = await deleteChatFolder(database, request.params.folderid, queryUserid(request));
+      const deleted = await deleteChatFolder(database, request.params.folderid);
       if (!deleted) {
         response.status(404).json({ error: "chat folder not found or root folder cannot be deleted." });
         return;
@@ -100,7 +98,7 @@ export function attachAgentWebChatRoutes(app: express.Express, database?: NDXDat
         return;
       }
       const body: NDXAgentWebChatSessionsResponse = {
-        sessions: (await listChatSession(database, request.params.folderid, queryUserid(request))).map(toWebChatSession)
+        sessions: (await listChatSession(database, request.params.folderid)).map(toWebChatSession)
       };
       response.json(body);
     } catch (error) {
@@ -121,7 +119,6 @@ export function attachAgentWebChatRoutes(app: express.Express, database?: NDXDat
       }
       response.status(201).json(toWebChatSession(await createChatSession(database, {
         folderid: request.params.folderid,
-        userid: body.userid?.trim() || DEFAULT_NDX_WEB_CLIENT_USERID,
         model: body.model as NDXModelConfig,
         title: typeof body.title === "string" ? body.title : ""
       })));
@@ -137,7 +134,7 @@ export function attachAgentWebChatRoutes(app: express.Express, database?: NDXDat
         return;
       }
       const body = request.body as Partial<NDXAgentWebUpdateChatSessionRequest>;
-      response.json(toWebChatSession(await updateChatSessionTitle(database, request.params.chatsessionid, body.userid?.trim() || DEFAULT_NDX_WEB_CLIENT_USERID, typeof body.title === "string" ? body.title : "")));
+      response.json(toWebChatSession(await updateChatSessionTitle(database, request.params.chatsessionid, typeof body.title === "string" ? body.title : "")));
     } catch (error) {
       next(error);
     }
@@ -150,7 +147,7 @@ export function attachAgentWebChatRoutes(app: express.Express, database?: NDXDat
         return;
       }
       const session = await getChatSession(database, request.params.chatsessionid);
-      if (!session || session.userid !== queryUserid(request)) {
+      if (!session) {
         response.status(404).json({ error: "chat session not found." });
         return;
       }
@@ -176,7 +173,7 @@ export function attachAgentWebChatRoutes(app: express.Express, database?: NDXDat
         return;
       }
       const session = await getChatSession(database, request.params.chatsessionid);
-      if (!session || session.userid !== (typeof request.body?.userid === "string" && request.body.userid.trim() ? request.body.userid.trim() : DEFAULT_NDX_WEB_CLIENT_USERID)) {
+      if (!session) {
         response.status(404).json({ error: "chat session not found." });
         return;
       }
@@ -250,7 +247,7 @@ export function attachAgentWebChatRoutes(app: express.Express, database?: NDXDat
         response.status(503).json({ error: "database unavailable" });
         return;
       }
-      const deleted = await deleteChatSession(database, request.params.chatsessionid, queryUserid(request));
+      const deleted = await deleteChatSession(database, request.params.chatsessionid);
       if (!deleted) {
         response.status(404).json({ error: "chat session not found." });
         return;
@@ -260,10 +257,6 @@ export function attachAgentWebChatRoutes(app: express.Express, database?: NDXDat
       next(error);
     }
   });
-}
-
-function queryUserid(request: express.Request) {
-  return typeof request.query.userid === "string" && request.query.userid.trim() ? request.query.userid.trim() : DEFAULT_NDX_WEB_CLIENT_USERID;
 }
 
 function toWebChatFolder(row: NDXChatFolderRow): NDXAgentWebChatFolder {
@@ -278,7 +271,6 @@ function toWebChatSession(row: NDXChatSessionRow): NDXAgentWebChatSession {
   return {
     chatsessionid: row.chatsessionid,
     folderid: row.folderid,
-    userid: row.userid,
     title: row.title,
     model: row.model,
     isrunning: row.isrunning,

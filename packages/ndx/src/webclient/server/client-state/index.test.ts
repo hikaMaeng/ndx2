@@ -16,7 +16,7 @@ import type { NDXWebClientStateDatabase } from "./schema.js";
 test("web client state schema defines a dedicated pgvector-backed table", () => {
   assert.match(WEB_CLIENT_STATE_TABLE_SQL, /CREATE TABLE IF NOT EXISTS webclientstate/);
   assert.match(WEB_CLIENT_STATE_TABLE_SQL, /clientid uuid PRIMARY KEY/);
-  assert.match(WEB_CLIENT_STATE_TABLE_SQL, /userid text REFERENCES users \(userid\) ON DELETE SET NULL/);
+  assert.doesNotMatch(WEB_CLIENT_STATE_TABLE_SQL, /userid text/);
   assert.match(WEB_CLIENT_STATE_TABLE_SQL, /state jsonb NOT NULL/);
   assert.match(WEB_PROJECT_TABLE_SQL, /projectname text PRIMARY KEY/);
   assert.doesNotMatch(WEB_PROJECT_TABLE_SQL, /\n  path text/);
@@ -38,10 +38,9 @@ test("initWebClientStateDatabase runs table and index SQL", async () => {
   assert.equal(queries[0], WEB_CLIENT_STATE_TABLE_SQL);
 });
 
-test("normalizeWebClientState keeps only valid local projects and selected account", () => {
+test("normalizeWebClientState keeps only valid local projects", () => {
   const state = normalizeWebClientState({
     locale: "en",
-    selectedUserid: " ndev ",
     projects: [
       { id: "project-1", name: " NDX ", path: " /mnt/f/dev/ndx2 ", source: "local", screenorder: 1 },
       { id: "project-3", name: "Newer", path: "/mnt/f/dev/newer", source: "local", screenorder: 3 },
@@ -53,14 +52,12 @@ test("normalizeWebClientState keeps only valid local projects and selected accou
   });
 
   assert.equal(state.locale, "en");
-  assert.equal(state.selectedUserid, "ndev");
   assert.deepEqual(state.projects, [
     {
       projectName: "broken",
       name: "broken",
       path: "/ndx/workspace/broken",
       screenorder: 3,
-      userid: "ndev",
       source: "local"
     },
     {
@@ -68,7 +65,6 @@ test("normalizeWebClientState keeps only valid local projects and selected accou
       name: "Newer",
       path: "/mnt/f/dev/newer",
       screenorder: 3,
-      userid: "ndev",
       source: "local"
     },
     {
@@ -76,7 +72,6 @@ test("normalizeWebClientState keeps only valid local projects and selected accou
       name: "hidden",
       path: "/hidden",
       screenorder: 2,
-      userid: "ndev",
       source: "local"
     },
     {
@@ -84,7 +79,6 @@ test("normalizeWebClientState keeps only valid local projects and selected accou
       name: "NDX",
       path: "/mnt/f/dev/ndx2",
       screenorder: 1,
-      userid: "ndev",
       source: "local"
     }
   ]);
@@ -96,7 +90,7 @@ test("web projects list newest screenorder first and upsert allocates next order
   const database: NDXWebClientStateDatabase = {
     async query(text, values) {
       queries.push({ text, values: values ?? [] });
-      if (queries.length === 1 && /SELECT projectname, screenorder, userid, updatedat/i.test(text) && /FROM web_project/i.test(text)) {
+      if (queries.length === 1 && /SELECT projectname, screenorder, updatedat/i.test(text) && /FROM web_project/i.test(text)) {
         return { rows: [], rowCount: 0 } as never;
       }
       return {
@@ -104,7 +98,6 @@ test("web projects list newest screenorder first and upsert allocates next order
           {
             projectname: values?.[0],
             screenorder: 3,
-            userid: values?.[2],
             updatedat: new Date("2026-05-12T00:00:00.000Z")
           }
         ],
@@ -114,7 +107,7 @@ test("web projects list newest screenorder first and upsert allocates next order
   };
 
   await listWebProject(database);
-  await upsertWebProject(database, { projectname: "project-1", userid: "ndev" });
+  await upsertWebProject(database, { projectname: "project-1" });
 
   assert.match(queries[0].text, /FROM web_project/);
   assert.match(queries[0].text, /ORDER BY screenorder DESC, projectname ASC/);
@@ -131,8 +124,7 @@ test("upsertWebClientState validates clientid and serializes normalized state", 
         rows: [
           {
             clientid: values?.[0],
-            userid: values?.[1],
-            state: JSON.parse(String(values?.[2])),
+            state: JSON.parse(String(values?.[1])),
             updatedat: new Date("2026-05-12T00:00:00.000Z")
           }
         ],

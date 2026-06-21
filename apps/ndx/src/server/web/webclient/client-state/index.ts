@@ -37,7 +37,6 @@ export function attachAgentWebClientStateRoutes(app: express.Express, database?:
           }
         : {
             clientid,
-            userid: null,
             state: createInitialWebClientState(),
             updatedat: null
           };
@@ -65,7 +64,6 @@ export function attachAgentWebClientStateRoutes(app: express.Express, database?:
       const state = normalizeWebClientState(body.state);
       const row = await upsertWebClientState(database, {
         clientid: body.clientid,
-        userid: typeof body.userid === "string" ? body.userid : state.selectedUserid,
         state
       });
       const responseBody: NDXAgentWebClientStateResponse = {
@@ -73,7 +71,7 @@ export function attachAgentWebClientStateRoutes(app: express.Express, database?:
         updatedat: row.updatedat.toISOString()
       };
       response.json(responseBody);
-      logger?.info("web.client_state.upsert.complete", { clientid: responseBody.clientid, userid: responseBody.userid });
+      logger?.info("web.client_state.upsert.complete", { clientid: responseBody.clientid });
     } catch (error) {
       next(error);
     }

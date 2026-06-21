@@ -27,7 +27,6 @@ export function buildChatTurnBaseMessageParts(session: NDXChatSessionRow): NDXCh
       role: "user",
       content: [
         `<chat_environment_context>`,
-        `userid=${session.userid}`,
         `folderid=${session.folderid}`,
         `chatsessionid=${session.chatsessionid}`,
         `user_home=${serverContainerUserHome()}`,

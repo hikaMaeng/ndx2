@@ -3,24 +3,23 @@ import { sessionDataText } from "../../session/content.js";
 import type { NDXChatSessionCreateInput, NDXChatSessionDataRow, NDXChatSessionRow, NDXDatabase, NDXModelConfig } from "../types.js";
 
 const CHAT_SESSION_SELECT = `
-SELECT chatsessionid::text AS chatsessionid, folderid::text AS folderid, userid, title, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, runtimedata, createdat, lastupdated
+SELECT chatsessionid::text AS chatsessionid, folderid::text AS folderid, title, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, runtimedata, createdat, lastupdated
 FROM chatsession
 `;
 
 export async function createChatSession(database: NDXDatabase, input: NDXChatSessionCreateInput): Promise<NDXChatSessionRow> {
   const result = await database.query<NDXChatSessionRow>(
     `
-INSERT INTO chatsession (chatsessionid, folderid, userid, title, model)
-SELECT $1::uuid, chatfolder.folderid, chatfolder.userid, $4, $5::jsonb
+INSERT INTO chatsession (chatsessionid, folderid, title, model)
+SELECT $1::uuid, chatfolder.folderid, $3, $4::jsonb
 FROM chatfolder
 WHERE chatfolder.folderid = $2::uuid
-  AND chatfolder.userid = $3
-RETURNING chatsessionid::text AS chatsessionid, folderid::text AS folderid, userid, title, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, runtimedata, createdat, lastupdated;
+RETURNING chatsessionid::text AS chatsessionid, folderid::text AS folderid, title, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, runtimedata, createdat, lastupdated;
 `,
-    [input.chatsessionid ?? uuid7(), input.folderid, input.userid.trim(), input.title?.trim() ?? "", JSON.stringify(input.model)]
+    [input.chatsessionid ?? uuid7(), input.folderid, input.title?.trim() ?? "", JSON.stringify(input.model)]
   );
   if (!result.rows[0]) {
-    throw new Error("chat folder not found for user.");
+    throw new Error("chat folder not found.");
   }
   return result.rows[0];
 }
@@ -35,28 +34,26 @@ WHERE chatsessionid = $1::uuid;
   return result.rows[0];
 }
 
-export async function listChatSession(database: NDXDatabase, folderid: string, userid: string): Promise<NDXChatSessionRow[]> {
+export async function listChatSession(database: NDXDatabase, folderid: string): Promise<NDXChatSessionRow[]> {
   const result = await database.query<NDXChatSessionRow>(
     `${CHAT_SESSION_SELECT}
 WHERE folderid = $1::uuid
-  AND userid = $2
 ORDER BY lastupdated DESC, chatsessionid DESC;
 `,
-    [folderid, userid.trim()]
+    [folderid]
   );
   return result.rows;
 }
 
-export async function updateChatSessionTitle(database: NDXDatabase, chatsessionid: string, userid: string, title: string): Promise<NDXChatSessionRow> {
+export async function updateChatSessionTitle(database: NDXDatabase, chatsessionid: string, title: string): Promise<NDXChatSessionRow> {
   const result = await database.query<NDXChatSessionRow>(
     `
 UPDATE chatsession
-SET title = $3, lastupdated = now()
+SET title = $2, lastupdated = now()
 WHERE chatsessionid = $1::uuid
-  AND userid = $2
-RETURNING chatsessionid::text AS chatsessionid, folderid::text AS folderid, userid, title, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, runtimedata, createdat, lastupdated;
+RETURNING chatsessionid::text AS chatsessionid, folderid::text AS folderid, title, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, runtimedata, createdat, lastupdated;
 `,
-    [chatsessionid, userid.trim(), title.trim()]
+    [chatsessionid, title.trim()]
   );
   if (!result.rows[0]) {
     throw new Error(`chat session not found: ${chatsessionid}`);
@@ -75,7 +72,7 @@ SET model = COALESCE($2::jsonb, model),
     interruptrequestedat = NULL,
     interruptcompletedat = NULL
 WHERE chatsessionid = $1::uuid
-RETURNING chatsessionid::text AS chatsessionid, folderid::text AS folderid, userid, title, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, runtimedata, createdat, lastupdated;
+RETURNING chatsessionid::text AS chatsessionid, folderid::text AS folderid, title, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, runtimedata, createdat, lastupdated;
 `,
     [chatsessionid, model ? JSON.stringify(model) : null]
   );
@@ -93,7 +90,7 @@ SET isrunning = false,
     turnphase = 'idle',
     lastupdated = now()
 WHERE chatsessionid = $1::uuid
-RETURNING chatsessionid::text AS chatsessionid, folderid::text AS folderid, userid, title, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, runtimedata, createdat, lastupdated;
+RETURNING chatsessionid::text AS chatsessionid, folderid::text AS folderid, title, model, isrunning, turnphase, interruptrequested, interruptrequestedat, interruptcompletedat, runtimedata, createdat, lastupdated;
 `,
     [chatsessionid]
   );
@@ -103,15 +100,15 @@ RETURNING chatsessionid::text AS chatsessionid, folderid::text AS folderid, user
   return result.rows[0];
 }
 
-export async function deleteChatSession(database: NDXDatabase, chatsessionid: string, userid: string): Promise<NDXChatSessionRow | undefined> {
+export async function deleteChatSession(database: NDXDatabase, chatsessionid: string): Promise<NDXChatSessionRow | undefined> {
   const session = await getChatSession(database, chatsessionid);
-  if (!session || session.userid !== userid.trim()) {
+  if (!session) {
     return undefined;
   }
   if (session.isrunning) {
     throw new Error(`Chat session is running: ${chatsessionid}`);
   }
-  await database.query(`DELETE FROM chatsession WHERE chatsessionid = $1::uuid AND userid = $2;`, [chatsessionid, userid.trim()]);
+  await database.query(`DELETE FROM chatsession WHERE chatsessionid = $1::uuid;`, [chatsessionid]);
   return session;
 }
 

@@ -11,7 +11,7 @@ test("appendChatSessionMessageStream parses multiline SSE data frames", async ()
         'data: {"kind":"assistant_delta",',
         'data: "text":"렌더링"}',
         "",
-        'data: {"kind":"complete","session":{"chatsessionid":"chat-1","folderid":"folder-1","userid":"ndev","title":"테스트","createdat":"2026-06-19T00:00:00.000Z","updatedat":"2026-06-19T00:00:00.000Z"},"data":[]}',
+        'data: {"kind":"complete","session":{"chatsessionid":"chat-1","folderid":"folder-1","title":"테스트","createdat":"2026-06-19T00:00:00.000Z","updatedat":"2026-06-19T00:00:00.000Z"},"data":[]}',
         "",
         ""
       ].join("\n")));

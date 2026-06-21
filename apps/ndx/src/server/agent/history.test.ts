@@ -139,7 +139,6 @@ function row(dataid: string, type: string, contents: unknown): NDXSessionDataRow
 function session(title = "test"): NDXSessionRow {
   return {
     sessionid: "session-1",
-    userid: "ndev",
     title,
     lastupdated: new Date("2026-05-12T00:00:00.000Z"),
     mode: "none",

@@ -11,7 +11,6 @@ import type {
 
 export const NDX_AGENT_WEB_API = Object.freeze({
   metadata: "/api/agent",
-  users: "/api/agent/users",
   workspaceDirectories: "/api/agent/workspace-directories",
   webProjects: "/api/agent/web-projects",
   webProject: (projectName: string) => `/api/agent/web-projects/${encodeURIComponent(projectName)}`,
@@ -29,7 +28,6 @@ export const NDX_AGENT_WEB_API = Object.freeze({
   modelFolderPatchAnalyze: "/api/agent/settings/models/folder/analyze",
   modelFolderPatchApply: "/api/agent/settings/models/folder/patch",
   modelFolderPatchDraft: "/api/agent/settings/models/folder/draft",
-  webProjectUser: (projectName: string) => `/api/agent/web-projects/${encodeURIComponent(projectName)}/user`,
   chatFolders: "/api/agent/chat/folders",
   chatFolder: (folderid: string) => `/api/agent/chat/folders/${encodeURIComponent(folderid)}`,
   chatFolderSessions: (folderid: string) => `/api/agent/chat/folders/${encodeURIComponent(folderid)}/sessions`,
@@ -75,25 +73,11 @@ export type NDXAgentWebErrorResponse = {
   error: string;
 };
 
-export type NDXAgentWebUser = {
-  userid: string;
-  created: string;
-};
-
-export type NDXAgentWebUsersResponse = {
-  users: NDXAgentWebUser[];
-};
-
-export type NDXAgentWebCreateUserRequest = {
-  userid: string;
-};
-
 export type NDXAgentWebProject = {
   projectName: string;
   name: string;
   path: string;
   screenorder: number;
-  userid: string;
   updatedat: string;
 };
 
@@ -243,11 +227,6 @@ export type NDXAgentWebWorkspaceDirectoriesResponse = {
 export type NDXAgentWebCreateProjectRequest = {
   name: string;
   screenorder?: number;
-  userid?: string;
-};
-
-export type NDXAgentWebUpdateProjectUserRequest = {
-  userid: string;
 };
 
 export type NDXAgentWebModelConfig = {
@@ -267,7 +246,6 @@ export type NDXAgentWebModelConfig = {
 
 export type NDXAgentWebSession = {
   sessionid: string;
-  userid: string;
   title: string;
   lastupdated: string;
   mode: "none" | "light";
@@ -283,7 +261,6 @@ export type NDXAgentWebSessionsResponse = {
 
 export type NDXAgentWebChatFolder = {
   folderid: string;
-  userid: string;
   title: string;
   kind: "root" | "normal";
   screenorder: number;
@@ -294,7 +271,6 @@ export type NDXAgentWebChatFolder = {
 export type NDXAgentWebChatSession = {
   chatsessionid: string;
   folderid: string;
-  userid: string;
   title: string;
   model: NDXAgentWebModelConfig;
   isrunning: boolean;
@@ -311,28 +287,23 @@ export type NDXAgentWebChatSessionsResponse = {
 };
 
 export type NDXAgentWebCreateChatFolderRequest = {
-  userid?: string;
   title: string;
 };
 
 export type NDXAgentWebUpdateChatFolderRequest = {
-  userid?: string;
   title: string;
 };
 
 export type NDXAgentWebCreateChatSessionRequest = {
-  userid?: string;
   model: NDXAgentWebModelConfig;
   title?: string;
 };
 
 export type NDXAgentWebUpdateChatSessionRequest = {
-  userid?: string;
   title: string;
 };
 
 export type NDXAgentWebCreateSessionRequest = {
-  userid?: string;
   path: string;
   model?: NDXAgentWebModelConfig;
   language?: string;
@@ -434,14 +405,12 @@ export type NDXAgentWebSessionMessageResponse = {
 
 export type NDXAgentWebClientStateResponse = {
   clientid: string;
-  userid: string | null;
   state: NDXWebClientStateDocument;
   updatedat: string | null;
 };
 
 export type NDXAgentWebUpdateClientStateRequest = {
   clientid: string;
-  userid?: string | null;
   state: unknown;
 };
 

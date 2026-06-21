@@ -8,8 +8,8 @@
 | --- | --- |
 | `apps/ndx/src/server/app.ts` | Express wiring, static serving, health, API attachment. |
 | `apps/ndx/src/server/index.ts` | process startup, DB init, HTTP server, WebSocket attach, shutdown. |
-| `apps/ndx/src/server/agent` | session socket transport, account selection, history replay, project negotiation. |
-| `apps/ndx/src/server/web/webclient` | webclient API routes for metadata, projects, sessions, users, chat, workspace. |
+| `apps/ndx/src/server/agent` | session socket transport, history replay, project negotiation. |
+| `apps/ndx/src/server/web/webclient` | webclient API routes for metadata, projects, sessions, chat, workspace. |
 | `apps/ndx/src/server/web/webclient/settings` | settings HTTP orchestration that delegates product rules to `packages/ndx`. |
 | `apps/ndx/src/webclient_front` | browser app shell, session UI, menu, chat, modal, settings. |
 | `apps/ndx/src/documents_front` | separate document site bundle served under `/docs`. |
@@ -20,7 +20,6 @@
 
 | 경로 | 문서화 주제 |
 | --- | --- |
-| `packages/ndx/src/agent/account` | default/user account domain. |
 | `packages/ndx/src/agent/project` | project identity and path normalization. |
 | `packages/ndx/src/agent/session` | PostgreSQL session tables, append/list/update, reconstruction. |
 | `packages/ndx/src/agent/turnloop` | turn execution, interruption, model/tool iteration. |

@@ -39,7 +39,6 @@ export function useSessionRenameController({ finishAction, getSocket, hasPending
     setError("");
     setNotice(renameSessionPendingText);
     if (!sendProjectSessionRename(getSocket(), {
-      userid: target.session.userid,
       projectName: target.project.projectName,
       sessionid: target.session.sessionid,
       title
@@ -58,7 +57,7 @@ export function useSessionRenameController({ finishAction, getSocket, hasPending
       ...current,
       [message.projectname]: (current[message.projectname] ?? []).map((session) => session.sessionid === message.sessionid ? { ...session, ...message } : session)
     }));
-    const project = stateRef.current.projects.find((item) => item.projectName === message.projectname && item.userid === message.userid);
+    const project = stateRef.current.projects.find((item) => item.projectName === message.projectname);
     if (project) {
       void listProjectSessions(project).then((sessions) => {
         setSessionsByProject((current) => ({ ...current, [project.projectName]: sessions }));

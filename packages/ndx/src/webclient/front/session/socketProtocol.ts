@@ -1,5 +1,4 @@
 import {
-  NDX_ACCOUNT_SELECT,
   NDX_CLIENT_ID_QUERY_PARAM,
   NDX_PROJECT_CONFIGURE,
   NDX_SESSION_ATTACH,
@@ -10,11 +9,12 @@ import {
   NDX_SESSION_INTERRUPT,
   NDX_SESSION_ITERATION_DETAIL,
   NDX_SESSION_CLIENT_RESPONSE,
+  NDX_SESSION_REQUEST_QUEUE_ADD,
+  NDX_SESSION_REQUEST_QUEUE_DELETE,
+  NDX_SESSION_REQUEST_QUEUE_UPDATE,
   NDX_SESSION_SKILL_LIST,
   NDX_SESSION_TURN_DELETE,
   NDX_SESSION_TURN_DETAIL,
-  type NDXAccountSelectMessage,
-  type NDXAccountSelectionRequiredMessage,
   type NDXProjectConfigureMessage,
   type NDXSessionAttachMessage,
   type NDXSessionBranchCreateMessage,
@@ -26,6 +26,9 @@ import {
   type NDXSessionClientResponseMessage,
   type NDXSessionModelConfig,
   type NDXSessionReadyMessage,
+  type NDXSessionRequestQueueAddMessage,
+  type NDXSessionRequestQueueDeleteMessage,
+  type NDXSessionRequestQueueUpdateMessage,
   type NDXSessionSkillListMessage,
   type NDXSessionTurnDeleteMessage,
   type NDXSessionTurnDetailMessage
@@ -38,19 +41,6 @@ export function sessionSocketUrl(socketUrl: string, clientid: string) {
   return url;
 }
 
-export function selectSocketUserid(required: NDXAccountSelectionRequiredMessage, state: NDXWebClientStateDocument) {
-  const project = state.projects.find((item) => item.projectName === state.activeProjectName);
-  return project?.userid && required.users.some((user) => user.userid === project.userid)
-    ? project.userid
-    : state.selectedUserid && required.users.some((user) => user.userid === state.selectedUserid)
-      ? state.selectedUserid
-      : required.users.find((user) => user.userid === "ndev")?.userid ?? required.users[0]?.userid;
-}
-
-export function sessionAccountSelectMessage(userid: string, language: NDXWebClientStateDocument["locale"]): NDXAccountSelectMessage {
-  return { type: NDX_ACCOUNT_SELECT, userid, language };
-}
-
 export function sessionProjectConfigureMessage(project: Pick<NDXWebClientProject, "projectName">, language: NDXWebClientStateDocument["locale"]): NDXProjectConfigureMessage {
   return { type: NDX_PROJECT_CONFIGURE, projectName: project.projectName, language };
 }
@@ -58,11 +48,9 @@ export function sessionProjectConfigureMessage(project: Pick<NDXWebClientProject
 export function stateAfterSessionReady(state: NDXWebClientStateDocument, ready: NDXSessionReadyMessage, connectedAt: string): NDXWebClientStateDocument {
   return {
     ...state,
-    selectedUserid: ready.userid,
     activeProjectName: ready.projectName,
     lastSession: {
       clientid: ready.clientid,
-      userid: ready.userid,
       projectName: ready.projectName,
       connectedAt
     }
@@ -83,6 +71,18 @@ export function sessionInputMessage(sessionid: string, text: string, model: NDXS
 
 export function sessionInterruptMessage(sessionid: string, language: NDXWebClientStateDocument["locale"]): NDXSessionInterruptMessage {
   return { type: NDX_SESSION_INTERRUPT, sessionid, language };
+}
+
+export function sessionRequestQueueAddMessage(sessionid: string, text: string, model: NDXSessionModelConfig, attachments: NDXSessionRequestQueueAddMessage["attachments"], language: NDXWebClientStateDocument["locale"]): NDXSessionRequestQueueAddMessage {
+  return { type: NDX_SESSION_REQUEST_QUEUE_ADD, sessionid, text, model, ...(attachments?.length ? { attachments } : {}), language };
+}
+
+export function sessionRequestQueueUpdateMessage(sessionid: string, itemid: string, text: string, language: NDXWebClientStateDocument["locale"]): NDXSessionRequestQueueUpdateMessage {
+  return { type: NDX_SESSION_REQUEST_QUEUE_UPDATE, sessionid, itemid, text, language };
+}
+
+export function sessionRequestQueueDeleteMessage(sessionid: string, itemid: string, language: NDXWebClientStateDocument["locale"]): NDXSessionRequestQueueDeleteMessage {
+  return { type: NDX_SESSION_REQUEST_QUEUE_DELETE, sessionid, itemid, language };
 }
 
 export function sessionSkillListMessage(sessionid: string | undefined, projectName: string | undefined, language: NDXWebClientStateDocument["locale"]): NDXSessionSkillListMessage {

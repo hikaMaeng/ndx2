@@ -3,7 +3,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Pool, type QueryResultRow } from "pg";
 import type { NDXLogger } from "../../common/log/index.js";
-import { initAccountDatabase } from "../account/index.js";
 import { initSessionDatabase } from "../session/index.js";
 import { initWebClientStateDatabase } from "../../webclient/server/client-state/index.js";
 import { initChatDatabase } from "../chat/index.js";
@@ -44,7 +43,6 @@ export async function initServer(options: InitServerOptions): Promise<Initialize
 
   const database = createNDXDatabase(options.databaseUrl, options.logger);
   try {
-    await initAccountDatabase(database);
     await initSessionDatabase(database);
     await initChatDatabase(database);
     await initWebClientStateDatabase(database);

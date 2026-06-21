@@ -18,7 +18,6 @@ export function ProjectSidebar({
   onOpenProjectInVSCode,
   onOpenProjectPicker,
   onRenameSession,
-  onOpenUserDialog,
   onSelectProject,
   onSelectSession,
   onToggleProjectSessions
@@ -37,7 +36,6 @@ export function ProjectSidebar({
   onOpenProjectInVSCode: (project: NDXWebClientProject) => void;
   onOpenProjectPicker: () => void;
   onRenameSession: (project: NDXWebClientProject, session: NDXAgentWebSession) => void;
-  onOpenUserDialog: (projectname: string) => void;
   onSelectProject: (project: NDXWebClientProject) => void;
   onSelectSession: (project: NDXWebClientProject, sessionid: string) => void;
   onToggleProjectSessions: (projectname: string) => void;
@@ -60,7 +58,7 @@ export function ProjectSidebar({
               const sessions = sessionsByProject[project.projectName] ?? [];
               const expanded = expandedProjectSessionIds.has(project.projectName);
               return (
-                <ProjectCard key={project.projectName} active={project.projectName === clientState.activeProjectName} activeSessionId={activeSessionId} expanded={expanded} idSuffix={idSuffix} pending={pendingProjectIds.has(project.projectName)} pendingSessionIds={pendingSessionIds} project={project} renameSessionLabel={renameSessionLabel} sessions={sessions} t={t} onPrepareSessionDraft={onPrepareSessionDraft} onDeleteProject={onDeleteProject} onDeleteSession={onDeleteSession} onOpenProjectInVSCode={onOpenProjectInVSCode} onRenameSession={onRenameSession} onOpenUserDialog={onOpenUserDialog} onSelectProject={onSelectProject} onSelectSession={onSelectSession} onToggleProjectSessions={onToggleProjectSessions} />
+                <ProjectCard key={project.projectName} active={project.projectName === clientState.activeProjectName} activeSessionId={activeSessionId} expanded={expanded} idSuffix={idSuffix} pending={pendingProjectIds.has(project.projectName)} pendingSessionIds={pendingSessionIds} project={project} renameSessionLabel={renameSessionLabel} sessions={sessions} t={t} onPrepareSessionDraft={onPrepareSessionDraft} onDeleteProject={onDeleteProject} onDeleteSession={onDeleteSession} onOpenProjectInVSCode={onOpenProjectInVSCode} onRenameSession={onRenameSession} onSelectProject={onSelectProject} onSelectSession={onSelectSession} onToggleProjectSessions={onToggleProjectSessions} />
               );
             })}
           </ul>

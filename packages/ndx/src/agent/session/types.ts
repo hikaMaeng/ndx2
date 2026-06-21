@@ -21,7 +21,6 @@ export type NDXModelConfig = {
 
 export type NDXSessionRow = {
   sessionid: string;
-  userid: string;
   title: string;
   lastupdated: Date;
   mode: NDXSessionMode;
@@ -52,7 +51,6 @@ export type NDXModelMessage = {
 export type { NDXDatabase };
 
 export type NDXSessionCreateInput = {
-  userid: string;
   projectname: string;
   model: NDXModelConfig;
   sessionid?: string;

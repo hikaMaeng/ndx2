@@ -6,7 +6,6 @@ import { applyChatRequestCompleted, applyChatRequestStarted, applyChatSessionLoa
 const session: NDXAgentWebChatSession = {
   chatsessionid: "chat-1",
   folderid: "folder-1",
-  userid: "ndev",
   title: "채팅",
   model: { type: "openai", provider: "local", model: "gpt", url: "http://localhost", token: "", contextsize: 100000, modalities: ["text"], reasoningEffort: "medium" },
   isrunning: false,

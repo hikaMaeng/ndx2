@@ -15,7 +15,6 @@ import {
 export type ProjectSocketMessage = NDXSessionDeletedMessage | NDXSessionListChangedMessage | NDXSessionRenamedMessage;
 
 export type ProjectSessionSocketInput = {
-  userid: string;
   projectName: string;
   sessionid: string;
 };

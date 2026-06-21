@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  NDX_ACCOUNT_SELECT,
   NDX_PROJECT_CONFIGURE,
   NDX_SESSION_ATTACH,
   NDX_SESSION_BRANCH_CREATE,
@@ -20,7 +19,6 @@ import {
   NDX_TURNCARD_ARTIFACT,
   NDX_TURNCARD_SKILL,
   formatNDXCotWorkElapsed,
-  isNDXAccountSelectMessage,
   isNDXCotWorkContents,
   isNDXClientId,
   isNDXProjectConfigureMessage,
@@ -119,12 +117,6 @@ test("session client response validates askUserQuestion answers", () => {
   );
 });
 
-test("account selection validates the account-select message shape", () => {
-  assert.equal(isNDXAccountSelectMessage({ type: NDX_ACCOUNT_SELECT, userid: "ndx" }), true);
-  assert.equal(isNDXAccountSelectMessage({ type: NDX_ACCOUNT_SELECT, userid: "" }), false);
-  assert.equal(isNDXAccountSelectMessage({ type: "project.configure", userid: "ndx" }), false);
-});
-
 test("project negotiation requires a workspace project name", () => {
   assert.equal(
     isNDXProjectConfigureMessage({
@@ -147,7 +139,6 @@ test("session create accepts an optional model config", () => {
   assert.equal(
     isNDXSessionCreateMessage({
       type: NDX_SESSION_CREATE,
-      userid: "ndev",
       projectName: "project-1"
     }),
     true
@@ -155,7 +146,6 @@ test("session create accepts an optional model config", () => {
   assert.equal(
     isNDXSessionCreateMessage({
       type: NDX_SESSION_CREATE,
-      userid: "ndev",
       projectName: ""
     }),
     false
@@ -176,7 +166,6 @@ test("session create accepts an optional model config", () => {
   assert.equal(
     isNDXSessionCreateMessage({
       type: NDX_SESSION_CREATE,
-      userid: "ndev",
       projectName: "project-1",
       model: {
         type: "openai",
@@ -194,7 +183,6 @@ test("session create accepts an optional model config", () => {
   assert.equal(
     isNDXSessionCreateMessage({
       type: NDX_SESSION_CREATE,
-      userid: "ndev",
       projectName: "project-1",
       initialInput: {
         text: "",
@@ -206,7 +194,6 @@ test("session create accepts an optional model config", () => {
   assert.equal(
     isNDXSessionCreateMessage({
       type: NDX_SESSION_CREATE,
-      userid: "ndev",
       projectName: "project-1",
       initialInput: { text: "" }
     }),
@@ -225,7 +212,6 @@ test("session attach requires a project name and session id", () => {
   assert.equal(
     isNDXSessionAttachMessage({
       type: NDX_SESSION_ATTACH,
-      userid: "ndev",
       projectName: "project-1",
       sessionid: "019e2783-4512-70d0-b75b-40200d1d4fe8"
     }),
@@ -237,7 +223,6 @@ test("session delete requires the owner, project identity, and session id", () =
   assert.equal(
     isNDXSessionDeleteMessage({
       type: NDX_SESSION_DELETE,
-      userid: "ndev",
       projectName: "project-1",
       sessionid: "019e2783-4512-70d0-b75b-40200d1d4fe8"
     }),
@@ -246,7 +231,6 @@ test("session delete requires the owner, project identity, and session id", () =
   assert.equal(
     isNDXSessionDeleteMessage({
       type: NDX_SESSION_DELETE,
-      userid: "ndev",
       projectName: "",
       sessionid: "019e2783-4512-70d0-b75b-40200d1d4fe8"
     }),
@@ -293,7 +277,6 @@ test("session rename requires session ownership fields and accepts an empty titl
   assert.equal(
     isNDXSessionRenameMessage({
       type: NDX_SESSION_RENAME,
-      userid: "ndev",
       projectName: "project-1",
       sessionid: "019e2783-4512-70d0-b75b-40200d1d4fe8",
       title: "새 제목"
@@ -303,7 +286,6 @@ test("session rename requires session ownership fields and accepts an empty titl
   assert.equal(
     isNDXSessionRenameMessage({
       type: NDX_SESSION_RENAME,
-      userid: "ndev",
       projectName: "project-1",
       sessionid: "019e2783-4512-70d0-b75b-40200d1d4fe8",
       title: ""
@@ -313,7 +295,6 @@ test("session rename requires session ownership fields and accepts an empty titl
   assert.equal(
     isNDXSessionRenameMessage({
       type: NDX_SESSION_RENAME,
-      userid: "ndev",
       projectName: "",
       sessionid: "019e2783-4512-70d0-b75b-40200d1d4fe8",
       title: "새 제목"

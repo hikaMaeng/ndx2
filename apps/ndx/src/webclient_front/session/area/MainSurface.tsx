@@ -298,7 +298,7 @@ export function MainSurface({
     finishAction(actionKey);
     updateSessionUi(sessionid, (current) => ({ ...current, notice: t[RSC.APP_STATUS_SOCKET_REQUIRED_ALERT] }));
   };
-  const createUserTurnBranch = (sessionid: string, inputDataId: string) => {
+  const createTurnBranch = (sessionid: string, inputDataId: string) => {
     if (!mutateUserTurnAvailable(sessionid)) return;
     const actionKey = `session-branch:${sessionid}:${inputDataId}`;
     if (!startAction(actionKey)) return;
@@ -307,6 +307,14 @@ export function MainSurface({
       return;
     }
     finishAction(actionKey);
+    updateSessionUi(sessionid, (current) => ({ ...current, notice: t[RSC.APP_STATUS_SOCKET_REQUIRED_ALERT] }));
+  };
+  const deleteQueuedRequest = (sessionid: string, itemid: string) => {
+    if (socketRef.current?.deleteQueuedRequest(sessionid, itemid)) return;
+    updateSessionUi(sessionid, (current) => ({ ...current, notice: t[RSC.APP_STATUS_SOCKET_REQUIRED_ALERT] }));
+  };
+  const updateQueuedRequest = (sessionid: string, itemid: string, text: string) => {
+    if (socketRef.current?.updateQueuedRequest(sessionid, itemid, text)) return;
     updateSessionUi(sessionid, (current) => ({ ...current, notice: t[RSC.APP_STATUS_SOCKET_REQUIRED_ALERT] }));
   };
 
@@ -326,7 +334,7 @@ export function MainSurface({
     nextAttached.delete(session.sessionid);
     attachedSessionIdsRef.current = nextAttached;
     setAttachedSessionIds(nextAttached);
-    if (!sendProjectSessionDelete(socketRef.current?.socket, { userid: session.userid, projectName: project.projectName, sessionid: session.sessionid })) {
+    if (!sendProjectSessionDelete(socketRef.current?.socket, { projectName: project.projectName, sessionid: session.sessionid })) {
       finishAction(`session-delete:${session.sessionid}`);
       setNotice(t[RSC.APP_STATUS_SOCKET_REQUIRED_ALERT]);
     }
@@ -475,7 +483,7 @@ export function MainSurface({
             ...source,
             key: nextKey,
             identity: "folderid" in session && session.folderid
-              ? { kind: "session", key: nextKey, sessionId: session.chatsessionid, folderId: session.folderid, userid: session.userid }
+              ? { kind: "session", key: nextKey, sessionId: session.chatsessionid, folderId: session.folderid }
               : { kind: "session", key: nextKey, sessionId: session.chatsessionid },
             metadata: "folderid" in session && session.folderid ? session as NDXAgentWebChatSession : source.metadata,
             composer: { ...source.composer, input: "", selectedModel: chatSelectedModel },
@@ -535,7 +543,7 @@ export function MainSurface({
 
   return (
     <>
-      <SessionSurfaces activeUiKey={activeUiKey} clientState={clientState} hasPendingAction={hasPendingAction} notice={notice} rewriteEnabledBySession={rewriteEnabledBySession} sessionError={sessionError} sessionsByProject={sessionsByProject} sessionUiByKey={sessionUiByKey} surfaceKeys={surfaceKeys} t={t} updateSessionUi={updateSessionUi} onOpenMenu={onOpenMenu} onChatScroll={(key, scrollTop) => updateSessionUi(key, (current) => ({ ...current, chatScrollTop: scrollTop }))} onDisableAutoScroll={(key) => updateSessionUi(key, (current) => ({ ...current, autoScrollEnabled: false }))} onDismissError={(key) => updateSessionUi(key, (current) => ({ ...current, sessionError: "" }))} onChatInputChange={(key, value) => updateSessionUi(key, (current) => ({ ...current, chatInput: value }))} onAddAttachments={addChatAttachments} onAttachmentRejected={(key, message) => updateSessionUi(key, (current) => ({ ...current, notice: message }))} onRemoveAttachment={removeChatAttachment} onModelClick={(key) => { activeUiKeyRef.current = key; modelDialog.setOpen(true); }} onRewriteToggle={toggleSessionRewrite} onSkillListRefresh={sessionSocket.refreshSkillList} onSubmit={sessionRequest.submitChatRequest} onUserMessageBranch={createUserTurnBranch} onUserMessageDelete={deleteUserTurn} onTurnToggle={sessionSocket.toggleTurnDetail} onIterationToggle={sessionSocket.toggleIterationDetail} />
+      <SessionSurfaces activeUiKey={activeUiKey} clientState={clientState} hasPendingAction={hasPendingAction} notice={notice} rewriteEnabledBySession={rewriteEnabledBySession} sessionError={sessionError} sessionsByProject={sessionsByProject} sessionUiByKey={sessionUiByKey} surfaceKeys={surfaceKeys} t={t} updateSessionUi={updateSessionUi} onOpenMenu={onOpenMenu} onChatScroll={(key, scrollTop) => updateSessionUi(key, (current) => ({ ...current, chatScrollTop: scrollTop }))} onDisableAutoScroll={(key) => updateSessionUi(key, (current) => ({ ...current, autoScrollEnabled: false }))} onDismissError={(key) => updateSessionUi(key, (current) => ({ ...current, sessionError: "" }))} onChatInputChange={(key, value) => updateSessionUi(key, (current) => ({ ...current, chatInput: value }))} onAddAttachments={addChatAttachments} onAttachmentRejected={(key, message) => updateSessionUi(key, (current) => ({ ...current, notice: message }))} onRemoveAttachment={removeChatAttachment} onModelClick={(key) => { activeUiKeyRef.current = key; modelDialog.setOpen(true); }} onRewriteToggle={toggleSessionRewrite} onSkillListRefresh={sessionSocket.refreshSkillList} onQueueAdd={sessionRequest.queueChatRequest} onQueuedRequestDelete={deleteQueuedRequest} onQueuedRequestUpdate={updateQueuedRequest} onSubmit={sessionRequest.submitChatRequest} onUserMessageBranch={createTurnBranch} onUserMessageDelete={deleteUserTurn} onTurnToggle={sessionSocket.toggleTurnDetail} onIterationToggle={sessionSocket.toggleIterationDetail} />
       <ModalPortal>
         {sessionRename.dialog}
         {modelDialog.dialog}

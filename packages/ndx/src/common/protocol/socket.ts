@@ -1,11 +1,4 @@
 import {
-  NDX_ACCOUNT_SELECTED,
-  NDX_ACCOUNT_SELECTION_REQUIRED,
-  type NDXAccountSelectedMessage,
-  type NDXAccountSelectionRequiredMessage,
-  type NDXAccountSelectMessage
-} from "./identity/index.js";
-import {
   NDX_PROJECT_NEGOTIATED,
   NDX_PROJECT_NEGOTIATION_REQUIRED,
   type NDXProjectConfigureMessage,
@@ -26,6 +19,7 @@ import {
   NDX_SESSION_LIST_CHANGED,
   NDX_SESSION_READY,
   NDX_SESSION_RENAMED,
+  NDX_SESSION_REQUEST_QUEUE_CHANGED,
   NDX_SESSION_SIDEBAR_ITEM,
   NDX_SESSION_SKILL_LIST_RESULT,
   NDX_SESSION_TURN_DETAIL_RESULT,
@@ -52,6 +46,10 @@ import {
   type NDXSessionReadyMessage,
   type NDXSessionRenameMessage,
   type NDXSessionRenamedMessage,
+  type NDXSessionRequestQueueAddMessage,
+  type NDXSessionRequestQueueChangedMessage,
+  type NDXSessionRequestQueueDeleteMessage,
+  type NDXSessionRequestQueueUpdateMessage,
   type NDXSessionSidebarItemMessage,
   type NDXSessionSkillListMessage,
   type NDXSessionSkillListResultMessage,
@@ -62,8 +60,6 @@ import {
 } from "./session/index.js";
 
 export type NDXSocketServerMessage =
-  | NDXAccountSelectionRequiredMessage
-  | NDXAccountSelectedMessage
   | NDXProjectNegotiationRequiredMessage
   | NDXProjectNegotiatedMessage
   | NDXProtocolErrorMessage
@@ -79,18 +75,21 @@ export type NDXSocketServerMessage =
   | NDXSessionIterationDetailResultMessage
   | NDXSessionClientRequestMessage
   | NDXSessionClientRequestClosedMessage
+  | NDXSessionRequestQueueChangedMessage
   | NDXSessionDeletedMessage
   | NDXSessionRenamedMessage
   | NDXSessionTurnDeletedMessage
   | NDXSessionListChangedMessage;
 
 export type NDXSocketClientMessage =
-  | NDXAccountSelectMessage
   | NDXProjectConfigureMessage
   | NDXSessionCreateMessage
   | NDXSessionAttachMessage
   | NDXSessionInputMessage
   | NDXSessionInterruptMessage
+  | NDXSessionRequestQueueAddMessage
+  | NDXSessionRequestQueueUpdateMessage
+  | NDXSessionRequestQueueDeleteMessage
   | NDXSessionDeleteMessage
   | NDXSessionTurnDeleteMessage
   | NDXSessionBranchCreateMessage
@@ -102,8 +101,6 @@ export type NDXSocketClientMessage =
   | NDXSessionClientResponseMessage;
 
 const NDX_SOCKET_SERVER_MESSAGE_TYPES = new Set<string>([
-  NDX_ACCOUNT_SELECTION_REQUIRED,
-  NDX_ACCOUNT_SELECTED,
   NDX_PROJECT_NEGOTIATION_REQUIRED,
   NDX_PROJECT_NEGOTIATED,
   NDX_PROTOCOL_ERROR,
@@ -119,6 +116,7 @@ const NDX_SOCKET_SERVER_MESSAGE_TYPES = new Set<string>([
   NDX_SESSION_ITERATION_DETAIL_RESULT,
   NDX_SESSION_CLIENT_REQUEST,
   NDX_SESSION_CLIENT_REQUEST_CLOSED,
+  NDX_SESSION_REQUEST_QUEUE_CHANGED,
   NDX_SESSION_DELETED,
   NDX_SESSION_RENAMED,
   NDX_SESSION_TURN_DELETED,
