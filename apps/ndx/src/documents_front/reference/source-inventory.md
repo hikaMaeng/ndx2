@@ -43,6 +43,7 @@
 | `apps/ndx/src/webclient_front/session/socket` | browser session socket client. |
 | `apps/ndx/src/webclient_front/session/turn` | turn-flow rendering for model/tool/reasoning steps. |
 | `apps/ndx/src/webclient_front/settings` | settings React surface and API calls. |
+| `apps/ndx/src/webclient_front/model` | React model-render hook binding views to model-render stores. |
 
 ## packages/ndx/src
 
@@ -115,7 +116,9 @@
 | `packages/ndx/src/webclient/front/app` | browser app helper contracts. |
 | `packages/ndx/src/webclient/front/chat` | chat browser model helpers. |
 | `packages/ndx/src/webclient/front/i18n` | translation loader. |
+| `packages/ndx/src/webclient/front/menu` | menu surface model helpers. |
 | `packages/ndx/src/webclient/front/model` | model form/config helpers. |
+| `packages/ndx/src/webclient/front/settings` | settings surface model helpers. |
 | `packages/ndx/src/webclient/front/project` | project UI helper contracts. |
 | `packages/ndx/src/webclient/front/session` | session UI helper contracts. |
 | `packages/ndx/src/webclient/front/storage` | client-state cache helpers. |

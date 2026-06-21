@@ -27,7 +27,7 @@ import interactiveFunctions from "./capabilities/interactive-functions.md?raw";
 import promptRewriteSessionHistory from "./capabilities/prompt-rewrite-session-history.md?raw";
 import chatMode from "./capabilities/chat-mode.md?raw";
 import dockerPgvector from "./operations/docker-pgvector.md?raw";
-import pgvectorPublish from "./operations/pgvector-publish.md?raw";
+import baseImage from "./operations/base-image.md?raw";
 import monorepo from "./operations/monorepo.md?raw";
 import serverPaths from "./operations/server-paths.md?raw";
 import runtimeSettings from "./operations/runtime-settings.md?raw";
@@ -251,10 +251,10 @@ export const documentSections: DocumentSection[] = [
         markdown: dockerPgvector
       },
       {
-        id: "pgvector-publish",
-        title: "pgvector 이미지 배포",
-        description: "GHCR multiarch base image publish 절차.",
-        markdown: pgvectorPublish
+        id: "base-image",
+        title: "Base image 파일 산출물",
+        description: "local base image archive와 multiarch load 정책.",
+        markdown: baseImage
       },
       {
         id: "monorepo",

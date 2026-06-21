@@ -131,6 +131,16 @@ test("turn reducer records prefix drift warnings as model iteration events", () 
   ]);
 });
 
+test("turn reducer lets an empty assistant delta clear reclassified hidden thinking", () => {
+  const input = event("turn.input.recorded", NDX_TURN_EVENT.InputRecorded, { kind: "user_message", text: "work" });
+  const visibleCandidate = event("stream:session-1:1", NDX_TURN_EVENT.AssistantDelta, { kind: "assistant_delta", iteration: 1, delta: "현재 코드를 보니", content: "현재 코드를 보니" });
+  const correction = event("stream:session-1:1", NDX_TURN_EVENT.AssistantDelta, { kind: "assistant_delta", iteration: 1, delta: "", content: "" });
+
+  const turn = [input, visibleCandidate, correction].reduce(applyTurnEvent, []).at(-1);
+
+  assert.equal(turn?.batches[0]?.assistantText, "");
+});
+
 function event(dataid: string, name: NDXSessionEventMessage["event"], contents: NDXSessionEventMessage["contents"]): NDXSessionEventMessage {
   return {
     type: "session.event",

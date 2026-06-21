@@ -39,8 +39,8 @@
 | 경로 | 문서화 주제 |
 | --- | --- |
 | `docker-compose.yml` | compose service, ports, volume, env. |
-| `pgvector/Dockerfile.pgvector` | Korean FTS, pgvector, and Node/tooling runtime-base image. |
-| `pgvector/publish-ghcr.sh` | GHCR publishing flow. |
+| `apps/ndx/docker/baseImage` | Korean FTS, pgvector, Node/tooling local base image archives. |
+| `npm/Dockerfile` | npm distribution single final image. |
 | `npm` | end-user launcher package and compose template. |
 | `scripts/deploy.sh` | build/deploy/report workflow. |
 | `.codex/skills` | repo-local agent work procedures. |

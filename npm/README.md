@@ -7,24 +7,24 @@ Docker-backed npm launcher for ndx2.
 | Constraints | [docs/constraints.md](docs/constraints.md) |
 | Testing | [docs/testing.md](docs/testing.md) |
 
-# @neurondev/ndx2
+# @ndevai/ndx2
 
 ```sh
-npm install @neurondev/ndx2
+npm install @ndevai/ndx2
 npx ndx2
 ```
 
 or install globally:
 
 ```sh
-npm install -g @neurondev/ndx2
+npm install -g @ndevai/ndx2
 ndx2
 ```
 
 Without a prior install:
 
 ```sh
-npx @neurondev/ndx2
+npx @ndevai/ndx2
 ```
 
 The CLI does not build the local repository. It writes a dedicated Docker
@@ -47,10 +47,9 @@ For each npm package version, publish matching public GHCR tags first:
 
 * `ghcr.io/hikamaeng/ndx2-agent:<version>`
 
-The npm compose template pulls only this final agent image. That image is built
-from one prebuilt source-image layer:
+The npm compose template pulls only this final agent image. `npm/Dockerfile`
+builds it as one distribution image and does not depend on local base-image
+archive files.
 
-* `ghcr.io/hikamaeng/ndx2-runtime-base:<version>`
-
-Only after both GHCR tags are public and immutable should
-`@neurondev/ndx2@<version>` be published to npmjs.
+Only after the GHCR tag is public, multi-architecture, and immutable should
+`@ndevai/ndx2@<version>` be published to npmjs.

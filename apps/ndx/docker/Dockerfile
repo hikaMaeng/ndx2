@@ -1,8 +1,10 @@
 # check=skip=SecretsUsedInArgOrEnv
 
-ARG NDX2_RUNTIME_BASE_IMAGE=ghcr.io/hikamaeng/ndx2-runtime-base:0.2.3
+ARG NDX2_BASE_IMAGE=ndx2-ndx-base:0.2.3
 
-FROM ${NDX2_RUNTIME_BASE_IMAGE}
+# Local deploys load this tag from apps/ndx/docker/baseImage/out before build.
+# See docs/npm-release.md#local-base-image-contract.
+FROM ${NDX2_BASE_IMAGE}
 
 WORKDIR /app
 

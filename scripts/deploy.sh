@@ -284,6 +284,11 @@ if [[ ${#services_to_refresh[@]} -gt 0 ]]; then
     if [[ "$build_dockerfile" != /* ]]; then
       build_dockerfile="$build_context/$build_dockerfile"
     fi
+    base_image_loader="$build_context/apps/$service/docker/baseImage/load-file-image.sh"
+    if [[ -x "$base_image_loader" ]]; then
+      # see docs/npm-release.md#local-base-image-contract
+      "$base_image_loader" >/dev/null
+    fi
     docker build -t "$image_name" -f "$build_dockerfile" "$build_context"
   done
   docker compose up -d --no-deps --force-recreate "${services_to_refresh[@]}"

@@ -8,14 +8,14 @@ FROM pgvector/pgvector:pg17
 ARG PLAYWRIGHT_VERSION
 ARG YARN_VERSION
 
-# 1. 필수 빌드 도구 설치
+# Local app builds start from a loaded file image produced here.
+# See docs/npm-release.md#local-base-image-contract.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates curl make g++ patch git \
     automake autoconf libtool \
     postgresql-server-dev-17 \
     && rm -rf /var/lib/apt/lists/*
 
-# 2. mecab-ko 엔진 설치 (Bitbucket)
 RUN curl -LO https://bitbucket.org/eunjeon/mecab-ko/downloads/mecab-0.996-ko-0.9.2.tar.gz \
     && tar zxf mecab-0.996-ko-0.9.2.tar.gz \
     && cd mecab-0.996-ko-0.9.2 \
@@ -23,24 +23,19 @@ RUN curl -LO https://bitbucket.org/eunjeon/mecab-ko/downloads/mecab-0.996-ko-0.9
     && ./configure && make && make install \
     && ldconfig
 
-# 3. mecab-ko-dic 사전 설치 (Bitbucket)
 RUN curl -LO https://bitbucket.org/eunjeon/mecab-ko-dic/downloads/mecab-ko-dic-2.1.1-20180720.tar.gz \
     && tar zxf mecab-ko-dic-2.1.1-20180720.tar.gz \
     && cd mecab-ko-dic-2.1.1-20180720 \
     && ./autogen.sh && cp /usr/share/misc/config.guess /usr/share/misc/config.sub . \
     && find . -exec touch {} + && ./configure && make && make install \
-    # 사전 경로 설정 (mecabrc 수정)
     && echo "dicdir = /usr/local/lib/mecab/dic/mecab-ko-dic" > /usr/local/etc/mecabrc
 
-# 4. textsearch_ko 확장 설치 (mecab_ko_fts 대체)
-# i-on 저장소가 사라졌으므로, 작동 가능한 i0seph/textsearch_ko 저장소를 사용합니다.
 RUN git clone --depth 1 https://github.com/i0seph/textsearch_ko.git \
     && cd textsearch_ko \
     && make USE_PGXS=1 \
     && make USE_PGXS=1 install \
     && cd .. && rm -rf textsearch_ko
 
-# 5. agent runtime toolchain 설치
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates curl gnupg \
     && install -m 0755 -d /etc/apt/keyrings \

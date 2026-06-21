@@ -5,7 +5,8 @@ runs the required Yarn install check, builds the target service, and refreshes
 Docker Compose.
 
 App deployment builds and recreates only the requested app service. PostgreSQL
-runs inside the agent container from the prebuilt runtime-base image.
+runs inside the agent container from the local base image loaded by
+`apps/ndx/docker/baseImage/load-file-image.sh`.
 
 The agent image preinstalls the runtime toolchain that NDX sessions and copied
 project skills expect: Yarn through Corepack, Docker CLI/Compose plugin,
@@ -30,14 +31,14 @@ End-user npm installation is separate from the clone-and-build repository flow.
 The npm package lives under `npm/` and installs the `ndx2` command:
 
 ```sh
-npm install @neurondev/ndx2
+npm install @ndevai/ndx2
 npx ndx2
 ```
 
 or, for direct shell access:
 
 ```sh
-npm install -g @neurondev/ndx2
+npm install -g @ndevai/ndx2
 ndx2
 ```
 
@@ -197,7 +198,9 @@ This repository runs PostgreSQL inside the `agent` container for session data.
 * 스토리지 디렉터리는 ndx 루트 볼륨 하위의 `./volume/pgvector`를 사용한다.
 * DB 비밀번호/계정은 기본값 `ndev/ndev`이다.
 * 볼륨 데이터는 버전관리 대상이 아니며 `.gitignore`에 등록되어 있다.
-* 한국어 형태소 분석기와 검색 확장은 현재 운영 이미지(`pgvector/Dockerfile.pgvector`) 내에서 포함된다.
+* 한국어 형태소 분석기와 검색 확장은 현재 로컬 base image
+  (`apps/ndx/docker/baseImage/Dockerfile`)와 npm 단일 이미지
+  (`npm/Dockerfile`)에 포함된다.
 
 ## Runtime Selfcheck
 

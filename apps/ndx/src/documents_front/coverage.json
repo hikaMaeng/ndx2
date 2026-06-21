@@ -50,8 +50,8 @@
   {
     "id": "docker-pgvector",
     "title": "Docker runtime and PostgreSQL image",
-    "paths": ["docker-compose.yml", "apps/ndx/docker", "pgvector"],
-    "requiredDocumentIds": ["docker-pgvector", "pgvector-publish", "runtime-volume-contract", "postgres-session-data"]
+    "paths": ["docker-compose.yml", "apps/ndx/docker", "apps/ndx/docker/baseImage", "npm/Dockerfile"],
+    "requiredDocumentIds": ["docker-pgvector", "base-image", "runtime-volume-contract", "postgres-session-data"]
   },
   {
     "id": "npm-launcher",

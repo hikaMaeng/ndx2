@@ -21,16 +21,10 @@ owner="${owner,,}"
 read -r -p "Image tag [$default_version]: " version
 version="${version:-$default_version}"
 
-read -r -p "GHCR username [$owner]: " username
-username="${username:-$owner}"
-
-printf "GHCR token with package write permission: "
-IFS= read -r -s token
-printf "\n"
-
-if [[ -z "$token" ]]; then
-  echo "GHCR token is required." >&2
-  exit 2
+username="${GHCR_USERNAME:-}"
+if [[ -z "$username" ]]; then
+  read -r -p "GHCR username [$owner]: " username
+  username="${username:-$owner}"
 fi
 
 if ! docker buildx inspect ndx2-multiarch >/dev/null 2>&1; then
@@ -38,17 +32,31 @@ if ! docker buildx inspect ndx2-multiarch >/dev/null 2>&1; then
 fi
 docker buildx use ndx2-multiarch >/dev/null
 
-printf '%s' "$token" | docker login ghcr.io -u "$username" --password-stdin
+has_ghcr_auth="$(
+  node -e "const fs=require('fs'); const p=process.env.HOME+'/.docker/config.json'; if(!fs.existsSync(p)) process.exit(1); const j=JSON.parse(fs.readFileSync(p,'utf8')); process.exit(j.auths && j.auths['ghcr.io'] ? 0 : 1)" \
+    >/dev/null 2>&1 && echo yes || echo no
+)"
 
-runtime_base_image="ghcr.io/$owner/ndx2-runtime-base:$version"
+if [[ -n "${GHCR_TOKEN:-}" ]]; then
+  printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$username" --password-stdin
+elif [[ "$has_ghcr_auth" != "yes" ]]; then
+  printf "GHCR token with package write permission: "
+  IFS= read -r -s token
+  printf "\n"
+
+  if [[ -z "$token" ]]; then
+    echo "GHCR token is required unless docker is already logged in to ghcr.io." >&2
+    exit 2
+  fi
+
+  printf '%s' "$token" | docker login ghcr.io -u "$username" --password-stdin
+fi
+
 agent_image="ghcr.io/$owner/ndx2-agent:$version"
-
-docker buildx imagetools inspect "$runtime_base_image" >/dev/null
 
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  -f "$script_dir/Dockerfile" \
-  --build-arg "NDX2_RUNTIME_BASE_IMAGE=$runtime_base_image" \
+  -f "$repo_root/npm/Dockerfile" \
   -t "$agent_image" \
   --push \
   "$repo_root"

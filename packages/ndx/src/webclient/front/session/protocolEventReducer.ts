@@ -120,10 +120,31 @@ function modelProgressEvent(current: SessionUiState, message: NDXSessionEventMes
 }
 
 function assistantStreamEvent(current: SessionUiState, message: NDXSessionEventMessage, text: ProtocolEventUiText): SessionUiState {
+  const next = withContextAndTurn(current, message);
+  if (message.event !== NDX_TURN_EVENT.AssistantDelta) {
+    return {
+      ...next,
+      agentRunning: true,
+      notice: text.operationInProgress
+    };
+  }
+  const streamedText = sessionDataContentsText(message.contents);
+  if (!streamedText?.trim()) {
+    return {
+      ...next,
+      agentRunning: true,
+      notice: text.operationInProgress
+    };
+  }
+  const streamMessage = { id: `stream:${message.sessionid}`, role: "assistant" as const, text: streamedText, attachments: [] };
   return {
-    ...withContextAndTurn(current, message),
+    ...next,
     agentRunning: true,
-    notice: text.operationInProgress
+    notice: text.operationInProgress,
+    chatMessages: [
+      ...current.chatMessages.filter((item) => item.id !== "empty" && item.id !== streamMessage.id),
+      streamMessage
+    ]
   };
 }
 

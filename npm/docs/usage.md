@@ -3,14 +3,14 @@
 Install in a project:
 
 ```sh
-npm install @neurondev/ndx2
+npm install @ndevai/ndx2
 npx ndx2
 ```
 
 Install globally:
 
 ```sh
-npm install -g @neurondev/ndx2
+npm install -g @ndevai/ndx2
 ndx2
 ```
 

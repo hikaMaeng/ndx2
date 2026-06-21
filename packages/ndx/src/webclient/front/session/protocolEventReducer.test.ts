@@ -152,7 +152,7 @@ test("assistant recorded clears stale optimistic user request message", () => {
   ]);
 });
 
-test("assistant deltas update the running turn without creating a standalone assistant bubble", () => {
+test("assistant deltas update the running turn and visible streaming assistant bubble", () => {
   const current = applyProtocolEventToSessionUiState({
     ...createSessionUiState(),
     chatMessages: [
@@ -178,10 +178,49 @@ test("assistant deltas update the running turn without creating a standalone ass
   const next = applyProtocolEventToSessionUiState(current, message, text);
 
   assert.deepEqual(next.chatMessages.map((item) => ({ id: item.id, role: item.role, text: item.text })), [
-    { id: "input-1", role: "user", text: "요청" }
+    { id: "input-1", role: "user", text: "요청" },
+    { id: "stream:session-1", role: "assistant", text: "작성 중" }
   ]);
   assert.equal(next.turnFlows[0]?.batches[0]?.assistantText, "작성 중");
   assert.equal(next.agentRunning, true);
+});
+
+test("assistant recorded replaces visible streaming assistant bubble", () => {
+  const current = {
+    ...createSessionUiState(),
+    agentRunning: true,
+    chatMessages: [
+      { id: "input-1", role: "user" as const, text: "요청", attachments: [] },
+      { id: "stream:session-1", role: "assistant" as const, text: "작성 중", attachments: [] }
+    ],
+    turnFlows: [{
+      id: "turn:session-1:input-1",
+      inputDataId: "input-1",
+      sessionid: "session-1",
+      title: "요청",
+      status: "running" as const,
+      collapsed: false,
+      createdAt: "2026-06-03T14:50:45.699Z",
+      updatedAt: "2026-06-03T14:50:46.699Z",
+      batches: []
+    }]
+  };
+  const message: NDXSessionEventMessage = {
+    type: NDX_SESSION_EVENT,
+    sessionid: "session-1",
+    event: NDX_TURN_EVENT.AssistantRecorded,
+    dataid: "assistant-1",
+    contents: { kind: "assistant_message", text: "완료" },
+    createdat: "2026-06-03T14:50:47.699Z"
+  };
+
+  const next = applyProtocolEventToSessionUiState(current, message, text);
+
+  assert.deepEqual(next.chatMessages.map((item) => ({ id: item.id, role: item.role, text: item.text })), [
+    { id: "input-1", role: "user", text: "요청" },
+    { id: "assistant-1", role: "assistant", text: "완료" }
+  ]);
+  assert.equal(next.turnFlows[0]?.status, "completed");
 });
 
 test("hook diagnostics do not resurrect a completed turn as running", () => {

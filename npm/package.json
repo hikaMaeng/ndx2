@@ -1,5 +1,5 @@
 {
-  "name": "@neurondev/ndx2",
+  "name": "@ndevai/ndx2",
   "version": "0.2.3",
   "description": "Docker-backed installer and launcher for ndx2.",
   "license": "UNLICENSED",

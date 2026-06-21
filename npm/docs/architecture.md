@@ -9,6 +9,4 @@ The compose stack uses one public GHCR runtime image:
 * `ghcr.io/hikamaeng/ndx2-agent:<version>`
 
 The npm user pulls that single final image. Repository release builds create it
-from one source-image layer:
-
-* `ghcr.io/hikamaeng/ndx2-runtime-base:<version>`
+from `npm/Dockerfile`, not from local base-image archive files.

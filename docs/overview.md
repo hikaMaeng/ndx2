@@ -13,4 +13,9 @@ The server product has four durable responsibilities:
 
 The service is deployed from `apps/ndx`. Shared domain contracts live in `packages/ndx` under `src/common`, `src/agent`, and `src/webclient`. Domain behavior is documented here before implementation so future code can follow stable contracts instead of inferring product design from scaffold placeholders.
 
-The runtime datastore is PostgreSQL inside the agent container, built from the GHCR runtime-base image produced by `./pgvector/Dockerfile.pgvector` and `./pgvector/publish-ghcr.sh`. PostgreSQL exposes no host port and stores data under `./volume/pgvector`, inside the ndx root volume.
+The runtime datastore is PostgreSQL inside the agent container. Local app builds
+start from a file-backed base image produced by
+`apps/ndx/docker/baseImage/Dockerfile` and
+`apps/ndx/docker/baseImage/build-file-images.sh`; npm release builds use
+`npm/Dockerfile` to create one final distribution image. PostgreSQL exposes no
+host port and stores data under `./volume/pgvector`, inside the ndx root volume.

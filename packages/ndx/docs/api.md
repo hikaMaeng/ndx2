@@ -1,15 +1,23 @@
 # API
 
+Exports grouped by subpath. Partitions and drill-down symbols are in
+[architecture.md](architecture.md); consumers and invariants are in
+[constraints.md](constraints.md#blast-radius).
+
 Public exports:
 
 | Export | Purpose |
 | --- | --- |
 | `ndx` | Common domain entrypoint. |
 | `ndx/common` | Runtime-neutral common entrypoint. |
+| `ndx/common/log` | JSONL logging helper. |
+| `ndx/common/protocol` | Shared protocol DTO entrypoint. |
+| `ndx/common/responseapi` | Provider-neutral model request/response abstraction. |
 | `ndx/agent` | Agent metadata only; runtime APIs use focused subpaths. |
 | `ndx/agent/init` | Agent server initialization and database handle contracts. |
 | `ndx/agent/account` | Account identity operations. |
 | `ndx/agent/session` | Project session persistence and history operations. |
+| `ndx/agent/compact` | Durable context compaction and model-window row selection. |
 | `ndx/agent/selfcheck` | Agent self-check run/candidate/check persistence and execution. |
 | `ndx/agent/chat` | Chat folder/session persistence and chat turn authority. |
 | `ndx/agent/turnloop` | Agent turn orchestration boundary. |
@@ -17,6 +25,7 @@ Public exports:
 | `ndx/agent/hook` | Hook plan/runtime boundary. |
 | `ndx/agent/context` | Agent context construction and skill metadata loading. |
 | `ndx/agent/contextusage` | Context-window accounting helpers. |
+| `ndx/agent/runtime-settings` | Runtime settings reader and defaults. |
 | `ndx/webclient/common` | Webclient shared protocol and DTO entrypoint. |
 | `ndx/webclient/common/protocol` | Webclient API protocol entrypoint. |
 | `ndx/webclient/front` | Browser-facing helper entrypoint. |

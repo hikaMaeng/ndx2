@@ -145,7 +145,7 @@ Use the repository-local skills installed under `.ndx/skills`:
   locators.
 * `headless-browser-test` for headless browser E2E checks, reports, and
   screenshots against Docker-deployed services.
-* `package-docs-writer` for package README and docs structure.
+* `package-docs-graph` for package README and docs structure as a drill-down dependency graph.
 * `agenttest` for strict JSON test suites and reports.
 
 When the user explicitly asks to use `web-deploy-docker` with a service such as

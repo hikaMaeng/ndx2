@@ -15,5 +15,6 @@ node_modules/
 
 /codex_clone/
 
-pgvector/data/
 volume/
+apps/ndx/docker/baseImage/out/
+*.tar

@@ -19,10 +19,9 @@
 | `monorepo-architecture-guard` | workspace/package/app boundary, Yarn PnP, Turbo, Express/React/shadcn 기준. |
 | `docker-compose-module-design` | compose, Dockerfile, container ownership, deploy entrypoint. |
 | `headless-browser-test` | browser smoke/E2E와 locator contract. |
-| `package-docs-writer` | package README/docs 구조와 문서 작성 규칙. |
-| `agenttest` | JSON suite 기반 agent test/report. |
+| `package-docs-graph` | package README/docs를 드릴다운 의존성 그래프로 작성(라우터 architecture 표, doc↔code 간선, 소비자/불변식 blast radius, decisions). |
 | `web-deploy-docker` | explicit deploy script workflow. |
-| `react-decoupled-frontend` | React composition과 state coupling 제어. |
+| `react-model-render` | 화면=순수 모델 투영, state=version 트리거로 React 렌더 결합 제어. |
 
 ## 사용 원칙
 

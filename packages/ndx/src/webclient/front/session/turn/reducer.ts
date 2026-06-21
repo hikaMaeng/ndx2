@@ -49,7 +49,8 @@ function findLastTurnIndex(turns: TurnFlowState[], sessionid: string, predicate:
 function reduceTurn(turn: TurnFlowState, message: NDXSessionEventMessage, now: string): TurnFlowState {
   if (message.event === NDX_TURN_EVENT.AssistantDelta) {
     const text = eventContentText(message.contents);
-    if (!text.trim()) return turn;
+    const contents = message.contents as { kind?: unknown; content?: unknown };
+    if (!text.trim() && !(contents.kind === "assistant_delta" && typeof contents.content === "string")) return turn;
     return updateIteration(turn, eventIteration(message), (batch) => ({ ...batch, assistantText: text }));
   }
   if (message.event === NDX_TURN_EVENT.AssistantReasoning) {

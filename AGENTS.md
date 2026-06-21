@@ -106,16 +106,22 @@ not feature-specific branching.
 
 The agent Docker image must include PostgreSQL/pgvector runtime support using:
 
-* prebuilt base image `ghcr.io/hikamaeng/ndx2-pgvector:<version>`
+* local base image tag `ndx2-ndx-base:<version>` loaded from
+  `apps/ndx/docker/baseImage/out/ndx2-ndx-base-<version>-linux-<arch>.tar`
 * built-in defaults `POSTGRES_USER=ndev`, `POSTGRES_PASSWORD=ndev`, and `PGDATA=/ndx/pgvector/pgdata`
 * host data under `./volume/pgvector` through the agent `/ndx` bind mount
 
 No external host port is exposed for PostgreSQL.
 
-The `pgvector` Dockerfile must live at `./pgvector/Dockerfile.pgvector`. The
-`./pgvector/publish-ghcr.sh` script publishes the slow PostgreSQL image with
-Korean morphology (mecab-ko + textsearch_ko) tooling to GHCR, and
-`apps/ndx/docker/Dockerfile` must use that image as its base.
+The base image Dockerfile must live at
+`apps/ndx/docker/baseImage/Dockerfile`. The
+`apps/ndx/docker/baseImage/build-file-images.sh` script creates amd64 and
+arm64 Docker archive files for the slow PostgreSQL image with Korean morphology
+(mecab-ko + textsearch_ko), Node, Docker CLI, Chromium, and Playwright tooling.
+The app `apps/ndx/docker/Dockerfile` must use the loaded local base image tag
+and copy only prebuilt app artifacts. The npm release path is separate:
+`npm/Dockerfile` builds one final distribution image directly and must not
+depend on local base-image archive files.
 
 Required documentation targets for this contract:
 
@@ -265,7 +271,7 @@ Use the repository-local skills installed under `.codex/skills`:
   and deploy entrypoint rules.
 * `headless-browser-markup` for front-end markup contracts and browser-test
   locators.
-* `package-docs-writer` for package README and docs structure.
+* `package-docs-graph` for package README and docs structure as a drill-down dependency graph.
 * `agenttest` for strict JSON test suites and reports.
 
 When the user explicitly asks to use `web-deploy-docker` with a service such as

@@ -32,7 +32,8 @@ docker exec -it ndx psql -U ndev -d ndev
 
 ## Image sources
 
-`pgvector/Dockerfile.pgvector`는 `pgvector/pgvector:pg17`에서 시작해 다음을 추가한다.
+`apps/ndx/docker/baseImage/Dockerfile`과 `npm/Dockerfile`은
+`pgvector/pgvector:pg17`에서 시작해 다음을 추가한다.
 
 | 구성 | 이유 |
 | --- | --- |
@@ -41,15 +42,15 @@ docker exec -it ndx psql -U ndev -d ndev
 | `textsearch_ko` | PostgreSQL Korean full-text search config. |
 | `pgvector` | vector search column과 embedding ranking. |
 
-느린 PostgreSQL/Node runtime base image는 `pgvector/publish-ghcr.sh`로
-`ghcr.io/hikamaeng/ndx2-runtime-base:<version>`에 배포한다. 이 이미지에는
-pgvector, mecab-ko, textsearch_ko, Node runtime, Docker CLI, Chromium,
-Playwright, shell/network utilities가 함께 들어간다.
+느린 PostgreSQL/Node runtime base layer는 로컬 개발에서
+`apps/ndx/docker/baseImage/build-file-images.sh`로 Docker archive 파일에
+저장한다. 이 이미지에는 pgvector, mecab-ko, textsearch_ko, Node runtime,
+Docker CLI, Chromium, Playwright, shell/network utilities가 함께 들어간다.
 
-`apps/ndx/docker/Dockerfile`은 `ndx2-runtime-base:<version>`에서 시작해
-이미 빌드된 `apps/ndx/dist`, assets, entrypoint만 복사한다. npm 사용자는
-이 최종 산출물인 `ghcr.io/hikamaeng/ndx2-agent:<version>` 단일 이미지만
-pull한다.
+`apps/ndx/docker/Dockerfile`은 loaded local tag
+`ndx2-ndx-base:<version>`에서 시작해 이미 빌드된 `apps/ndx/dist`, assets,
+entrypoint만 복사한다. npm 사용자는 `npm/Dockerfile`에서 생성된 최종
+산출물인 `ghcr.io/hikamaeng/ndx2-agent:<version>` 단일 이미지만 pull한다.
 
 ## 운영 판단
 
