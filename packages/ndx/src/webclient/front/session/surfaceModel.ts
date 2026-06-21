@@ -1,11 +1,9 @@
-import type { NDXSessionSkillSummary } from "ndx/common/protocol";
 import { SliceModel } from "../model/SliceModel.js";
 import type { SocketState } from "../app/socketState.js";
 
 export class WebClientSessionSurfaceModel {
   readonly socketState = new SliceModel<SocketState>("idle");
   readonly attachedSessionIds = new SliceModel<Set<string>>(new Set());
-  readonly skillsByProject = new SliceModel<Record<string, NDXSessionSkillSummary[]>>({});
   readonly rewriteEnabledBySession = new SliceModel<Record<string, boolean>>({});
 
   toggleRewrite(sessionid: string): Record<string, boolean> {

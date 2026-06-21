@@ -36,6 +36,7 @@ async function loadIgnoredSkillNames(userHome: string, projectHome: string): Pro
   const ignored = new Set<string>();
   for (const ignorePath of [
     path.posix.join(ndxBasePath(userHome), "system", ".skillignore"),
+    path.posix.join(projectHome, ".codex", ".skillignore"),
     path.posix.join(projectHome, ".ndx", ".skillignore"),
   ]) {
     const contents = await readTextFileOptional(ignorePath);
@@ -62,11 +63,14 @@ async function readTextFileOptional(filePath: string): Promise<string | undefine
 
 async function resolveSkillRoots(userHome: string, projectHome: string): Promise<SkillRoot[]> {
   const userNdx = ndxBasePath(userHome);
+  const projectCodex = path.posix.join(normalizeWslPath(projectHome), ".codex");
   const projectNdx = path.posix.join(normalizeWslPath(projectHome), ".ndx");
   const roots: SkillRoot[] = [];
 
   roots.push(...await pluginSkillRoots(path.posix.join(userNdx, "plugin"), "user"));
   roots.push({ path: path.posix.join(userNdx, "skills"), scope: "user" });
+  roots.push(...await pluginSkillRoots(path.posix.join(projectCodex, "plugin"), "repo"));
+  roots.push({ path: path.posix.join(projectCodex, "skills"), scope: "repo" });
   roots.push(...await pluginSkillRoots(path.posix.join(projectNdx, "plugin"), "repo"));
   roots.push({ path: path.posix.join(projectNdx, "skills"), scope: "repo" });
   roots.push(...await pluginSkillRoots(path.posix.join(userNdx, "system", "plugin"), "system"));

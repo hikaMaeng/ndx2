@@ -1,5 +1,5 @@
 import { createSessionUiState, type SessionUiState, type TurnFlowState } from "ndx/webclient/front";
-import type { NDXSessionIterationSummary, NDXSessionSkillSummary } from "ndx/common/protocol";
+import type { NDXSessionIterationSummary } from "ndx/common/protocol";
 import type { NDXAgentWebSession, NDXWebClientProject, NDXWebClientStateDocument } from "ndx/webclient/common";
 import type { UpdateSessionUi } from "../rightsidebar";
 import { SessionSurface } from "./SessionSurface";
@@ -29,7 +29,6 @@ type SessionSurfacesProps = {
   sessionError: string;
   sessionsByProject: Record<string, NDXAgentWebSession[]>;
   sessionUiByKey: Record<string, SessionUiState>;
-  skillsByProject: Record<string, NDXSessionSkillSummary[]>;
   surfaceKeys: string[];
   t: Record<string, string>;
   updateSessionUi: UpdateSessionUi;
@@ -60,7 +59,6 @@ export function SessionSurfaces({
   sessionError,
   sessionsByProject,
   sessionUiByKey,
-  skillsByProject,
   surfaceKeys,
   t,
   updateSessionUi
@@ -77,7 +75,7 @@ export function SessionSurfaces({
       <SessionSurface
         key={key}
         surfaceKey={key}
-        ui={project && ui.availableSkills.length === 0 && skillsByProject[project.projectName] ? { ...ui, availableSkills: skillsByProject[project.projectName] } : ui}
+        ui={ui}
         session={session}
         project={project}
         isActive={key === activeUiKey}

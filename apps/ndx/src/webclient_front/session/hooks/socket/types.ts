@@ -65,7 +65,7 @@ export type UseSessionSocketControllerOptions = {
   socketState: SocketState;
   stateRef: React.MutableRefObject<NDXWebClientStateDocument>;
   t: Record<string, string>;
-  onSkillListReceived: (projectName: string, skills: NDXSessionSkillListResultMessage["skills"]) => void;
+  onSkillListReceived: (skills: NDXSessionSkillListResultMessage["skills"]) => void;
   applyRoutedSessionMessage: (message: SessionModelRoutedMessage, text: ProtocolEventUiText) => void;
   updateActiveUi: (update: (current: SessionUiState) => SessionUiState) => void;
   updateSessionUi: (key: string, update: (current: SessionUiState) => SessionUiState) => void;

@@ -7,7 +7,8 @@ export function useSessionSocketCommands({
   draftSessionProjectIdRef,
   setTurnFlows,
   socketRef,
-  socketState
+  socketState,
+  updateActiveUi
 }: UseSessionSocketControllerOptions): SessionSocketControllerActions {
   const requestedTurnDetailsRef = React.useRef<Set<string>>(new Set());
   const requestedIterationDetailsRef = React.useRef<Set<string>>(new Set());
@@ -25,7 +26,11 @@ export function useSessionSocketCommands({
   const refreshSkillList = () => {
     const sessionid = activeSessionIdRef.current;
     const attachedSessionid = sessionid && attachedSessionIdsRef.current.has(sessionid) ? sessionid : undefined;
-    return Boolean(socketRef.current?.requestSkillList(attachedSessionid, attachedSessionid ? undefined : draftSessionProjectIdRef.current));
+    const requested = Boolean(socketRef.current?.requestSkillList(attachedSessionid, attachedSessionid ? undefined : draftSessionProjectIdRef.current));
+    if (requested) {
+      updateActiveUi((current) => ({ ...current, availableSkills: [] }));
+    }
+    return requested;
   };
 
   const deleteTurn: SessionSocketControllerActions["deleteTurn"] = (sessionid, inputDataId) => {

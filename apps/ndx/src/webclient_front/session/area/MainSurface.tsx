@@ -1,5 +1,4 @@
 import React from "react";
-import type { NDXSessionSkillSummary } from "ndx/common/protocol";
 import type { NDXAgentWebChatSession, NDXAgentWebMetadataResponse, NDXAgentWebSession, NDXWebClientStateDocument } from "ndx/webclient/common";
 import {
   appendChatSessionMessageStream,
@@ -91,15 +90,12 @@ export function MainSurface({
   const sessionSurface = getWebClientSessionSurfaceModel(loadRewriteEnabledBySession());
   const socketState = useModel(sessionSurface.socketState).value;
   const attachedSessionIds = useModel(sessionSurface.attachedSessionIds).value;
-  const skillsByProject = useModel(sessionSurface.skillsByProject).value;
-  const skillsByProjectRef = React.useRef<Record<string, NDXSessionSkillSummary[]>>({});
   const chatStore = useModel(getChatSurfaceModelStore());
   const chatModelByKey = chatStore.snapshot;
   const setChatModelByKey = (update: ChatModelSnapshot | ((current: ChatModelSnapshot) => ChatModelSnapshot)) => chatStore.setSnapshot(update);
   const rewriteEnabledBySession = useModel(sessionSurface.rewriteEnabledBySession).value;
   const setSocketState = (update: React.SetStateAction<SocketState>) => sessionSurface.socketState.set(update);
   const setAttachedSessionIds = (update: React.SetStateAction<Set<string>>) => sessionSurface.attachedSessionIds.set(update);
-  const setSkillsByProject = (update: React.SetStateAction<Record<string, NDXSessionSkillSummary[]>>) => sessionSurface.skillsByProject.set(update);
   const socketRef = React.useRef<SessionSocketClient | null>(null);
   const attachedSessionIdsRef = React.useRef<Set<string>>(new Set());
   const sessionUi = useSessionUiController();
@@ -143,24 +139,9 @@ export function MainSurface({
   const draftProject = clientState.projects.find((item) => item.projectName === draftSessionProjectId);
   const projectApi = bridge.getProjectApi();
   const activeSession = Object.values(sessionsByProject).flat().find((session) => session.sessionid === activeSessionId);
-  const applySkillList = React.useCallback((projectName: string, skills: NDXSessionSkillSummary[]) => {
-    const sessionIds = new Set((sessionsByProject[projectName] ?? []).map((session) => session.sessionid));
-    if (activeSession?.projectname === projectName) {
-      sessionIds.add(activeSession.sessionid);
-    }
-    setSkillsByProject((current) => ({ ...current, [projectName]: skills }));
-    setSessionUiByKey((current) => {
-      let changed = false;
-      const next = { ...current };
-      for (const [key, ui] of Object.entries(current)) {
-        if (key === `draft:${projectName}` || sessionIds.has(key)) {
-          next[key] = { ...ui, availableSkills: skills };
-          changed = true;
-        }
-      }
-      return changed ? next : current;
-    });
-  }, [activeSession?.projectname, activeSession?.sessionid, sessionsByProject]);
+  const applySkillList = React.useCallback((skills: SessionUiState["availableSkills"]) => {
+    updateActiveUi((current) => ({ ...current, availableSkills: skills }));
+  }, [updateActiveUi]);
   const agentRunning = Boolean(activeUi?.agentRunning);
   const rewriteEnabled = activeSessionId ? Boolean(rewriteEnabledBySession[activeSessionId]) : false;
   const modelDialog = useModelDialogController({ activeSession, selectedModel, setSelectedModel, setNotice, t });
@@ -334,10 +315,6 @@ export function MainSurface({
   }, [attachedSessionIds]);
 
   React.useEffect(() => {
-    skillsByProjectRef.current = skillsByProject;
-  }, [skillsByProject]);
-
-  React.useEffect(() => {
     pendingActionsRef.current = pendingActions;
   }, [pendingActions]);
 
@@ -374,7 +351,6 @@ export function MainSurface({
       if (session) {
         upsertSessionModel(session);
       }
-      const cachedSkills = session ? skillsByProjectRef.current[session.projectname] : undefined;
       activeSessionIdRef.current = surface.sessionId;
       activeUiKeyRef.current = surface.sessionId;
       draftSessionProjectIdRef.current = undefined;
@@ -382,7 +358,6 @@ export function MainSurface({
       setDraftSessionProjectId(undefined);
       updateSessionUi(surface.sessionId, (current) => ({
         ...current,
-        ...(cachedSkills ? { availableSkills: cachedSkills } : {}),
         agentRunning: session ? Boolean(session.isrunning) : current.agentRunning
       }));
       sessionSocket.refreshSkillList();
@@ -390,7 +365,6 @@ export function MainSurface({
     }
     if (surface.kind === "project-draft") {
       const key = `draft:${surface.projectName}`;
-      const cachedSkills = skillsByProjectRef.current[surface.projectName];
       activeSessionIdRef.current = undefined;
       activeUiKeyRef.current = key;
       draftSessionProjectIdRef.current = surface.projectName;
@@ -398,7 +372,6 @@ export function MainSurface({
       setDraftSessionProjectId(surface.projectName);
       updateSessionUi(key, (current) => ({
         ...current,
-        ...(cachedSkills ? { availableSkills: cachedSkills } : {}),
         selectedModel: DEFAULT_MODEL,
         notice: t[RSC.SESSION_PAGE_NEW_DRAFT_READY_STATUS],
         sessionError: ""
@@ -562,7 +535,7 @@ export function MainSurface({
 
   return (
     <>
-      <SessionSurfaces activeUiKey={activeUiKey} clientState={clientState} hasPendingAction={hasPendingAction} notice={notice} rewriteEnabledBySession={rewriteEnabledBySession} sessionError={sessionError} sessionsByProject={sessionsByProject} sessionUiByKey={sessionUiByKey} skillsByProject={skillsByProject} surfaceKeys={surfaceKeys} t={t} updateSessionUi={updateSessionUi} onOpenMenu={onOpenMenu} onChatScroll={(key, scrollTop) => updateSessionUi(key, (current) => ({ ...current, chatScrollTop: scrollTop }))} onDisableAutoScroll={(key) => updateSessionUi(key, (current) => ({ ...current, autoScrollEnabled: false }))} onDismissError={(key) => updateSessionUi(key, (current) => ({ ...current, sessionError: "" }))} onChatInputChange={(key, value) => updateSessionUi(key, (current) => ({ ...current, chatInput: value }))} onAddAttachments={addChatAttachments} onAttachmentRejected={(key, message) => updateSessionUi(key, (current) => ({ ...current, notice: message }))} onRemoveAttachment={removeChatAttachment} onModelClick={(key) => { activeUiKeyRef.current = key; modelDialog.setOpen(true); }} onRewriteToggle={toggleSessionRewrite} onSkillListRefresh={sessionSocket.refreshSkillList} onSubmit={sessionRequest.submitChatRequest} onUserMessageBranch={createUserTurnBranch} onUserMessageDelete={deleteUserTurn} onTurnToggle={sessionSocket.toggleTurnDetail} onIterationToggle={sessionSocket.toggleIterationDetail} />
+      <SessionSurfaces activeUiKey={activeUiKey} clientState={clientState} hasPendingAction={hasPendingAction} notice={notice} rewriteEnabledBySession={rewriteEnabledBySession} sessionError={sessionError} sessionsByProject={sessionsByProject} sessionUiByKey={sessionUiByKey} surfaceKeys={surfaceKeys} t={t} updateSessionUi={updateSessionUi} onOpenMenu={onOpenMenu} onChatScroll={(key, scrollTop) => updateSessionUi(key, (current) => ({ ...current, chatScrollTop: scrollTop }))} onDisableAutoScroll={(key) => updateSessionUi(key, (current) => ({ ...current, autoScrollEnabled: false }))} onDismissError={(key) => updateSessionUi(key, (current) => ({ ...current, sessionError: "" }))} onChatInputChange={(key, value) => updateSessionUi(key, (current) => ({ ...current, chatInput: value }))} onAddAttachments={addChatAttachments} onAttachmentRejected={(key, message) => updateSessionUi(key, (current) => ({ ...current, notice: message }))} onRemoveAttachment={removeChatAttachment} onModelClick={(key) => { activeUiKeyRef.current = key; modelDialog.setOpen(true); }} onRewriteToggle={toggleSessionRewrite} onSkillListRefresh={sessionSocket.refreshSkillList} onSubmit={sessionRequest.submitChatRequest} onUserMessageBranch={createUserTurnBranch} onUserMessageDelete={deleteUserTurn} onTurnToggle={sessionSocket.toggleTurnDetail} onIterationToggle={sessionSocket.toggleIterationDetail} />
       <ModalPortal>
         {sessionRename.dialog}
         {modelDialog.dialog}

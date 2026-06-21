@@ -135,11 +135,23 @@ surfaces that do not have a `sessionid` yet may include `projectName` so the
 server can resolve repository-local skills for the selected workspace project
 before the first session row exists.
 
+Repository-local skill discovery includes both `<projectHome>/.codex/skills`
+and `<projectHome>/.ndx/skills`, plus matching repo plugin skill roots. This
+keeps source-repository skills and scaffolded/runtime project skills visible to
+the same `loadSkills` path. Adjacent skill `.cache` metadata is valid only while
+the matching `SKILL.md` size and mtime are unchanged.
+
 The composer renders `$` skill mentions with a textarea-backed mention control.
 Internally selected skills are sent in the user request as
 `[[NDX_SKILL_<encoded-name>]]` markers. The server must not store those markers
 as user-visible history. The `turn.request.received` system hook consumes the
 markers before the user message is appended:
+
+The composer refreshes the visible skill suggestions through
+`session.skill.list` instead of reusing a project-level frontend cache. A
+successful refresh request clears the current composer suggestions until the
+socket response arrives, and the response updates only the currently active
+composer surface.
 
 * if the selected skill is not already present in the current model context, the
   hook runs the normal `loadSkill` base tool and records a selected-skill

@@ -43,7 +43,6 @@ type SessionSocketHandlerRuntime = {
 export function createSessionSocketHandlers(options: UseSessionSocketControllerOptions, runtime: SessionSocketHandlerRuntime): SessionSocketHandlers {
   const {
     applyRoutedSessionMessage,
-    activeSession,
     activeSessionIdRef,
     activeUi,
     activeUiKeyRef,
@@ -66,7 +65,6 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
     setAttachedSessionIds,
     setSessionUiByKey,
     socketRef,
-    stateRef,
     t,
     updateActiveUi,
     updateSessionUi
@@ -118,9 +116,8 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
   };
 
   const onSkillList = (message: NDXSessionSkillListResultMessage) => {
-    const projectName = message.projectName || activeSession?.projectname || draftSessionProjectIdRef.current || stateRef.current.activeProjectName;
-    if (!projectName) return;
-    onSkillListReceived(projectName, message.skills);
+    if (!activeUiKeyRef.current) return;
+    onSkillListReceived(message.skills);
   };
 
   const onSidebarItem = (message: NDXSessionSidebarItemMessage) => {

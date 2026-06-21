@@ -3,7 +3,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { buildContext, resolveModelInstruction } from "./index.js";
+import { buildContext, loadSkills, resolveModelInstruction } from "./index.js";
 import { buildAvailableSkillsInstructions } from "./availableSkillsInstructions/index.js";
 
 async function withTempDir(run: (dir: string) => Promise<void>) {
@@ -400,19 +400,22 @@ test("available skills write parsed metadata cache next to SKILL.md", async () =
     const cache = JSON.parse(await fs.readFile(path.join(skillDirectory, ".cache"), "utf8"));
     assert.equal(cache.name, "cached");
     assert.equal(cache.description, "parsed from skill markdown");
+    assert.equal(typeof cache.sourceMtimeMs, "number");
+    assert.equal(typeof cache.sourceSize, "number");
     assert.match(skills, /- cached: parsed from skill markdown/);
   });
 });
 
-test("available skills prefer existing metadata cache over reparsing SKILL.md", async () => {
+test("available skills prefer matching metadata cache over reparsing SKILL.md", async () => {
   await withTempDir(async (dir) => {
     const userHome = path.join(dir, "home");
     const projectHome = path.join(dir, "project");
     const skillDirectory = path.join(projectHome, ".ndx", "skills", "cached");
     await writeSkill(skillDirectory, "from-md", "markdown should be ignored");
+    const sourceStat = await fs.stat(path.join(skillDirectory, "SKILL.md"));
     await fs.writeFile(
       path.join(skillDirectory, ".cache"),
-      JSON.stringify({ name: "from-cache", description: "cache wins" }),
+      JSON.stringify({ name: "from-cache", description: "cache wins", sourceMtimeMs: sourceStat.mtimeMs, sourceSize: sourceStat.size }),
       "utf8",
     );
 
@@ -502,6 +505,37 @@ test("user instructions cascade from project root to cwd descendants", async () 
     assert.ok(appsIndex > rootIndex);
     assert.ok(agentIndex > appsIndex);
     assert.doesNotMatch(context.user, new RegExp(escapeRegExp(path.join(cwd, "AGENTS.md"))));
+  });
+});
+
+test("loadSkills includes repository .codex skills alongside project runtime .ndx skills", async () => {
+  await withTempDir(async (dir) => {
+    const userHome = path.join(dir, "home");
+    const projectHome = path.join(dir, "project");
+    await writeSkill(path.join(projectHome, ".codex", "skills", "repo-guide"), "repo-guide", "repo guide");
+    await writeSkill(path.join(projectHome, ".ndx", "skills", "runtime-guide"), "runtime-guide", "runtime guide");
+
+    const skills = await loadSkills({ userHome, projectHome, cwd: projectHome });
+
+    assert.deepEqual(skills.map((skill) => skill.name), ["repo-guide", "runtime-guide"]);
+    assert.equal(skills.find((skill) => skill.name === "repo-guide")?.scope, "repo");
+    assert.match(skills.find((skill) => skill.name === "repo-guide")?.pathToSkillMd ?? "", /\.codex\/skills\/repo-guide\/SKILL\.md$/);
+  });
+});
+
+test("loadSkills refreshes adjacent metadata cache when SKILL.md changes", async () => {
+  await withTempDir(async (dir) => {
+    const userHome = path.join(dir, "home");
+    const projectHome = path.join(dir, "project");
+    const skillDirectory = path.join(projectHome, ".codex", "skills", "demo");
+    await writeSkill(skillDirectory, "demo", "old description");
+    await loadSkills({ userHome, projectHome, cwd: projectHome });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await writeSkill(skillDirectory, "demo", "new expanded description");
+
+    const skills = await loadSkills({ userHome, projectHome, cwd: projectHome });
+
+    assert.equal(skills.find((skill) => skill.name === "demo")?.description, "new expanded description");
   });
 });
 

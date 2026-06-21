@@ -6,11 +6,14 @@ import type { SkillMetadata, SkillRoot } from "./types.js";
 type SkillCache = {
   name: string;
   description: string;
+  sourceMtimeMs?: number;
+  sourceSize?: number;
 };
 
 export async function parseSkillFile(skillPath: string, root: SkillRoot): Promise<SkillMetadata | undefined> {
   const skillDirectory = path.dirname(skillPath);
-  const cached = await readSkillCache(path.join(skillDirectory, ".cache"));
+  const sourceStat = await fs.stat(skillPath);
+  const cached = await readSkillCache(path.join(skillDirectory, ".cache"), sourceStat);
   if (cached) {
     return {
       name: cached.name,
@@ -37,6 +40,8 @@ export async function parseSkillFile(skillPath: string, root: SkillRoot): Promis
   const parsed = {
     name,
     description: sanitizeSingleLine(fields.get("description") ?? ""),
+    sourceMtimeMs: sourceStat.mtimeMs,
+    sourceSize: sourceStat.size,
   };
   await fs.writeFile(path.join(skillDirectory, ".cache"), JSON.stringify(parsed, null, 2), "utf8");
 
@@ -49,7 +54,7 @@ export async function parseSkillFile(skillPath: string, root: SkillRoot): Promis
   };
 }
 
-async function readSkillCache(cachePath: string): Promise<SkillCache | undefined> {
+async function readSkillCache(cachePath: string, sourceStat: Awaited<ReturnType<typeof fs.stat>>): Promise<SkillCache | undefined> {
   let contents: string;
   try {
     contents = await fs.readFile(cachePath, "utf8");
@@ -62,7 +67,7 @@ async function readSkillCache(cachePath: string): Promise<SkillCache | undefined
 
   const parsed = JSON.parse(contents) as Partial<SkillCache>;
   const name = sanitizeSingleLine(parsed.name ?? "");
-  if (!name) {
+  if (!name || parsed.sourceMtimeMs !== sourceStat.mtimeMs || parsed.sourceSize !== sourceStat.size) {
     return undefined;
   }
   return {
