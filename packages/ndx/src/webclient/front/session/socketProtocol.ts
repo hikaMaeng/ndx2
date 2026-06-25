@@ -77,8 +77,25 @@ export function sessionRequestQueueAddMessage(sessionid: string, text: string, m
   return { type: NDX_SESSION_REQUEST_QUEUE_ADD, sessionid, text, model, ...(attachments?.length ? { attachments } : {}), language };
 }
 
-export function sessionRequestQueueUpdateMessage(sessionid: string, itemid: string, text: string, language: NDXWebClientStateDocument["locale"]): NDXSessionRequestQueueUpdateMessage {
-  return { type: NDX_SESSION_REQUEST_QUEUE_UPDATE, sessionid, itemid, text, language };
+export function sessionRequestQueueUpdateMessage(
+  sessionid: string,
+  itemid: string,
+  text: string,
+  model: NDXSessionRequestQueueUpdateMessage["model"],
+  keepAttachmentIds: string[] | undefined,
+  attachments: NDXSessionRequestQueueUpdateMessage["attachments"],
+  language: NDXWebClientStateDocument["locale"]
+): NDXSessionRequestQueueUpdateMessage {
+  return {
+    type: NDX_SESSION_REQUEST_QUEUE_UPDATE,
+    sessionid,
+    itemid,
+    text,
+    ...(model ? { model } : {}),
+    ...(keepAttachmentIds?.length ? { keepAttachmentIds } : {}),
+    ...(attachments?.length ? { attachments } : {}),
+    language
+  };
 }
 
 export function sessionRequestQueueDeleteMessage(sessionid: string, itemid: string, language: NDXWebClientStateDocument["locale"]): NDXSessionRequestQueueDeleteMessage {

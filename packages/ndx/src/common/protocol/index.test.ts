@@ -31,6 +31,7 @@ import {
   isNDXSessionIterationDetailMessage,
   isNDXSessionClientResponseMessage,
   isNDXSessionRenameMessage,
+  isNDXSessionRequestQueueUpdateMessage,
   isNDXSessionSkillListMessage,
   isNDXSessionTurnDetailMessage,
   parseNDXSidebarItem,
@@ -80,6 +81,26 @@ test("session sidebar item socket messages carry only the routed session id", ()
   };
 
   assert.equal(message.sessionid, "session-a");
+});
+
+test("session request queue update accepts model and attachment edit fields", () => {
+  assert.equal(isNDXSessionRequestQueueUpdateMessage({
+    type: "session.request_queue.update",
+    sessionid: "session-a",
+    itemid: "item-a",
+    text: "updated",
+    model: { type: "openai", model: "gpt-test", url: "http://localhost", token: "", contextsize: 100_000, modalities: ["text", "image"] },
+    keepAttachmentIds: ["attachment-a"],
+    attachments: [{ name: "screen.png", mimeType: "image/png", size: 3, data: "AQID" }]
+  }), true);
+
+  assert.equal(isNDXSessionRequestQueueUpdateMessage({
+    type: "session.request_queue.update",
+    sessionid: "session-a",
+    itemid: "item-a",
+    text: "updated",
+    model: { type: "openai", model: "", url: "http://localhost", token: "", contextsize: 100_000 }
+  }), false);
 });
 
 test("session client response validates askUserQuestion answers", () => {

@@ -213,6 +213,7 @@ test("turnplan function tool requires an active request queue bridge", async () 
 test("turnplan function tool expands work requests into reflection and summary queued turns", async () => {
   const registry = createNDXSessionRequestQueueRegistry();
   const sessionid = "018f0000-0000-7000-8000-000000000000";
+  const queueModel = { type: "openai" as const, provider: "local", model: "queue-default", url: "http://localhost", token: "", contextsize: 100_000, modalities: ["text" as const] };
   const result = await executeToolCall(
     {
       call_id: "turnplan_plan",
@@ -227,9 +228,13 @@ test("turnplan function tool expands work requests into reflection and summary q
       sessionid,
       sessionRequestQueueBridge: {
         list: (nextSessionid) => registry.items(nextSessionid),
-        add: (input) => sessionRequestQueueItemForSocket(registry.insert(input)),
+        add: (input) => sessionRequestQueueItemForSocket(registry.insert({ ...input, model: queueModel, modelSource: "tool-default" })),
         updateText: (nextSessionid, itemid, text) => {
           const item = registry.updateText(nextSessionid, itemid, text);
+          return item ? sessionRequestQueueItemForSocket(item) : undefined;
+        },
+        update: (input) => {
+          const item = registry.update(input);
           return item ? sessionRequestQueueItemForSocket(item) : undefined;
         },
         delete: (nextSessionid, itemid) => registry.delete(nextSessionid, itemid),
@@ -257,11 +262,16 @@ test("turnplan function tool expands work requests into reflection and summary q
 test("turnplan function tool lists, adds, updates, deletes, and clears queue items", async () => {
   const registry = createNDXSessionRequestQueueRegistry();
   const sessionid = "018f0000-0000-7000-8000-000000000001";
+  const queueModel = { type: "openai" as const, provider: "local", model: "queue-default", url: "http://localhost", token: "", contextsize: 100_000, modalities: ["text" as const] };
   const bridge = {
     list: (nextSessionid: string) => registry.items(nextSessionid),
-    add: (input: Parameters<typeof registry.insert>[0]) => sessionRequestQueueItemForSocket(registry.insert(input)),
+    add: (input: Omit<Parameters<typeof registry.insert>[0], "model">) => sessionRequestQueueItemForSocket(registry.insert({ ...input, model: queueModel, modelSource: "tool-default" })),
     updateText: (nextSessionid: string, itemid: string, text: string) => {
       const item = registry.updateText(nextSessionid, itemid, text);
+      return item ? sessionRequestQueueItemForSocket(item) : undefined;
+    },
+    update: (input: Parameters<typeof registry.update>[0]) => {
+      const item = registry.update(input);
       return item ? sessionRequestQueueItemForSocket(item) : undefined;
     },
     delete: (nextSessionid: string, itemid: string) => registry.delete(nextSessionid, itemid),

@@ -995,8 +995,8 @@ test("turn end request queue hook triggers the next request after the finalized 
     async close() {}
   };
   const queued = [
-    { itemid: "empty", sessionid: session.sessionid, text: "", attachments: [], createdat: "2026-05-12T00:00:10.000Z", updatedat: "2026-05-12T00:00:10.000Z" },
-    { itemid: "next", sessionid: session.sessionid, text: "큐 요청", attachments: [], createdat: "2026-05-12T00:00:11.000Z", updatedat: "2026-05-12T00:00:11.000Z" }
+    { itemid: "empty", sessionid: session.sessionid, text: "", attachments: [], model: session.model, createdat: "2026-05-12T00:00:10.000Z", updatedat: "2026-05-12T00:00:10.000Z" },
+    { itemid: "next", sessionid: session.sessionid, text: "큐 요청", attachments: [], model: session.model, createdat: "2026-05-12T00:00:11.000Z", updatedat: "2026-05-12T00:00:11.000Z" }
   ];
   const changedSessionIds: string[] = [];
   const claimedItemIds: string[] = [];
@@ -1180,7 +1180,7 @@ test("interrupted turn safely completes a queued request after the queued turn l
     },
     async close() {}
   };
-  const queued = [{ itemid: "next-after-interrupt", sessionid: session.sessionid, text: "인터럽트 뒤 큐 요청", attachments: [], createdat: "2026-05-12T00:00:10.000Z", updatedat: "2026-05-12T00:00:10.000Z" }];
+  const queued = [{ itemid: "next-after-interrupt", sessionid: session.sessionid, text: "인터럽트 뒤 큐 요청", attachments: [], model: session.model, createdat: "2026-05-12T00:00:10.000Z", updatedat: "2026-05-12T00:00:10.000Z" }];
   const claimedItemIds: string[] = [];
   const completedItemIds: string[] = [];
   const releasedItemIds: string[] = [];

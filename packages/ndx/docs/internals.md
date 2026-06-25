@@ -19,6 +19,9 @@
 * Request queue consumption uses a claim/release/complete bridge separate from
   queue editing. Why: tools can plan future turns without authority to consume
   them, and a failed scheduled launch can restore a claimed item.
+* Request queue items store their assigned model snapshot at enqueue/update
+  time. Why: queued work must not silently change when the session default model
+  is edited before the item runs.
 
 Add internals only when an implementation detail affects future maintenance.
 Agent server process-tool contracts are in [tool-process.md](tool-process.md).

@@ -13,7 +13,7 @@ consumer edge set. Symbols per subpath are in [api.md](api.md); partitions in
 | `ndx/agent` (`initServer`) | `apps/ndx` `src/server/index.ts` | Agent owns turn execution; webclient never runs a turn. |
 | `ndx/agent/session` | `ndx/agent/turnloop`, `apps/ndx` history routes | `sessiondata` is append-only; ordered replay must stay stable; session id stable per connection. |
 | `ndx/agent/turnloop` | `ndx/agent/chat`, `apps/ndx` socket server | Durable turn events persist before client delivery; interrupts do not drop persisted state; post-response request effects launch from a later macrotask and are not awaited by the completed turn. |
-| `ndx/agent/requestQue` | `ndx/agent/turnloop`, `ndx/agent/hook`, `ndx/agent/tool`, `apps/ndx` socket server | Edit and consumer bridges stay separate; tools never receive queue-claim authority; claimed items are hidden from list projection and must be released if a queued turn cannot launch. |
+| `ndx/agent/requestQue` | `ndx/agent/turnloop`, `ndx/agent/hook`, `ndx/agent/tool`, `apps/ndx` socket server | Edit and consumer bridges stay separate; every item has a required assigned model snapshot; socket projection hides paths but includes attachment ids for editing; claimed items are hidden and claim output strips queue-local attachment ids before sessiondata persistence. |
 | `ndx/webclient/server` | `apps/ndx` web routes | Settings reads tolerate a missing file and ignore unknown keys (forward-compat). |
 | `ndx/webclient/front` | `apps/ndx` `src/webclient_front` React shell | Front helpers are presentation-only; screen is a pure projection of model-render stores (see [internals.md](internals.md#decisions)). |
 

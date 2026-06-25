@@ -96,6 +96,7 @@ export type {
   NDXSessionEventName,
   NDXSessionHistorySummaryMessage,
   NDXSessionHistorySummaryResultMessage,
+  NDXSessionInputAttachment,
   NDXSessionInputMessage,
   NDXSessionClientRequestClosedMessage,
   NDXSessionClientRequestMessage,

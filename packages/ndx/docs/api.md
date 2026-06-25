@@ -158,9 +158,9 @@ No server-only initialization or database API is exported from this runtime-neut
 | API | Purpose |
 | --- | --- |
 | `createNDXSessionRequestQueueRegistry()` | Creates the per-process queue registry used by the socket server. |
-| `NDXSessionRequestQueueEditBridge` | Queue list/add/update/delete/clear authority for clients and tools. |
+| `NDXSessionRequestQueueEditBridge` | Queue list/add/update/delete/clear authority for clients and tools; bridge add injects a required model when tools omit one. |
 | `NDXSessionRequestQueueConsumerBridge` | Queue claim/release/complete authority for the base `turn.end` hook and root turn-loop launcher. |
-| `sessionRequestQueueItemForSocket(item)` | Projects an internal queue item to the shared socket DTO. |
+| `sessionRequestQueueItemForSocket(item)` | Projects an internal queue item to the shared socket DTO with required model and queue-local attachment ids, hiding file paths. |
 
 ## `ndx/agent/tool`
 

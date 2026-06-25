@@ -1,6 +1,6 @@
 import React from "react";
 import { AlertTriangle, Bot, ChevronDown, Menu, X } from "lucide-react";
-import type { NDXSessionIterationSummary } from "ndx/common/protocol";
+import type { NDXSessionInputAttachment, NDXSessionIterationSummary, NDXSessionModelConfig } from "ndx/common/protocol";
 import type { NDXAgentWebSession, NDXWebClientProject } from "ndx/webclient/common";
 import { createSessionUiState, isPendingUserChatMessage, sessionTranscriptItems, toModelConfig, type NDXAgentWebContextUsage, type SessionAttachmentDraft, type SessionUiState, type TurnFlowState } from "ndx/webclient/front";
 import { RSC } from "../../app/resource";
@@ -39,7 +39,7 @@ type SessionSurfaceProps = {
   onSkillListRefresh: () => void;
   onQueueAdd: (cotSolveSteps: string) => void;
   onQueuedRequestDelete: (sessionid: string, itemid: string) => void;
-  onQueuedRequestUpdate: (sessionid: string, itemid: string, text: string) => void;
+  onQueuedRequestUpdate: (sessionid: string, itemid: string, text: string, model: NDXSessionModelConfig, keepAttachmentIds: string[], attachments: NDXSessionInputAttachment[]) => void;
   onSubsessionToggle: (parentKey: string, sessionid: string, expanded: boolean) => void;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
   onUserMessageBranch: (sessionid: string, inputDataId: string) => void;
@@ -309,7 +309,7 @@ export function SessionSurface({
             items={ui.requestQueue}
             onCollapsedChange={(collapsed) => updateSessionUi(session.sessionid, (current) => ({ ...current, requestQueueCollapsed: collapsed }))}
             onDelete={(itemid) => onQueuedRequestDelete(session.sessionid, itemid)}
-            onUpdate={(itemid, text) => onQueuedRequestUpdate(session.sessionid, itemid, text)}
+            onUpdate={(itemid, text, model, keepAttachmentIds, attachments) => onQueuedRequestUpdate(session.sessionid, itemid, text, model, keepAttachmentIds, attachments)}
           />
         ) : null}
         {surfaceHasChat && composerVisible ? <ChatComposer idSuffix={suffix} agentRunning={surfaceAgentRunning} compactRunning={surfaceCompactRunning} interruptPending={interruptPending} requestPending={submitPending} contextUsage={surfaceContextUsage} input={ui.chatInput} attachments={attachments} skills={ui.availableSkills} modelLabel={surfaceModelLabel} modelModalities={ui.selectedModel.modalities} notice={notice} rewriteEnabled={rewriteEnabled} rewriteToggleDisabled={!session} t={t} onInputChange={onInputChange} onAddAttachments={onAddAttachments} onAttachmentRejected={onAttachmentRejected} onRemoveAttachment={onRemoveAttachment} onModelClick={onModelClick} onRewriteToggle={onRewriteToggle} onSkillListRefresh={onSkillListRefresh} onQueueAdd={onQueueAdd} onSubmit={onSubmit} /> : null}

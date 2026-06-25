@@ -19,6 +19,8 @@ import type { NDXSessionEventMessage } from "ndx/common";
 process.env.NDX_CONTAINER_ROOT = os.tmpdir();
 process.env.NDX_ROOT = os.tmpdir();
 
+const queueModel = { type: "openai" as const, provider: "local", model: "queue-default", url: "http://localhost", token: "", contextsize: 100_000, modalities: ["text" as const] };
+
 function createDatabase(): NDXDatabase {
   return {
     async query(text, values) {
@@ -72,7 +74,7 @@ function createDatabaseWithSessionInsert(): NDXDatabase {
   };
 }
 
-function createDatabaseWithExistingSession(input: { projectName: string; sessionid: string }): NDXDatabase {
+function createDatabaseWithExistingSession(input: { projectName: string; sessionid: string; isrunning?: boolean }): NDXDatabase {
   return {
     async query(text, values) {
       if (/FROM "session"/i.test(text) && /WHERE sessionid = \$1/i.test(text)) {
@@ -91,7 +93,7 @@ function createDatabaseWithExistingSession(input: { projectName: string; session
               subagentconfig: {},
               subagentstatus: "none",
               model: { type: "openai", model: "qwen3.6-35b.mm", url: "", token: "", contextsize: 100_000 },
-              isrunning: false,
+              isrunning: input.isrunning ?? false,
               turnphase: "idle",
               interruptrequested: false,
               interruptrequestedat: null,
@@ -693,6 +695,104 @@ test("session websocket rejects attachments unsupported by the selected model", 
   }
 });
 
+test("session websocket assigns session model to queued requests when client omits model", async () => {
+  const projectPath = await createWorkspaceProjectPath();
+  const projectName = path.basename(projectPath);
+  const sessionid = "019e2783-4512-70d0-b75b-40200d1d4fe9";
+  const server = http.createServer();
+  const socketServer = attachSessionSocketServer(server, {
+    database: createDatabaseWithExistingSession({ projectName, sessionid, isrunning: true }),
+    heartbeatIntervalMs: 60_000
+  });
+
+  try {
+    const port = await listenOnRandomPort(server);
+    const socket = new WebSocket(`ws://127.0.0.1:${port}/session?clientid=018f90d0-75cb-7d37-bfc9-6f9d0bb60cf6`);
+    const messages: Buffer[] = [];
+    socket.on("message", (data) => {
+      messages.push(Buffer.from(data as Buffer));
+    });
+    await once(socket, "open");
+
+    await waitForMessages(messages, 1);
+    socket.send(JSON.stringify({ type: "session.attach", projectName, sessionid }));
+    await waitForMessages(messages, 3);
+    socket.send(JSON.stringify({ type: "session.request_queue.add", sessionid, text: "큐 요청" }));
+    await waitForMessages(messages, 4);
+
+    const changed = JSON.parse(messages[3]!.toString()) as { type: string; items: Array<{ text: string; model: { model: string } }> };
+    assert.equal(changed.type, NDX_SESSION_REQUEST_QUEUE_CHANGED);
+    assert.equal(changed.items[0]?.text, "큐 요청");
+    assert.equal(changed.items[0]?.model.model, "qwen3.6-35b.mm");
+
+    socket.terminate();
+  } finally {
+    closeSocketServer(socketServer);
+    await closeServer(server);
+    await fs.rm(projectPath, { recursive: true, force: true });
+  }
+});
+
+test("session websocket queue update replaces model and removes unsupported kept attachments", async () => {
+  const projectPath = await createWorkspaceProjectPath();
+  const projectName = path.basename(projectPath);
+  const sessionid = "019e2783-4512-70d0-b75b-40200d1d4fea";
+  const server = http.createServer();
+  const socketServer = attachSessionSocketServer(server, {
+    database: createDatabaseWithExistingSession({ projectName, sessionid, isrunning: true }),
+    heartbeatIntervalMs: 60_000
+  });
+
+  try {
+    const port = await listenOnRandomPort(server);
+    const socket = new WebSocket(`ws://127.0.0.1:${port}/session?clientid=018f90d0-75cb-7d37-bfc9-6f9d0bb60cf7`);
+    const messages: Buffer[] = [];
+    socket.on("message", (data) => {
+      messages.push(Buffer.from(data as Buffer));
+    });
+    await once(socket, "open");
+
+    const imageModel = { type: "openai", model: "image-model", url: "", token: "", contextsize: 100_000, modalities: ["text", "image"] };
+    const textModel = { type: "openai", model: "text-model", url: "", token: "", contextsize: 100_000, modalities: ["text"] };
+    await waitForMessages(messages, 1);
+    socket.send(JSON.stringify({ type: "session.attach", projectName, sessionid }));
+    await waitForMessages(messages, 3);
+    socket.send(JSON.stringify({
+      type: "session.request_queue.add",
+      sessionid,
+      text: "이미지 요청",
+      model: imageModel,
+      attachments: [{ name: "screen.png", mimeType: "image/png", size: 3, data: "AQID" }]
+    }));
+    await waitForMessages(messages, 4);
+    const added = JSON.parse(messages[3]!.toString()) as { items: Array<{ itemid: string; attachments: Array<{ attachmentid: string }> }> };
+    const itemid = added.items[0]!.itemid;
+    const attachmentid = added.items[0]!.attachments[0]!.attachmentid;
+
+    socket.send(JSON.stringify({
+      type: "session.request_queue.update",
+      sessionid,
+      itemid,
+      text: "텍스트 요청",
+      model: textModel,
+      keepAttachmentIds: [attachmentid]
+    }));
+    await waitForMessages(messages, 5);
+
+    const changed = JSON.parse(messages[4]!.toString()) as { type: string; items: Array<{ text: string; model: { model: string }; attachments?: unknown[] }> };
+    assert.equal(changed.type, NDX_SESSION_REQUEST_QUEUE_CHANGED);
+    assert.equal(changed.items[0]?.text, "텍스트 요청");
+    assert.equal(changed.items[0]?.model.model, "text-model");
+    assert.equal(changed.items[0]?.attachments, undefined);
+
+    socket.terminate();
+  } finally {
+    closeSocketServer(socketServer);
+    await closeServer(server);
+    await fs.rm(projectPath, { recursive: true, force: true });
+  }
+});
+
 test("socket send writes the provided message unchanged", async () => {
   const projectPath = await createWorkspaceProjectPath();
   const sent: string[] = [];
@@ -825,7 +925,7 @@ test("session request queue bridge broadcasts changed snapshots", async () => {
     } as never
   };
   const connectedClients = new Map([["connection-a", client]]);
-  const bridge = createSessionRequestQueueBridge(connectedClients);
+  const bridge = createSessionRequestQueueBridge(connectedClients, undefined, queueModel);
 
   const added = await bridge.add({ sessionid, text: "queued by turnplan" });
   await bridge.updateText(sessionid, added.itemid, "changed by turnplan");

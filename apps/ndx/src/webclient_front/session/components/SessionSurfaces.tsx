@@ -1,5 +1,5 @@
 import { createSessionUiState, type SessionUiState, type TurnFlowState } from "ndx/webclient/front";
-import type { NDXSessionIterationSummary } from "ndx/common/protocol";
+import type { NDXSessionInputAttachment, NDXSessionIterationSummary, NDXSessionModelConfig } from "ndx/common/protocol";
 import type { NDXAgentWebSession, NDXWebClientProject, NDXWebClientStateDocument } from "ndx/webclient/common";
 import type { UpdateSessionUi } from "../rightsidebar";
 import { SessionSurface } from "./SessionSurface";
@@ -24,7 +24,7 @@ type SessionSurfacesProps = {
   onSkillListRefresh: () => void;
   onQueueAdd: (cotSolveSteps: string) => void;
   onQueuedRequestDelete: (sessionid: string, itemid: string) => void;
-  onQueuedRequestUpdate: (sessionid: string, itemid: string, text: string) => void;
+  onQueuedRequestUpdate: (sessionid: string, itemid: string, text: string, model: NDXSessionModelConfig, keepAttachmentIds: string[], attachments: NDXSessionInputAttachment[]) => void;
   onSubsessionToggle: (parentKey: string, sessionid: string, expanded: boolean) => void;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
   onUserMessageBranch: (sessionid: string, inputDataId: string) => void;

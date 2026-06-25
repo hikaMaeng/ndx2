@@ -1,4 +1,5 @@
 import React from "react";
+import type { NDXSessionInputAttachment, NDXSessionModelConfig } from "ndx/common/protocol";
 import type { NDXAgentWebChatSession, NDXAgentWebMetadataResponse, NDXAgentWebSession, NDXWebClientStateDocument } from "ndx/webclient/common";
 import {
   appendChatSessionMessageStream,
@@ -314,8 +315,8 @@ export function MainSurface({
     if (socketRef.current?.deleteQueuedRequest(sessionid, itemid)) return;
     updateSessionUi(sessionid, (current) => ({ ...current, notice: t[RSC.APP_STATUS_SOCKET_REQUIRED_ALERT] }));
   };
-  const updateQueuedRequest = (sessionid: string, itemid: string, text: string) => {
-    if (socketRef.current?.updateQueuedRequest(sessionid, itemid, text)) return;
+  const updateQueuedRequest = (sessionid: string, itemid: string, text: string, model: NDXSessionModelConfig, keepAttachmentIds: string[], attachments: NDXSessionInputAttachment[]) => {
+    if (socketRef.current?.updateQueuedRequest(sessionid, itemid, text, model, keepAttachmentIds, attachments)) return;
     updateSessionUi(sessionid, (current) => ({ ...current, notice: t[RSC.APP_STATUS_SOCKET_REQUIRED_ALERT] }));
   };
   const toggleSubsession = (parentKey: string, sessionid: string, expanded: boolean) => {

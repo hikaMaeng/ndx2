@@ -183,14 +183,16 @@ export type NDXSessionInputAttachment = {
   data: string;
 };
 
-export type NDXSessionRequestQueueAttachment = Pick<NDXSessionInputAttachment, "name" | "mimeType" | "size">;
+export type NDXSessionRequestQueueAttachment = Pick<NDXSessionInputAttachment, "name" | "mimeType" | "size"> & {
+  attachmentid: string;
+};
 
 export type NDXSessionRequestQueueItem = {
   itemid: string;
   sessionid: string;
   text: string;
   attachments?: NDXSessionRequestQueueAttachment[];
-  model?: NDXSessionModelConfig;
+  model: NDXSessionModelConfig;
   createdat: string;
   updatedat: string;
 };
@@ -209,6 +211,9 @@ export type NDXSessionRequestQueueUpdateMessage = {
   sessionid: string;
   itemid: string;
   text: string;
+  model?: NDXSessionModelConfig;
+  keepAttachmentIds?: string[];
+  attachments?: NDXSessionInputAttachment[];
   language?: NDXAgentLanguage;
 };
 
@@ -429,7 +434,7 @@ export function isNDXSessionRequestQueueAddMessage(value: unknown): value is NDX
 
 export function isNDXSessionRequestQueueUpdateMessage(value: unknown): value is NDXSessionRequestQueueUpdateMessage {
   if (!value || typeof value !== "object") return false;
-  const message = value as { type?: unknown; sessionid?: unknown; itemid?: unknown; text?: unknown; language?: unknown };
+  const message = value as { type?: unknown; sessionid?: unknown; itemid?: unknown; text?: unknown; model?: unknown; keepAttachmentIds?: unknown; attachments?: unknown; language?: unknown };
   return (
     message.type === NDX_SESSION_REQUEST_QUEUE_UPDATE &&
     typeof message.sessionid === "string" &&
@@ -437,6 +442,11 @@ export function isNDXSessionRequestQueueUpdateMessage(value: unknown): value is 
     typeof message.itemid === "string" &&
     message.itemid.trim().length > 0 &&
     typeof message.text === "string" &&
+    (message.model === undefined || isValidSessionModelConfig(message.model)) &&
+    (message.keepAttachmentIds === undefined ||
+      (Array.isArray(message.keepAttachmentIds) &&
+        message.keepAttachmentIds.every((item) => typeof item === "string" && item.trim().length > 0))) &&
+    (message.attachments === undefined || isValidSessionInputAttachments(message.attachments)) &&
     (message.language === undefined || message.language === "en" || message.language === "ko")
   );
 }

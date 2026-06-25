@@ -210,7 +210,8 @@ async function handleSessionMessage(
       sessionid: session.sessionid,
       text: message.text.trim(),
       attachments,
-      model: turnModel
+      model: turnModel,
+      modelSource: message.model ? "client-selected" : "session-default"
     });
     await broadcastSessionRequestQueueChanged(connectedClients, session.sessionid, logger);
     if (!session.isrunning) {
@@ -222,7 +223,30 @@ async function handleSessionMessage(
   if (isNDXSessionRequestQueueUpdateMessage(message)) {
     const grant = await requireSessionGrant(client, message.sessionid, database, logger, resource);
     if (!grant) return;
-    sessionRequestQueues.updateText(grant.sessionid, message.itemid, message.text);
+    const session = await getSession(database, grant.sessionid);
+    if (!session) {
+      await sendJson(client, { type: NDX_PROTOCOL_ERROR, error: resource(NDX_AGENT_RESOURCE.PROTOCOL_SESSION_GRANT_UNAVAILABLE_ERROR, { language }) });
+      return;
+    }
+    const turnModel = message.model ?? session.model;
+    let attachments;
+    try {
+      assertModelSupportsAttachments(turnModel, message.attachments);
+      attachments = await writeSessionAttachments(toServerProjectPath(session.path), session.sessionid, message.attachments);
+    } catch (error) {
+      logger?.warn("agent.socket.protocol.session_request_queue.update_attachment_rejected", { clientid: client.clientid, sessionid: session.sessionid, error });
+      await sendJson(client, { type: NDX_PROTOCOL_ERROR, error: error instanceof Error ? error.message : resource(NDX_AGENT_RESOURCE.PROTOCOL_UNSUPPORTED_SESSION_MESSAGE_ERROR, { language }) });
+      return;
+    }
+    sessionRequestQueues.update({
+      sessionid: grant.sessionid,
+      itemid: message.itemid,
+      text: message.text,
+      model: turnModel,
+      modelSource: message.model ? "client-selected" : "session-default",
+      keepAttachmentIds: message.keepAttachmentIds,
+      attachments
+    });
     await broadcastSessionRequestQueueChanged(connectedClients, grant.sessionid, logger);
     return;
   }
@@ -699,20 +723,34 @@ async function broadcastClientRequestClosed(
 
 export function createSessionRequestQueueBridge(
   connectedClients: Map<string, SessionClientState>,
-  logger?: NDXLogger
+  logger?: NDXLogger,
+  defaultModel?: NDXModelConfig
 ): NDXSessionRequestQueueEditBridge {
   return {
     list(sessionid) {
       return sessionRequestQueues.items(sessionid);
     },
     async add(input) {
-      const item = sessionRequestQueues.insert(input);
+      const model = input.model ?? defaultModel;
+      if (!model) {
+        throw new Error("session request queue add requires an assigned model.");
+      }
+      const item = sessionRequestQueues.insert({
+        ...input,
+        model,
+        modelSource: input.modelSource ?? (input.model ? "client-selected" : "tool-default")
+      });
       await broadcastSessionRequestQueueChanged(connectedClients, input.sessionid, logger);
       return sessionRequestQueueItemForSocket(item);
     },
     async updateText(sessionid, itemid, text) {
       const item = sessionRequestQueues.updateText(sessionid, itemid, text);
       await broadcastSessionRequestQueueChanged(connectedClients, sessionid, logger);
+      return item ? sessionRequestQueueItemForSocket(item) : undefined;
+    },
+    async update(input) {
+      const item = sessionRequestQueues.update(input);
+      await broadcastSessionRequestQueueChanged(connectedClients, input.sessionid, logger);
       return item ? sessionRequestQueueItemForSocket(item) : undefined;
     },
     async delete(sessionid, itemid) {
@@ -818,7 +856,7 @@ function sessionTurnLoopEvents(
         return requestSessionClientQuestion(connectedClients, session.sessionid, { ...request, sessionid: session.sessionid }, bridgeOptions?.signal, logger);
       }
     },
-    sessionRequestQueueBridge: createSessionRequestQueueBridge(connectedClients, logger),
+    sessionRequestQueueBridge: createSessionRequestQueueBridge(connectedClients, logger, session.model),
     sessionRequestQueueConsumerBridge: createSessionRequestQueueConsumerBridge(connectedClients, logger),
     async onEvent(event) {
       await sendTurnLoopEventToSessionGrantOwners(connectedClients, session, event, logger);

@@ -50,7 +50,7 @@ export type SessionSocketClient = {
   sendInput: (sessionid: string, text: string, model: NDXSessionModelConfig, attachments?: Array<{ name: string; mimeType: string; size: number; data: string }>) => boolean;
   sendInterrupt: (sessionid: string) => boolean;
   addQueuedRequest: (sessionid: string, text: string, model: NDXSessionModelConfig, attachments?: Array<{ name: string; mimeType: string; size: number; data: string }>) => boolean;
-  updateQueuedRequest: (sessionid: string, itemid: string, text: string) => boolean;
+  updateQueuedRequest: (sessionid: string, itemid: string, text: string, model: NDXSessionModelConfig, keepAttachmentIds?: string[], attachments?: Array<{ name: string; mimeType: string; size: number; data: string }>) => boolean;
   deleteQueuedRequest: (sessionid: string, itemid: string) => boolean;
   requestSkillList: (sessionid?: string, projectName?: string) => boolean;
   requestHistorySummary: (sessionid: string) => boolean;
@@ -273,11 +273,11 @@ export function openSessionSocket(options: SessionSocketOptions): SessionSocketC
       socket.send(JSON.stringify(sessionRequestQueueAddMessage(sessionid, text, model, attachments, options.getState().locale)));
       return true;
     },
-    updateQueuedRequest: (sessionid, itemid, text) => {
+    updateQueuedRequest: (sessionid, itemid, text, model, keepAttachmentIds, attachments) => {
       if (socket.readyState !== WebSocket.OPEN) {
         return false;
       }
-      socket.send(JSON.stringify(sessionRequestQueueUpdateMessage(sessionid, itemid, text, options.getState().locale)));
+      socket.send(JSON.stringify(sessionRequestQueueUpdateMessage(sessionid, itemid, text, model, keepAttachmentIds, attachments, options.getState().locale)));
       return true;
     },
     deleteQueuedRequest: (sessionid, itemid) => {

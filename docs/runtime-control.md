@@ -137,7 +137,12 @@ If a user sends another request while the agent loop is active, the request may 
 
 The request queue's item list is registered by the session socket server per
 session. Queued attachments are first written through session attachment
-storage; the queue item then keeps only the durable attachment references.
+storage; the queue item then keeps durable attachment references plus
+queue-local attachment ids for later edit/remove operations. Each queued item
+also stores the model snapshot that will execute that item. Browser-created
+items use the client-selected model when provided and otherwise copy the
+session's current model; tool-created items copy the current session model as a
+tool default. Later session model changes do not rewrite existing queue items.
 
 Queued work is a post-response action, not a continuation of the current turn.
 `after-loop` finalizes exactly one turn, clears the running state, and emits
@@ -153,7 +158,8 @@ fresh `REQUEST` turn with the queued input from that macrotask. It does not wait
 for the queued turn while completing the previous turn's call stack. Interrupt
 completion uses the same post-response action path: once the interrupted turn
 has ended, a queued item can start immediately through the same scheduled launch
-path.
+path. Claiming strips queue-local attachment ids before appending user input to
+`sessiondata`, so edit metadata is not model-visible history.
 
 The socket server may trigger queued execution when a request is added to an
 idle session, but it must not own a separate queue drain loop. Its role is to
