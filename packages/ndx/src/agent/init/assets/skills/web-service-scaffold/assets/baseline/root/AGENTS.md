@@ -150,10 +150,11 @@ Use the repository-local skills installed under `.ndx/skills`:
 
 When the user explicitly asks to use `web-deploy-docker` with a service such as
 `apps/dashboard`, do not search for the skill file or inspect repository
-structure first. Immediately run `bash scripts/deploy.sh apps/dashboard` from
-the repository root. The script performs local build, Docker Compose refresh,
-health checks, and prints a `deploy-report-begin` / `deploy-report-end` block;
-base the final answer on that block.
+structure first. Immediately run
+`bash .ndx/skills/web-deploy-docker/scripts/deploy.sh apps/dashboard` from the
+repository root. The skill-bundled script performs local build, Docker Compose
+refresh, health checks, and prints a `deploy-report-begin` /
+`deploy-report-end` block; base the final answer on that block.
 
 ## Fast Scaffold Completion
 

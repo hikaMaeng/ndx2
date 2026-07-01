@@ -1,4 +1,4 @@
 interface:
   display_name: "Web Deploy Docker"
   short_description: "Run Docker deploy."
-  default_prompt: "Ask only if the service is missing. Otherwise immediately run bash scripts/deploy.sh <service-or-app-path> directly; do not inspect files first. Copy the deploy-report block in the final answer."
+  default_prompt: "Ask only if the service is missing. Otherwise immediately run bash .ndx/skills/web-deploy-docker/scripts/deploy.sh <service-or-app-path> directly; do not inspect files first. Copy the deploy-report block in the final answer."

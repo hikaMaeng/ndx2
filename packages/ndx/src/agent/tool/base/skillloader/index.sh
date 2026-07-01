@@ -16,7 +16,7 @@ if [ -z "${name// }" ]; then
 fi
 
 emit_progress "selecting skill"
-perl -MJSON::PP -Mutf8 -e '
+perl -MJSON::PP -MDigest::SHA=sha256_hex -Mutf8 -e '
   use strict;
   use warnings;
 
@@ -105,16 +105,6 @@ perl -MJSON::PP -Mutf8 -e '
     exit 1;
   }
 
-  my $loaded_name_values = ref($loaded->{names}) eq "ARRAY" ? $loaded->{names} : [];
-  my $loaded_path_values = ref($loaded->{paths}) eq "ARRAY" ? $loaded->{paths} : [];
-  my %loaded_names = map { (normalize($_), 1) } @$loaded_name_values;
-  my %loaded_paths = map { ($_, 1) } @$loaded_path_values;
-  if ($loaded_names{normalize($skill->{name})} || $loaded_paths{$skill->{path}}) {
-    emit_sidebar_item($skill);
-    print $json->encode({ type => "result", success => JSON::PP::true, output => "Skill already loaded in the current session context: $skill->{name} ($skill->{path})" }) . "\n";
-    exit 0;
-  }
-
   open my $fh, "<:encoding(UTF-8)", $skill->{path} or do {
     print $json->encode({ type => "error", success => JSON::PP::false, message => "Skill file cannot be read: $skill->{path}" }) . "\n";
     exit 1;
@@ -124,5 +114,17 @@ perl -MJSON::PP -Mutf8 -e '
   my $body = <$fh>;
   close $fh;
   my $output = "<skill>\n<name>$skill->{name}</name>\n<path>$skill->{path}</path>\n$body\n</skill>";
+  my $loaded_blocks = ref($loaded->{blocks}) eq "ARRAY" ? $loaded->{blocks} : [];
+  my $output_hash = sha256_hex($output);
+  for my $block (@$loaded_blocks) {
+    next if ref($block) ne "HASH";
+    next if normalize($block->{name} // "") ne normalize($skill->{name});
+    next if ($block->{path} // "") ne $skill->{path};
+    next if ($block->{sha256} // "") ne $output_hash;
+    emit_sidebar_item($skill);
+    print $json->encode({ type => "result", success => JSON::PP::true, output => "Skill already loaded in the current session context: $skill->{name} ($skill->{path})" }) . "\n";
+    exit 0;
+  }
+
   print $json->encode({ type => "result", success => JSON::PP::true, output => $output }) . "\n";
 ' "$name" "$skill_list" "$loaded_skill"

@@ -7,6 +7,7 @@ export function sessionModelToUiState(model: SessionInstanceModel): SessionUiSta
     chatInput: model.composer.input,
     chatAttachments: [],
     availableSkills: model.capabilities.availableSkills,
+    skillListRequested: model.connection.skillListRequested,
     agentRunning: model.runtime.agentRunning,
     compactRunning: model.runtime.compactRunning,
     selectedModel: model.composer.selectedModel,
@@ -43,6 +44,10 @@ export function sessionModelWithUiState(model: SessionInstanceModel, ui: Session
     capabilities: {
       ...model.capabilities,
       availableSkills: ui.availableSkills
+    },
+    connection: {
+      ...model.connection,
+      skillListRequested: ui.skillListRequested
     },
     history: {
       ...model.history,

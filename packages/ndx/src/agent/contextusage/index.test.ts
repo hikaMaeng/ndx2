@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { calculateContextUsage, calculateDetailedContextUsage, estimateContextTokens, judgeContextAvailability } from "./index.js";
 
-test("calculateContextUsage approximates tokens from UTF-8 bytes over messages and in-flight content", () => {
+test("calculateContextUsage estimates tokens from BPE over messages and in-flight content", () => {
   const usage = calculateContextUsage(
     [
       { role: "system", content: "abc" },
@@ -13,10 +13,10 @@ test("calculateContextUsage approximates tokens from UTF-8 bytes over messages a
   );
 
   assert.deepEqual(usage, {
-    tokens: 6,
-    messageTokens: 6,
+    tokens: 7,
+    messageTokens: 7,
     toolDefinitionTokens: 0,
-    percent: 60,
+    percent: 70,
     contextsize: 10
   });
 });
@@ -79,13 +79,13 @@ test("calculateDetailedContextUsage breaks down developer, user, history, tools,
 
   assert.equal(usage.messageTokens, 11);
   assert.equal(usage.parts?.find((part) => part.key === "developer")?.tokens, 3);
-  assert.equal(usage.parts?.find((part) => part.key === "user")?.tokens, 3);
-  assert.equal(usage.parts?.find((part) => part.key === "history")?.tokens, 5);
+  assert.equal(usage.parts?.find((part) => part.key === "user")?.tokens, 4);
+  assert.equal(usage.parts?.find((part) => part.key === "history")?.tokens, 4);
   assert.equal(usage.parts?.find((part) => part.key === "toolDefinitions")?.tokens, usage.toolDefinitionTokens);
   assert.equal(usage.parts?.find((part) => part.key === "remaining")?.tokens, Math.max(0, usage.contextsize - usage.tokens));
 });
 
-test("estimateContextTokens weights non-ASCII text by UTF-8 byte length", () => {
+test("estimateContextTokens uses the shared BPE tokenizer", () => {
   assert.equal(estimateContextTokens("abcd"), 1);
   assert.equal(estimateContextTokens("한글"), 2);
 });

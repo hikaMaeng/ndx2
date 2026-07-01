@@ -20,5 +20,4 @@ volumes:
   __VOLUME_NAME__:
 
 networks:
-  __NETWORK_NAME__:
-    internal: true
+  __NETWORK_NAME__: {}

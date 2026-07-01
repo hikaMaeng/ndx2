@@ -107,6 +107,14 @@ commit order. Tool branches may still emit non-model-visible progress events
 while running, but they must not directly append model-visible rows such as
 `cot_work` payloads during the parallel section.
 
+Process-backed tools have an outer process-manager timeout in addition to any
+timeout implemented by the tool script itself. When a tool schema accepts a
+positive numeric `timeout_ms` argument, the process manager must use that value
+for the outer timeout unless the caller supplied an explicit runtime
+`timeoutMs` override. This keeps long-running deploy/build tools from being
+killed by the default process timeout while their inner script still believes a
+longer timeout was requested.
+
 The Docker entrypoint configures Git `safe.directory` for the runtime workspace
 root and its immediate repositories so Git commands do not fail only because a
 bind-mounted repository has a different host owner. This does not repair file
@@ -212,6 +220,15 @@ active-plan reminder hook policy under
 hook reads the current turn's durable `cot_work` row and calls the tool-owned
 timing/sidebar policy when it records assistant sessiondata or emits
 `turn.cot_work`; the turn loop must not own that policy itself.
+
+## Selected Skills
+
+The request-received skill-marker hook may append a selected skill context row
+before the user request is persisted. A selected skill may use a compact
+`selected_skill_ref` only when the current `SKILL.md` renders to the same
+`<skill>` block already present in model context. If the file changed, the
+runtime must append the fresh full `<skill>` block so the model cannot continue
+following stale skill instructions from an earlier turn.
 
 ## Interactive Client Requests
 

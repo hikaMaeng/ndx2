@@ -1,3 +1,4 @@
+import { estimateTextTokens } from "ndx/common/tokenizer";
 import type { NDXModelMessage } from "../session/types.js";
 
 export type NDXContextUsage = {
@@ -212,5 +213,5 @@ function safeJson(value: unknown): string {
 }
 
 export function estimateContextTokens(text: string): number {
-  return Math.ceil(Buffer.byteLength(text, "utf8") / 4);
+  return estimateTextTokens(text);
 }

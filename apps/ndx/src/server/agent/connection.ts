@@ -88,6 +88,7 @@ import {
   type NDXSessionRequestQueueEditBridge
 } from "ndx/agent/requestQue";
 import type { NDXLogger } from "ndx/common";
+import { readNDXSettingsDocument, resolveSettingsModelConfig } from "ndx/common/settings";
 import { serverContainerUserHome, serverWorkspaceProjectPath, toServerProjectPath } from "ndx/common/server-path";
 import type { RawData, WebSocket } from "ws";
 import { buildSessionHistorySummary, buildSessionIterationDetail, buildSessionTurnDetail } from "./history.js";
@@ -920,7 +921,7 @@ async function resolveCreateSessionInput(
 
   return {
     projectname: projectName,
-    model: message.model ?? defaultModelConfig()
+    model: message.model ?? await defaultModelConfig()
   };
 }
 
@@ -1315,7 +1316,13 @@ function socketSessionEventContents(contents: unknown): NDXSessionEventMessage["
   return String(contents ?? "");
 }
 
-function defaultModelConfig(): NDXModelConfig {
+async function defaultModelConfig(): Promise<NDXModelConfig> {
+  const settings = await readNDXSettingsDocument(serverContainerUserHome()).catch(() => undefined);
+  const requested = typeof settings?.model === "string" ? settings.model : "";
+  const resolved = settings && requested ? resolveSettingsModelConfig(settings, requested, 200_000) : undefined;
+  if (resolved) {
+    return resolved.model;
+  }
   return { type: "openai", model: "gpt-5.4", url: "", token: "", contextsize: 200_000, modalities: ["text"] };
 }
 

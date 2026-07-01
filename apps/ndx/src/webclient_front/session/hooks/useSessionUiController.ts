@@ -97,7 +97,7 @@ export function useSessionUiController() {
     setActiveSessionId: (update: React.SetStateAction<string | undefined>) => store.activeSessionId.set(update),
     setAgentRunning: (running: boolean) => store.setAgentRunning(running),
     setAutoScrollEnabled: (enabled: boolean) => store.setAutoScrollEnabled(enabled),
-    setAvailableSkills: (skills: unknown[]) => store.updateActiveUi((current) => ({ ...current, availableSkills: skills as typeof current.availableSkills })),
+    setAvailableSkills: (skills: unknown[]) => store.updateActiveUi((current) => ({ ...current, availableSkills: skills as typeof current.availableSkills, skillListRequested: false })),
     setChatAttachments: (update: SessionAttachmentDraft[] | ((current: SessionAttachmentDraft[]) => SessionAttachmentDraft[])) => store.setChatAttachments(update),
     setChatInput: (value: string) => store.setChatInput(value),
     setChatMessages: store.setChatMessages.bind(store),

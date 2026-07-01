@@ -125,6 +125,71 @@ test("turn end clears runtime state without creating a new turn card", () => {
   assert.equal(next.turnFlows[0]?.status, "completed");
 });
 
+test("cot work stays visible after turn end and clears when the next turn input is recorded", () => {
+  const cotWork = {
+    kind: "cot_work" as const,
+    steps: [
+      { task: "이전 턴 계획", status: "completed" as const, elapsedMs: 1_000 },
+      { task: "마무리", status: "completed" as const, elapsedMs: 2_000 }
+    ],
+    totalElapsed: "00:03"
+  };
+  const current = {
+    ...createSessionUiState(),
+    agentRunning: true,
+    compactRunning: true,
+    cotWork,
+    rightSidebarItems: [{
+      group: { id: "plans", title: "작업 계획" },
+      key: "cot-work-step:0:이전 턴 계획",
+      title: "이전 턴 계획",
+      body: "00:01",
+      kind: "cot_work" as const
+    }, {
+      group: { id: "skills", title: "스킬" },
+      key: "skill:demo",
+      title: "demo",
+      kind: "skill" as const
+    }],
+    turnFlows: [{
+      id: "turn:session-1:input-1",
+      inputDataId: "input-1",
+      sessionid: "session-1",
+      title: "done",
+      status: "completed" as const,
+      collapsed: true,
+      createdAt: "2026-06-03T14:50:40.000Z",
+      updatedAt: "2026-06-03T14:50:44.000Z",
+      batches: []
+    }]
+  };
+  const turnEnd: NDXSessionEventMessage = {
+    type: NDX_SESSION_EVENT,
+    sessionid: "session-1",
+    event: NDX_TURN_EVENT.TurnEnd,
+    dataid: "turn-end:session-1:1",
+    contents: { kind: "turn_end", iteration: 1 },
+    createdat: "2026-06-03T14:50:45.699Z"
+  };
+  const nextInput: NDXSessionEventMessage = {
+    type: NDX_SESSION_EVENT,
+    sessionid: "session-1",
+    event: NDX_TURN_EVENT.InputRecorded,
+    dataid: "input-2",
+    contents: { kind: "user_message", text: "큐의 다음 요청" },
+    createdat: "2026-06-03T14:50:46.699Z"
+  };
+
+  const afterTurnEnd = applyProtocolEventToSessionUiState(current, turnEnd, text);
+  const afterNextInput = applyProtocolEventToSessionUiState(afterTurnEnd, nextInput, text);
+
+  assert.equal(afterTurnEnd.cotWork, cotWork);
+  assert.deepEqual(afterTurnEnd.rightSidebarItems.map((item) => item.kind), ["cot_work", "skill"]);
+  assert.equal(afterNextInput.cotWork, undefined);
+  assert.deepEqual(afterNextInput.rightSidebarItems.map((item) => item.kind), ["skill"]);
+  assert.equal(afterNextInput.turnFlows.at(-1)?.inputDataId, "input-2");
+});
+
 test("assistant recorded clears stale optimistic user request message", () => {
   const current = {
     ...createSessionUiState(),

@@ -27,7 +27,7 @@ export type ProtocolEventUiText = {
 type ProtocolEventUiReducer = (current: SessionUiState, message: NDXSessionEventMessage, text: ProtocolEventUiText) => SessionUiState;
 
 export const PROTOCOL_EVENT_UI_REDUCERS = {
-  [NDX_TURN_EVENT.InputRecorded]: rowMessageEvent,
+  [NDX_TURN_EVENT.InputRecorded]: turnStartedEvent,
   [NDX_TURN_EVENT.ContextReady]: runningEvent,
   [NDX_TURN_EVENT.CompactStarted]: compactStartedEvent,
   [NDX_TURN_EVENT.CompactCompleted]: compactCompletedEvent,
@@ -83,6 +83,15 @@ function runningEvent(current: SessionUiState, message: NDXSessionEventMessage, 
     ...withContextAndTurn(current, message),
     agentRunning: true,
     notice: text.operationInProgress
+  };
+}
+
+function turnStartedEvent(current: SessionUiState, message: NDXSessionEventMessage, text: ProtocolEventUiText): SessionUiState {
+  const next = rowMessageEvent(current, message, text);
+  return {
+    ...next,
+    cotWork: undefined,
+    rightSidebarItems: next.rightSidebarItems.filter((item) => !(item.group.id === "plans" && item.kind === "cot_work"))
   };
 }
 
@@ -244,7 +253,6 @@ function turnEndEvent(current: SessionUiState, message: NDXSessionEventMessage, 
     reportedContextUsage: contextUsageForUi(current, message.contextUsage),
     agentRunning: false,
     compactRunning: false,
-    cotWork: undefined,
     notice: text.requestStored,
     chatMessages: withoutPendingUserChatMessages(current.chatMessages)
   };

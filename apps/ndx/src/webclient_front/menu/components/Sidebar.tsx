@@ -37,8 +37,8 @@ export function Sidebar({ children, metadata, t, onChangeLanguage, onClose, onOp
         {children}
       </nav>
 
-      <section className="grid gap-3 border-t border-zinc-800 px-4 py-4" aria-label={t[RSC.MENU_SIDEBAR_SETTINGS_TITLE]}>
-        <button type="button" className="inline-flex h-10 items-center gap-2 rounded-md border border-zinc-800 bg-zinc-950 px-3 text-sm font-medium text-zinc-300 transition-colors hover:border-zinc-700 hover:bg-zinc-900 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950" onClick={onOpenSettings}>
+      <section className="border-t border-zinc-800 px-4 py-2" aria-label={t[RSC.MENU_SIDEBAR_SETTINGS_TITLE]}>
+        <button type="button" className="inline-flex h-8 items-center gap-2 text-sm font-medium text-zinc-400 transition-colors hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950" onClick={onOpenSettings}>
           <Settings aria-hidden="true" className="h-4 w-4" />
           {t[RSC.MENU_SIDEBAR_SETTINGS_TITLE]}
         </button>

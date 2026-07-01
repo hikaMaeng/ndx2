@@ -1,0 +1,29 @@
+{
+  "status": "passed",
+  "mode": "api",
+  "testedUrl": "http://127.0.0.1:18082",
+  "createdSessionId": "019eeb3b-990e-7afb-b0a7-ed1fcde5b567",
+  "steps": [
+    {
+      "name": "health endpoints",
+      "status": "passed"
+    },
+    {
+      "name": "metadata and projects",
+      "status": "passed"
+    },
+    {
+      "name": "session create and data restore",
+      "status": "passed"
+    },
+    {
+      "name": "session favorite upsert and delete",
+      "status": "passed"
+    },
+    {
+      "name": "selfcheck endpoints",
+      "status": "passed"
+    }
+  ],
+  "error": ""
+}

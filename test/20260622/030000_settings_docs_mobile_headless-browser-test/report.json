@@ -1,0 +1,27 @@
+{
+  "status": "passed",
+  "mode": "scenario",
+  "testedUrl": "http://127.0.0.1:18080",
+  "finalUrl": "http://127.0.0.1:18080/",
+  "screenshots": [
+    "/work/test/20260622/030000_settings_docs_mobile_headless-browser-test/screenshots/01-settings-selfcheck.png",
+    "/work/test/20260622/030000_settings_docs_mobile_headless-browser-test/screenshots/02-docs-surface.png",
+    "/work/test/20260622/030000_settings_docs_mobile_headless-browser-test/screenshots/03-mobile-menu.png"
+  ],
+  "consoleErrors": [],
+  "pageErrors": [],
+  "steps": [
+    {
+      "name": "settings selfcheck tab renders",
+      "status": "passed"
+    },
+    {
+      "name": "docs surface renders",
+      "status": "passed"
+    },
+    {
+      "name": "mobile menu renders",
+      "status": "passed"
+    }
+  ]
+}

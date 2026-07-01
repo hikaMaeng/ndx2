@@ -121,7 +121,11 @@ test("runtime arg resolution only loads the template a tool actually uses", asyn
   );
 
   assert.equal(result.success, true);
-  assert.deepEqual(JSON.parse(result.output), { names: ["demo"], paths: ["/tmp/demo/SKILL.md"] });
+  const loaded = JSON.parse(result.output) as { names?: unknown; paths?: unknown; blocks?: Array<{ name?: unknown; path?: unknown; sha256?: unknown }> };
+  assert.deepEqual(loaded.names, ["demo"]);
+  assert.deepEqual(loaded.paths, ["/tmp/demo/SKILL.md"]);
+  assert.deepEqual(loaded.blocks?.map((block) => ({ name: block.name, path: block.path })), [{ name: "demo", path: "/tmp/demo/SKILL.md" }]);
+  assert.equal(typeof loaded.blocks?.[0]?.sha256, "string");
 });
 
 test("skill list runtime arg is supplied from turn context", async () => {
@@ -683,6 +687,7 @@ test("loadSkill returns already loaded when hidden session context includes the 
   const userHome = path.join(root, "user");
   const projectHome = path.join(root, "project");
   const skillPath = await writeSkill(path.join(projectHome, ".ndx", "skills", "demo"), "demo", "demo skill", "Use the demo workflow.");
+  const skillBody = await fs.readFile(skillPath, "utf8");
   const sidebarItems: unknown[] = [];
 
   const result = await executeToolCall(
@@ -692,7 +697,7 @@ test("loadSkill returns already loaded when hidden session context includes the 
       projectHome,
       turnContext: {
         ...skillTurnContext("demo", "demo skill", skillPath),
-        history: [{ role: "assistant", content: `<skill>\n<name>demo</name>\n<path>${skillPath}</path>\n</skill>` }]
+        history: [{ role: "assistant", content: `<skill>\n<name>demo</name>\n<path>${skillPath}</path>\n${skillBody}\n</skill>` }]
       },
       agentCallHandlers: { [NDX_SIDEBAR_ITEM_AGENTCALL_NAME]: (input) => { sidebarItems.push(input); } }
     }
@@ -702,6 +707,30 @@ test("loadSkill returns already loaded when hidden session context includes the 
   assert.equal((sidebarItems[0] as { group?: { title?: string } }).group?.title, "스킬");
   assert.match(result.output, /Skill already loaded in the current session context: demo/);
   assert.doesNotMatch(result.output, /Use the demo workflow\./);
+});
+
+test("loadSkill reloads when the current skill file differs from hidden session context", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-skill-tools-"));
+  const userHome = path.join(root, "user");
+  const projectHome = path.join(root, "project");
+  const skillPath = await writeSkill(path.join(projectHome, ".ndx", "skills", "demo"), "demo", "demo skill", "Use the current workflow.");
+
+  const result = await executeToolCall(
+    { call_id: "skill_changed", name: "loadSkill", arguments: JSON.stringify({ name: "demo" }) },
+    {
+      userHome,
+      projectHome,
+      turnContext: {
+        ...skillTurnContext("demo", "demo skill", skillPath),
+        history: [{ role: "assistant", content: `<skill>\n<name>demo</name>\n<path>${skillPath}</path>\nUse the old workflow.\n</skill>` }]
+      }
+    }
+  );
+
+  assert.equal(result.success, true);
+  assert.match(result.output, /<skill>\n<name>demo<\/name>/);
+  assert.match(result.output, /Use the current workflow\./);
+  assert.doesNotMatch(result.output, /Skill already loaded/);
 });
 
 test("loadSkill corrects minor skill name differences", async () => {
@@ -817,6 +846,11 @@ test("builtin file tools read, search, edit, write, and run bash within the NDX 
   assert.equal((sidebarItems.at(-1) as { group?: { id?: string; title?: string }; subgroup?: { id?: string; title?: string }; kind?: string }).group?.id, "commands");
   assert.equal((sidebarItems.at(-1) as { group?: { id?: string; title?: string }; subgroup?: { id?: string; title?: string }; kind?: string }).subgroup?.id, "command:printf");
   assert.equal((sidebarItems.at(-1) as { group?: { id?: string; title?: string }; subgroup?: { id?: string; title?: string }; kind?: string }).subgroup?.title, "printf");
+
+  const timedBash = await executeToolCall({ name: "bash", arguments: JSON.stringify({ command: "sleep 2", workdir: ".", timeout_ms: 50 }) }, options);
+  assert.equal(timedBash.status, "timeout");
+  assert.equal(timedBash.success, false);
+  assert.ok(timedBash.durationMs < 1_500, `expected outer tool timeout to follow timeout_ms, got ${timedBash.durationMs}ms`);
 
   const aliasBash = await executeToolCall(
     { name: "bash", arguments: JSON.stringify({ command: "pwd", workdir: `workspace/${path.basename(projectHome)}` }) },

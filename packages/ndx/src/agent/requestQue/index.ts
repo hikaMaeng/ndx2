@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { NDXSessionAttachmentReference, NDXSessionModelConfig, NDXSessionRequestQueueItem } from "../../common/protocol/index.js";
+import { normalizeInternalRequestMarkers } from "../session/requestText.js";
 
 export type NDXQueuedSessionRequestAttachment = NDXSessionAttachmentReference & {
   attachmentid: string;
@@ -84,7 +85,7 @@ export class NDXSessionRequestQueueRegistry {
     const item: NDXQueuedSessionRequest = {
       itemid: randomUUID(),
       sessionid: input.sessionid,
-      text: input.text.trim(),
+      text: normalizeInternalRequestMarkers(input.text),
       attachments: queueAttachments(input.attachments),
       model: input.model,
       modelSource: input.modelSource,
@@ -113,7 +114,7 @@ export class NDXSessionRequestQueueRegistry {
   updateText(sessionid: string, itemid: string, text: string, now: string = new Date().toISOString()): NDXQueuedSessionRequest | undefined {
     const item = this.#queues.get(sessionid)?.find((queued) => queued.itemid === itemid);
     if (!item || item.claimedat) return undefined;
-    item.text = text.trim();
+    item.text = normalizeInternalRequestMarkers(text);
     item.updatedat = now;
     return item;
   }
@@ -123,7 +124,7 @@ export class NDXSessionRequestQueueRegistry {
     const item = this.#queues.get(input.sessionid)?.find((queued) => queued.itemid === input.itemid);
     if (!item || item.claimedat) return undefined;
     const keepAttachmentIds = new Set(input.keepAttachmentIds ?? []);
-    item.text = input.text.trim();
+    item.text = normalizeInternalRequestMarkers(input.text);
     item.model = input.model;
     item.modelSource = input.modelSource;
     item.modelUpdatedAt = now;

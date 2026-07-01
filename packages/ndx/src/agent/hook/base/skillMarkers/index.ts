@@ -11,6 +11,7 @@ import type { ResponseInputItem } from "ndx/common/responseapi";
 export type NDXSkillMarkerHookInsertionEvent = typeof NDX_TURN_EVENT.RequestReceived;
 
 const SKILL_MARKER_PATTERN = /\[\[NDX_SKILL_([^\]\r\n]+)\]\]/g;
+const VISIBLE_SKILL_COMMAND_PATTERN = /^[ \t]*\$([A-Za-z][A-Za-z0-9._:-]*)(?=$|[ \t])/u;
 
 type RequestedSkillMarker = {
   name: string;
@@ -90,6 +91,14 @@ function parseSkillMarkerRequestText(requestText: string): { requested: Requeste
 
     const markerMatches = [...line.matchAll(SKILL_MARKER_PATTERN)];
     if (markerMatches.length === 0) {
+      const visibleCommand = line.match(VISIBLE_SKILL_COMMAND_PATTERN);
+      if (visibleCommand?.[1]) {
+        const commandStart = visibleCommand[0].indexOf("$");
+        const commandEnd = commandStart + visibleCommand[1].length + 1;
+        const restOfLine = line.slice(commandEnd);
+        const argument = /^[ \t]+/.test(restOfLine) && restOfLine.trim().length > 0 ? restOfLine.trim() : undefined;
+        requested.push({ name: visibleCommand[1], argument });
+      }
       replaceRequestText += line + ending;
       if (ending.length === 0) {
         break;

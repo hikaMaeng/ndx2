@@ -295,12 +295,11 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
     const pending = sessionUiManagerRef.current.get(message.sessionid)?.pendingInitialRequest;
     updateSessionUi(message.sessionid, (current) => ({ ...current, pendingInitialRequest: undefined }));
     if (message.initialInputAccepted) {
-      updateSessionUi(message.sessionid, (current) => rightSidebarCleared({ ...current, agentRunning: true, cotWork: undefined }));
+      updateSessionUi(message.sessionid, (current) => rightSidebarCleared({ ...current, agentRunning: true }));
       return;
     }
     if (!pending) return;
     if (socketRef.current?.sendInput(message.sessionid, pending.text, pending.model, pending.attachments)) {
-      updateSessionUi(message.sessionid, (current) => rightSidebarCleared({ ...current, cotWork: undefined }));
       return;
     }
     finishAction("session-submit");
@@ -332,7 +331,7 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
     if (pending?.sessionid !== message.sessionid) return;
     updateSessionUi(message.sessionid, (current) => ({ ...current, pendingAttachRequest: undefined }));
     if (socketRef.current?.sendInput(message.sessionid, pending.text, pending.model, pending.attachments)) {
-      updateSessionUi(message.sessionid, (current) => rightSidebarCleared({ ...current, agentRunning: true, cotWork: undefined }));
+      updateSessionUi(message.sessionid, (current) => ({ ...current, agentRunning: true }));
       return;
     }
     finishAction("session-submit");
@@ -361,7 +360,7 @@ export function createSessionSocketHandlers(options: UseSessionSocketControllerO
     }
     pendingActionsRef.current = next;
     setPendingActions(next);
-    updateActiveUi((current) => ({ ...current, pendingInitialRequest: undefined, pendingAttachRequest: undefined, chatMessages: withoutPendingUserChatMessages(current.chatMessages), sessionError: message.error, notice: message.error }));
+    updateActiveUi((current) => ({ ...current, skillListRequested: false, pendingInitialRequest: undefined, pendingAttachRequest: undefined, chatMessages: withoutPendingUserChatMessages(current.chatMessages), sessionError: message.error, notice: message.error }));
     if (hadSessionRequest) {
       setAgentRunning(false);
     }

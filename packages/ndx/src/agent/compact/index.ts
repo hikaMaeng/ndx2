@@ -76,30 +76,10 @@ CREATE TABLE IF NOT EXISTS turncontextusage (
 );
 `);
   await database.query("CREATE UNIQUE INDEX IF NOT EXISTS turncontextusage_singleton_idx ON turncontextusage ((true));");
-  await database.query(`
-INSERT INTO turncontextusage (turncount, tokens, avgtokens)
-SELECT turncount, tokens, CASE WHEN turncount > 0 THEN CEIL(tokens::numeric / turncount)::bigint ELSE 0 END
-FROM (
-  SELECT COUNT(*)::bigint AS turncount, COALESCE(SUM(turn_tokens), 0)::bigint AS tokens
-  FROM (
-    SELECT input.dataid, COALESCE(SUM(CEIL(OCTET_LENGTH(row.contents::text)::numeric / 4)), 0)::bigint AS turn_tokens
-    FROM sessiondata input
-    LEFT JOIN LATERAL (
-      SELECT MIN(next_input.dataid) AS next_dataid
-      FROM sessiondata next_input
-      WHERE next_input.sessionid = input.sessionid
-        AND next_input.type = 'user'
-        AND next_input.dataid > input.dataid
-    ) next_user ON true
-    JOIN sessiondata row ON row.sessionid = input.sessionid
-      AND row.dataid >= input.dataid
-      AND (next_user.next_dataid IS NULL OR row.dataid < next_user.next_dataid)
-    WHERE input.type = 'user'
-    GROUP BY input.dataid
-  ) turns
-) seed
-WHERE NOT EXISTS (SELECT 1 FROM turncontextusage);
-`);
+  const result = await database.query<{ exists: number }>("SELECT 1 AS exists FROM turncontextusage LIMIT 1;");
+  if (!result.rows[0]) {
+    await rebuildTurnContextUsage(database);
+  }
 }
 
 export async function readTurnContextUsageStats(database: NDXDatabase): Promise<NDXTurnContextUsageStats> {
@@ -200,40 +180,17 @@ export async function summarizeSessionRowsForContext(
 }
 
 export async function rebuildTurnContextUsage(database: NDXDatabase): Promise<void> {
+  const stats = await calculateTurnContextUsageStats(database);
   await database.query(`
-WITH aggregate AS (
-  SELECT COUNT(*)::bigint AS turncount, COALESCE(SUM(turn_tokens), 0)::bigint AS tokens
-  FROM (
-    SELECT input.dataid, COALESCE(SUM(CEIL(OCTET_LENGTH(row.contents::text)::numeric / 4)), 0)::bigint AS turn_tokens
-    FROM sessiondata input
-    LEFT JOIN LATERAL (
-      SELECT MIN(next_input.dataid) AS next_dataid
-      FROM sessiondata next_input
-      WHERE next_input.sessionid = input.sessionid
-        AND next_input.type = 'user'
-        AND next_input.dataid > input.dataid
-    ) next_user ON true
-    JOIN sessiondata row ON row.sessionid = input.sessionid
-      AND row.dataid >= input.dataid
-      AND (next_user.next_dataid IS NULL OR row.dataid < next_user.next_dataid)
-    WHERE input.type = 'user'
-    GROUP BY input.dataid
-  ) turns
-),
-upsert AS (
+WITH upsert AS (
   UPDATE turncontextusage
-  SET
-    turncount = aggregate.turncount,
-    tokens = aggregate.tokens,
-    avgtokens = CASE WHEN aggregate.turncount > 0 THEN CEIL(aggregate.tokens::numeric / aggregate.turncount)::bigint ELSE 0 END
-  FROM aggregate
+  SET turncount = $1, tokens = $2, avgtokens = $3
   RETURNING 1
 )
 INSERT INTO turncontextusage (turncount, tokens, avgtokens)
-SELECT aggregate.turncount, aggregate.tokens, CASE WHEN aggregate.turncount > 0 THEN CEIL(aggregate.tokens::numeric / aggregate.turncount)::bigint ELSE 0 END
-FROM aggregate
+SELECT $1, $2, $3
 WHERE NOT EXISTS (SELECT 1 FROM upsert);
-`);
+`, [stats.turncount, stats.tokens, stats.avgtokens]);
 }
 
 export async function recordTurnContextUsage(database: NDXDatabase, input: NDXSessionDataRow, assistant: NDXSessionDataRow): Promise<void> {
@@ -258,6 +215,46 @@ INSERT INTO turncontextusage (turncount, tokens, avgtokens)
 SELECT 1, $1, $1
 WHERE NOT EXISTS (SELECT 1 FROM turncontextusage);
 `, [tokens]);
+}
+
+async function calculateTurnContextUsageStats(database: NDXDatabase): Promise<NDXTurnContextUsageStats> {
+  const result = await database.query<NDXSessionDataRow>(`
+SELECT dataid, sessionid, type, contents, createdat
+FROM sessiondata
+ORDER BY sessionid ASC, dataid ASC;
+`);
+  let turncount = 0;
+  let tokens = 0;
+  let currentSessionId = "";
+  let currentRows: NDXSessionDataRow[] = [];
+  for (const row of result.rows) {
+    if (row.sessionid !== currentSessionId) {
+      tokens += turnTokens(currentRows);
+      turncount += currentRows.length > 0 ? 1 : 0;
+      currentSessionId = row.sessionid;
+      currentRows = [];
+    }
+    if (row.type === "user") {
+      tokens += turnTokens(currentRows);
+      turncount += currentRows.length > 0 ? 1 : 0;
+      currentRows = [row];
+      continue;
+    }
+    if (currentRows.length > 0) {
+      currentRows.push(row);
+    }
+  }
+  tokens += turnTokens(currentRows);
+  turncount += currentRows.length > 0 ? 1 : 0;
+  return {
+    turncount,
+    tokens,
+    avgtokens: turncount > 0 ? Math.ceil(tokens / turncount) : 0
+  };
+}
+
+function turnTokens(rows: NDXSessionDataRow[]): number {
+  return rows.reduce((total, row) => total + estimateContextTokens(sessionDataText(row) ?? JSON.stringify(row.contents ?? "")), 0);
 }
 
 function findLastCompactIndex(rows: NDXSessionDataRow[]): number {

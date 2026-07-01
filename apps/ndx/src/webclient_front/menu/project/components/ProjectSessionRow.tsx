@@ -1,5 +1,6 @@
 import React from "react";
 import { Pencil, Pin, Trash2 } from "lucide-react";
+import { visibleUserRequestText } from "ndx/webclient/front";
 import type { NDXAgentWebSession, NDXWebClientProject } from "ndx/webclient/common";
 import { RSC } from "../resource";
 
@@ -36,7 +37,7 @@ export const ProjectSessionRow = React.memo(function ProjectSessionRow({
 }: ProjectSessionRowProps) {
   const rowRef = React.useRef<HTMLDivElement | null>(null);
   const [tooltipRect, setTooltipRect] = React.useState<DOMRect | null>(null);
-  const fullTitle = session.title || session.sessionid;
+  const fullTitle = visibleUserRequestText(session.title || "") || session.sessionid;
   const tooltipId = `session-title-tooltip-${session.sessionid}`;
   const showTooltip = () => {
     const rect = rowRef.current?.getBoundingClientRect();

@@ -10,8 +10,8 @@
     "build": "yarn turbo run build",
     "test": "yarn turbo run test",
     "lint": "yarn turbo run lint",
-    "deploy": "bash scripts/deploy.sh",
-    "deploy:all": "bash scripts/deploy.sh --all"
+    "deploy": "bash .ndx/skills/web-deploy-docker/scripts/deploy.sh",
+    "deploy:all": "bash .ndx/skills/web-deploy-docker/scripts/deploy.sh --all"
   },
   "devDependencies": {
     "turbo": "2.9.12",

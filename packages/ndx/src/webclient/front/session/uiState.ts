@@ -37,6 +37,7 @@ export type SessionUiState = {
   chatInput: string;
   chatAttachments: SessionAttachmentDraft[];
   availableSkills: NDXSessionSkillSummary[];
+  skillListRequested: boolean;
   agentRunning: boolean;
   compactRunning: boolean;
   selectedModel: typeof DEFAULT_MODEL;
@@ -64,6 +65,7 @@ export function createSessionUiState(): SessionUiState {
     chatInput: "",
     chatAttachments: [],
     availableSkills: [],
+    skillListRequested: false,
     agentRunning: false,
     compactRunning: false,
     selectedModel: DEFAULT_MODEL,

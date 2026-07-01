@@ -31,6 +31,14 @@
       "types": "./dist/common/server-path/index.d.ts",
       "import": "./dist/common/server-path/index.js"
     },
+    "./common/settings": {
+      "types": "./dist/common/settings/index.d.ts",
+      "import": "./dist/common/settings/index.js"
+    },
+    "./common/tokenizer": {
+      "types": "./dist/common/tokenizer/index.d.ts",
+      "import": "./dist/common/tokenizer/index.js"
+    },
     "./agent": {
       "types": "./dist/agent/index.d.ts",
       "import": "./dist/agent/index.js"
@@ -122,6 +130,7 @@
     "typescript": "5.9.3"
   },
   "dependencies": {
+    "js-tiktoken": "1.0.21",
     "pg": "8.16.3",
     "undici": "6.25.0"
   }

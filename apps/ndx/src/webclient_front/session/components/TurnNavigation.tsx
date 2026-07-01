@@ -1,4 +1,4 @@
-import type { TurnFlowState } from "ndx/webclient/front";
+import { visibleUserRequestText, type TurnFlowState } from "ndx/webclient/front";
 
 export function TurnNavigation({
   turns,
@@ -12,11 +12,11 @@ export function TurnNavigation({
   if (turns.length === 0) return null;
 
   return (
-    <nav aria-label="턴 내비게이션" className="pointer-events-none sticky left-0 top-16 z-20 h-0 w-fit md:top-4">
-      <ol className="pointer-events-auto max-h-[46vh] min-w-0 overflow-y-auto rounded-md border border-zinc-800/80 bg-zinc-950/85 px-2 py-2 shadow-lg shadow-black/30 backdrop-blur">
+    <nav aria-label="턴 내비게이션" className="pointer-events-none sticky left-0 top-16 z-20 h-0 -ml-4 w-4 md:top-4 md:-ml-8 md:w-8">
+      <ol className="pointer-events-auto max-h-[46vh] w-full min-w-0 overflow-y-auto border-r border-zinc-800/80 bg-zinc-950/85 py-2 shadow-lg shadow-black/30 backdrop-blur">
         {turns.map((turn, index) => {
           const active = turn.inputDataId === activeInputDataId;
-          const title = turn.title.replace(/\s+/gu, " ").trim() || `Turn ${index + 1}`;
+          const title = visibleUserRequestText(turn.title).replace(/\s+/gu, " ").trim() || `Turn ${index + 1}`;
           return (
             <li key={turn.id} className="min-w-0">
               <button
@@ -24,7 +24,7 @@ export function TurnNavigation({
                 aria-current={active ? "location" : undefined}
                 aria-label={`${index + 1}번째 턴으로 이동: ${title}`}
                 title={title}
-                className="group flex h-5 w-16 items-center justify-start rounded-sm px-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-100"
+                className="group flex h-5 w-full items-center justify-center rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-100"
                 onClick={() => onSelect(turn.inputDataId)}
               >
                 <span
@@ -32,8 +32,8 @@ export function TurnNavigation({
                   className={[
                     "block rounded-full transition-all duration-150",
                     active
-                      ? "h-2 w-12 bg-zinc-50 shadow-[0_0_10px_rgba(244,244,245,0.42)]"
-                      : "h-1.5 w-5 bg-zinc-600 group-hover:w-8 group-hover:bg-zinc-300",
+                      ? "h-2 w-2 bg-zinc-50 shadow-[0_0_10px_rgba(244,244,245,0.42)] md:w-4"
+                      : "h-1.5 w-1.5 bg-zinc-600 group-hover:bg-zinc-300 md:w-2 md:group-hover:w-3",
                     turn.status === "running" ? "animate-pulse" : ""
                   ].filter(Boolean).join(" ")}
                 />

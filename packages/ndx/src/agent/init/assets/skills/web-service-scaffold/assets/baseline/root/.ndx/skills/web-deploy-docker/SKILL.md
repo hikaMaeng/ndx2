@@ -1,22 +1,32 @@
 ---
 name: web-deploy-docker
-description: Explicit-only Docker deploy. Run scripts/deploy.sh directly; do not search for skills, inspect trees, or use subagents.
+description: Explicit-only Docker deploy. Run this skill's bundled scripts/deploy.sh directly; do not search for skills, inspect trees, or use subagents.
 ---
 
 # Web Deploy Docker
 
 ## Immediate Action
 
-* One service: `bash scripts/deploy.sh <service-or-app-path>`
-* All services, only when explicitly requested: `bash scripts/deploy.sh --all`
+* One service: `bash .ndx/skills/web-deploy-docker/scripts/deploy.sh <service-or-app-path>`
+* All services, only when explicitly requested: `bash .ndx/skills/web-deploy-docker/scripts/deploy.sh --all`
 
-After reading this file, the next tool call must be that deploy command when
-`scripts/deploy.sh` exists.
+After reading this file, the next tool call must be that bundled deploy command
+when `.ndx/skills/web-deploy-docker/scripts/deploy.sh` exists.
 
 Do not search for this skill, inspect `.ndx`, list files, read package files,
 read Docker/Compose files, or pre-check app structure before running the
-command. The script accepts both `dashboard` and `apps/dashboard`, performs the
+command. Do not run a project-root `scripts/deploy.sh` as the primary deploy
+entrypoint; that path is only allowed as a compatibility wrapper if present.
+The bundled script accepts both `dashboard` and `apps/dashboard`, performs the
 local build, refreshes Docker Compose when needed, and prints all evidence.
+
+## Script Guarantees
+
+The bundled script owns deploy diagnostics. It validates `docker compose config`
+before refresh, fails with `reason=compose-config` if Compose is invalid, treats
+empty ports, `invalid IP:0`, and port `0` as published-port failures, and tries
+health checks against valid Docker-host candidates instead of assuming
+`127.0.0.1` is the Docker host in socket-mounted container environments.
 
 ## Input
 
@@ -35,6 +45,9 @@ local build, refreshes Docker Compose when needed, and prints all evidence.
 * Do not run separate install, build, test, browser, `docker compose ps`, port,
   curl, or commit steps unless `deploy-report-begin` is missing or the command
   fails.
+* If the report contains `reason=compose-config`, `published-port-missing`, or
+  `published-port-invalid`, report that exact reason. Do not replace it with a
+  generic Docker daemon diagnosis.
 * Do not run a separate `yarn install` after a deploy failure only because the
   log mentions Yarn Plug'n'Play, missing cache packages, Turbo, telemetry, git
   ownership, Docker buildx, or health retries. The deploy script owns those

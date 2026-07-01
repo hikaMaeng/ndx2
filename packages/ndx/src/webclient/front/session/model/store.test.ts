@@ -15,6 +15,8 @@ import type { NDXAgentWebSession } from "ndx/webclient/common";
 import {
   applyRoutedSessionMessageToStore,
   createDraftSessionModel,
+  sessionModelToUiState,
+  sessionModelWithUiState,
   createSessionModelFromRow,
   promoteDraftModelInStore,
   type SessionModelSnapshot
@@ -79,6 +81,18 @@ test("history summary restores visible request and completed turn into the model
   assert.equal(next["session-a"]?.history.messages[0]?.id, "input-a");
   assert.equal(next["session-a"]?.history.turns[0]?.status, "completed");
   assert.equal(next["session-a"]?.history.turns[0]?.batches[0]?.collapsed, true);
+});
+
+test("session ui adapter preserves in-flight skill list request state", () => {
+  const model = createSessionModelFromRow(sessionRow("session-a", "project-a"));
+  const requested = sessionModelWithUiState(model, {
+    ...sessionModelToUiState(model),
+    skillListRequested: true,
+    availableSkills: []
+  });
+
+  assert.equal(requested.connection.skillListRequested, true);
+  assert.equal(sessionModelToUiState(requested).skillListRequested, true);
 });
 
 test("history summary synthesizes a missing visible request from the turn summary", () => {

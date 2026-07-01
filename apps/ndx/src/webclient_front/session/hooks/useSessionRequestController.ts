@@ -1,6 +1,6 @@
 import React from "react";
 import type { NDXAgentWebSession, NDXWebClientProject } from "ndx/webclient/common";
-import { createProjectSession, encodeAttachments, modelSupportsAttachmentMimeType, pendingUserChatMessage, toModelConfig, withoutPendingUserChatMessages, type SelectedModelConfig, type SessionAttachmentDraft, type SessionUiState } from "ndx/webclient/front";
+import { createProjectSession, encodeAttachments, modelSupportsAttachmentMimeType, pendingUserChatMessage, toModelConfig, visibleUserRequestText, withoutPendingUserChatMessages, type SelectedModelConfig, type SessionAttachmentDraft, type SessionUiState } from "ndx/webclient/front";
 import type { SessionSocketClient } from "../socket/sessionSocket";
 import { RSC } from "../../app/resource";
 import { rightSidebarCleared } from "../rightsidebar/state";
@@ -90,7 +90,7 @@ export function useSessionRequestController({
     event.preventDefault();
     const socket = getSocket();
     if (agentRunning && activeSession?.isrunning === false && activeSessionId) {
-      updateSessionUi(activeSessionId, (current) => ({ ...current, agentRunning: false, compactRunning: false, cotWork: undefined }));
+      updateSessionUi(activeSessionId, (current) => ({ ...current, agentRunning: false, compactRunning: false }));
     }
     if (activeSession?.isrunning === true || (agentRunning && activeSession?.isrunning !== false)) {
       const sessionid = activeSessionId;
@@ -184,13 +184,12 @@ export function useSessionRequestController({
             ]));
             return changed ? next : current;
           });
-          updateSessionUi(sessionid, (current) => rightSidebarCleared({ ...current, agentRunning: true, cotWork: undefined }));
+          updateSessionUi(sessionid, (current) => ({ ...current, agentRunning: true }));
           return;
         }
         const session = attachSessionRow ?? Object.values(sessionsByProject).flat().find((item) => item.sessionid === sessionid);
         if (getSocket()?.isOpen() && session) {
           updateSessionUi(sessionid, (current) => ({ ...current, pendingAttachRequest: { sessionid, text: requestText, model, attachments: encodedAttachments } }));
-          updateSessionUi(sessionid, rightSidebarCleared);
           if (attachSession(session)) return;
           updateSessionUi(sessionid, (current) => ({ ...current, pendingAttachRequest: undefined }));
         }
@@ -283,7 +282,8 @@ export function useSessionRequestController({
     setChatInput("");
     clearChatAttachments();
     const rawCotSolveSteps = cotSolveSteps.trim().replace(/^0+/u, "");
-    const requestText = withRewriterMarker(withCotSolveMarker(withThinkingMarker(text, selectedModel.reasoningEffort), /^\d+$/u.test(rawCotSolveSteps) ? rawCotSolveSteps : ""), rewriteEnabled);
+    const visibleRequestText = visibleUserRequestText(text);
+    const requestText = /^\d+$/u.test(rawCotSolveSteps) ? `${visibleRequestText.trimEnd()}\n$cot-solve ${rawCotSolveSteps}`.trim() : visibleRequestText;
     void (async () => {
       const encodedAttachments = await encodeAttachments(pendingAttachments);
       if (getSocket()?.addQueuedRequest(sessionid, requestText, toModelConfig(selectedModel), encodedAttachments)) {

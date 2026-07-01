@@ -209,7 +209,26 @@ export function sessionDataContentsText(contents: unknown): string | undefined {
 export function visibleUserRequestText(text: string): string {
   const requestMatch = text.match(/^<request\s+thinking="(?:none|nothink|normal|low|medium|high|minimal|allowed)">\s*<thinking_instruction>[\s\S]*?<\/thinking_instruction>\s*<user_request>\s*([\s\S]*?)\s*<\/user_request>\s*<\/request>\s*$/);
   const legacyMatch = text.match(/^<ndx_request\s+reasoning="(?:none|nothink|normal|low|medium|high|minimal|allowed)">\s*<user_request>\s*([\s\S]*?)\s*<\/user_request>\s*<execution_policy>[\s\S]*<\/execution_policy>\s*<\/ndx_request>\s*$/);
-  return requestMatch?.[1] ?? legacyMatch?.[1] ?? text;
+  return normalizeVisibleInternalRequestMarkers(requestMatch?.[1] ?? legacyMatch?.[1] ?? text);
+}
+
+function normalizeVisibleInternalRequestMarkers(text: string): string {
+  return text
+    .replace(/\[\[rewriter\]\]/giu, "")
+    .replace(/\[\[NDX_THINKING_(?:none|nothink|normal|high|low|medium|minimal|allowed)\]\]/giu, "")
+    .replace(/\[\[NDX[ _]SKILL_([^\]\r\n]+)\]\]/giu, (_match, rawName: string) => `$${decodeVisibleSkillName(rawName)}`)
+    .split(/\r\n|\n|\r/)
+    .map((line) => line.trimEnd())
+    .join("\n")
+    .trim();
+}
+
+function decodeVisibleSkillName(raw: string): string {
+  try {
+    return decodeURIComponent(raw).trim();
+  } catch {
+    return raw.trim();
+  }
 }
 
 export function sessionDataContentsAttachments(data: NDXAgentWebSessionData): ChatMessageAttachment[] {

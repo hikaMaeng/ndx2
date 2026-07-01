@@ -59,7 +59,7 @@ export type { SocketState } from "./app/socketState.js";
 export { DEFAULT_MODEL, fromModelConfig, normalizeReasoningEffort, toModelConfig } from "./model/config.js";
 export type { ProviderBundle, SelectedModelConfig } from "./model/config.js";
 export { normalizeModalities, optionalNullableNumber, optionalNumber, optionalNumberText, toggleModality } from "./model/form.js";
-export { chatMessagesFromSessionDataRows, isPendingUserChatMessage, pendingUserChatMessage, sessionDataContentsAttachments, sessionDataContentsText, sessionDataToChatMessage, sessionDataToVisibleChatMessage, withoutPendingUserChatMessages } from "./session/chat.js";
+export { chatMessagesFromSessionDataRows, isPendingUserChatMessage, pendingUserChatMessage, sessionDataContentsAttachments, sessionDataContentsText, sessionDataToChatMessage, sessionDataToVisibleChatMessage, visibleUserRequestText, withoutPendingUserChatMessages } from "./session/chat.js";
 export type { ChatMessage, ChatMessageAttachment, NDXAgentWebContextUsage } from "./session/chat.js";
 export { encodeAttachments, modelAttachmentInputAccept, modelSupportsAttachmentMimeType } from "./session/attachment.js";
 export type { EncodedAttachment } from "./session/attachment.js";

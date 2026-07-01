@@ -27,7 +27,7 @@ export function useSessionSocketCommands({
     const attachedSessionid = sessionid && attachedSessionIdsRef.current.has(sessionid) ? sessionid : undefined;
     const requested = Boolean(socketRef.current?.requestSkillList(attachedSessionid, attachedSessionid ? undefined : draftSessionProjectIdRef.current));
     if (requested) {
-      updateActiveUi((current) => ({ ...current, availableSkills: [] }));
+      updateActiveUi((current) => ({ ...current, availableSkills: [], skillListRequested: true }));
     }
     return requested;
   };

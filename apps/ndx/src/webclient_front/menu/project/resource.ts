@@ -12,7 +12,6 @@ export enum RSC {
   PROJECT_SIDEBAR_PROJECTS_EMPTY_MESSAGE = "project.sidebar.projects.empty.message",
   PROJECT_SIDEBAR_PROJECTS_SELECTED_LIST_LABEL = "project.sidebar.projects.selectedList.label",
   PROJECT_SIDEBAR_PROJECTS_TITLE_TEXT = "project.sidebar.projects.title.text",
-  PROJECT_SIDEBAR_PINNED_SESSIONS_EMPTY_MESSAGE = "project.sidebar.pinnedSessions.empty.message",
   PROJECT_SIDEBAR_PINNED_SESSIONS_LIST_LABEL = "project.sidebar.pinnedSessions.list.label",
   PROJECT_SIDEBAR_PINNED_SESSIONS_TITLE_TEXT = "project.sidebar.pinnedSessions.title.text",
   PROJECT_SIDEBAR_SESSION_DELETE_BUTTON = "project.sidebar.session.delete.button",

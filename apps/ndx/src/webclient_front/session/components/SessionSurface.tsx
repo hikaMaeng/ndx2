@@ -2,7 +2,7 @@ import React from "react";
 import { AlertTriangle, Bot, ChevronDown, Menu, X } from "lucide-react";
 import type { NDXSessionInputAttachment, NDXSessionIterationSummary, NDXSessionModelConfig } from "ndx/common/protocol";
 import type { NDXAgentWebSession, NDXWebClientProject } from "ndx/webclient/common";
-import { createSessionUiState, isPendingUserChatMessage, sessionTranscriptItems, toModelConfig, type NDXAgentWebContextUsage, type SessionAttachmentDraft, type SessionUiState, type TurnFlowState } from "ndx/webclient/front";
+import { createSessionUiState, isPendingUserChatMessage, sessionTranscriptItems, toModelConfig, visibleUserRequestText, type NDXAgentWebContextUsage, type SessionAttachmentDraft, type SessionUiState, type TurnFlowState } from "ndx/webclient/front";
 import { RSC } from "../../app/resource";
 import { CotWorkOverlay } from "../cotWork";
 import { RightSidebarRegion, type UpdateSessionUi } from "../rightsidebar";
@@ -104,7 +104,7 @@ export function SessionSurface({
   const historyMutationDisabled = Boolean(surfaceAgentRunning || surfaceCompactRunning || session?.isrunning || submitPending || interruptPending);
   const suffix = surfaceKey.replace(/[^a-z0-9_-]/giu, "-");
   const attachments = ui.chatAttachments.map(({ id, name, mimeType, size, previewUrl }: SessionAttachmentDraft) => ({ id, name, mimeType, size, previewUrl }));
-  const surfaceTitle = session ? (session.title || session.sessionid) : surfaceKey.startsWith("draft:") ? t[RSC.SESSION_PAGE_NEW_DRAFT_TITLE_TEXT] : surfaceKey;
+  const surfaceTitle = session ? (visibleUserRequestText(session.title || "") || session.sessionid) : surfaceKey.startsWith("draft:") ? t[RSC.SESSION_PAGE_NEW_DRAFT_TITLE_TEXT] : surfaceKey;
   const transcript = sessionTranscriptItems(ui.chatMessages, ui.turnFlows);
   const chatScrollRef = React.useRef<HTMLElement | null>(null);
   const turnRequestRefs = React.useRef(new Map<string, HTMLLIElement>());
@@ -312,7 +312,7 @@ export function SessionSurface({
             onUpdate={(itemid, text, model, keepAttachmentIds, attachments) => onQueuedRequestUpdate(session.sessionid, itemid, text, model, keepAttachmentIds, attachments)}
           />
         ) : null}
-        {surfaceHasChat && composerVisible ? <ChatComposer idSuffix={suffix} agentRunning={surfaceAgentRunning} compactRunning={surfaceCompactRunning} interruptPending={interruptPending} requestPending={submitPending} contextUsage={surfaceContextUsage} input={ui.chatInput} attachments={attachments} skills={ui.availableSkills} modelLabel={surfaceModelLabel} modelModalities={ui.selectedModel.modalities} notice={notice} rewriteEnabled={rewriteEnabled} rewriteToggleDisabled={!session} t={t} onInputChange={onInputChange} onAddAttachments={onAddAttachments} onAttachmentRejected={onAttachmentRejected} onRemoveAttachment={onRemoveAttachment} onModelClick={onModelClick} onRewriteToggle={onRewriteToggle} onSkillListRefresh={onSkillListRefresh} onQueueAdd={onQueueAdd} onSubmit={onSubmit} /> : null}
+        {surfaceHasChat && composerVisible ? <ChatComposer idSuffix={suffix} agentRunning={surfaceAgentRunning} compactRunning={surfaceCompactRunning} interruptPending={interruptPending} requestPending={submitPending} contextUsage={surfaceContextUsage} input={ui.chatInput} attachments={attachments} skills={ui.availableSkills} skillListRequested={ui.skillListRequested} modelLabel={surfaceModelLabel} modelModalities={ui.selectedModel.modalities} notice={notice} rewriteEnabled={rewriteEnabled} rewriteToggleDisabled={!session} t={t} onInputChange={onInputChange} onAddAttachments={onAddAttachments} onAttachmentRejected={onAttachmentRejected} onRemoveAttachment={onRemoveAttachment} onModelClick={onModelClick} onRewriteToggle={onRewriteToggle} onSkillListRefresh={onSkillListRefresh} onQueueAdd={onQueueAdd} onSubmit={onSubmit} /> : null}
       </div>
       {surfaceHasChat && rightSidebarVisible ? <RightSidebarRegion isActive={isActive} surfaceKey={surfaceKey} t={t} ui={ui} updateSessionUi={updateSessionUi} /> : null}
     </div>

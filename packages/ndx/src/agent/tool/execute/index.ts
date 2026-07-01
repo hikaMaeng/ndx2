@@ -10,7 +10,11 @@ export async function executeToolCalls(toolCalls: unknown[], options: NDXToolExe
   return Promise.all(toolCalls.map((toolCall, toolCallIndex) => {
     const name = summarizeToolName(toolCall);
     const callId = resolveToolCallId(toolCall);
-    const callOptions = { ...options, toolCallIndex };
+    const args = toolArguments(toolCall);
+    const requestedTimeoutMs = typeof args.timeout_ms === "number" && Number.isFinite(args.timeout_ms) && args.timeout_ms > 0
+      ? Math.ceil(args.timeout_ms)
+      : undefined;
+    const callOptions = { ...options, timeoutMs: options.timeoutMs ?? requestedTimeoutMs, toolCallIndex };
     if (allowedToolNames && !allowedToolNames.has(name)) {
       return failedWithoutProcess(name, callId, `Tool is not allowed in this session: ${name}`);
     }
@@ -23,12 +27,12 @@ export async function executeToolCalls(toolCalls: unknown[], options: NDXToolExe
       if (!functionTool) {
         return failedWithoutProcess(name, callId, `Function tool handler is not available: ${name}`);
       }
-      return functionTool.execute(toolArguments(toolCall), callId, callOptions).then(async (result) => {
+      return functionTool.execute(args, callId, callOptions).then(async (result) => {
         await callOptions.observer?.onToolFinished?.(result);
         return result;
       });
     }
-    return runToolProcess(tool, toolArguments(toolCall), callId, callOptions);
+    return runToolProcess(tool, args, callId, callOptions);
   }));
 }
 

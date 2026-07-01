@@ -1,8 +1,8 @@
+import { estimateTextTokens } from "ndx/common/tokenizer";
 import type { Budget } from "./types.js";
 
 const DEFAULT_SKILL_METADATA_CHAR_BUDGET = 8_000;
 const SKILL_METADATA_CONTEXT_WINDOW_PERCENT = 2;
-const APPROX_BYTES_PER_TOKEN = 4;
 
 export function defaultSkillMetadataBudget(contextsize?: number): Budget {
   return contextsize && contextsize > 0
@@ -16,6 +16,6 @@ export function lineCost(budget: Budget, line: string): number {
 
 export function textCost(budget: Budget, text: string): number {
   return budget.kind === "tokens"
-    ? Math.ceil(Buffer.byteLength(text, "utf8") / APPROX_BYTES_PER_TOKEN)
+    ? estimateTextTokens(text)
     : [...text].length;
 }

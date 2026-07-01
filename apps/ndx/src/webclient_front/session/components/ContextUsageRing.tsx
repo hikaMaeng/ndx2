@@ -1,5 +1,5 @@
 import type { NDXAgentWebContextUsage } from "ndx/webclient/front";
-import { CONTEXT_USAGE_PART_RSC } from "../resource";
+import { CONTEXT_USAGE_PART_RSC, RSC } from "../resource";
 
 export function ContextUsageRing({ usage, label, title, t }: { usage?: NDXAgentWebContextUsage; label: string; title: string; t: Record<string, string> }) {
   const radius = 8;
@@ -62,7 +62,7 @@ export function ContextUsageRing({ usage, label, title, t }: { usage?: NDXAgentW
       >
         <p className="text-xs font-medium text-zinc-100">{title}</p>
         <p className="mt-1 text-xs leading-5 text-zinc-400">
-          {formatTokens(usage?.tokens ?? 0)} / {formatTokens(usage?.contextsize ?? 0)} tokens ({clamped}%)
+          {formatTokens(usage?.tokens ?? 0)} / {formatTokens(usage?.contextsize ?? 0)} {t[RSC.SESSION_CONTEXT_USAGE_ESTIMATED_TOKENS_LABEL]} ({clamped}%)
         </p>
         <div className="mt-3 grid gap-1.5 text-xs">
           {parts.map((part) => (

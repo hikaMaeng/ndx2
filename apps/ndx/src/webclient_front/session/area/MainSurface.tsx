@@ -141,7 +141,7 @@ export function MainSurface({
   const projectApi = bridge.getProjectApi();
   const activeSession = Object.values(sessionsByProject).flat().find((session) => session.sessionid === activeSessionId);
   const applySkillList = React.useCallback((skills: SessionUiState["availableSkills"]) => {
-    updateActiveUi((current) => ({ ...current, availableSkills: skills }));
+    updateActiveUi((current) => ({ ...current, availableSkills: skills, skillListRequested: false }));
   }, [updateActiveUi]);
   const agentRunning = Boolean(activeUi?.agentRunning);
   const rewriteEnabled = activeSessionId ? Boolean(rewriteEnabledBySession[activeSessionId]) : false;

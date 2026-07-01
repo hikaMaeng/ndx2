@@ -276,10 +276,11 @@ Use the repository-local skills installed under `.codex/skills`:
 
 When the user explicitly asks to use `web-deploy-docker` with a service such as
 `apps/ndx`, do not search for the skill file or inspect repository structure
-first. Immediately run `bash scripts/deploy.sh apps/ndx` from the repository
-root. The script performs local build, Docker Compose refresh, health checks,
-and prints a `deploy-report-begin` / `deploy-report-end` block; base the final
-answer on that block.
+first. Immediately run
+`bash .codex/skills/web-deploy-docker/scripts/deploy.sh apps/ndx` from the
+repository root. The skill-bundled script performs local build, Docker Compose
+refresh, health checks, and prints a `deploy-report-begin` /
+`deploy-report-end` block; base the final answer on that block.
 
 ## Fast Scaffold Completion
 

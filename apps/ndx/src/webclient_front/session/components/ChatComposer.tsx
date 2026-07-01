@@ -15,6 +15,7 @@ export function ChatComposer({
   idSuffix,
   input,
   skills,
+  skillListRequested,
   modelLabel,
   modelModalities,
   notice,
@@ -40,6 +41,7 @@ export function ChatComposer({
   idSuffix?: string;
   input: string;
   skills: NDXSessionSkillSummary[];
+  skillListRequested: boolean;
   modelLabel: string;
   modelModalities: Array<"text" | "image" | "file">;
   notice: string;
@@ -71,6 +73,11 @@ export function ChatComposer({
     description: skill.description,
     scope: skill.scope
   }));
+  const skillStatusText = skillListRequested
+    ? t[RSC.SESSION_COMPOSER_SKILL_LIST_LOADING_STATUS]
+    : skills.length === 0
+      ? t[RSC.SESSION_COMPOSER_SKILL_LIST_EMPTY_STATUS]
+      : "";
   const statusText = interruptPending
     ? t[RSC.SESSION_COMPOSER_INTERRUPT_PENDING_STATUS]
     : notice || (requestPending ? t[RSC.SESSION_COMPOSER_REQUEST_PENDING_STATUS] : agentRunning ? t[RSC.SESSION_COMPOSER_RUNNING_STATUS] : t[RSC.SESSION_COMPOSER_IDLE_STATUS]);
@@ -190,6 +197,12 @@ export function ChatComposer({
               )}
             />
           </MentionsInput>
+          {skillStatusText ? (
+            <div className="flex items-center gap-2 text-xs text-zinc-500" role="status" aria-live="polite">
+              <span className={skillListRequested ? "h-2 w-2 shrink-0 animate-pulse rounded-full bg-cyan-300" : "h-2 w-2 shrink-0 rounded-full bg-zinc-700"} />
+              <span className="min-w-0 truncate">{skillStatusText}</span>
+            </div>
+          ) : null}
           {attachments.length > 0 ? (
             <ul className="flex flex-wrap gap-2" aria-label="첨부 파일">
               {attachments.map((attachment) => (

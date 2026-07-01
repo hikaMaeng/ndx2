@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { NDX_SESSION_EVENT, NDX_TURN_EVENT } from "ndx/common/protocol";
 import type { ChatMessage } from "./chat.js";
+import { visibleUserRequestText } from "./chat.js";
 import { chatMessageFromSessionEvent, chatMessagesFromHistorySummary, mergeRestoredChatMessages, mergeRestoredTurnFlows, mergeTurnSummary } from "./history.js";
 import type { TurnFlowState } from "./turn/index.js";
 
@@ -173,7 +174,7 @@ test("history summary restores a missing user row before the final assistant mes
   ], [{
     inputDataId: "input-1",
     sessionid: "session-1",
-    title: "[[NDX SKILL_web-deploy-docker]] apps/tetris\ntest1",
+    title: "[[NDX_SKILL_web-deploy-docker]] apps/tetris\ntest1\n[[rewriter]]",
     status: "completed",
     createdat: "2026-06-02T00:00:00.000Z",
     updatedat: "2026-06-02T00:00:02.000Z",
@@ -181,9 +182,16 @@ test("history summary restores a missing user row before the final assistant mes
   }]);
 
   assert.deepEqual(messages.map((message) => ({ id: message.id, role: message.role, text: message.text })), [
-    { id: "input-1", role: "user", text: "[[NDX SKILL_web-deploy-docker]] apps/tetris\ntest1" },
+    { id: "input-1", role: "user", text: "$web-deploy-docker apps/tetris\ntest1" },
     { id: "assistant-1", role: "assistant", text: "배포 완료입니다." }
   ]);
+});
+
+test("visible user request text normalizes internal request markers for display", () => {
+  assert.equal(
+    visibleUserRequestText("[[NDX_THINKING_low]]\n[[NDX_SKILL_web-service-scaffold]] apps/demo\n[[rewriter]]"),
+    "$web-service-scaffold apps/demo"
+  );
 });
 
 test("history restore does not erase live turn flow when a stale empty summary arrives", () => {

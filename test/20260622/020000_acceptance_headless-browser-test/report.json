@@ -1,0 +1,25 @@
+{
+  "status": "failed",
+  "mode": "scenario",
+  "testedUrl": "http://127.0.0.1:18080",
+  "finalUrl": "http://127.0.0.1:18080/",
+  "documentStatus": 200,
+  "trace": "/work/test/20260622/020000_acceptance_headless-browser-test/trace.zip",
+  "screenshots": [
+    "/work/test/20260622/020000_acceptance_headless-browser-test/screenshots/failure-2-open-home-shell.png"
+  ],
+  "consoleErrors": [],
+  "pageErrors": [],
+  "steps": [
+    {
+      "name": "health endpoints respond",
+      "status": "passed"
+    },
+    {
+      "name": "open home shell",
+      "status": "failed",
+      "error": "locator.waitFor: Error: strict mode violation: getByText('/프로젝트|projects/iu') resolved to 2 elements:\n    1) <h2 id=\"project-list-title-desktop\" class=\"text-xs font-semibold uppercase text-zinc-500\">Projects</h2> aka getByRole('heading', { name: 'Projects' })\n    2) <p class=\"rounded-md border border-dashed border-zinc-800 px-3 py-3 text-sm text-zinc-500\">No projects added</p> aka getByText('No projects added')\n\nCall log:\n  - waiting for getByText('/프로젝트|projects/iu') to be visible\n"
+    }
+  ],
+  "error": "locator.waitFor: Error: strict mode violation: getByText('/프로젝트|projects/iu') resolved to 2 elements:\n    1) <h2 id=\"project-list-title-desktop\" class=\"text-xs font-semibold uppercase text-zinc-500\">Projects</h2> aka getByRole('heading', { name: 'Projects' })\n    2) <p class=\"rounded-md border border-dashed border-zinc-800 px-3 py-3 text-sm text-zinc-500\">No projects added</p> aka getByText('No projects added')\n\nCall log:\n  - waiting for getByText('/프로젝트|projects/iu') to be visible\n"
+}

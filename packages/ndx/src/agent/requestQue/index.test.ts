@@ -33,6 +33,21 @@ test("session request queue keeps sessions isolated and projects visible items",
   assert.equal(registry.items("session-b").length, 1);
 });
 
+test("session request queue stores visible user prompts instead of internal request markers", () => {
+  const registry = createNDXSessionRequestQueueRegistry();
+  const item = registry.enqueue({
+    sessionid: "session-a",
+    text: "  [[NDX_THINKING_low]]\n[[NDX_SKILL_web-deploy-docker]] pinball\n[[NDX_SKILL_cot-solve]] 20\n[[rewriter]]  ",
+    model: textModel,
+    now: "2026-06-21T00:00:00.000Z"
+  });
+
+  assert.deepEqual(registry.items("session-a").map((queued) => queued.text), ["$web-deploy-docker pinball\n$cot-solve 20"]);
+
+  registry.updateText("session-a", item.itemid, "[[NDX_THINKING_medium]]\n[[NDX_SKILL_headless-browser-test]] 실제 동작을 검증하라", "2026-06-21T00:00:01.000Z");
+  assert.deepEqual(registry.items("session-a").map((queued) => queued.text), ["$headless-browser-test 실제 동작을 검증하라"]);
+});
+
 test("session request queue updates, deletes, and claims fifo", () => {
   const registry = createNDXSessionRequestQueueRegistry();
   const first = registry.enqueue({ sessionid: "session-a", text: "first", model: textModel, now: "2026-06-21T00:00:00.000Z" });

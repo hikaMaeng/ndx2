@@ -53,9 +53,9 @@ export function ProjectSidebar({
   const unpinSessionLabel = t[RSC.PROJECT_SIDEBAR_SESSION_UNPIN_BUTTON] || "세션 고정 해제";
   return (
     <>
-      <section aria-labelledby={pinnedListTitleId} className="grid min-w-0 gap-3">
-        <h2 id={pinnedListTitleId} className="text-xs font-semibold uppercase text-zinc-500">{t[RSC.PROJECT_SIDEBAR_PINNED_SESSIONS_TITLE_TEXT] || "고정된 세션"}</h2>
-        {pinnedSessions.length > 0 ? (
+      {pinnedSessions.length > 0 ? (
+        <section aria-labelledby={pinnedListTitleId} className="grid min-w-0 gap-3">
+          <h2 id={pinnedListTitleId} className="text-xs font-semibold uppercase text-zinc-500">{t[RSC.PROJECT_SIDEBAR_PINNED_SESSIONS_TITLE_TEXT] || "고정된 세션"}</h2>
           <ul className="grid min-w-0 gap-1" aria-label={t[RSC.PROJECT_SIDEBAR_PINNED_SESSIONS_LIST_LABEL] || "고정된 세션 목록"}>
             {pinnedSessions.map((session) => {
               const project = clientState.projects.find((item) => item.projectName === session.projectname) ?? makeLocalProject({ projectName: session.projectname, path: session.path });
@@ -64,10 +64,8 @@ export function ProjectSidebar({
               );
             })}
           </ul>
-        ) : (
-          <p className="rounded-md border border-dashed border-zinc-800 px-3 py-3 text-sm text-zinc-500">{t[RSC.PROJECT_SIDEBAR_PINNED_SESSIONS_EMPTY_MESSAGE] || "고정된 세션 없음"}</p>
-        )}
-      </section>
+        </section>
+      ) : null}
 
       <section aria-labelledby={projectListTitleId} className="grid min-w-0 gap-3">
         <div className="flex min-w-0 items-center justify-between gap-3">

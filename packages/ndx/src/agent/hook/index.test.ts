@@ -550,6 +550,55 @@ test("request received system hook preserves rest-of-line skill marker argument"
   assert.match(text, /apply this argument to the workflow/);
 });
 
+test("request received system hook treats queued visible skill commands like selected skills", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-hook-visible-skill-"));
+  const userHome = path.join(root, "user");
+  const projectHome = path.join(root, "project");
+  const skillPath = path.join(projectHome, ".ndx", "skills", "web-deploy-docker", "SKILL.md");
+  const rows: Array<{ dataid: string; sessionid: string; type: string; contents: unknown; createdat: Date }> = [];
+  await fs.mkdir(path.dirname(skillPath), { recursive: true });
+  await fs.writeFile(skillPath, "---\nname: web-deploy-docker\ndescription: deploy app\n---\nUse deploy workflow.\n", "utf8");
+
+  const database: NDXDatabase = {
+    async query(text, values) {
+      if (/SELECT dataid, sessionid, type, contents, createdat\s+FROM sessiondata/i.test(text)) {
+        return { rows, rowCount: rows.length, command: "", oid: 0, fields: [] } as never;
+      }
+      if (/INSERT INTO sessiondata/i.test(text)) {
+        const row = {
+          dataid: String(rows.length + 1),
+          sessionid: String(values?.[0]),
+          type: String(values?.[1]),
+          contents: JSON.parse(String(values?.[2])),
+          createdat: new Date(0)
+        };
+        rows.push(row);
+        return { rows: [row], rowCount: 1, command: "", oid: 0, fields: [] } as never;
+      }
+      return { rows: [], rowCount: 0, command: "", oid: 0, fields: [] } as never;
+    },
+    async close() {}
+  };
+
+  const result = await runNDXHooks(createNDXHookRuntime({ [NDX_TURN_EVENT.RequestReceived]: turnRequestReceivedHooks }, {}), NDX_TURN_EVENT.RequestReceived, {
+    ...baseContext,
+    database,
+    userHome,
+    projectHome,
+    messages: [
+      { role: "system", content: `## Skills\n### Available skills\n- web-deploy-docker: deploy app (file: ${skillPath})` },
+      { role: "user", content: "hello" }
+    ],
+    requestText: "$web-deploy-docker pinball\n실제 배포해"
+  });
+
+  assert.equal(result.effect.replaceRequestText, "$web-deploy-docker pinball\n실제 배포해");
+  assert.equal(rows.length, 1);
+  const text = String((rows[0].contents as { text?: unknown }).text ?? "");
+  assert.match(text, /explicitly selected `\$web-deploy-docker pinball`/);
+  assert.match(text, /selected skill argument is `pinball`/);
+});
+
 test("request received system hook strips thinking marker from the current user request", async () => {
   const result = await runNDXHooks(createNDXHookRuntime({ [NDX_TURN_EVENT.RequestReceived]: turnRequestReceivedHooks }, {}), NDX_TURN_EVENT.RequestReceived, {
     ...baseContext,
@@ -658,7 +707,8 @@ test("request received system hook appends a selected instruction when the skill
     async close() {}
   };
 
-  const loadedSkill = `<skill>\n<name>demo</name>\n<path>${skillPath}</path>\nUse demo workflow.\n</skill>`;
+  const skillBody = await fs.readFile(skillPath, "utf8");
+  const loadedSkill = `<skill>\n<name>demo</name>\n<path>${skillPath}</path>\n${skillBody}\n</skill>`;
   const result = await runNDXHooks(createNDXHookRuntime({ [NDX_TURN_EVENT.RequestReceived]: turnRequestReceivedHooks }, {}), NDX_TURN_EVENT.RequestReceived, {
     ...baseContext,
     database,
@@ -683,6 +733,54 @@ test("request received system hook appends a selected instruction when the skill
   assert.match(text, /The full <skill> block for this skill is already present earlier/);
   assert.doesNotMatch(text, /Use demo workflow\./);
   assert.doesNotMatch(text, /<skill>\n<name>demo<\/name>/);
+});
+
+test("request received system hook reloads selected skill when prior model context is stale", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-hook-skill-stale-"));
+  const userHome = path.join(root, "user");
+  const projectHome = path.join(root, "project");
+  const skillPath = path.join(projectHome, ".ndx", "skills", "demo", "SKILL.md");
+  const rows: Array<{ dataid: string; sessionid: string; type: string; contents: unknown; createdat: Date }> = [];
+  await fs.mkdir(path.dirname(skillPath), { recursive: true });
+  await fs.writeFile(skillPath, "---\nname: demo\ndescription: demo skill\n---\nUse current workflow.\n", "utf8");
+
+  const database: NDXDatabase = {
+    async query(text, values) {
+      if (/INSERT INTO sessiondata/i.test(text)) {
+        const row = {
+          dataid: String(rows.length + 1),
+          sessionid: String(values?.[0]),
+          type: String(values?.[1]),
+          contents: JSON.parse(String(values?.[2])),
+          createdat: new Date(0)
+        };
+        rows.push(row);
+        return { rows: [row], rowCount: 1, command: "", oid: 0, fields: [] } as never;
+      }
+      return { rows: [], rowCount: 0, command: "", oid: 0, fields: [] } as never;
+    },
+    async close() {}
+  };
+
+  const result = await runNDXHooks(createNDXHookRuntime({ [NDX_TURN_EVENT.RequestReceived]: turnRequestReceivedHooks }, {}), NDX_TURN_EVENT.RequestReceived, {
+    ...baseContext,
+    database,
+    userHome,
+    projectHome,
+    messages: [
+      { role: "system", content: `## Skills\n### Available skills\n- demo: demo skill (file: ${skillPath})` },
+      { role: "user", content: "hello" },
+      { role: "user", content: `<skill>\n<name>demo</name>\n<path>${skillPath}</path>\nUse old workflow.\n</skill>` }
+    ],
+    requestText: "[[NDX_SKILL_demo]] 다시 써줘"
+  });
+
+  assert.equal(result.effect.replaceRequestText, "$demo 다시 써줘");
+  assert.equal(rows.length, 1);
+  const text = String((rows[0].contents as { text?: unknown }).text ?? "");
+  assert.match(text, /<skill>\n<name>demo<\/name>/);
+  assert.match(text, /Use current workflow\./);
+  assert.doesNotMatch(text, /The full <skill> block for this skill is already present earlier/);
 });
 
 test("request received system hook appends a corrected skill only once per request", async () => {
