@@ -49,8 +49,8 @@ is not a PostgreSQL setting and does not change where container code reads or
 writes files. The server uses it to:
 
 * publish `hostRoot` and `hostWorkspaceRoot` through web metadata;
-* convert `/ndx/workspace/...` paths back to host paths for VS Code open
-  requests;
+* publish enough workspace mapping for the web client to convert
+  `/ndx/workspace/...` paths into `vscode://file/...` host links;
 * accept Windows paths such as `F:/dev/ndx2/volume/workspace/...` and WSL paths
   such as `/mnt/f/dev/ndx2/volume/workspace/...` as the same workspace;
 * reject Windows paths outside the configured runtime volume before project

@@ -12,3 +12,7 @@ export function projectNameForVSCode(path: string, workspace?: NDXAgentWebMetada
   }
   return normalizedPath;
 }
+
+export function vscodeFileUriForPath(path: string, workspace?: NDXAgentWebMetadataResponse["workspace"]) {
+  return `vscode://file/${projectNameForVSCode(path, workspace).replace(/\\/g, "/").split("/").map((part) => /^[A-Za-z]:$/.test(part) ? part : encodeURIComponent(part)).join("/")}`;
+}

@@ -1,6 +1,6 @@
 import React from "react";
 import type { NDXAgentWebMetadataResponse, NDXAgentWebPinnedSession, NDXAgentWebSession, NDXWebClientProject, NDXWebClientStateDocument } from "ndx/webclient/common";
-import { deleteWebProject, getProjectMenuModel, listPinnedSessions, listProjectSessions, listWebProjects, openWebProjectInVSCode, createWebProject, pinSession, unpinSession } from "ndx/webclient/front";
+import { deleteWebProject, getProjectMenuModel, listPinnedSessions, listProjectSessions, listWebProjects, vscodeFileUriForPath, createWebProject, pinSession, unpinSession } from "ndx/webclient/front";
 import { ProjectWarningDialog } from "../modals/ProjectWarningDialog";
 import type { NDXSessionDeletedMessage, NDXSessionListChangedMessage } from "../socket/projectSocket";
 import { RSC } from "../../../app/resource";
@@ -56,10 +56,10 @@ export function useProjectController({
   const pinnedSessions = useModel(model.pinnedSessions).value;
   const sessionsByProject = useModel(model.sessionsByProject).value;
   const expandedProjectSessionIds = useModel(model.expandedProjectSessionIds).value;
-  const setProjectWarning = (update: React.SetStateAction<string>) => model.projectWarning.set(update);
-  const setProjectWarningTitle = (update: React.SetStateAction<string>) => model.projectWarningTitle.set(update);
-  const setPinnedSessions = (update: React.SetStateAction<NDXAgentWebPinnedSession[]>) => model.pinnedSessions.set(update);
-  const setSessionsByProject = (update: React.SetStateAction<Record<string, NDXAgentWebSession[]>>) => model.sessionsByProject.set(update);
+  const setProjectWarning = React.useCallback((update: React.SetStateAction<string>) => model.projectWarning.set(update), [model]);
+  const setProjectWarningTitle = React.useCallback((update: React.SetStateAction<string>) => model.projectWarningTitle.set(update), [model]);
+  const setPinnedSessions = React.useCallback((update: React.SetStateAction<NDXAgentWebPinnedSession[]>) => model.pinnedSessions.set(update), [model]);
+  const setSessionsByProject = React.useCallback((update: React.SetStateAction<Record<string, NDXAgentWebSession[]>>) => model.sessionsByProject.set(update), [model]);
 
   React.useEffect(() => {
     void refreshProjectSessions(clientState.projects, setSessionsByProject);
@@ -170,13 +170,7 @@ export function useProjectController({
   };
 
   const openProjectInVSCode = (project: NDXWebClientProject) => {
-    const actionKey = `project-vscode:${project.projectName}`;
-    if (!startAction(actionKey)) return;
-    void openWebProjectInVSCode(project.projectName)
-      .catch((error) => {
-        setNotice(error instanceof Error && error.message ? error.message : t[RSC.APP_STATUS_STATE_UNAVAILABLE_ALERT]);
-      })
-      .finally(() => finishAction(actionKey));
+    window.location.assign(vscodeFileUriForPath(project.path, metadata.workspace));
   };
 
   const openProjectPicker = () => {

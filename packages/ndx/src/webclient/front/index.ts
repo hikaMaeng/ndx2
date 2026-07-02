@@ -124,7 +124,7 @@ export type {
 export { sessionAttachMessage, sessionBranchCreateMessage, sessionClientResponseMessage, sessionCreateMessage, sessionHistorySummaryMessage, sessionInputMessage, sessionInterruptMessage, sessionIterationDetailMessage, sessionProjectConfigureMessage, sessionRequestQueueAddMessage, sessionRequestQueueDeleteMessage, sessionRequestQueueUpdateMessage, sessionSkillListMessage, sessionSocketUrl, sessionTurnDeleteMessage, sessionTurnDetailMessage, stateAfterSessionReady } from "./session/socketProtocol.js";
 export { applyTurnEvent, eventContentText, toolCallIdFromCall, toolNameFromCall, toolProgressText } from "./session/turn/index.js";
 export type { TurnBatchState, TurnEventMessage, TurnFlowState, TurnToolState } from "./session/turn/index.js";
-export { projectNameForVSCode } from "./project/path.js";
+export { projectNameForVSCode, vscodeFileUriForPath } from "./project/path.js";
 export { applyProjectSocketMessage, handleProjectSocketMessage, projectSessionDeleteMessage, projectSessionRenameMessage } from "./project/socketProtocol.js";
 export type { NDXSessionDeletedMessage, NDXSessionListChangedMessage, NDXSessionRenamedMessage, ProjectSessionSocketInput, ProjectSocketHandlers, ProjectSocketMessage } from "./project/socketProtocol.js";
 export { cacheClientState, readCachedState, readOrCreateClientId } from "./storage/clientStateCache.js";

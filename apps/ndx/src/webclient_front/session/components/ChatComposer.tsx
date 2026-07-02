@@ -16,10 +16,8 @@ export function ChatComposer({
   idSuffix,
   input,
   skills,
-  skillListRequested,
   modelLabel,
   modelModalities,
-  notice,
   rewriteEnabled,
   rewriteToggleDisabled,
   attachments,
@@ -42,10 +40,8 @@ export function ChatComposer({
   idSuffix?: string;
   input: string;
   skills: NDXSessionSkillSummary[];
-  skillListRequested: boolean;
   modelLabel: string;
   modelModalities: Array<"text" | "image" | "file">;
-  notice: string;
   rewriteEnabled: boolean;
   rewriteToggleDisabled: boolean;
   attachments: Array<{ id: string; name: string; size: number; mimeType: string; previewUrl?: string }>;
@@ -74,14 +70,6 @@ export function ChatComposer({
     description: skill.description,
     scope: skill.scope
   }));
-  const skillStatusText = skillListRequested
-    ? t[RSC.SESSION_COMPOSER_SKILL_LIST_LOADING_STATUS]
-    : skills.length === 0
-      ? t[RSC.SESSION_COMPOSER_SKILL_LIST_EMPTY_STATUS]
-      : "";
-  const statusText = interruptPending
-    ? t[RSC.SESSION_COMPOSER_INTERRUPT_PENDING_STATUS]
-    : notice || (requestPending ? t[RSC.SESSION_COMPOSER_REQUEST_PENDING_STATUS] : agentRunning ? t[RSC.SESSION_COMPOSER_RUNNING_STATUS] : t[RSC.SESSION_COMPOSER_IDLE_STATUS]);
   const supportsImageAttachments = modelModalities.includes("image");
   const supportsFileAttachments = modelModalities.includes("file");
   const supportsAttachments = supportsImageAttachments || supportsFileAttachments;
@@ -198,12 +186,6 @@ export function ChatComposer({
               )}
             />
           </MentionsInput>
-          {skillStatusText ? (
-            <div className="flex items-center gap-2 text-xs text-zinc-500" role="status" aria-live="polite">
-              <span className={skillListRequested ? "h-2 w-2 shrink-0 animate-pulse rounded-full bg-cyan-300" : "h-2 w-2 shrink-0 rounded-full bg-zinc-700"} />
-              <span className="min-w-0 truncate">{skillStatusText}</span>
-            </div>
-          ) : null}
           {attachments.length > 0 ? (
             <ul className="flex flex-wrap gap-2" aria-label="첨부 파일">
               {attachments.map((attachment) => (
@@ -232,12 +214,10 @@ export function ChatComposer({
             </ul>
           ) : null}
           <div className="flex min-h-8 min-w-0 items-center gap-2 overflow-hidden text-xs text-zinc-500">
-            <span role="status" className="min-w-0 flex-1 truncate">
-              {statusText}
-            </span>
+            <ContextUsageRing usage={contextUsage} label={t[RSC.SESSION_CONTEXT_USAGE_LABEL]} title={t[RSC.SESSION_CONTEXT_USAGE_POPOVER_TITLE_TEXT]} t={t} />
             <Button
               type="button"
-              className={rewriteEnabled ? "inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-cyan-400/60 bg-cyan-400 px-3 text-xs font-medium text-zinc-950 shadow-sm transition-colors hover:bg-cyan-300 disabled:pointer-events-none disabled:opacity-45" : "inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-zinc-800 bg-zinc-950 px-3 text-xs font-medium text-zinc-400 transition-colors hover:border-zinc-700 hover:bg-zinc-900 hover:text-zinc-100 disabled:pointer-events-none disabled:opacity-45"}
+              className={rewriteEnabled ? "ml-auto inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-cyan-400/60 bg-cyan-400 px-3 text-xs font-medium text-zinc-950 shadow-sm transition-colors hover:bg-cyan-300 disabled:pointer-events-none disabled:opacity-45" : "ml-auto inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-zinc-800 bg-zinc-950 px-3 text-xs font-medium text-zinc-400 transition-colors hover:border-zinc-700 hover:bg-zinc-900 hover:text-zinc-100 disabled:pointer-events-none disabled:opacity-45"}
               aria-label={rewriteEnabled ? t[RSC.SESSION_COMPOSER_REWRITE_OFF_BUTTON] : t[RSC.SESSION_COMPOSER_REWRITE_ON_BUTTON]}
               aria-pressed={rewriteEnabled}
               disabled={compactRunning || rewriteToggleDisabled}
@@ -297,11 +277,10 @@ export function ChatComposer({
             >
               <Paperclip aria-hidden="true" className="h-4 w-4" />
             </label>
-            <Button type="button" className="inline-flex h-7 min-w-24 items-center justify-center gap-1 rounded-md px-2 text-zinc-300 hover:bg-zinc-900 disabled:pointer-events-none disabled:opacity-50" aria-label={t[RSC.SESSION_COMPOSER_MODEL_CHOOSE_BUTTON]} aria-haspopup="dialog" disabled={requestPending || compactRunning} onClick={onModelClick}>
+            <Button type="button" className="inline-flex h-7 min-w-0 max-w-[min(24rem,40vw)] items-center justify-center gap-1 rounded-md px-2 text-zinc-300 hover:bg-zinc-900 disabled:pointer-events-none disabled:opacity-50" aria-label={t[RSC.SESSION_COMPOSER_MODEL_CHOOSE_BUTTON]} aria-haspopup="dialog" disabled={requestPending || compactRunning} onClick={onModelClick}>
               <span className="min-w-0 truncate">{modelLabel}</span>
               <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" />
             </Button>
-            <ContextUsageRing usage={contextUsage} label={t[RSC.SESSION_CONTEXT_USAGE_LABEL]} title={t[RSC.SESSION_CONTEXT_USAGE_POPOVER_TITLE_TEXT]} t={t} />
             <div className="flex shrink-0 items-center gap-1">
               {queueAddVisible ? (
                 <Button

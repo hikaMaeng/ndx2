@@ -4,6 +4,7 @@ import type { NDXSessionInputAttachment, NDXSessionIterationSummary, NDXSessionM
 import type { NDXAgentWebSession, NDXWebClientProject } from "ndx/webclient/common";
 import { createSessionUiState, isPendingUserChatMessage, sessionTranscriptItems, toModelConfig, visibleUserRequestText, type NDXAgentWebContextUsage, type SessionAttachmentDraft, type SessionUiState, type TurnFlowState } from "ndx/webclient/front";
 import { RSC } from "../../app/resource";
+import { RSC as SESSION_RSC } from "../resource";
 import { CotWorkOverlay } from "../cotWork";
 import { RightSidebarRegion, type UpdateSessionUi } from "../rightsidebar";
 import { AssistantChatMessage } from "./AssistantChatMessage";
@@ -107,6 +108,13 @@ export function SessionSurface({
   const attachments = ui.chatAttachments.map(({ id, name, mimeType, size, previewUrl }: SessionAttachmentDraft) => ({ id, name, mimeType, size, previewUrl }));
   const surfaceTitle = session ? (visibleUserRequestText(session.title || "") || session.sessionid) : surfaceKey.startsWith("draft:") ? t[RSC.SESSION_PAGE_NEW_DRAFT_TITLE_TEXT] : surfaceKey;
   const transcript = sessionTranscriptItems(ui.chatMessages, ui.turnFlows);
+  const activityStatusText = ui.skillListRequested
+    ? t[SESSION_RSC.SESSION_COMPOSER_SKILL_LIST_LOADING_STATUS]
+    : rewriteEnabled && submitPending
+      ? t[SESSION_RSC.SESSION_COMPOSER_REWRITE_PENDING_STATUS]
+      : interruptPending
+        ? t[SESSION_RSC.SESSION_COMPOSER_INTERRUPT_PENDING_STATUS]
+        : notice || (submitPending ? t[SESSION_RSC.SESSION_COMPOSER_REQUEST_PENDING_STATUS] : surfaceAgentRunning ? t[SESSION_RSC.SESSION_COMPOSER_RUNNING_STATUS] : "");
   const chatScrollRef = React.useRef<HTMLElement | null>(null);
   const turnRequestRefs = React.useRef(new Map<string, HTMLLIElement>());
   const [visibleTurnInputDataId, setVisibleTurnInputDataId] = React.useState<string | undefined>(ui.turnFlows[0]?.inputDataId);
@@ -181,7 +189,7 @@ export function SessionSurface({
           }} /> : null}
           {surfaceHasChat ? <div className="pointer-events-none sticky right-0 top-0 z-10 ml-auto w-fit rounded-sm bg-zinc-950/80 px-1.5 py-0.5 text-[10px] text-zinc-500">{ui.autoScrollEnabled ? "autoscroll" : "manual scroll"}</div> : null}
           {surfaceHasChat ? (
-            <section className="mx-auto flex min-h-full w-full max-w-4xl min-w-0 flex-col justify-end gap-5 overflow-hidden" aria-labelledby={`session-page-title-${suffix}`}>
+            <section className="mx-auto flex min-h-full w-full max-w-4xl min-w-0 flex-col justify-end gap-5" aria-labelledby={`session-page-title-${suffix}`}>
               <div className="grid min-w-0 gap-1 text-center">
                 <h1 id={`session-page-title-${suffix}`} className="mx-auto w-full min-w-0 truncate text-base font-semibold leading-6 text-zinc-50" title={surfaceTitle}>{surfaceTitle}</h1>
                 <p className="text-xs text-zinc-500">{project?.name ?? t[RSC.SESSION_PAGE_PROJECT_FALLBACK_LABEL]}</p>
@@ -207,7 +215,7 @@ export function SessionSurface({
                       data-turn-user-input-id={message.role === "user" && turnInputDataIds.has(message.id) ? message.id : undefined}
                       className={message.role === "user" ? "ndx-wrap-anywhere max-w-[85%] min-w-0 scroll-mt-20 overflow-hidden justify-self-end rounded-lg bg-zinc-100 px-4 py-3 text-sm leading-6 text-zinc-950" : "ndx-wrap-anywhere max-w-[92%] min-w-0 overflow-hidden justify-self-start rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm leading-6 text-zinc-300"}
                     >
-                      {message.role === "assistant" ? <AssistantChatMessage text={message.text} copyEnabled={!message.id.startsWith("pending-") && !message.id.startsWith("stream:") && message.text.trim().length > 0} /> : <UserChatMessage text={message.text} attachments={message.attachments} pending={isPendingUserChatMessage(message)} pendingLabel={rewriteEnabled && submitPending ? t[RSC.SESSION_COMPOSER_REWRITE_PENDING_STATUS] || "프롬프트 재작성 중..." : undefined} actionsDisabled={userHistoryActionsDisabled} onBranch={session && !isPendingUserChatMessage(message) && !message.historyActionsDisabled ? () => onUserMessageBranch(session.sessionid, message.id) : undefined} onDelete={session && !isPendingUserChatMessage(message) && !message.historyActionsDisabled ? () => onUserMessageDelete(session.sessionid, message.id) : undefined} />}
+                      {message.role === "assistant" ? <AssistantChatMessage text={message.text} copyEnabled={!message.id.startsWith("pending-") && !message.id.startsWith("stream:") && message.text.trim().length > 0} /> : <UserChatMessage text={message.text} attachments={message.attachments} pending={isPendingUserChatMessage(message)} actionsDisabled={userHistoryActionsDisabled} onBranch={session && !isPendingUserChatMessage(message) && !message.historyActionsDisabled ? () => onUserMessageBranch(session.sessionid, message.id) : undefined} onDelete={session && !isPendingUserChatMessage(message) && !message.historyActionsDisabled ? () => onUserMessageDelete(session.sessionid, message.id) : undefined} />}
                     </li>
                   );
                 })}
@@ -291,6 +299,11 @@ export function SessionSurface({
                   })}
                 </section>
               ) : null}
+              {activityStatusText ? (
+                <div className="pointer-events-none sticky bottom-0 z-20 -mb-2 flex h-7 min-w-0 items-center border-t border-zinc-800/70 bg-zinc-950/95 text-xs text-zinc-500 backdrop-blur" role="status" aria-live="polite">
+                  <span className="min-w-0 truncate">{activityStatusText}</span>
+                </div>
+              ) : null}
             </section>
           ) : null}
         </main>
@@ -313,7 +326,7 @@ export function SessionSurface({
             onUpdate={(itemid, text, model, keepAttachmentIds, attachments) => onQueuedRequestUpdate(session.sessionid, itemid, text, model, keepAttachmentIds, attachments)}
           />
         ) : null}
-        {surfaceHasChat && composerVisible ? <ChatComposer idSuffix={suffix} agentRunning={surfaceAgentRunning} compactRunning={surfaceCompactRunning} interruptPending={interruptPending} requestPending={submitPending} contextUsage={surfaceContextUsage} input={ui.chatInput} attachments={attachments} skills={ui.availableSkills} skillListRequested={ui.skillListRequested} modelLabel={surfaceModelLabel} modelModalities={ui.selectedModel.modalities} notice={notice} rewriteEnabled={rewriteEnabled} rewriteToggleDisabled={!session} t={t} onInputChange={onInputChange} onAddAttachments={onAddAttachments} onAttachmentRejected={onAttachmentRejected} onRemoveAttachment={onRemoveAttachment} onModelClick={onModelClick} onRewriteToggle={onRewriteToggle} onSkillListRefresh={onSkillListRefresh} onQueueAdd={onQueueAdd} onSubmit={onSubmit} /> : null}
+        {surfaceHasChat && composerVisible ? <ChatComposer idSuffix={suffix} agentRunning={surfaceAgentRunning} compactRunning={surfaceCompactRunning} interruptPending={interruptPending} requestPending={submitPending} contextUsage={surfaceContextUsage} input={ui.chatInput} attachments={attachments} skills={ui.availableSkills} modelLabel={surfaceModelLabel} modelModalities={ui.selectedModel.modalities} rewriteEnabled={rewriteEnabled} rewriteToggleDisabled={!session} t={t} onInputChange={onInputChange} onAddAttachments={onAddAttachments} onAttachmentRejected={onAttachmentRejected} onRemoveAttachment={onRemoveAttachment} onModelClick={onModelClick} onRewriteToggle={onRewriteToggle} onSkillListRefresh={onSkillListRefresh} onQueueAdd={onQueueAdd} onSubmit={onSubmit} /> : null}
       </div>
       {surfaceHasChat && rightSidebarVisible ? <RightSidebarRegion isActive={isActive} surfaceKey={surfaceKey} t={t} ui={ui} updateSessionUi={updateSessionUi} /> : null}
     </div>

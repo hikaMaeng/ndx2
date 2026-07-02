@@ -7,7 +7,7 @@
   "schema": {
     "type": "function",
     "name": "edit_lines",
-    "description": "Replaces a 1-based inclusive line range in a file under the NDX virtual root. Use this for multi-line code edits when line numbers are known from read_file or grep_search.",
+    "description": "Replaces a 1-based inclusive line range in an existing file under the NDX virtual root. Use this for multi-line code edits only after confirming current line numbers from read_file or grep_search. This tool does not create missing files; use write_file first when the target file does not exist.",
     "parameters": {
       "type": "object",
       "properties": {

@@ -8,7 +8,7 @@ export function UserChatMessage({
   text,
   attachments,
   pending = false,
-  pendingLabel = "요청 처리 중...",
+  pendingLabel = "",
   actionsDisabled = false,
   onBranch,
   onDelete
@@ -48,7 +48,7 @@ export function UserChatMessage({
     <>
       <div className="grid gap-3" data-testid="user-chat-message">
         <div className="min-w-0">
-          {pending ? (
+          {pending && pendingLabel ? (
             <div className="mb-2 flex items-center gap-2 text-xs font-medium text-zinc-600">
               <LoaderCircle aria-label={pendingLabel} className="h-3.5 w-3.5 animate-spin" />
               <span>{pendingLabel}</span>

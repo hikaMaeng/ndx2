@@ -59,7 +59,7 @@ export function ContextUsageRing({ usage, label, title, t }: { usage?: NDXAgentW
       <div
         id="context-usage-popover"
         role="status"
-        className="pointer-events-none absolute bottom-8 right-0 hidden w-80 rounded-md border border-zinc-800 bg-zinc-950 p-3 text-left shadow-xl group-hover:block group-focus-within:block"
+        className="pointer-events-none absolute bottom-8 left-0 hidden w-80 rounded-md border border-zinc-800 bg-zinc-950 p-3 text-left shadow-xl group-hover:block group-focus-within:block"
       >
         <p className="text-xs font-medium text-zinc-100">{title}</p>
         <p className="mt-1 text-xs leading-5 text-zinc-400">

@@ -147,7 +147,7 @@ The matching agent environment variables are:
 
 `NDX_ROOT` is the container-side root used by the server, tools, PostgreSQL, and
 workspace browsing. `NDX_HOST_ROOT` is the host-side name for the same directory;
-it is used for metadata, VS Code open requests, and Windows/WSL path validation.
+it is used for metadata, browser-side VS Code links, and Windows/WSL path validation.
 It is not a database location setting.
 
 When bootstrapping a fresh Windows-backed PostgreSQL directory, run Compose from
