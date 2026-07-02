@@ -16,6 +16,7 @@ export function ChatComposer({
   idSuffix,
   input,
   skills,
+  skillListRequested,
   modelLabel,
   modelModalities,
   rewriteEnabled,
@@ -40,6 +41,7 @@ export function ChatComposer({
   idSuffix?: string;
   input: string;
   skills: NDXSessionSkillSummary[];
+  skillListRequested: boolean;
   modelLabel: string;
   modelModalities: Array<"text" | "image" | "file">;
   rewriteEnabled: boolean;
@@ -168,12 +170,8 @@ export function ChatComposer({
           >
             <Mention
               trigger="$"
-              data={(query) => {
-                const normalizedQuery = query.toLocaleLowerCase();
-                return normalizedQuery
-                  ? skillSuggestions.filter((skill) => skill.display.toLocaleLowerCase().includes(normalizedQuery))
-                  : skillSuggestions;
-              }}
+              isLoading={skillListRequested && skillSuggestions.length === 0}
+              data={skillSuggestions}
               markup="[[NDX_SKILL___id__]]"
               displayTransform={(_id, display) => `$${display ?? ""}`}
               className="inline rounded-sm bg-cyan-500/20 !text-cyan-100 ring-1 ring-inset ring-cyan-400/35"
