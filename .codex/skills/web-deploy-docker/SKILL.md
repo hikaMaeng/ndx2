@@ -58,8 +58,9 @@ health checks against valid Docker-host candidates instead of assuming
 ## Output
 
 The script prints a `deploy-report-begin` / `deploy-report-end` block. Final
-answer must copy that block's `결과`, `시간`, `검증`, and `변경` lines, with only
-minimal Korean wording around them. Do not end with generic follow-up
+answer must copy the four summary lines from that block: result, elapsed time,
+verification, and changed files. Use only minimal Korean wording around them.
+Do not end with generic follow-up
 suggestions. If the deploy command fails, report `deploy-total status=failed`
 and the last relevant failure block. If a failed command still printed a deploy
 report block, do not infer or attempt another recovery step unless the user
