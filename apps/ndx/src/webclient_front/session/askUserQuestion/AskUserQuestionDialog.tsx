@@ -32,9 +32,9 @@ export function AskUserQuestionDialog({
       <section role="dialog" aria-modal="true" className="grid max-h-[88dvh] w-full max-w-2xl grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 shadow-xl" aria-labelledby="ask-user-question-dialog-title">
         <div className="flex items-center justify-between gap-3 border-b border-zinc-800 px-4 py-3">
           <h2 id="ask-user-question-dialog-title" className="min-w-0 truncate text-sm font-semibold text-zinc-100">{title}</h2>
-          <Button type="button" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950" aria-label={text(t, RSC.SESSION_ASK_USER_QUESTION_CLOSE_BUTTON)} onClick={onCancel}>
+          <button type="button" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950" aria-label={text(t, RSC.SESSION_ASK_USER_QUESTION_CLOSE_BUTTON)} onClick={onCancel}>
             <X aria-hidden="true" className="h-4 w-4" />
-          </Button>
+          </button>
         </div>
         <form className="grid min-h-0 grid-rows-[minmax(0,1fr)_auto]" onSubmit={(event) => { event.preventDefault(); onSubmit(); }} onPaste={(event) => {
           const activeQuestionId = (event.target as HTMLElement | null)?.closest("[data-question-id]")?.getAttribute("data-question-id");
