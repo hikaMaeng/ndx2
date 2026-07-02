@@ -143,15 +143,27 @@ dependency_fingerprint() {
 install_marker=".yarn/deploy-install.sha256"
 current_fingerprint="$(dependency_fingerprint)"
 needs_install=1
+install_reason="fingerprint-changed"
 if [[ -f .pnp.cjs && -f "$install_marker" && "$(cat "$install_marker")" == "$current_fingerprint" ]]; then
-  needs_install=0
+  if yarn turbo --version >/dev/null 2>&1; then
+    needs_install=0
+    install_reason="up-to-date"
+  else
+    install_reason="pnp-cache-missing"
+  fi
+elif [[ ! -f .pnp.cjs ]]; then
+  install_reason="pnp-missing"
+elif [[ ! -f "$install_marker" ]]; then
+  install_reason="marker-missing"
 fi
 
 if [[ "$needs_install" -eq 1 && -f yarn.lock ]]; then
   install_status="ran"
+  echo "dependencies bootstrap required reason=$install_reason"
   yarn install --immutable
 elif [[ "$needs_install" -eq 1 ]]; then
   install_status="ran"
+  echo "dependencies bootstrap required reason=$install_reason"
   yarn install
 else
   install_status="skipped"
@@ -162,14 +174,33 @@ if [[ "$needs_install" -eq 1 ]]; then
   printf '%s\n' "$current_fingerprint" > "$install_marker"
 fi
 install_elapsed_ms="$(elapsed_ms "$install_started_ms")"
-echo "deploy-phase phase=install status=$install_status elapsed_ms=$install_elapsed_ms"
+echo "deploy-phase phase=install status=$install_status reason=$install_reason elapsed_ms=$install_elapsed_ms"
 
 build_started_ms="$(now_ms)"
 build_args=(turbo run build)
 for service in "${services[@]}"; do
   build_args+=(--filter="./apps/$service")
 done
-yarn "${build_args[@]}"
+build_output=""
+if build_output="$(yarn "${build_args[@]}" 2>&1)"; then
+  printf '%s\n' "$build_output"
+else
+  build_exit_code=$?
+  printf '%s\n' "$build_output"
+  if printf '%s\n' "$build_output" | grep -Eq 'Required package missing from disk|Missing package:'; then
+    echo "deploy-phase phase=build-recover status=ran reason=pnp-cache-missing"
+    if [[ -f yarn.lock ]]; then
+      yarn install --immutable
+    else
+      yarn install
+    fi
+    mkdir -p "$(dirname "$install_marker")"
+    printf '%s\n' "$current_fingerprint" > "$install_marker"
+    yarn "${build_args[@]}"
+  else
+    exit "$build_exit_code"
+  fi
+fi
 build_elapsed_ms="$(elapsed_ms "$build_started_ms")"
 echo "deploy-phase phase=build status=ok elapsed_ms=$build_elapsed_ms services=${services[*]}"
 
