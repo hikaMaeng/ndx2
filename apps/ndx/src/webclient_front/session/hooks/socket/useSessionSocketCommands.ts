@@ -2,6 +2,7 @@ import React from "react";
 import type { UseSessionSocketControllerOptions, SessionSocketControllerActions } from "./types";
 
 export function useSessionSocketCommands({
+  activeUi,
   activeSessionIdRef,
   attachedSessionIdsRef,
   draftSessionProjectIdRef,
@@ -23,11 +24,12 @@ export function useSessionSocketCommands({
   };
 
   const refreshSkillList = () => {
+    if (activeUi?.skillListRequested) return false;
     const sessionid = activeSessionIdRef.current;
     const attachedSessionid = sessionid && attachedSessionIdsRef.current.has(sessionid) ? sessionid : undefined;
     const requested = Boolean(socketRef.current?.requestSkillList(attachedSessionid, attachedSessionid ? undefined : draftSessionProjectIdRef.current));
     if (requested) {
-      updateActiveUi((current) => ({ ...current, availableSkills: [], skillListRequested: true }));
+      updateActiveUi((current) => ({ ...current, skillListRequested: true }));
     }
     return requested;
   };
