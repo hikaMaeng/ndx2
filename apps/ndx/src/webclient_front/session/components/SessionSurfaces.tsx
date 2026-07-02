@@ -10,7 +10,7 @@ type SessionSurfacesProps = {
   hasPendingAction: (key: string) => boolean;
   notice: string;
   rewriteEnabledBySession: Record<string, boolean>;
-  onAddAttachments: (files: File[]) => void;
+  onAddAttachments: (key: string, files: File[]) => void;
   onAttachmentRejected: (key: string, message: string) => void;
   onChatInputChange: (key: string, value: string) => void;
   onChatScroll: (key: string, scrollTop: number) => void;
@@ -19,7 +19,7 @@ type SessionSurfacesProps = {
   onIterationToggle: (turn: TurnFlowState, iteration: Pick<NDXSessionIterationSummary, "iteration">, open: boolean, userInitiated?: boolean) => void;
   onModelClick: (key: string) => void;
   onOpenMenu: () => void;
-  onRemoveAttachment: (id: string) => void;
+  onRemoveAttachment: (key: string, id: string) => void;
   onRewriteToggle: (sessionid: string) => void;
   onSkillListRefresh: () => void;
   onQueueAdd: (cotSolveSteps: string) => void;
@@ -99,9 +99,9 @@ export function SessionSurfaces({
         onDisableAutoScroll={() => onDisableAutoScroll(key)}
         onDismissError={() => onDismissError(key)}
         onInputChange={(value) => onChatInputChange(key, value)}
-        onAddAttachments={onAddAttachments}
+        onAddAttachments={(files) => onAddAttachments(key, files)}
         onAttachmentRejected={(message) => onAttachmentRejected(key, message)}
-        onRemoveAttachment={onRemoveAttachment}
+        onRemoveAttachment={(id) => onRemoveAttachment(key, id)}
         onModelClick={() => onModelClick(key)}
         onRewriteToggle={() => { if (session) onRewriteToggle(session.sessionid); }}
         onSkillListRefresh={onSkillListRefresh}

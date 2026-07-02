@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { ChevronDown, ListPlus, Paperclip, Send, Square, WandSparkles, X } from "lucide-react";
 import { Mention, MentionsInput } from "react-mentions-ts";
 import { ContextUsageRing } from "./ContextUsageRing";
-import { modelAttachmentInputAccept, modelSupportsAttachmentMimeType, type NDXAgentWebContextUsage } from "ndx/webclient/front";
+import { clipboardAttachmentFiles, modelAttachmentInputAccept, modelSupportsAttachmentMimeType, type NDXAgentWebContextUsage } from "ndx/webclient/front";
 import type { NDXSessionSkillSummary } from "ndx/common/protocol";
 import { RSC } from "../resource";
 import { Button, Input } from "../../components/ui";
@@ -104,12 +104,12 @@ export function ChatComposer({
         className="min-w-0 shrink-0 overflow-hidden border-t border-zinc-800 bg-zinc-950/95 px-4 py-3 backdrop-blur"
         aria-label={t[RSC.SESSION_COMPOSER_INPUT_LABEL]}
         onSubmit={onSubmit}
-        onPaste={(event) => {
+        onPasteCapture={(event) => {
           if (compactRunning) {
             event.preventDefault();
             return;
           }
-          const files = Array.from(event.clipboardData.files);
+          const files = clipboardAttachmentFiles(event.clipboardData);
           if (files.length > 0) {
             event.preventDefault();
             addSupportedAttachments(files);

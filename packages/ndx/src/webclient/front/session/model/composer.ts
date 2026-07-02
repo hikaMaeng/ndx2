@@ -1,12 +1,8 @@
 import { DEFAULT_MODEL, toModelConfig, type SelectedModelConfig } from "../../model/config.js";
 import type { EncodedAttachment } from "../attachment.js";
+import type { SessionAttachmentDraft } from "../uiState.js";
 
-export type SessionComposerAttachmentModel = {
-  id: string;
-  name: string;
-  mimeType: string;
-  size: number;
-};
+export type SessionComposerAttachmentModel = SessionAttachmentDraft;
 
 export type SessionPendingRequestModel = {
   text: string;
@@ -16,7 +12,7 @@ export type SessionPendingRequestModel = {
 
 export type SessionComposerModel = {
   input: string;
-  attachments: SessionComposerAttachmentModel[];
+  attachments: SessionAttachmentDraft[];
   selectedModel: SelectedModelConfig;
   pendingInitialRequest?: SessionPendingRequestModel;
   pendingAttachRequest?: SessionPendingRequestModel & { sessionid: string };

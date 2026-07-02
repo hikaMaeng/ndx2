@@ -46,26 +46,29 @@ export function useSessionUiController() {
     }
   }, []);
 
-  const addChatAttachments = (files: File[]) => {
+  const addChatAttachments = (key: string, files: File[]) => {
     if (files.length === 0) return;
-    store.setChatAttachments((current) => [
+    store.updateSessionUi(key, (current) => ({
       ...current,
-      ...files.slice(0, Math.max(0, 8 - current.length)).map((file) => ({
-        id: browserRandomId(),
-        file,
-        name: file.name || "clipboard-attachment",
-        mimeType: file.type || "application/octet-stream",
-        size: file.size,
-        previewUrl: (file.type || "").toLowerCase().startsWith("image/") ? URL.createObjectURL(file) : undefined
-      }))
-    ]);
+      chatAttachments: [
+        ...current.chatAttachments,
+        ...files.slice(0, Math.max(0, 8 - current.chatAttachments.length)).map((file) => ({
+          id: browserRandomId(),
+          file,
+          name: file.name || "clipboard-attachment",
+          mimeType: file.type || "application/octet-stream",
+          size: file.size,
+          previewUrl: (file.type || "").toLowerCase().startsWith("image/") ? URL.createObjectURL(file) : undefined
+        }))
+      ]
+    }));
   };
 
-  const removeChatAttachment = (id: string) => {
-    store.setChatAttachments((current) => {
-      const removed = current.find((attachment) => attachment.id === id);
+  const removeChatAttachment = (key: string, id: string) => {
+    store.updateSessionUi(key, (current) => {
+      const removed = current.chatAttachments.find((attachment) => attachment.id === id);
       if (removed?.previewUrl) URL.revokeObjectURL(removed.previewUrl);
-      return current.filter((attachment) => attachment.id !== id);
+      return { ...current, chatAttachments: current.chatAttachments.filter((attachment) => attachment.id !== id) };
     });
   };
 

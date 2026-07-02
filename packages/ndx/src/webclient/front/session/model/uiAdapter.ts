@@ -5,7 +5,7 @@ export function sessionModelToUiState(model: SessionInstanceModel): SessionUiSta
   return {
     ...createSessionUiState(),
     chatInput: model.composer.input,
-    chatAttachments: [],
+    chatAttachments: model.composer.attachments,
     availableSkills: model.capabilities.availableSkills,
     skillListRequested: model.connection.skillListRequested,
     agentRunning: model.runtime.agentRunning,
@@ -37,6 +37,7 @@ export function sessionModelWithUiState(model: SessionInstanceModel, ui: Session
     composer: {
       ...model.composer,
       input: ui.chatInput,
+      attachments: ui.chatAttachments,
       selectedModel: ui.selectedModel,
       pendingInitialRequest: ui.pendingInitialRequest,
       pendingAttachRequest: ui.pendingAttachRequest

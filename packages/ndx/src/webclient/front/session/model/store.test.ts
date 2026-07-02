@@ -95,6 +95,25 @@ test("session ui adapter preserves in-flight skill list request state", () => {
   assert.equal(sessionModelToUiState(requested).skillListRequested, true);
 });
 
+test("session ui adapter preserves draft chat attachments", () => {
+  const model = createDraftSessionModel("project-a");
+  const attachment = {
+    id: "attachment-a",
+    file: new File(["image"], "image.png", { type: "image/png" }),
+    name: "image.png",
+    mimeType: "image/png",
+    size: 5,
+    previewUrl: "blob:http://localhost/attachment-a"
+  };
+  const withAttachment = sessionModelWithUiState(model, {
+    ...sessionModelToUiState(model),
+    chatAttachments: [attachment]
+  });
+
+  assert.deepEqual(withAttachment.composer.attachments, [attachment]);
+  assert.deepEqual(sessionModelToUiState(withAttachment).chatAttachments, [attachment]);
+});
+
 test("history summary synthesizes a missing visible request from the turn summary", () => {
   const snapshot: SessionModelSnapshot = {
     "session-a": createSessionModelFromRow(sessionRow("session-a", "project-a"))

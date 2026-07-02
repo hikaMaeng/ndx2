@@ -61,7 +61,7 @@ export type { ProviderBundle, SelectedModelConfig } from "./model/config.js";
 export { normalizeModalities, optionalNullableNumber, optionalNumber, optionalNumberText, toggleModality } from "./model/form.js";
 export { chatMessagesFromSessionDataRows, isPendingUserChatMessage, pendingUserChatMessage, sessionDataContentsAttachments, sessionDataContentsText, sessionDataToChatMessage, sessionDataToVisibleChatMessage, visibleUserRequestText, withoutPendingUserChatMessages } from "./session/chat.js";
 export type { ChatMessage, ChatMessageAttachment, NDXAgentWebContextUsage } from "./session/chat.js";
-export { encodeAttachments, modelAttachmentInputAccept, modelSupportsAttachmentMimeType } from "./session/attachment.js";
+export { clipboardAttachmentFiles, encodeAttachments, modelAttachmentInputAccept, modelSupportsAttachmentMimeType } from "./session/attachment.js";
 export type { EncodedAttachment } from "./session/attachment.js";
 export { createSessionUiState } from "./session/uiState.js";
 export type { PendingRequest, SessionAttachmentDraft, SessionUiState } from "./session/uiState.js";
