@@ -16,6 +16,8 @@ export type SessionClientState = {
   }>;
   missedPings: number;
   pongSinceLastPing: boolean;
+  lastPingAt?: number;
+  inFlightMessages?: number;
 };
 
 export type AttachSessionSocketServerOptions = {

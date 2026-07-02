@@ -3,6 +3,7 @@ import { NDX_CLIENT_ID_QUERY_PARAM, isNDXClientId } from "ndx/common";
 import { WebSocketServer } from "ws";
 import { handleSessionConnection } from "./connection.js";
 import { startSessionHeartbeat } from "./heartbeat.js";
+import { startAgentRuntimeMonitor } from "./monitor.js";
 import type { AttachSessionSocketServerOptions, SessionClientState } from "./types.js";
 
 /** Attaches the agent session WebSocket surface to the existing HTTP server. */
@@ -38,6 +39,7 @@ export function attachSessionSocketServer(server: http.Server, options: AttachSe
   });
 
   startSessionHeartbeat(socketServer, connectedClients, heartbeatIntervalMs, heartbeatFailureLimit, options.logger);
+  startAgentRuntimeMonitor(socketServer, connectedClients, options.logger);
 
   return socketServer;
 }

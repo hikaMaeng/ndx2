@@ -15,6 +15,8 @@ import type { NDXActiveTurnPipelineState } from "../types.js";
 export const MODEL_PROGRESS_NOTICE_INTERVAL_MS = 120_000;
 const MODEL_STREAM_DELTA_FLUSH_CHARS = 512;
 const MODEL_STREAM_DELTA_FLUSH_INTERVAL_MS = 250;
+const MODEL_STREAM_HOOK_SLOW_MS = 50;
+const MODEL_STREAM_FLUSH_SLOW_MS = 150;
 
 export async function callTurnModel(
   state: NDXActiveTurnPipelineState,
@@ -247,6 +249,7 @@ function createModelStreamDispatcher(
     if (pendingTextDelta.length === 0) {
       return;
     }
+    const flushStartedAt = Date.now();
     const delta = pendingTextDelta;
     const content = pendingTextContent;
     const textRole = pendingTextRole ?? "assistant_text";
@@ -273,12 +276,27 @@ function createModelStreamDispatcher(
       content,
       contextUsage: state.turnContextUsage(content, options.finalizingAfterIterationLimit ? [] : state.modelTools)
     });
+    const durationMs = Date.now() - flushStartedAt;
+    if (durationMs > MODEL_STREAM_FLUSH_SLOW_MS) {
+      state.database.logger?.warn("turn.model.stream.flush.slow", {
+        sessionid: state.runningSession.sessionid,
+        iteration: options.iteration,
+        kind: "text",
+        textRole,
+        sequence,
+        deltaLength: delta.length,
+        contentLength: content.length,
+        durationMs,
+        thresholdMs: MODEL_STREAM_FLUSH_SLOW_MS
+      });
+    }
   };
 
   const flushReasoning = async (stopModelResponse?: ResponseStreamInterrupt): Promise<void> => {
     if (pendingReasoningSummary.length === 0) {
       return;
     }
+    const flushStartedAt = Date.now();
     const summary = pendingReasoningSummary;
     const content = pendingReasoningContent;
     const sequence = pendingReasoningSequence;
@@ -301,6 +319,19 @@ function createModelStreamDispatcher(
       summary,
       contextUsage: state.turnContextUsage(content, options.finalizingAfterIterationLimit ? [] : state.modelTools)
     });
+    const durationMs = Date.now() - flushStartedAt;
+    if (durationMs > MODEL_STREAM_FLUSH_SLOW_MS) {
+      state.database.logger?.warn("turn.model.stream.flush.slow", {
+        sessionid: state.runningSession.sessionid,
+        iteration: options.iteration,
+        kind: "reasoning",
+        sequence,
+        summaryLength: summary.length,
+        contentLength: content.length,
+        durationMs,
+        thresholdMs: MODEL_STREAM_FLUSH_SLOW_MS
+      });
+    }
   };
 
   const flush = async (stopModelResponse?: ResponseStreamInterrupt): Promise<void> => {
@@ -381,6 +412,7 @@ async function processModelRespondingHook(
   modelResponse: Parameters<typeof runModelRespondingHook>[1]["modelResponse"],
   stopModelResponse: ResponseStreamInterrupt
 ): Promise<void> {
+  const startedAt = Date.now();
   const hook = await runModelRespondingHook(state.hookRuntime, {
     database: state.database,
     session: state.runningSession,
@@ -394,6 +426,17 @@ async function processModelRespondingHook(
     modelResponse,
     contextUsage: modelResponse?.type === "reasoning" ? state.turnContextUsage(modelResponse.content) : modelResponse?.type === "text" ? state.turnContextUsage(modelResponse.content) : state.turnContextUsage()
   });
+  const durationMs = Date.now() - startedAt;
+  if (durationMs > MODEL_STREAM_HOOK_SLOW_MS) {
+    state.database.logger?.warn("turn.model.stream.hook.slow", {
+      sessionid: state.runningSession.sessionid,
+      iteration: state.activeIteration || 1,
+      responseType: modelResponse?.type,
+      sequence: modelResponse?.sequence,
+      durationMs,
+      thresholdMs: MODEL_STREAM_HOOK_SLOW_MS
+    });
+  }
   if (hook.interruptModelResponse) {
     await stopModelResponse(hook.interruptReason);
   }

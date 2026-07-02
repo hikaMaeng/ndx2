@@ -100,6 +100,7 @@ import {
   sessionGrantOwnerTargets,
   toSocketSession
 } from "./socketMessages.js";
+import { SOCKET_HEARTBEAT_SLOW_PONG_MS, SOCKET_MESSAGE_SLOW_MS } from "./monitor.js";
 import type { SessionClientState } from "./types.js";
 
 export async function handleSessionConnection(
@@ -122,16 +123,37 @@ export async function handleSessionConnection(
   logger?.info("agent.socket.connection.open", { clientid, connectedCount: connectedClients.size });
 
   socket.on("pong", () => {
+    const roundTripMs = client.lastPingAt ? Date.now() - client.lastPingAt : undefined;
     client.missedPings = 0;
     client.pongSinceLastPing = true;
-    logger?.debug("agent.socket.heartbeat.pong", { clientid });
+    if (roundTripMs && roundTripMs > SOCKET_HEARTBEAT_SLOW_PONG_MS) {
+      logger?.warn("agent.socket.heartbeat.pong_slow", { clientid, roundTripMs, thresholdMs: SOCKET_HEARTBEAT_SLOW_PONG_MS });
+    } else {
+      logger?.debug("agent.socket.heartbeat.pong", { clientid, roundTripMs });
+    }
   });
 
   socket.on("message", (data) => {
-    logger?.debug("agent.socket.message.received", { clientid, bytes: data.toString("utf8").length });
-    void handleSessionMessage(client, data, connectedClients, database, logger, resource).catch((error) => {
-      logger?.error("agent.socket.message.failed", { clientid, error });
-    });
+    const startedAt = Date.now();
+    const text = data.toString("utf8");
+    const logContext = socketMessageLogContext(text);
+    client.inFlightMessages = (client.inFlightMessages ?? 0) + 1;
+    logger?.debug("agent.socket.message.received", { clientid, bytes: text.length, inFlightMessages: client.inFlightMessages, ...logContext });
+    void handleSessionMessage(client, data, connectedClients, database, logger, resource)
+      .then(() => {
+        const durationMs = Date.now() - startedAt;
+        const payload = { clientid, bytes: text.length, durationMs, thresholdMs: SOCKET_MESSAGE_SLOW_MS, ...logContext };
+        if (durationMs > SOCKET_MESSAGE_SLOW_MS) {
+          logger?.warn("agent.socket.message.handle.slow", payload);
+        } else {
+          logger?.debug("agent.socket.message.handle.complete", payload);
+        }
+      }, (error) => {
+        logger?.error("agent.socket.message.failed", { clientid, error, ...logContext, durationMs: Date.now() - startedAt });
+      })
+      .finally(() => {
+        client.inFlightMessages = Math.max(0, (client.inFlightMessages ?? 1) - 1);
+      });
   });
 
   socket.on("close", () => {
@@ -143,7 +165,19 @@ export async function handleSessionConnection(
     logger?.error("agent.socket.connection.error", { clientid, error });
   });
 
-  await sendJson(client, { type: NDX_PROJECT_NEGOTIATION_REQUIRED });
+  await sendJson(client, { type: NDX_PROJECT_NEGOTIATION_REQUIRED }, { logger, event: "project_negotiation" });
+}
+
+function socketMessageLogContext(text: string): { messageType?: string; sessionid?: string } {
+  try {
+    const message = JSON.parse(text) as { type?: unknown; sessionid?: unknown };
+    return {
+      messageType: typeof message.type === "string" ? message.type : undefined,
+      sessionid: typeof message.sessionid === "string" ? message.sessionid : undefined
+    };
+  } catch {
+    return {};
+  }
 }
 
 async function handleSessionMessage(

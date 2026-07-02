@@ -25,6 +25,10 @@ export const NDX_HOOK_EVENT_NAMES = [
   NDX_TURN_EVENT.TurnEnd
 ] as const;
 
+const HOOK_EXECUTION_SLOW_MS = 100;
+const MODEL_RESPONDING_HOOK_EXECUTION_SLOW_MS = 50;
+const HOOK_SELFCHECK_RECORD_SLOW_MS = 100;
+
 export type NDXHookEventName = typeof NDX_HOOK_EVENT_NAMES[number];
 export type NDXHookSource = "system" | "ndx";
 export type NDXHookEffectType = "noeffect" | "stopturn";
@@ -209,7 +213,20 @@ export async function runNDXHooks(runtime: NDXHookRuntime | undefined, event: ND
   let mergedEffect: NDXHookEffect = { type: "noeffect" };
 
   for (const executor of runtime?.plan[event] ?? []) {
+    const startedAt = Date.now();
     const execution = await runNDXHookExecutor(executor, state);
+    const durationMs = Date.now() - startedAt;
+    const thresholdMs = event === NDX_TURN_EVENT.ModelResponding ? MODEL_RESPONDING_HOOK_EXECUTION_SLOW_MS : HOOK_EXECUTION_SLOW_MS;
+    if (durationMs > thresholdMs) {
+      context.database.logger?.warn("turn.hook.execution.slow", {
+        sessionid: context.session.sessionid,
+        event,
+        hook: executor.name,
+        source: executor.source,
+        durationMs,
+        thresholdMs
+      });
+    }
     executions.push(execution);
     mergedEffect = mergeNDXHookEffects([mergedEffect, execution.effect]);
     applyEffectToHookContext(state, execution.effect);
@@ -223,7 +240,18 @@ export async function runNDXHooks(runtime: NDXHookRuntime | undefined, event: ND
     executions,
     effect: normalizeNDXHookEffect(mergedEffect)
   };
-  await recordSelfcheckHookRun(context.database, context, result).catch((error) => {
+  const selfcheckStartedAt = Date.now();
+  await recordSelfcheckHookRun(context.database, context, result).then(() => {
+    const durationMs = Date.now() - selfcheckStartedAt;
+    if (durationMs > HOOK_SELFCHECK_RECORD_SLOW_MS) {
+      context.database.logger?.warn("turn.hook.selfcheck_record.slow", {
+        sessionid: context.session.sessionid,
+        event,
+        durationMs,
+        thresholdMs: HOOK_SELFCHECK_RECORD_SLOW_MS
+      });
+    }
+  }).catch((error) => {
     context.database.logger?.warn("selfcheck.hookrun.record_failed", {
       sessionid: context.session.sessionid,
       event,

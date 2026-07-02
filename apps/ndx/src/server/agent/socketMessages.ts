@@ -8,6 +8,7 @@ import type { NDXSessionEventMessage, NDXSessionSidebarItemMessage } from "ndx/c
 import type { NDXSessionDataRow, NDXSessionRow } from "ndx/agent/session";
 import type { NDXTurnLoopEvent } from "ndx/agent/turnloop";
 import { sendJson } from "./sendJson.js";
+import { SOCKET_TURN_EVENT_FANOUT_SLOW_MS, SOCKET_TURN_EVENT_STREAM_FANOUT_SLOW_MS } from "./monitor.js";
 import type { SessionClientState } from "./types.js";
 
 export function sessionSidebarItemSocketMessage(
@@ -71,9 +72,10 @@ export async function sendTurnLoopEventToSessionGrantOwners(
   event: NDXTurnLoopEvent,
   logger?: NDXLogger
 ) {
+  const startedAt = Date.now();
   const targets = sessionGrantOwnerTargets(connectedClients, session.sessionid);
-  await Promise.all(targets.flatMap((target) => {
-    const context = {
+  const deliveries = targets.flatMap((target) => {
+    const context: TurnLoopEventSocketContext = {
       session,
       now: new Date().toISOString(),
       timeKey: Date.now(),
@@ -81,9 +83,24 @@ export async function sendTurnLoopEventToSessionGrantOwners(
         ? { isrunning: event.session.isrunning, session: toSocketSession(event.session) }
         : { isrunning: true, session: toSocketSession(session) }
     };
-    return sessionSocketMessagesFromTurnLoopEvent(event, context).map((message) => sendJson(target.client, message));
-  }));
-  logger?.debug("agent.socket.session_grant_owners.turn_event.sent", { sessionid: session.sessionid, event: event.type, count: targets.length });
+    return sessionSocketMessagesFromTurnLoopEvent(event, context).map((message) => ({ target, message }));
+  });
+  await Promise.all(deliveries.map(({ target, message }) => sendJson(target.client, message, {
+      logger,
+      sessionid: session.sessionid,
+      event: event.type,
+      targetCount: targets.length
+    })));
+  const durationMs = Date.now() - startedAt;
+  const thresholdMs = event.type === NDX_TURN_EVENT.AssistantDelta || event.type === NDX_TURN_EVENT.AssistantReasoning
+    ? SOCKET_TURN_EVENT_STREAM_FANOUT_SLOW_MS
+    : SOCKET_TURN_EVENT_FANOUT_SLOW_MS;
+  const payload = { sessionid: session.sessionid, event: event.type, targetCount: targets.length, messageCount: deliveries.length, durationMs, thresholdMs };
+  if (durationMs > thresholdMs) {
+    logger?.warn("agent.socket.turn_event.fanout.slow", payload);
+  } else {
+    logger?.debug("agent.socket.turn_event.fanout.complete", payload);
+  }
 }
 
 export function sessionSocketMessagesFromTurnLoopEvent(event: NDXTurnLoopEvent, context: TurnLoopEventSocketContext): NDXSessionGrantOwnerMessage[] {

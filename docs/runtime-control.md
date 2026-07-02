@@ -189,6 +189,31 @@ reflection request invokes the `turnplan` skill, lists the remaining queue with
 the function tool, performs the goal-fit analysis in the model turn, and may
 call `turnplan` again to adjust the remaining queue.
 
+## Runtime Monitoring
+
+Runtime monitoring is diagnostic logging at existing ownership boundaries. It
+must not add hook events, socket protocol messages, turn phases, or client-owned
+execution authority.
+
+The session socket server logs slow inbound message handling, slow outbound
+WebSocket sends, outbound buffer backpressure, turn-event fan-out latency,
+heartbeat round-trip latency, and process event-loop delay summaries. These
+logs use the `agent.socket.*` and `agent.runtime.*` event names and include
+session id, event type, target counts, buffer sizes, duration, and threshold
+where available.
+
+Database query timing is recorded by the shared `NDXDatabase.query` wrapper as
+`agent.server.database.query.complete`, `.slow`, or `.failed`. This keeps query
+latency visible without moving database policy into request handlers.
+
+Hook and model-stream latency are measured inside the existing hook runner and
+model-call stream dispatcher. `turn.hook.execution.slow`,
+`turn.hook.selfcheck_record.slow`, `turn.model.stream.hook.slow`, and
+`turn.model.stream.flush.slow` identify runtime overhead from hook execution,
+selfcheck persistence, stream guard work, socket fan-out, or event emission.
+These measurements observe existing work; they do not change hook surface area
+or model-visible context ordering.
+
 ## Request-Time Compaction
 
 Compaction runs only when accepting a new request and the reconstructed context

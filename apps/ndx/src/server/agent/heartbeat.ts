@@ -1,5 +1,6 @@
 import type { WebSocketServer } from "ws";
 import type { NDXLogger } from "ndx/common";
+import { SOCKET_HEARTBEAT_SLOW_PONG_MS } from "./monitor.js";
 import type { SessionClientState } from "./types.js";
 
 export function startSessionHeartbeat(
@@ -13,6 +14,7 @@ export function startSessionHeartbeat(
     for (const client of connectedClients.values()) {
       if (client.pongSinceLastPing) {
         client.pongSinceLastPing = false;
+        client.lastPingAt = Date.now();
         client.socket.ping();
         logger?.debug("agent.socket.heartbeat.ping", { clientid: client.clientid, missedPings: client.missedPings });
         continue;
@@ -27,6 +29,7 @@ export function startSessionHeartbeat(
         });
         client.socket.terminate();
       } else {
+        client.lastPingAt = Date.now();
         client.socket.ping();
         logger?.debug("agent.socket.heartbeat.ping_retry", { clientid: client.clientid, missedPings: client.missedPings });
       }

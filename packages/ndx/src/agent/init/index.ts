@@ -15,6 +15,8 @@ import type { NDXDatabase } from "./database.js";
 
 const DEFAULT_NDX_DATABASE_URL = "postgresql://ndev:ndev@127.0.0.1:5432/ndev";
 const REMOVED_SYSTEM_SKILL_DIRECTORIES = ["prompt_rewrite"];
+const DATABASE_QUERY_WARN_MS = 100;
+const DATABASE_QUERY_ERROR_MS = 1_000;
 
 export const agentServerDomain = Object.freeze({
   surface: "agent",
@@ -104,11 +106,37 @@ function createNDXDatabase(
   return {
     logger,
     query<Row extends QueryResultRow = QueryResultRow>(text: string, values?: unknown[]) {
+      const startedAt = Date.now();
+      const operation = text.trim().split(/\s+/u).slice(0, 4).join(" ");
       logger?.debug("agent.server.database.query", {
-        operation: text.trim().split(/\s+/u).slice(0, 4).join(" "),
+        operation,
         values: values?.length ?? 0
       });
-      return pool.query<Row>(text, values);
+      return pool.query<Row>(text, values).then((result) => {
+        const durationMs = Date.now() - startedAt;
+        const payload = {
+          operation,
+          values: values?.length ?? 0,
+          rowCount: result.rowCount,
+          durationMs
+        };
+        if (durationMs > DATABASE_QUERY_ERROR_MS) {
+          logger?.error("agent.server.database.query.slow", { ...payload, thresholdMs: DATABASE_QUERY_ERROR_MS });
+        } else if (durationMs > DATABASE_QUERY_WARN_MS) {
+          logger?.warn("agent.server.database.query.slow", { ...payload, thresholdMs: DATABASE_QUERY_WARN_MS });
+        } else {
+          logger?.debug("agent.server.database.query.complete", payload);
+        }
+        return result;
+      }, (error) => {
+        logger?.error("agent.server.database.query.failed", {
+          operation,
+          values: values?.length ?? 0,
+          durationMs: Date.now() - startedAt,
+          error: error instanceof Error ? error.message : String(error)
+        });
+        throw error;
+      });
     },
     close() {
       return pool.end();
