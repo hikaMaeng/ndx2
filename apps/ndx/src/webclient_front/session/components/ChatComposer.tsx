@@ -302,17 +302,7 @@ export function ChatComposer({
               <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" />
             </Button>
             <ContextUsageRing usage={contextUsage} label={t[RSC.SESSION_CONTEXT_USAGE_LABEL]} title={t[RSC.SESSION_CONTEXT_USAGE_POPOVER_TITLE_TEXT]} t={t} />
-            <div className="grid shrink-0 gap-1">
-              <Button
-                type="submit"
-                className={agentRunning ? "inline-flex h-8 w-8 items-center justify-center rounded-full bg-red-500 p-0 text-sm font-medium text-white transition-colors hover:bg-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" : "inline-flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 p-0 text-sm font-medium text-zinc-950 transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50"}
-                aria-label={agentRunning ? t[RSC.SESSION_COMPOSER_INTERRUPT_BUTTON] : t[RSC.SESSION_COMPOSER_SEND_BUTTON]}
-                aria-busy={submitDisabled}
-                disabled={submitDisabled}
-                title={agentRunning ? t[RSC.SESSION_COMPOSER_INTERRUPT_BUTTON] : t[RSC.SESSION_COMPOSER_SEND_BUTTON]}
-              >
-                {agentRunning ? <Square aria-hidden="true" className="h-3.5 w-3.5 fill-current" /> : <Send aria-hidden="true" className="h-4 w-4" />}
-              </Button>
+            <div className="flex shrink-0 items-center gap-1">
               {queueAddVisible ? (
                 <Button
                   type="button"
@@ -324,6 +314,16 @@ export function ChatComposer({
                   <ListPlus aria-hidden="true" className="h-4 w-4" />
                 </Button>
               ) : null}
+              <Button
+                type="submit"
+                className={agentRunning ? "inline-flex h-8 w-8 items-center justify-center rounded-full bg-red-500 p-0 text-sm font-medium text-white transition-colors hover:bg-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" : "inline-flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 p-0 text-sm font-medium text-zinc-950 transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50"}
+                aria-label={agentRunning ? t[RSC.SESSION_COMPOSER_INTERRUPT_BUTTON] : t[RSC.SESSION_COMPOSER_SEND_BUTTON]}
+                aria-busy={submitDisabled}
+                disabled={submitDisabled}
+                title={agentRunning ? t[RSC.SESSION_COMPOSER_INTERRUPT_BUTTON] : t[RSC.SESSION_COMPOSER_SEND_BUTTON]}
+              >
+                {agentRunning ? <Square aria-hidden="true" className="h-3.5 w-3.5 fill-current" /> : <Send aria-hidden="true" className="h-4 w-4" />}
+              </Button>
             </div>
           </div>
         </div>
