@@ -3,6 +3,7 @@ import { ChevronDown, CircleAlert, Pencil, Plus, RefreshCw, Send, Trash2, X } fr
 import type { NDXAgentWebModel } from "ndx/webclient/common";
 import { createWebProvider, createWebProviderModel, deleteWebProvider, deleteWebProviderModel, listWebProviderModels, listWebProviders, normalizeModalities, normalizeReasoningEffort, optionalNullableNumber, optionalNumber, optionalNumberText, readProviderModelNames, syncWebProviderModels, toggleModality, updateWebProviderModel, type ProviderBundle, type SelectedModelConfig, type SessionUiState } from "ndx/webclient/front";
 import { AssistantChatMessage } from "../../session/components/AssistantChatMessage";
+import { Button, Input, Textarea } from "../../components/ui";
 
 type ChatSurfaceProps = {
   title: string;
@@ -35,9 +36,9 @@ export function ChatSurface({
   return (
     <>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <button type="button" className="fixed left-4 top-4 z-20 inline-flex h-9 w-9 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900/95 p-0 text-sm font-medium text-zinc-300 shadow-lg shadow-black/30 transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 md:hidden" aria-label={menuLabel} onClick={onOpenMenu}>
+        <Button type="button" className="fixed left-4 top-4 z-20 inline-flex h-9 w-9 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900/95 p-0 text-sm font-medium text-zinc-300 shadow-lg shadow-black/30 transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 md:hidden" aria-label={menuLabel} onClick={onOpenMenu}>
           <span aria-hidden="true" className="h-4 w-4">☰</span>
-        </button>
+        </Button>
         <main className="relative min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-8">
           <section className="mx-auto flex min-h-full w-full max-w-4xl min-w-0 flex-col justify-end gap-5">
             <div className="grid gap-2 text-center">
@@ -59,20 +60,20 @@ export function ChatSurface({
         <form className="shrink-0 border-t border-zinc-800 bg-zinc-950/95 px-4 py-3 backdrop-blur" aria-label="채팅 입력" onSubmit={onSubmit}>
           <div className="mx-auto grid w-full max-w-4xl gap-2">
             <label className="sr-only" htmlFor="chat-only-input">채팅 입력</label>
-            <textarea id="chat-only-input" className="max-h-44 min-h-24 resize-none rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm leading-6 text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-zinc-500" placeholder="메시지를 입력하세요" value={ui.chatInput} onChange={(event) => onInputChange(event.target.value)} onKeyDown={(event) => {
+            <Textarea id="chat-only-input" className="max-h-44 min-h-24 resize-none rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm leading-6 text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-zinc-500" placeholder="메시지를 입력하세요" value={ui.chatInput} onChange={(event) => onInputChange(event.target.value)} onKeyDown={(event) => {
               if (event.key !== "Enter" || event.nativeEvent.isComposing || event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return;
               event.preventDefault();
               event.currentTarget.form?.requestSubmit();
             }} />
             <div className="flex min-h-8 items-center gap-2 text-xs text-zinc-500">
               <span role="status" className="min-w-0 flex-1 truncate">{ui.notice || (requestPending ? "응답 수신 중..." : "대기 중")}</span>
-              <button type="button" className="inline-flex h-7 min-w-24 items-center justify-center gap-1 rounded-md px-2 text-zinc-300 hover:bg-zinc-900 disabled:pointer-events-none disabled:opacity-50" aria-label="모델 선택" aria-haspopup="dialog" disabled={requestPending} onClick={() => setModelDialogOpen(true)}>
+              <Button type="button" className="inline-flex h-7 min-w-24 items-center justify-center gap-1 rounded-md px-2 text-zinc-300 hover:bg-zinc-900 disabled:pointer-events-none disabled:opacity-50" aria-label="모델 선택" aria-haspopup="dialog" disabled={requestPending} onClick={() => setModelDialogOpen(true)}>
                 <span className="min-w-0 truncate">{modelLabel}</span>
                 <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" />
-              </button>
-              <button type="submit" className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 p-0 text-sm font-medium text-zinc-950 transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-label="보내기" disabled={requestPending}>
+              </Button>
+              <Button type="submit" className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 p-0 text-sm font-medium text-zinc-950 transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-label="보내기" disabled={requestPending}>
                 <Send aria-hidden="true" className="h-4 w-4" />
-              </button>
+              </Button>
             </div>
           </div>
         </form>
@@ -308,24 +309,24 @@ function ChatModelDialog({ selectedModel, onClose, onSelect }: {
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <h2 id="chat-model-dialog-title" className="text-sm font-semibold text-zinc-100">채팅 모델 선택</h2>
-            <button type="button" className="inline-flex h-8 items-center justify-center gap-2 rounded-md bg-emerald-600 px-3 text-sm font-medium text-white transition-colors hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-expanded={providerFormOpen} disabled={dialogLocked} onClick={() => setProviderFormOpen((open) => !open)}>
+            <Button type="button" className="inline-flex h-8 items-center justify-center gap-2 rounded-md bg-emerald-600 px-3 text-sm font-medium text-white transition-colors hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-expanded={providerFormOpen} disabled={dialogLocked} onClick={() => setProviderFormOpen((open) => !open)}>
               <Plus className="h-4 w-4" />프로바이더 추가
-            </button>
+            </Button>
           </div>
-          <button type="button" className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900 p-0 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-label="닫기" disabled={dialogLocked} onClick={onClose}>
+          <Button type="button" className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900 p-0 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-label="닫기" disabled={dialogLocked} onClick={onClose}>
             <X aria-hidden="true" className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
         {error ? <p role="alert" className="text-xs text-red-300">{error}</p> : null}
         {providerFormOpen ? (
           <form className="grid gap-2 rounded-lg border border-zinc-800 bg-zinc-900/60 p-3" onSubmit={submitProvider}>
             <div className="grid gap-2 md:grid-cols-3">
-              <input aria-label="프로바이더 이름" disabled={dialogLocked} className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm disabled:opacity-50" placeholder="프로바이더 이름" value={providerTitle} onChange={(event) => setProviderTitle(event.target.value)} />
-              <input aria-label="Base URL" disabled={dialogLocked} className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm disabled:opacity-50 md:col-span-2" placeholder="Base URL" value={providerUrl} onChange={(event) => setProviderUrl(event.target.value)} />
-              <input aria-label="API token" disabled={dialogLocked} className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm disabled:opacity-50 md:col-span-3" placeholder="API token" value={providerToken} onChange={(event) => setProviderToken(event.target.value)} />
+              <Input aria-label="프로바이더 이름" disabled={dialogLocked} className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm disabled:opacity-50" placeholder="프로바이더 이름" value={providerTitle} onChange={(event) => setProviderTitle(event.target.value)} />
+              <Input aria-label="Base URL" disabled={dialogLocked} className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm disabled:opacity-50 md:col-span-2" placeholder="Base URL" value={providerUrl} onChange={(event) => setProviderUrl(event.target.value)} />
+              <Input aria-label="API token" disabled={dialogLocked} className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm disabled:opacity-50 md:col-span-3" placeholder="API token" value={providerToken} onChange={(event) => setProviderToken(event.target.value)} />
             </div>
             <div className="flex justify-end">
-              <button type="submit" disabled={dialogLocked} className="inline-flex h-8 items-center justify-center gap-2 rounded-md bg-emerald-600 px-3 text-sm font-medium text-white transition-colors hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50"><Plus className="h-4 w-4" />추가</button>
+              <Button type="submit" disabled={dialogLocked} className="inline-flex h-8 items-center justify-center gap-2 rounded-md bg-emerald-600 px-3 text-sm font-medium text-white transition-colors hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50"><Plus className="h-4 w-4" />추가</Button>
             </div>
           </form>
         ) : null}
@@ -335,25 +336,25 @@ function ChatModelDialog({ selectedModel, onClose, onSelect }: {
               <div className="flex items-center justify-between gap-2">
                 <h3 className="text-sm font-semibold text-zinc-100">{bundle.provider.title}</h3>
                 <div className="flex items-center gap-1">
-                  <button type="button" className="relative inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 p-0 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-label="모델 동기화" aria-busy={syncingProviders.has(bundle.provider.title)} disabled={dialogLocked} onClick={() => syncProvider(bundle.provider)}>
+                  <Button type="button" className="relative inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 p-0 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-label="모델 동기화" aria-busy={syncingProviders.has(bundle.provider.title)} disabled={dialogLocked} onClick={() => syncProvider(bundle.provider)}>
                     <RefreshCw className={syncingProviders.has(bundle.provider.title) ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
                     {syncErrorProviders.has(bundle.provider.title) ? <CircleAlert className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-red-500 text-white" /> : null}
-                  </button>
-                  <button type="button" className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 p-0 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-label="모델 추가" disabled={dialogLocked} onClick={() => setModelProvider(modelProvider === bundle.provider.title ? undefined : bundle.provider.title)}>
+                  </Button>
+                  <Button type="button" className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 p-0 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-label="모델 추가" disabled={dialogLocked} onClick={() => setModelProvider(modelProvider === bundle.provider.title ? undefined : bundle.provider.title)}>
                     <Plus className="h-4 w-4" />
-                  </button>
-                  <button type="button" className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 p-0 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-label="프로바이더 삭제" disabled={dialogLocked} onClick={() => removeProvider(bundle.provider.title)}>
+                  </Button>
+                  <Button type="button" className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 p-0 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-label="프로바이더 삭제" disabled={dialogLocked} onClick={() => removeProvider(bundle.provider.title)}>
                     <Trash2 className="h-4 w-4" />
-                  </button>
+                  </Button>
                 </div>
               </div>
               {modelProvider === bundle.provider.title ? (
                 <form className="grid gap-2 rounded-md border border-zinc-800 bg-zinc-950/60 p-2" onSubmit={submitModel}>
                   <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_7rem_auto_auto]">
-                    <input aria-label="모델 이름" disabled={dialogLocked} className="min-w-0 rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm disabled:opacity-50" placeholder="모델 이름" value={modelName} onChange={(event) => setModelName(event.target.value)} />
-                    <input aria-label="context size" disabled={dialogLocked} className="min-w-0 rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm disabled:opacity-50" placeholder="context" inputMode="numeric" value={contextsize} onChange={(event) => setContextsize(event.target.value)} />
-                    <button type="submit" disabled={dialogLocked} className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-emerald-600 px-3 text-sm font-medium text-white transition-colors hover:bg-emerald-500 disabled:pointer-events-none disabled:opacity-50"><Plus className="h-4 w-4" />추가</button>
-                    <button type="button" className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 p-0 text-sm font-medium text-zinc-300 hover:bg-zinc-900 disabled:pointer-events-none disabled:opacity-50" aria-label="닫기" disabled={dialogLocked} onClick={() => setModelProvider(undefined)}><X className="h-4 w-4" /></button>
+                    <Input aria-label="모델 이름" disabled={dialogLocked} className="min-w-0 rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm disabled:opacity-50" placeholder="모델 이름" value={modelName} onChange={(event) => setModelName(event.target.value)} />
+                    <Input aria-label="context size" disabled={dialogLocked} className="min-w-0 rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm disabled:opacity-50" placeholder="context" inputMode="numeric" value={contextsize} onChange={(event) => setContextsize(event.target.value)} />
+                    <Button type="submit" disabled={dialogLocked} className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-emerald-600 px-3 text-sm font-medium text-white transition-colors hover:bg-emerald-500 disabled:pointer-events-none disabled:opacity-50"><Plus className="h-4 w-4" />추가</Button>
+                    <Button type="button" className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 p-0 text-sm font-medium text-zinc-300 hover:bg-zinc-900 disabled:pointer-events-none disabled:opacity-50" aria-label="닫기" disabled={dialogLocked} onClick={() => setModelProvider(undefined)}><X className="h-4 w-4" /></Button>
                   </div>
                   <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-4">
                     <ChatInferenceInput label="temperature" value={modelTemperature} disabled={dialogLocked} onChange={setModelTemperature} />
@@ -373,11 +374,11 @@ function ChatModelDialog({ selectedModel, onClose, onSelect }: {
                   return (
                     <article key={model.model} className={selected ? "grid gap-3 rounded-md border border-emerald-700 bg-emerald-950/40 px-3 py-2 text-left text-sm text-emerald-100" : "grid gap-3 rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-left text-sm text-zinc-200 hover:bg-zinc-900"}>
                       <div className="flex min-w-0 items-center justify-between gap-2">
-                        <button type="button" className="min-w-0 flex-1 truncate text-left disabled:pointer-events-none disabled:opacity-50" disabled={dialogLocked} onClick={() => selectModel(bundle.provider, model)}>
+                        <Button type="button" className="min-w-0 flex-1 truncate text-left disabled:pointer-events-none disabled:opacity-50" disabled={dialogLocked} onClick={() => selectModel(bundle.provider, model)}>
                           {model.model}
-                        </button>
+                        </Button>
                         <span className="shrink-0 text-xs text-zinc-500">{model.contextsize.toLocaleString()}</span>
-                        <button type="button" className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900 p-0 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-800 disabled:pointer-events-none disabled:opacity-50" aria-label="모델 편집" aria-expanded={isEditing} aria-controls={editPanelId} disabled={dialogLocked} onClick={() => setEditTarget(isEditing ? null : {
+                        <Button type="button" className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900 p-0 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-800 disabled:pointer-events-none disabled:opacity-50" aria-label="모델 편집" aria-expanded={isEditing} aria-controls={editPanelId} disabled={dialogLocked} onClick={() => setEditTarget(isEditing ? null : {
                           provider: bundle.provider.title,
                           model: model.model,
                           contextsize: String(model.contextsize),
@@ -388,16 +389,16 @@ function ChatModelDialog({ selectedModel, onClose, onSelect }: {
                           minP: optionalNumberText(model.minP)
                         })}>
                           <Pencil className="h-3.5 w-3.5" />
-                        </button>
+                        </Button>
                       </div>
                       {isEditing && editTarget ? (
                         <form id={editPanelId} className="grid min-w-0 gap-3 border-t border-zinc-800 pt-3" onSubmit={(event) => { event.preventDefault(); updateEditTarget(); }}>
                           <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_8rem_auto]">
-                            <input aria-label="모델 이름" className="min-w-0 rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm" value={editTarget.model} readOnly />
-                            <input aria-label="context size" disabled={dialogLocked} className="min-w-0 rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm disabled:opacity-50" inputMode="numeric" value={editTarget.contextsize} onChange={(event) => setEditTarget({ ...editTarget, contextsize: event.target.value })} />
-                            <button type="button" className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 p-0 text-sm font-medium text-zinc-300 hover:bg-zinc-900 disabled:pointer-events-none disabled:opacity-50" aria-label="닫기" disabled={dialogLocked} onClick={() => setEditTarget(null)}>
+                            <Input aria-label="모델 이름" className="min-w-0 rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm" value={editTarget.model} readOnly />
+                            <Input aria-label="context size" disabled={dialogLocked} className="min-w-0 rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm disabled:opacity-50" inputMode="numeric" value={editTarget.contextsize} onChange={(event) => setEditTarget({ ...editTarget, contextsize: event.target.value })} />
+                            <Button type="button" className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 p-0 text-sm font-medium text-zinc-300 hover:bg-zinc-900 disabled:pointer-events-none disabled:opacity-50" aria-label="닫기" disabled={dialogLocked} onClick={() => setEditTarget(null)}>
                               <X className="h-4 w-4" />
-                            </button>
+                            </Button>
                           </div>
                           <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-4">
                             <ChatInferenceInput label="temperature" value={editTarget.temperature} disabled={dialogLocked} onChange={(value) => setEditTarget({ ...editTarget, temperature: value })} />
@@ -407,10 +408,10 @@ function ChatModelDialog({ selectedModel, onClose, onSelect }: {
                           </div>
                           <ChatModalityPills value={editTarget.modalities} disabled={dialogLocked} onChange={(modalities) => setEditTarget({ ...editTarget, modalities })} />
                           <div className="flex flex-wrap items-center gap-2">
-                            <button type="submit" disabled={dialogLocked} className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-slate-950 px-3 text-sm font-medium text-white transition-colors hover:bg-slate-800 disabled:pointer-events-none disabled:opacity-50">저장</button>
-                            <button type="button" disabled={dialogLocked} className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-zinc-800 bg-zinc-950 px-3 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-900 disabled:pointer-events-none disabled:opacity-50" onClick={deleteEditTarget}>
+                            <Button type="submit" disabled={dialogLocked} className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-slate-950 px-3 text-sm font-medium text-white transition-colors hover:bg-slate-800 disabled:pointer-events-none disabled:opacity-50">저장</Button>
+                            <Button type="button" disabled={dialogLocked} className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-zinc-800 bg-zinc-950 px-3 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-900 disabled:pointer-events-none disabled:opacity-50" onClick={deleteEditTarget}>
                               <Trash2 className="h-4 w-4" />삭제
-                            </button>
+                            </Button>
                           </div>
                         </form>
                       ) : null}
@@ -434,9 +435,9 @@ function ChatModalityPills(props: { value: Array<"text" | "image" | "file">; dis
       {(["image", "file"] as const).map((modality) => {
         const selected = value.includes(modality);
         return (
-          <button key={modality} type="button" className={selected ? "inline-flex h-7 items-center rounded-full border border-emerald-600 bg-emerald-600 px-3 font-medium text-white disabled:opacity-50" : "inline-flex h-7 items-center rounded-full border border-zinc-700 bg-zinc-950 px-3 font-medium text-zinc-400 hover:border-zinc-500 hover:text-zinc-100 disabled:opacity-50"} aria-pressed={selected} disabled={props.disabled} onClick={() => props.onChange(toggleModality(value, modality, !selected))}>
+          <Button key={modality} type="button" className={selected ? "inline-flex h-7 items-center rounded-full border border-emerald-600 bg-emerald-600 px-3 font-medium text-white disabled:opacity-50" : "inline-flex h-7 items-center rounded-full border border-zinc-700 bg-zinc-950 px-3 font-medium text-zinc-400 hover:border-zinc-500 hover:text-zinc-100 disabled:opacity-50"} aria-pressed={selected} disabled={props.disabled} onClick={() => props.onChange(toggleModality(value, modality, !selected))}>
             {modality}
-          </button>
+          </Button>
         );
       })}
     </fieldset>
@@ -447,7 +448,7 @@ function ChatInferenceInput(props: { label: string; value: string; disabled: boo
   return (
     <label className="grid min-w-0 gap-1 text-xs text-zinc-500">
       <span>{props.label}</span>
-      <input aria-label={props.label} disabled={props.disabled} inputMode="decimal" className="h-8 min-w-0 rounded-md border border-zinc-800 bg-zinc-900 px-2 text-xs text-zinc-100 placeholder:text-zinc-600 disabled:opacity-50" placeholder="off" value={props.value} onChange={(event) => props.onChange(event.target.value)} />
+      <Input aria-label={props.label} disabled={props.disabled} inputMode="decimal" className="h-8 min-w-0 rounded-md border border-zinc-800 bg-zinc-900 px-2 text-xs text-zinc-100 placeholder:text-zinc-600 disabled:opacity-50" placeholder="off" value={props.value} onChange={(event) => props.onChange(event.target.value)} />
     </label>
   );
 }

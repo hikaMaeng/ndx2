@@ -18,17 +18,15 @@ Repository constraints:
 Product constraints:
 
 * The project license is undecided; see `licensing.md`.
-* `ndev` must always exist as the default account.
-* Account names are immutable after creation.
-* Account names may contain any non-whitespace Unicode characters and are limited to 200 characters.
-* Passwords are optional; accounts default to no password at creation.
-* Deleting an account deletes all session information owned by that account.
+* NDX has no product account/user concept; see `accounts.md`.
+* `ndev` is only the PostgreSQL/container credential and development runtime default.
+* Do not add product user tables, account selection socket messages, user-owned session filters, or `userid` columns without a new explicit product decision.
 * Agent functionality is available only through the agent server session surface.
 * PostgreSQL is the only source of truth for session state and context history.
 * In-memory context assembled for a model request is temporary and must be rebuilt for every request from durable records.
 * PostgreSQL runs inside the agent container from `ndx2-ndx-base:<version>` for
   local deploys and from the npm single-image build for distribution, with no
-  external host port exposure and default account credentials `ndev/ndev`.
+  external host port exposure and default database credentials `ndev/ndev`.
 * The DB working directory is `/ndx/pgvector/pgdata` in the container and `./volume/pgvector` under the host ndx root volume; this directory is intentionally ignored from version control.
 
 UI test contracts for frontend packages must document stable landmarks, accessible names, and approved test ids before relying on them in headless browser tests.

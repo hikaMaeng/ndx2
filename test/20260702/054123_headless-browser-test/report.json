@@ -1,0 +1,30 @@
+{
+  "status": "passed",
+  "mode": "scenario",
+  "inputUrl": "http://127.0.0.1:18082",
+  "finalUrl": "http://127.0.0.1:18082/docs/reference/source-inventory",
+  "title": "NDX Docs",
+  "consoleErrors": [],
+  "pageErrors": [],
+  "screenshots": [
+    "test/20260702/054123_headless-browser-test/screenshots/webclient-home.png",
+    "test/20260702/054123_headless-browser-test/screenshots/settings-model-patch.png",
+    "test/20260702/054123_headless-browser-test/screenshots/docs-source-inventory.png"
+  ],
+  "trace": "test/20260702/054123_headless-browser-test/trace.zip",
+  "steps": [
+    {
+      "name": "open webclient home",
+      "status": "passed"
+    },
+    {
+      "name": "open settings and model patch tab",
+      "status": "passed"
+    },
+    {
+      "name": "open docs source inventory",
+      "status": "passed"
+    }
+  ],
+  "finishedAt": "2026-07-01T20:42:37.625Z"
+}

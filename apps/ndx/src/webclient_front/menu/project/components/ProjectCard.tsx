@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp, Code2, Folder, Plus, Trash2 } from "lucide-reac
 import type { NDXAgentWebSession, NDXWebClientProject } from "ndx/webclient/common";
 import { RSC } from "../resource";
 import { ProjectSessionRow } from "./ProjectSessionRow";
+import { Button } from "../../../components/ui";
 
 type ProjectCardProps = {
   active: boolean;
@@ -59,34 +60,34 @@ export const ProjectCard = React.memo(function ProjectCard({
 
   return (
     <li className="min-w-0" data-testid="project-sidebar-item">
-      <div className={active ? "w-full min-w-0 overflow-hidden rounded-md border border-emerald-700 bg-emerald-950/30 px-2.5 py-2 text-left" : "w-full min-w-0 overflow-hidden rounded-md border border-zinc-800 bg-zinc-900/60 px-2.5 py-2 text-left hover:bg-zinc-900"} aria-busy={pending}>
+      <div className={active ? "w-full min-w-0 overflow-hidden rounded-md border border-emerald-700 bg-emerald-950/30 px-2 py-1 text-left" : "w-full min-w-0 overflow-hidden rounded-md border border-zinc-800 bg-zinc-900/60 px-2 py-1 text-left hover:bg-zinc-900"} aria-busy={pending}>
         <div className="flex min-w-0 items-center gap-1">
-          <button type="button" className="flex min-w-0 flex-1 items-center gap-2 text-left" onClick={() => onSelectProject(project)}>
+          <Button type="button" size={null} className="flex min-w-0 flex-1 items-center gap-2 text-left" onClick={() => onSelectProject(project)}>
             <Folder aria-hidden="true" className="h-4 w-4 shrink-0 text-zinc-500" />
             <span className="min-w-0 flex-1 truncate text-sm font-medium" title={project.path}>{project.name}</span>
-          </button>
-          <button type="button" className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 p-0 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-label={t[RSC.PROJECT_SIDEBAR_PROJECT_OPEN_VSCODE_BUTTON]} disabled={pending} title={t[RSC.PROJECT_SIDEBAR_PROJECT_OPEN_VSCODE_BUTTON]} onClick={(event) => { event.preventDefault(); event.stopPropagation(); onOpenProjectInVSCode(project); }}>
+          </Button>
+          <Button type="button" size={null} className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 p-0 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-label={t[RSC.PROJECT_SIDEBAR_PROJECT_OPEN_VSCODE_BUTTON]} disabled={pending} title={t[RSC.PROJECT_SIDEBAR_PROJECT_OPEN_VSCODE_BUTTON]} onClick={(event) => { event.preventDefault(); event.stopPropagation(); onOpenProjectInVSCode(project); }}>
             <Code2 aria-hidden="true" className="h-3 w-3" />
-          </button>
-          <button type="button" className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 p-0 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-label={t[RSC.PROJECT_SIDEBAR_PROJECT_NEW_SESSION_BUTTON]} disabled={pending} title={t[RSC.PROJECT_SIDEBAR_PROJECT_NEW_SESSION_BUTTON]} onClick={() => onPrepareSessionDraft(project)}>
+          </Button>
+          <Button type="button" size={null} className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 p-0 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-label={t[RSC.PROJECT_SIDEBAR_PROJECT_NEW_SESSION_BUTTON]} disabled={pending} title={t[RSC.PROJECT_SIDEBAR_PROJECT_NEW_SESSION_BUTTON]} onClick={() => onPrepareSessionDraft(project)}>
             <Plus aria-hidden="true" className="h-3 w-3" />
-          </button>
-          <button type="button" className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 p-0 text-sm font-medium text-zinc-400 transition-colors hover:bg-red-950 hover:text-red-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-label={t[RSC.PROJECT_SIDEBAR_PROJECT_DELETE_BUTTON]} disabled={pending} title={t[RSC.PROJECT_SIDEBAR_PROJECT_DELETE_BUTTON]} onClick={(event) => { event.preventDefault(); event.stopPropagation(); onDeleteProject(project); }}>
+          </Button>
+          <Button type="button" size={null} className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 p-0 text-sm font-medium text-zinc-400 transition-colors hover:bg-red-950 hover:text-red-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-label={t[RSC.PROJECT_SIDEBAR_PROJECT_DELETE_BUTTON]} disabled={pending} title={t[RSC.PROJECT_SIDEBAR_PROJECT_DELETE_BUTTON]} onClick={(event) => { event.preventDefault(); event.stopPropagation(); onDeleteProject(project); }}>
             <Trash2 aria-hidden="true" className="h-3 w-3" />
-          </button>
+          </Button>
         </div>
         {sessions.length > 0 ? (
           <>
-            <ul id={sessionListId} className="mt-2 grid min-w-0 gap-1" aria-label={t[RSC.PROJECT_SIDEBAR_PROJECTS_SELECTED_LIST_LABEL]}>
+            <ul id={sessionListId} className="mt-1 grid min-w-0 gap-1" aria-label={t[RSC.PROJECT_SIDEBAR_PROJECTS_SELECTED_LIST_LABEL]}>
               {visibleSessions.map((session) => (
                 <ProjectSessionRow key={session.sessionid} activeSessionId={activeSessionId} pending={pendingSessionIds.has(session.sessionid)} pinned={pinnedSessionIds.has(session.sessionid)} pinSessionLabel={pinSessionLabel} project={project} renameSessionLabel={renameSessionLabel} session={session} t={t} unpinSessionLabel={unpinSessionLabel} onDeleteSession={onDeleteSession} onRenameSession={onRenameSession} onSelectSession={onSelectSession} onToggleSessionPin={onToggleSessionPin} />
               ))}
             </ul>
             {hiddenSessionCount > 0 ? (
-              <button type="button" className="mt-1 flex w-full min-w-0 items-center justify-center gap-1 rounded border border-zinc-800 bg-zinc-950 px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300" aria-controls={sessionListId} aria-expanded={expanded} onClick={() => onToggleProjectSessions(project.projectName)}>
+              <Button type="button" size={null} className="mt-1 flex w-full min-w-0 items-center justify-center gap-1 rounded border border-zinc-800 bg-zinc-950 px-2 py-0.5 text-xs text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300" aria-controls={sessionListId} aria-expanded={expanded} onClick={() => onToggleProjectSessions(project.projectName)}>
                 {expanded ? <ChevronUp aria-hidden="true" className="h-3 w-3" /> : <ChevronDown aria-hidden="true" className="h-3 w-3" />}
                 <span className="truncate">{expanded ? t[RSC.PROJECT_SIDEBAR_SESSIONS_COLLAPSE_BUTTON] : `${t[RSC.PROJECT_SIDEBAR_SESSIONS_SHOW_MORE_BUTTON]} ${hiddenSessionCount}`}</span>
-              </button>
+              </Button>
             ) : null}
           </>
         ) : null}

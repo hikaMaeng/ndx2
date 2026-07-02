@@ -19,7 +19,7 @@
 | --- | --- | --- |
 | 7 | npm 설치 문서 | npm launcher와 Docker 전제 조건 설명. |
 | 8 | 첫 실행 문서 | URL, 모델 설정, 프로젝트 선택 설명. |
-| 9 | 첫 세션 문서 | session 생성과 default account 설명. |
+| 9 | 첫 세션 문서 | session 생성과 no-account identity 설명. |
 | 10 | composer 문서 | text/image/file attachment 흐름 설명. |
 | 11 | 다중 클라이언트 문서 | history replay와 duplicate event 처리 설명. |
 | 12 | 장애 해결 문서 | Docker, DB, model provider, socket 오류 분류. |
@@ -76,7 +76,7 @@
 | 33 | data backup | `/ndx/pgvector`, `.ndx`, workspace 분리 설명. |
 | 33.1 | root docs cross reference | `docs/*.md`가 앱 문서 사이트에서 모두 경로로 연결된다. |
 | 33.2 | licensing provenance | `docs/licensing.md` 정책과 upstream notice 규칙 설명. |
-| 33.3 | account lifecycle | `docs/accounts.md` default account와 deletion cascade 설명. |
+| 33.3 | account lifecycle | `docs/accounts.md` no-product-account rule과 deletion unit 설명. |
 
 ## Phase 6: 코드 검수 자동화
 

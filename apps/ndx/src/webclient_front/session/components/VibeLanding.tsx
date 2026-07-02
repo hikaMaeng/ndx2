@@ -1,5 +1,6 @@
 import React from "react";
 import { Menu } from "lucide-react";
+import { Button } from "../../components/ui";
 
 type Particle = {
   x: number;
@@ -197,9 +198,9 @@ export function VibeLanding({ onOpenMenu, menuLabel }: { onOpenMenu: () => void;
 
   return (
     <div className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden bg-black">
-      <button type="button" className="fixed left-4 top-4 z-20 inline-flex h-9 w-9 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900/80 p-0 text-sm font-medium text-zinc-300 shadow-lg shadow-black/30 backdrop-blur transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 md:hidden" aria-label={menuLabel} onClick={onOpenMenu}>
+      <Button type="button" className="fixed left-4 top-4 z-20 inline-flex h-9 w-9 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900/80 p-0 text-sm font-medium text-zinc-300 shadow-lg shadow-black/30 backdrop-blur transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 md:hidden" aria-label={menuLabel} onClick={onOpenMenu}>
         <Menu aria-hidden="true" className="h-4 w-4" />
-      </button>
+      </Button>
       <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" aria-hidden="true" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.18)_42%,rgba(0,0,0,0.82)_100%)]" />
       <main className="relative z-10 grid min-h-0 flex-1 place-items-center px-6">

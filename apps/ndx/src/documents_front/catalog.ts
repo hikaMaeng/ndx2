@@ -109,7 +109,7 @@ export const documentSections: DocumentSection[] = [
       {
         id: "accounts-lifecycle",
         title: "Account 생명주기",
-        description: "default ndev, identity, deletion cascade.",
+        description: "no product account, client identity, deletion units.",
         markdown: accountsLifecycle
       },
       {

@@ -1,9 +1,10 @@
 import React from "react";
-import { GripVertical, PanelRightClose, PanelRightOpen } from "lucide-react";
+import { PanelRightClose, PanelRightOpen } from "lucide-react";
 import type { SessionUiState } from "ndx/webclient/front";
 import { RSC } from "../../../app/resource";
 import { rightSidebarToggled, rightSidebarWithScrollTop, rightSidebarWithWidth, type UpdateSessionUi } from "../state";
 import { RightSidebar } from "./RightSidebar";
+import { Button } from "../../../components/ui";
 
 function RightSidebarResizeHandle({ width, onWidthChange }: { width: number; onWidthChange: (width: number) => void }) {
   const startResize = (event: React.PointerEvent<HTMLButtonElement>) => {
@@ -28,9 +29,7 @@ function RightSidebarResizeHandle({ width, onWidthChange }: { width: number; onW
   };
 
   return (
-    <button type="button" className="hidden h-full w-2 shrink-0 cursor-col-resize items-center justify-center border-l border-zinc-800 bg-zinc-950 text-zinc-600 hover:bg-zinc-900 hover:text-zinc-300 md:flex" aria-label="오른쪽 사이드바 너비 조정" aria-orientation="vertical" role="separator" onPointerDown={startResize}>
-      <GripVertical aria-hidden="true" className="h-4 w-4" />
-    </button>
+    <Button type="button" size={null} className="hidden h-full w-[3px] shrink-0 cursor-col-resize rounded-none border-l border-zinc-800 bg-zinc-950 p-0 hover:bg-zinc-900 md:flex" aria-label="오른쪽 사이드바 너비 조정" aria-orientation="vertical" role="separator" onPointerDown={startResize} />
   );
 }
 
@@ -53,9 +52,9 @@ export function RightSidebarRegion({ isActive, surfaceKey, t, ui, updateSessionU
 
   return (
     <>
-      <button type="button" className="fixed right-4 top-4 z-20 hidden h-8 w-8 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950/95 p-0 text-sm font-medium text-zinc-500 shadow-lg shadow-black/30 transition-colors hover:bg-zinc-900 hover:text-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 md:inline-flex" aria-label={ui.rightSidebarOpen ? t[RSC.APP_SHELL_RIGHT_SIDEBAR_CLOSE_BUTTON] : t[RSC.APP_SHELL_RIGHT_SIDEBAR_OPEN_BUTTON]} aria-controls={`session-right-sidebar-${suffix}`} aria-expanded={ui.rightSidebarOpen} onClick={() => updateSessionUi(surfaceKey, rightSidebarToggled)}>
+      <Button type="button" className="fixed right-4 top-4 z-20 hidden h-8 w-8 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950/95 p-0 text-sm font-medium text-zinc-500 shadow-lg shadow-black/30 transition-colors hover:bg-zinc-900 hover:text-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 md:inline-flex" aria-label={ui.rightSidebarOpen ? t[RSC.APP_SHELL_RIGHT_SIDEBAR_CLOSE_BUTTON] : t[RSC.APP_SHELL_RIGHT_SIDEBAR_OPEN_BUTTON]} aria-controls={`session-right-sidebar-${suffix}`} aria-expanded={ui.rightSidebarOpen} onClick={() => updateSessionUi(surfaceKey, rightSidebarToggled)}>
         {ui.rightSidebarOpen ? <PanelRightClose aria-hidden="true" className="h-4 w-4" /> : <PanelRightOpen aria-hidden="true" className="h-4 w-4" />}
-      </button>
+      </Button>
       {ui.rightSidebarOpen ? (
         <>
           <RightSidebarResizeHandle width={ui.rightSidebarWidth} onWidthChange={(width) => updateSessionUi(surfaceKey, (current) => rightSidebarWithWidth(current, width))} />

@@ -14,6 +14,7 @@ export {
   serverContainerUserHome,
   serverContainerWorkspace,
   toServerContainerPath,
+  toServerReadableFilePath,
   toHostWorkspacePath,
   toServerProjectPath,
   toServerUserHome,

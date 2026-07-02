@@ -167,8 +167,8 @@ The complete runtime-volume contract is maintained in `runtime-volume.md`.
 
 Product usage assumptions:
 
-* A user may connect without a special login step; the server then uses the mandatory `ndev` account.
-* Every session belongs to an account and project id category.
+* A user may connect without a login step; the browser identity is a `clientid` used only for reconnect and presentation state.
+* Every session belongs to a workspace project category, not to a product account.
 * Multiple clients may connect to the same session and receive downstream events.
 * A client with no local history should request history restoration before appending live events.
 * Clients append only events whose ids they do not already own.

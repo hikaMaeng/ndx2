@@ -6,7 +6,7 @@
 
 | 루트 문서 | 앱 문서에서 다루는 주제 |
 | --- | --- |
-| `docs/accounts.md` | 기본 `ndev` account, account identity, deletion cascade. |
+| `docs/accounts.md` | 제품 account 없음, client identity, deletion unit. |
 | `docs/api.md` | HTTP/WebSocket surface, session event, history restore. |
 | `docs/architecture.md` | TypeScript monorepo, agent server authority, PostgreSQL source of truth. |
 | `docs/code-placement.md` | app/package boundary, agent/webclient/settings/documents placement. |

@@ -415,8 +415,8 @@ interrupt metadata are turn events. This keeps reopened sessions visually
 equivalent to sessions that are still receiving socket messages while preserving
 PostgreSQL as the single source of truth.
 
-The web-client normalization helper is
-`packages/ndx/src/webclient/protocol/index.ts#sessionDataToSessionEvent`.
+The web-client normalization helpers are under
+`packages/ndx/src/webclient/front/session`.
 
 The web client must not fetch full historical turn internals during initial
 session attach. After `session.attached`, it requests `session.history.summary`
@@ -502,8 +502,8 @@ tool-call, inference, or context-reconstruction state.
 | `updatedat` | Updated whenever the browser state document is written. |
 
 The web client state SQL is maintained in
-`packages/ndx/src/webclient/client-state/schema.ts` because it describes the
-web client's own domain state, while `initServer` still owns schema
+`packages/ndx/src/webclient/server/client-state/schema.ts` because it describes
+the web client's own domain state, while `initServer` still owns schema
 initialization.
 
 `web_project` stores web-client preferences for projects discovered from

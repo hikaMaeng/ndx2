@@ -1,0 +1,126 @@
+{
+  "url": "http://127.0.0.1:18080",
+  "errors": [],
+  "samples": [
+    {
+      "text": "",
+      "backgroundColor": "oklch(0.21 0.006 285.885)",
+      "color": "oklch(0.871 0.006 286.286)"
+    },
+    {
+      "text": "",
+      "backgroundColor": "oklch(0.21 0.006 285.885)",
+      "color": "oklch(0.871 0.006 286.286)"
+    },
+    {
+      "text": "",
+      "backgroundColor": "oklch(0.21 0.006 285.885)",
+      "color": "oklch(0.871 0.006 286.286)"
+    },
+    {
+      "text": "pinball2",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "color": "oklch(0.871 0.006 286.286)"
+    },
+    {
+      "text": "",
+      "backgroundColor": "oklch(0.141 0.005 285.823)",
+      "color": "oklch(0.705 0.015 286.067)"
+    },
+    {
+      "text": "",
+      "backgroundColor": "oklch(0.141 0.005 285.823)",
+      "color": "oklch(0.705 0.015 286.067)"
+    },
+    {
+      "text": "",
+      "backgroundColor": "oklch(0.141 0.005 285.823)",
+      "color": "oklch(0.705 0.015 286.067)"
+    },
+    {
+      "text": "$web-service-scaffold pinball2\n\n현재 작업 디렉",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "color": "oklch(0.871 0.006 286.286)"
+    },
+    {
+      "text": "",
+      "backgroundColor": "oklch(0.141 0.005 285.823)",
+      "color": "oklch(0.552 0.016 285.938)"
+    },
+    {
+      "text": "",
+      "backgroundColor": "oklch(0.141 0.005 285.823)",
+      "color": "oklch(0.552 0.016 285.938)"
+    },
+    {
+      "text": "",
+      "backgroundColor": "oklch(0.141 0.005 285.823)",
+      "color": "oklch(0.552 0.016 285.938)"
+    },
+    {
+      "text": "pinball",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "color": "oklch(0.871 0.006 286.286)"
+    },
+    {
+      "text": "",
+      "backgroundColor": "oklch(0.141 0.005 285.823)",
+      "color": "oklch(0.705 0.015 286.067)"
+    },
+    {
+      "text": "",
+      "backgroundColor": "oklch(0.141 0.005 285.823)",
+      "color": "oklch(0.705 0.015 286.067)"
+    },
+    {
+      "text": "",
+      "backgroundColor": "oklch(0.141 0.005 285.823)",
+      "color": "oklch(0.705 0.015 286.067)"
+    },
+    {
+      "text": "$web-deploy-docker apps/pinball",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "color": "oklch(0.871 0.006 286.286)"
+    },
+    {
+      "text": "",
+      "backgroundColor": "oklch(0.141 0.005 285.823)",
+      "color": "oklch(0.552 0.016 285.938)"
+    },
+    {
+      "text": "",
+      "backgroundColor": "oklch(0.141 0.005 285.823)",
+      "color": "oklch(0.552 0.016 285.938)"
+    },
+    {
+      "text": "",
+      "backgroundColor": "oklch(0.141 0.005 285.823)",
+      "color": "oklch(0.552 0.016 285.938)"
+    },
+    {
+      "text": "$web-deploy-docker apps/pinball",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "color": "oklch(0.871 0.006 286.286)"
+    },
+    {
+      "text": "",
+      "backgroundColor": "oklch(0.141 0.005 285.823)",
+      "color": "oklch(0.552 0.016 285.938)"
+    },
+    {
+      "text": "",
+      "backgroundColor": "oklch(0.141 0.005 285.823)",
+      "color": "oklch(0.552 0.016 285.938)"
+    },
+    {
+      "text": "",
+      "backgroundColor": "oklch(0.141 0.005 285.823)",
+      "color": "oklch(0.552 0.016 285.938)"
+    },
+    {
+      "text": "핀볼 프로젝트를 실제 플레이 가능한 핀볼 게임으로 완성하라. 현재 앱은 ",
+      "backgroundColor": "rgba(0, 0, 0, 0)",
+      "color": "oklch(0.871 0.006 286.286)"
+    }
+  ]
+}

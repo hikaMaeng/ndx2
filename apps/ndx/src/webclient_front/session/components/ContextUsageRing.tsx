@@ -1,5 +1,6 @@
 import type { NDXAgentWebContextUsage } from "ndx/webclient/front";
 import { CONTEXT_USAGE_PART_RSC, RSC } from "../resource";
+import { Button } from "../../components/ui";
 
 export function ContextUsageRing({ usage, label, title, t }: { usage?: NDXAgentWebContextUsage; label: string; title: string; t: Record<string, string> }) {
   const radius = 8;
@@ -30,7 +31,7 @@ export function ContextUsageRing({ usage, label, title, t }: { usage?: NDXAgentW
 
   return (
     <div className="group relative inline-flex h-7 w-7 items-center justify-center">
-      <button type="button" className="h-5 w-5" aria-label={label} aria-describedby="context-usage-popover">
+      <Button type="button" className="h-5 w-5" aria-label={label} aria-describedby="context-usage-popover">
         <svg viewBox="0 0 20 20" className="h-5 w-5 -rotate-90" aria-hidden="true">
           {Array.from({ length: 12 }).map((_, index) => (
             <line key={index} x1="10" y1="1" x2="10" y2="3" className="stroke-zinc-600" strokeWidth="1" transform={`rotate(${index * 30} 10 10)`} />
@@ -54,7 +55,7 @@ export function ContextUsageRing({ usage, label, title, t }: { usage?: NDXAgentW
             );
           })}
         </svg>
-      </button>
+      </Button>
       <div
         id="context-usage-popover"
         role="status"

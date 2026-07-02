@@ -1,6 +1,7 @@
 import React from "react";
 import { Check, ChevronDown, ChevronUp, Circle, Loader2 } from "lucide-react";
 import { formatNDXCotWorkElapsed, type NDXCotWorkContents, type NDXCotWorkStepStatus } from "ndx/common/protocol";
+import { Button } from "../../components/ui";
 
 export function CotWorkOverlay({ agentRunning, work }: { agentRunning: boolean; work: NDXCotWorkContents }) {
   const [expanded, setExpanded] = React.useState(false);
@@ -33,7 +34,7 @@ export function CotWorkOverlay({ agentRunning, work }: { agentRunning: boolean; 
             <span className="ml-2 text-cyan-200">{formatNDXCotWorkElapsed(totalElapsedMs)}</span>
             {!expanded && activeStep ? <span className="ml-2 inline-block max-w-[min(34rem,52vw)] truncate align-bottom text-zinc-400">{activeStep.task}</span> : null}
           </p>
-          <button
+          <Button
             type="button"
             className="grid h-7 w-7 place-items-center rounded-md text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"
             aria-controls={panelId}
@@ -43,7 +44,7 @@ export function CotWorkOverlay({ agentRunning, work }: { agentRunning: boolean; 
             onClick={() => setExpanded((value) => !value)}
           >
             {expanded ? <ChevronDown aria-hidden="true" className="h-4 w-4" /> : <ChevronUp aria-hidden="true" className="h-4 w-4" />}
-          </button>
+          </Button>
         </div>
         {expanded ? (
           <div id={panelId} className="max-h-[min(22rem,40dvh)] overflow-y-auto border-t border-zinc-800 px-3 py-3">

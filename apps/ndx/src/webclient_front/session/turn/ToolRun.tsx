@@ -4,8 +4,8 @@ import type { TurnToolState } from "ndx/webclient/front";
 export function ToolRun({ tool }: { tool: TurnToolState }) {
   const Icon = tool.status === "running" ? Loader2 : tool.status === "succeeded" ? CheckCircle2 : tool.status === "queued" ? Circle : XCircle;
   return (
-    <details className="min-w-0 overflow-hidden rounded-md border border-zinc-800 bg-zinc-950/70 px-3 py-2" data-testid="turn-tool-run">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm text-zinc-200">
+    <details className="w-full min-w-0 overflow-hidden rounded-md border border-zinc-800 bg-zinc-950/70 px-3 py-2" data-testid="turn-tool-run">
+      <summary className="flex min-w-0 cursor-pointer list-none items-center justify-between gap-3 text-sm text-zinc-200">
         <span className="flex min-w-0 items-center gap-2">
           <Icon aria-hidden="true" className={`h-4 w-4 shrink-0 ${tool.status === "running" ? "animate-spin text-sky-300" : tool.status === "succeeded" ? "text-emerald-300" : tool.status === "queued" ? "text-zinc-500" : "text-rose-300"}`} />
           <span className="truncate font-medium">{tool.tool}</span>
@@ -13,7 +13,7 @@ export function ToolRun({ tool }: { tool: TurnToolState }) {
         </span>
         <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-zinc-500" />
       </summary>
-      <div className="mt-3 grid min-w-0 gap-2 text-xs text-zinc-400">
+      <div className="mt-3 grid min-w-0 gap-2 overflow-hidden text-xs text-zinc-400">
         {tool.callId ? <p className="ndx-wrap-anywhere"><span className="text-zinc-500">call</span> {tool.callId}</p> : null}
         {tool.args ? <pre className="ndx-wrap-anywhere max-h-36 overflow-y-auto rounded bg-black/30 p-2 text-zinc-300">{JSON.stringify(tool.args, null, 2)}</pre> : null}
         {tool.progress.length > 0 ? (

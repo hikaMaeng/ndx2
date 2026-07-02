@@ -23,15 +23,16 @@ Primary product constraints:
 * Implement new runtime code in TypeScript, not Rust.
 * Use the Turbo monorepo structure as the architectural boundary.
 * Center the product on a web server that hosts the agent session server,
-  administration site, session web client, and account-management surface.
+  administration/settings site, session web client, and documents surface.
 * Keep all agent execution authority inside the session server. Other clients
   may connect to it, but they must not own agent-loop, tool-call, inference, or
   context-reconstruction logic.
 * Use PostgreSQL as the source of truth for session data. Do not introduce a
   separate live-session memory store as an authoritative state holder.
 * Use `pgvector` container for PostgreSQL with Korean text search extension requirements as the canonical development datastore.
-* Treat `ndev` as the mandatory default account when no explicit login flow has
-  selected another account.
+* Treat `ndev` as a PostgreSQL/container credential and development runtime
+  default only. Do not reintroduce product account ownership without an explicit
+  product decision.
 
 ### Agent Prompt Prefix Cache Contract
 
@@ -132,7 +133,8 @@ Required documentation targets for this contract:
 Durable product details belong under `docs/`:
 
 * `docs/licensing.md` for upstream license and undecided project license rules.
-* `docs/accounts.md` for account identity and deletion semantics.
+* `docs/accounts.md` for the no-product-account identity rule and deletion
+  semantics.
 * `docs/sessions.md` for session identity, metadata, and client interaction.
 * `docs/session-data.md` for PostgreSQL-backed context reconstruction.
 * `docs/runtime-control.md` for interrupts, tool cancellation, queued work, and
@@ -214,13 +216,13 @@ follow `docs/code-placement.md`.
 
 Current app/package placement:
 
-* `apps/ndx` is the single Express service for administration, session server,
-  webclient, documents, and account-management surfaces.
+* `apps/ndx` is the single Express service for administration/settings,
+  session server, webclient, and documents surfaces.
 * `packages/ndx/src/common` holds runtime-neutral shared contracts.
 * `packages/ndx/src/agent` holds agent runtime authority, split by public
   subpaths such as `ndx/agent/session`, `ndx/agent/tool`, `ndx/agent/hook`,
-  `ndx/agent/turnloop`, `ndx/agent/chat`, `ndx/agent/account`, and
-  `ndx/agent/init`. Self-check runtime APIs are exposed through
+  `ndx/agent/turnloop`, `ndx/agent/chat`, and `ndx/agent/init`.
+  Self-check runtime APIs are exposed through
   `ndx/agent/selfcheck`.
 * `packages/ndx/src/webclient/common`, `src/webclient/server`, and
   `src/webclient/front` hold webclient DTOs, server-side helpers, and

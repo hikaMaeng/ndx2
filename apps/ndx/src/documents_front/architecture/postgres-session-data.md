@@ -7,7 +7,7 @@ NDX의 session state는 PostgreSQL이 권위 상태다. 메모리는 현재 turn
 | 테이블 | 역할 |
 | --- | --- |
 | `project` | 실행 target과 normalized physical path의 durable identity. |
-| `session` | 계정, 프로젝트, 모델 설정, 실행 상태, runtime coordination. |
+| `session` | 프로젝트, 모델 설정, 실행 상태, runtime coordination. |
 | `sessiondata` | user, assistant, tool call, tool result 등 append-only history. |
 | `sessionsearch` | user/final assistant row의 검색 projection과 vector/FTS index. |
 | `chatfolder` | project와 분리된 chat folder. |

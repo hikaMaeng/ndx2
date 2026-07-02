@@ -15,7 +15,6 @@ Public exports:
 | `ndx/common/responseapi` | Provider-neutral model request/response abstraction. |
 | `ndx/agent` | Agent metadata only; runtime APIs use focused subpaths. |
 | `ndx/agent/init` | Agent server initialization and database handle contracts. |
-| `ndx/agent/account` | Account identity operations. |
 | `ndx/agent/session` | Project session persistence and history operations. |
 | `ndx/agent/compact` | Durable context compaction and model-window row selection. |
 | `ndx/agent/selfcheck` | Agent self-check run/candidate/check persistence and execution. |
@@ -106,7 +105,7 @@ No server-only initialization or database API is exported from this runtime-neut
 | `initSessionDatabase(database)` | Runs explicit session, sessiondata, and sessionsearch schema initialization. |
 | `createSession(database, input)` | Inserts session metadata with UUIDv7-shaped id, empty title, default `none` mode, and idle state. |
 | `getSession(database, sessionid)` | Reads one session metadata row. |
-| `listSession(database, userid, projectname)` | Lists sessions for one owner and workspace project name, newest `lastupdated` first. |
+| `listSession(database, projectname)` | Lists sessions for one workspace project name, newest `lastupdated` first. |
 | `updateSessionStartTurn(database, sessionid, model?)` | Marks a user-request turn running; updates model only when the next request supplies it. |
 | `updateSessionEndTurn(database, sessionid)` | Marks the turn idle and refreshes `lastupdated`. |
 | `updateSessionTitle(database, sessionid, title)` | Applies direct user title changes without changing turn lifecycle state. |
@@ -115,15 +114,6 @@ No server-only initialization or database API is exported from this runtime-neut
 | `NDXModelConfig` | Persisted model/provider configuration for a session. |
 | `NDXSessionRow` | Session metadata row contract. |
 | `NDXSessionDataRow` | Append-only session history row contract. |
-
-## `ndx/agent/account`
-
-| API | Purpose |
-| --- | --- |
-| `DEFAULT_NDX_USERID` | Mandatory default account id, `ndev`. |
-| `createUser(database, userid)` | Creates an account row. |
-| `listUser(database)` | Lists account rows. |
-| `getUser(database, userid)` | Reads one account row. |
 
 ## `ndx/agent/selfcheck`
 

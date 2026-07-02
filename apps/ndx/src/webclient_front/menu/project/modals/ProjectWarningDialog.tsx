@@ -1,5 +1,6 @@
 import { AlertTriangle, X } from "lucide-react";
 import { RSC } from "../../../app/resource";
+import { Button } from "../../../components/ui";
 
 type ProjectWarningDialogProps = {
   title: string;
@@ -19,13 +20,13 @@ export function ProjectWarningDialog({ title, message, t, onClose }: ProjectWarn
             </span>
             <h2 id="project-warning-title" className="text-base font-semibold text-zinc-100">{title || t[RSC.APP_PROJECT_WARNING_TITLE_TEXT]}</h2>
           </div>
-          <button type="button" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900 p-0 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950" aria-label={t[RSC.APP_PROJECT_WARNING_CLOSE_BUTTON]} onClick={onClose}>
+          <Button type="button" size={null} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900 p-0 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950" aria-label={t[RSC.APP_PROJECT_WARNING_CLOSE_BUTTON]} onClick={onClose}>
             <X aria-hidden="true" className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
         <p id="project-warning-description" className="text-sm leading-6 text-zinc-300">{message}</p>
         <div className="flex justify-end">
-          <button type="button" className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-950 transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950" onClick={onClose}>{t[RSC.APP_PROJECT_WARNING_CONFIRM_BUTTON]}</button>
+          <Button type="button" className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-950 transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950" onClick={onClose}>{t[RSC.APP_PROJECT_WARNING_CONFIRM_BUTTON]}</Button>
         </div>
       </section>
     </div>

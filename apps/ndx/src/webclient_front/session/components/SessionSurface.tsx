@@ -12,6 +12,7 @@ import { TurnNavigation } from "./TurnNavigation";
 import { UserChatMessage } from "./UserChatMessage";
 import { TurnFlow } from "../turn";
 import { RequestQueueBar } from "../requestQueue";
+import { Button } from "../../components/ui";
 
 type SessionSurfaceProps = {
   surfaceKey: string;
@@ -159,13 +160,13 @@ export function SessionSurface({
     updateVisibleTurnInputDataId();
   }, [isActive, surfaceKey, updateVisibleTurnInputDataId]);
 
-  const rootClassName = !isActive ? "hidden" : embedded ? "flex h-full min-h-[28rem] min-w-0 overflow-hidden rounded-md border border-zinc-800 bg-zinc-950" : "contents";
+  const rootClassName = !isActive ? "hidden" : embedded ? "flex h-full min-h-[28rem] min-w-0 overflow-hidden rounded-md border border-zinc-800 bg-zinc-950" : "flex h-full min-h-0 min-w-0 flex-1 overflow-hidden";
 
   return (
     <div className={rootClassName}>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        {menuButtonVisible ? <button type="button" className="fixed left-4 top-4 z-20 inline-flex h-9 w-9 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900/95 p-0 text-sm font-medium text-zinc-300 shadow-lg shadow-black/30 transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 md:hidden" aria-label={t[RSC.APP_SHELL_MENU_OPEN_BUTTON]} onClick={onOpenMenu}><Menu aria-hidden="true" className="h-4 w-4" /></button> : null}
-        <main ref={chatScrollRef} className="relative min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-8" onScroll={(event) => {
+        {menuButtonVisible ? <Button type="button" className="fixed left-4 top-4 z-20 inline-flex h-9 w-9 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900/95 p-0 text-sm font-medium text-zinc-300 shadow-lg shadow-black/30 transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 md:hidden" aria-label={t[RSC.APP_SHELL_MENU_OPEN_BUTTON]} onClick={onOpenMenu}><Menu aria-hidden="true" className="h-4 w-4" /></Button> : null}
+        <main ref={chatScrollRef} className="relative min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-6 md:px-8" onScroll={(event) => {
           onChatScroll(event.currentTarget.scrollTop);
           updateVisibleTurnInputDataId();
         }} onWheel={onDisableAutoScroll} onTouchMove={onDisableAutoScroll} onPointerDown={(event) => {
@@ -180,16 +181,16 @@ export function SessionSurface({
           }} /> : null}
           {surfaceHasChat ? <div className="pointer-events-none sticky right-0 top-0 z-10 ml-auto w-fit rounded-sm bg-zinc-950/80 px-1.5 py-0.5 text-[10px] text-zinc-500">{ui.autoScrollEnabled ? "autoscroll" : "manual scroll"}</div> : null}
           {surfaceHasChat ? (
-            <section className="mx-auto flex min-h-full w-full max-w-4xl min-w-0 flex-col justify-end gap-5" aria-labelledby={`session-page-title-${suffix}`}>
+            <section className="mx-auto flex min-h-full w-full max-w-4xl min-w-0 flex-col justify-end gap-5 overflow-hidden" aria-labelledby={`session-page-title-${suffix}`}>
               <div className="grid min-w-0 gap-1 text-center">
                 <h1 id={`session-page-title-${suffix}`} className="mx-auto w-full min-w-0 truncate text-base font-semibold leading-6 text-zinc-50" title={surfaceTitle}>{surfaceTitle}</h1>
                 <p className="text-xs text-zinc-500">{project?.name ?? t[RSC.SESSION_PAGE_PROJECT_FALLBACK_LABEL]}</p>
               </div>
               {!session ? <p className="text-center text-sm text-zinc-500">{t[RSC.SESSION_PAGE_NEW_DRAFT_DESCRIPTION_TEXT]}</p> : null}
-              <ol className="grid min-w-0 gap-4" aria-label={t[RSC.SESSION_PAGE_MESSAGES_LABEL]}>
+              <ol className="grid w-full min-w-0 gap-4 overflow-hidden" aria-label={t[RSC.SESSION_PAGE_MESSAGES_LABEL]}>
                 {transcript.map((item) => {
                   if (item.kind === "turn") {
-                    return <li key={item.turn.id} className="w-full"><TurnFlow turns={[item.turn]} onTurnToggle={onTurnToggle} onIterationToggle={onIterationToggle} /></li>;
+                    return <li key={item.turn.id} className="w-full min-w-0 overflow-hidden"><TurnFlow turns={[item.turn]} onTurnToggle={onTurnToggle} onIterationToggle={onIterationToggle} /></li>;
                   }
                   const message = item.message;
                   const userHistoryActionsDisabled = historyMutationDisabled || Boolean(message.historyActionsDisabled);
@@ -298,7 +299,7 @@ export function SessionSurface({
             <div className="mx-auto flex w-full max-w-4xl items-start gap-3">
               <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-md border border-red-800 bg-red-950 text-red-200"><AlertTriangle aria-hidden="true" className="h-4 w-4" /></span>
               <div className="min-w-0 flex-1"><h2 id={`session-error-title-${suffix}`} className="text-sm font-semibold text-red-100">{t[RSC.SESSION_ERROR_TITLE_TEXT] || "세션 요청이 처리되지 않았습니다"}</h2><p className="mt-1 break-words text-sm leading-5 text-red-100/85">{sessionError}</p></div>
-              <button type="button" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-red-900 bg-red-950/60 p-0 text-sm font-medium text-red-100 transition-colors hover:bg-red-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950" aria-label={t[RSC.SESSION_ERROR_DISMISS_BUTTON] || "세션 오류 닫기"} onClick={onDismissError}><X aria-hidden="true" className="h-4 w-4" /></button>
+              <Button type="button" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-red-900 bg-red-950/60 p-0 text-sm font-medium text-red-100 transition-colors hover:bg-red-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950" aria-label={t[RSC.SESSION_ERROR_DISMISS_BUTTON] || "세션 오류 닫기"} onClick={onDismissError}><X aria-hidden="true" className="h-4 w-4" /></Button>
             </div>
           </section>
         ) : null}

@@ -221,3 +221,85 @@ test("settings document row edits runtime tool hook websearch and other settings
     await fs.rm(userHome, { recursive: true, force: true });
   }
 });
+
+test("settings document update allows disabling selfcheck with a stale model value", async () => {
+  const userHome = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-settings-selfcheck-disable-"));
+  const settingsPath = path.join(userHome, ".ndx", "settings.json");
+  await fs.mkdir(path.dirname(settingsPath), { recursive: true });
+  await fs.writeFile(settingsPath, JSON.stringify({
+    models: {
+      "qwen3.6-35b-mm": { name: "qwen3.6-35b:mm", provider: "local" }
+    },
+    selfcheck: {
+      enabled: true,
+      model: "qwen3.6-35b:mm",
+      defaultIntervalMs: 3_600_000,
+      defaultBatchSize: 100,
+      maxLlmAnalysesPerRun: 20,
+      maxEvidenceChars: 12_000
+    }
+  }), "utf8");
+
+  try {
+    const response = await updateSettingsWebDocument(userHome, {
+      selfcheck: {
+        enabled: false,
+        model: "qwen3.6-35b:mm",
+        defaultIntervalMs: 3_600_000,
+        defaultBatchSize: 100,
+        maxLlmAnalysesPerRun: 20,
+        maxEvidenceChars: 12_000
+      }
+    });
+    const settings = JSON.parse(await fs.readFile(settingsPath, "utf8")) as {
+      selfcheck?: { enabled?: boolean; model?: string };
+    };
+
+    assert.equal(response.selfcheck.enabled, false);
+    assert.equal(settings.selfcheck?.enabled, false);
+    assert.equal(settings.selfcheck?.model, "qwen3.6-35b:mm");
+  } finally {
+    await fs.rm(userHome, { recursive: true, force: true });
+  }
+});
+
+test("settings document update resolves display model names to stored model keys", async () => {
+  const userHome = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-settings-model-display-name-"));
+  const settingsPath = path.join(userHome, ".ndx", "settings.json");
+  await fs.mkdir(path.dirname(settingsPath), { recursive: true });
+  await fs.writeFile(settingsPath, JSON.stringify({
+    models: {
+      "qwen3.6-35b-mm": { name: "qwen3.6-35b:mm", provider: "local" }
+    },
+    selfcheck: {
+      enabled: true,
+      defaultIntervalMs: 3_600_000,
+      defaultBatchSize: 100,
+      maxLlmAnalysesPerRun: 20,
+      maxEvidenceChars: 12_000
+    }
+  }), "utf8");
+
+  try {
+    await updateSettingsWebDocument(userHome, {
+      defaultModelKey: "qwen3.6-35b:mm",
+      selfcheck: {
+        enabled: true,
+        model: "qwen3.6-35b:mm",
+        defaultIntervalMs: 3_600_000,
+        defaultBatchSize: 100,
+        maxLlmAnalysesPerRun: 20,
+        maxEvidenceChars: 12_000
+      }
+    });
+    const settings = JSON.parse(await fs.readFile(settingsPath, "utf8")) as {
+      model?: string;
+      selfcheck?: { model?: string };
+    };
+
+    assert.equal(settings.model, "qwen3.6-35b-mm");
+    assert.equal(settings.selfcheck?.model, "qwen3.6-35b-mm");
+  } finally {
+    await fs.rm(userHome, { recursive: true, force: true });
+  }
+});

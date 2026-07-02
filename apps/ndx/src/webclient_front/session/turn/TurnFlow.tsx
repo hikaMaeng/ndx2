@@ -5,9 +5,9 @@ import type { TurnBatchState, TurnFlowState } from "ndx/webclient/front";
 export function TurnFlow({ turns, onTurnToggle, onIterationToggle }: { turns: TurnFlowState[]; onTurnToggle?: (turn: TurnFlowState, open: boolean) => void; onIterationToggle?: (turn: TurnFlowState, batch: TurnBatchState, open: boolean, userInitiated: boolean) => void }) {
   if (turns.length === 0) return null;
   return (
-    <section aria-label="Turn progress" className="grid min-w-0 gap-3" data-testid="turn-progress">
+    <section aria-label="Turn progress" className="grid w-full min-w-0 gap-3 overflow-hidden" data-testid="turn-progress">
       {turns.map((turn) => (
-        <details key={turn.id} className="min-w-0 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950/80 p-3 text-sm text-zinc-300" open={!turn.collapsed} onToggle={(event) => {
+        <details key={turn.id} className="w-full min-w-0 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950/80 p-3 text-sm text-zinc-300" open={!turn.collapsed} onToggle={(event) => {
           onTurnToggle?.(turn, event.currentTarget.open);
         }}>
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
@@ -18,7 +18,7 @@ export function TurnFlow({ turns, onTurnToggle, onIterationToggle }: { turns: Tu
             </span>
             <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-zinc-500" />
           </summary>
-          <div className="mt-3 grid gap-3">
+          <div className="mt-3 grid min-w-0 gap-3 overflow-hidden">
             {turn.batches.map((batch) => <TurnBatch key={batch.key} batch={batch} onToggle={(nextBatch, open, userInitiated) => onIterationToggle?.(turn, nextBatch, open, userInitiated)} />)}
           </div>
         </details>

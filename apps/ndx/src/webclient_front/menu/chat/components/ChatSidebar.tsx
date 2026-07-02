@@ -1,6 +1,7 @@
 import { MessageSquare, Plus } from "lucide-react";
 import type { NDXAgentWebChatFolder, NDXAgentWebChatSession } from "ndx/webclient/common";
 import { ChatFolderCard } from "./ChatFolderCard";
+import { Button } from "../../../components/ui";
 
 type ChatSidebarProps = {
   activeFolderId?: string;
@@ -39,12 +40,12 @@ export function ChatSidebar({
     <section aria-labelledby="chat-list-title" className="grid min-w-0 gap-3">
       <div className="flex min-w-0 items-center justify-between gap-3">
         <h2 id="chat-list-title" className="text-xs font-semibold uppercase text-zinc-500">채팅</h2>
-        <button type="button" className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900 p-0 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950" aria-label="채팅 폴더 추가" title="채팅 폴더 추가" onClick={onAddFolder}>
-          <Plus aria-hidden="true" className="h-4 w-4" />
-        </button>
+        <Button type="button" size={null} className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900 p-0 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950" aria-label="채팅 폴더 추가" title="채팅 폴더 추가" onClick={onAddFolder}>
+          <Plus aria-hidden="true" className="h-3.5 w-3.5" />
+        </Button>
       </div>
       {folders.length > 0 ? (
-        <ul className="grid min-w-0 gap-2" aria-label="채팅 폴더 목록">
+        <ul className="grid min-w-0 gap-1" aria-label="채팅 폴더 목록">
           {folders.map((folder) => (
             <ChatFolderCard key={folder.folderid} activeFolderId={activeFolderId} activeSessionId={activeSessionId} folder={folder} pending={pendingFolderIds.has(folder.folderid)} pendingSessionIds={pendingSessionIds} sessions={sessionsByFolder[folder.folderid] ?? []} onDeleteFolder={onDeleteFolder} onDeleteSession={onDeleteSession} onPrepareSessionDraft={onPrepareSessionDraft} onRenameFolder={onRenameFolder} onRenameSession={onRenameSession} onSelectFolder={onSelectFolder} onSelectSession={onSelectSession} />
           ))}

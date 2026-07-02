@@ -19,8 +19,9 @@ export async function updateSettingsWebDocument(userHome: string, input: NDXSett
     if (version) settings.version = version;
   }
   if (typeof input.defaultModelKey === "string") {
-    const modelKey = input.defaultModelKey.trim();
-    if (modelKey && !settings.models?.[modelKey]) throw new Error(`settings model key not found: ${modelKey}`);
+    const requestedModel = input.defaultModelKey.trim();
+    const modelKey = requestedModel ? resolveExistingSettingsModelKey(settings, requestedModel) : "";
+    if (requestedModel && !modelKey) throw new Error(`settings model key not found: ${requestedModel}`);
     settings.model = modelKey;
   }
   if (input.runtime) {
@@ -76,8 +77,9 @@ export async function updateSettingsWebDocument(userHome: string, input: NDXSett
     }
     if (typeof input.selfcheck.model === "string") {
       const model = input.selfcheck.model.trim();
-      if (model && !settings.models?.[model]) throw new Error(`settings model key not found: ${model}`);
-      if (model) settings.selfcheck.model = model;
+      const modelKey = model ? resolveExistingSettingsModelKey(settings, model) : "";
+      if (model && settings.selfcheck.enabled !== false && !modelKey) throw new Error(`settings model key not found: ${model}`);
+      if (model) settings.selfcheck.model = settings.selfcheck.enabled === false ? model : modelKey || model;
       else delete settings.selfcheck.model;
     }
     applyOptionalPositiveInteger(settings.selfcheck, "defaultIntervalMs", input.selfcheck.defaultIntervalMs);
@@ -110,4 +112,9 @@ function applyOptionalPositiveInteger(target: Record<string, unknown>, key: stri
   if (value === undefined) return;
   if (Number.isInteger(value) && value > 0) target[key] = value;
   else delete target[key];
+}
+
+function resolveExistingSettingsModelKey(settings: { models?: Record<string, { name?: unknown }> }, requested: string): string | undefined {
+  if (settings.models?.[requested]) return requested;
+  return Object.entries(settings.models ?? {}).find(([, model]) => typeof model.name === "string" && model.name.trim() === requested)?.[0];
 }

@@ -6,8 +6,8 @@ Current scaffold tests cover service health endpoints, the agent session health 
 
 Future implementation tests must cover:
 
-* account creation, default `ndev` behavior, optional passwords, immutable names, and deletion cascade;
-* project identity by `target + path`, then session identity by account plus project id plus session id;
+* absence of product account ownership: no account-selection socket path, no `userid` session ownership, and no user-owned filters;
+* project identity by workspace project name, then session identity by project name plus session id;
 * WebSocket connection, history restoration, downstream event ordering, and duplicate-event suppression by id;
 * task-turn context reconstruction from PostgreSQL without relying on in-memory live-session state;
 * crash recovery and resumable task-turn markers;

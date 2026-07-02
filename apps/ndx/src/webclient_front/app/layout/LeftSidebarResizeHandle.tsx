@@ -1,5 +1,5 @@
 import React from "react";
-import { GripVertical } from "lucide-react";
+import { Button } from "../../components/ui";
 
 export function LeftSidebarResizeHandle({ width, onWidthChange }: { width: number; onWidthChange: (width: number) => void }) {
   const startResize = (event: React.PointerEvent<HTMLButtonElement>) => {
@@ -24,8 +24,6 @@ export function LeftSidebarResizeHandle({ width, onWidthChange }: { width: numbe
   };
 
   return (
-    <button type="button" className="hidden h-full w-2 shrink-0 cursor-col-resize items-center justify-center border-r border-zinc-800 bg-zinc-950 text-zinc-600 hover:bg-zinc-900 hover:text-zinc-300 md:flex" aria-label="왼쪽 사이드바 너비 조정" aria-orientation="vertical" role="separator" onPointerDown={startResize}>
-      <GripVertical aria-hidden="true" className="h-4 w-4" />
-    </button>
+    <Button type="button" size={null} className="hidden h-full w-[3px] shrink-0 cursor-col-resize rounded-none border-r border-zinc-800 bg-zinc-950 p-0 hover:bg-zinc-900 md:flex" aria-label="왼쪽 사이드바 너비 조정" aria-orientation="vertical" role="separator" onPointerDown={startResize} />
   );
 }

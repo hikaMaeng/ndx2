@@ -34,7 +34,7 @@ npm run deploy -- apps/ndx
 1. 왼쪽 상단 문서 아이콘을 눌러 이 문서 사이트가 새 탭에서 열리는지 확인한다.
 2. 모델 설정에서 provider URL, model name, context size, modality를 확인한다.
 3. 프로젝트 선택 화면에서 `/ndx/workspace` 하위의 실제 작업 폴더를 선택한다.
-4. 첫 세션을 만들면 서버는 명시 로그인 정보가 없을 때 `ndev` 계정으로 세션을 생성한다.
+4. 첫 세션을 만들면 서버는 로그인 없이 프로젝트 범위 세션을 생성한다. `ndev`는 PostgreSQL/container credential일 뿐 세션 소유자가 아니다.
 5. 세션이 시작되면 모델 요청, 도구 호출, 도구 결과, 최종 응답이 PostgreSQL에 append-only 이력으로 기록된다.
 
 ## 실패했을 때 볼 위치

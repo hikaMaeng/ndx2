@@ -7,7 +7,7 @@
 | 경로 | 문서화 책임 |
 | --- | --- |
 | `apps/ndx/src/server` | Express process wiring, health/static/API route attachment. |
-| `apps/ndx/src/server/agent` | session socket transport, history replay, project negotiation, connection lifecycle. |
+| `apps/ndx/src/server/agent` | session socket transport, history replay, project negotiation, connection lifecycle, request-queue bridge fan-out, and turn-event socket serialization. |
 | `apps/ndx/src/server/resource` | runtime/bundled resource lookup overlay. |
 | `apps/ndx/src/server/web` | web HTTP surface namespace. |
 | `apps/ndx/src/server/web/common` | shared web route types. |
@@ -19,6 +19,8 @@
 | `apps/ndx/src/webclient_front/app/layout` | shell layout controls. |
 | `apps/ndx/src/webclient_front/chat` | chat surface composition. |
 | `apps/ndx/src/webclient_front/chat/surface` | chat-only surface UI. |
+| `apps/ndx/src/webclient_front/components` | app-local React UI primitives and shared composition helpers. |
+| `apps/ndx/src/webclient_front/components/ui` | shadcn/ui-style Button, Input, Select, Textarea, Checkbox primitives. |
 | `apps/ndx/src/documents_front` | Markdown document site and audit code. |
 | `apps/ndx/src/documents_front/architecture` | architecture Markdown documents. |
 | `apps/ndx/src/documents_front/capabilities` | tools, skills, hooks Markdown documents. |
@@ -108,6 +110,7 @@
 | `packages/ndx/src/common/responseapi` | model provider request/response abstraction. |
 | `packages/ndx/src/common/server-path` | host/container path mapping. |
 | `packages/ndx/src/common/settings` | `.ndx/settings.json` schema and shared settings IO. |
+| `packages/ndx/src/common/tokenizer` | tokenizer-backed model-neutral token counting. |
 | `packages/ndx/src/common/uuid7` | UUIDv7 helper. |
 | `packages/ndx/src/webclient` | webclient package namespace. |
 | `packages/ndx/src/webclient/common` | browser/backend shared webclient contracts. |
@@ -126,6 +129,7 @@
 | `packages/ndx/src/webclient/server` | server-side webclient persistence helpers. |
 | `packages/ndx/src/webclient/server/client-state` | browser client state table. |
 | `packages/ndx/src/webclient/server/selfcheck` | web-facing self-check DTO conversion and actions. |
+| `packages/ndx/src/webclient/server/session-favorite` | pinned project-session persistence for the web client. |
 | `packages/ndx/src/webclient/server/settings` | settings domain namespace for `.ndx/settings.json`. |
 | `packages/ndx/src/webclient/server/settings/model-catalog` | provider/model settings store. |
 | `packages/ndx/src/webclient/server/settings/model-patch` | model patch ingestion and normalization. |

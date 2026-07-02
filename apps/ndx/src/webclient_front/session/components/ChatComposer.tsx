@@ -5,6 +5,7 @@ import { ContextUsageRing } from "./ContextUsageRing";
 import { modelAttachmentInputAccept, modelSupportsAttachmentMimeType, type NDXAgentWebContextUsage } from "ndx/webclient/front";
 import type { NDXSessionSkillSummary } from "ndx/common/protocol";
 import { RSC } from "../resource";
+import { Button, Input } from "../../components/ui";
 
 export function ChatComposer({
   agentRunning,
@@ -110,7 +111,7 @@ export function ChatComposer({
   return (
     <>
       <form
-        className="shrink-0 border-t border-zinc-800 bg-zinc-950/95 px-4 py-3 backdrop-blur"
+        className="min-w-0 shrink-0 overflow-hidden border-t border-zinc-800 bg-zinc-950/95 px-4 py-3 backdrop-blur"
         aria-label={t[RSC.SESSION_COMPOSER_INPUT_LABEL]}
         onSubmit={onSubmit}
         onPaste={(event) => {
@@ -125,7 +126,7 @@ export function ChatComposer({
           }
         }}
       >
-        <div className="mx-auto grid w-full max-w-4xl gap-2">
+        <div className="mx-auto grid w-full max-w-4xl min-w-0 gap-2">
           <label className="sr-only" htmlFor={inputId}>
             {t[RSC.SESSION_COMPOSER_INPUT_LABEL]}
           </label>
@@ -134,7 +135,7 @@ export function ChatComposer({
             value={input}
             rows={3}
             classNames={{
-              control: "min-h-24 rounded-lg border border-zinc-800 bg-zinc-900 focus-within:border-zinc-500",
+              control: "min-h-24 min-w-0 rounded-lg border border-zinc-800 bg-zinc-900 focus-within:border-zinc-500",
               highlighter: "max-h-44 min-h-24 whitespace-pre-wrap break-words rounded-lg px-4 py-3 text-sm leading-6",
               highlighterSubstring: "text-zinc-100",
               input: "max-h-44 min-h-24 resize-none rounded-lg px-4 py-3 text-sm leading-6 text-transparent caret-zinc-100 outline-none placeholder:text-zinc-600",
@@ -209,20 +210,20 @@ export function ChatComposer({
                 <li key={attachment.id} className={attachment.previewUrl ? "relative h-20 w-20 overflow-hidden rounded-md border border-zinc-700 bg-zinc-900" : "flex max-w-full items-center gap-2 rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs text-zinc-300"}>
                   {attachment.previewUrl ? (
                     <>
-                      <button type="button" className="block h-full w-full disabled:pointer-events-none" aria-label={`${attachment.name} 미리보기`} disabled={compactRunning} onClick={() => setPreviewAttachmentId(attachment.id)}>
+                      <Button type="button" className="block h-full w-full disabled:pointer-events-none" aria-label={`${attachment.name} 미리보기`} disabled={compactRunning} onClick={() => setPreviewAttachmentId(attachment.id)}>
                         <img src={attachment.previewUrl} alt={attachment.name} className="h-full w-full object-cover" />
-                      </button>
-                      <button type="button" className="absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-zinc-950/90 text-zinc-200 shadow hover:bg-zinc-800 disabled:pointer-events-none disabled:opacity-50" aria-label={`${attachment.name} 제거`} disabled={compactRunning} onClick={() => onRemoveAttachment(attachment.id)}>
+                      </Button>
+                      <Button type="button" className="absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-zinc-950/90 text-zinc-200 shadow hover:bg-zinc-800 disabled:pointer-events-none disabled:opacity-50" aria-label={`${attachment.name} 제거`} disabled={compactRunning} onClick={() => onRemoveAttachment(attachment.id)}>
                         <X aria-hidden="true" className="h-3.5 w-3.5" />
-                      </button>
+                      </Button>
                     </>
                   ) : (
                     <>
                       <span className="max-w-56 truncate">{attachment.name}</span>
                       <span className="shrink-0 text-zinc-500">{formatBytes(attachment.size)}</span>
-                      <button type="button" className="grid h-5 w-5 place-items-center rounded text-zinc-500 hover:bg-zinc-800 hover:text-zinc-100 disabled:pointer-events-none disabled:opacity-50" aria-label={`${attachment.name} 제거`} disabled={compactRunning} onClick={() => onRemoveAttachment(attachment.id)}>
+                      <Button type="button" className="grid h-5 w-5 place-items-center rounded text-zinc-500 hover:bg-zinc-800 hover:text-zinc-100 disabled:pointer-events-none disabled:opacity-50" aria-label={`${attachment.name} 제거`} disabled={compactRunning} onClick={() => onRemoveAttachment(attachment.id)}>
                         <X aria-hidden="true" className="h-3.5 w-3.5" />
-                      </button>
+                      </Button>
                     </>
                   )}
                   {!attachment.previewUrl ? null : <span className="sr-only">{formatBytes(attachment.size)}</span>}
@@ -230,11 +231,11 @@ export function ChatComposer({
               ))}
             </ul>
           ) : null}
-          <div className="flex min-h-8 items-center gap-2 text-xs text-zinc-500">
+          <div className="flex min-h-8 min-w-0 items-center gap-2 overflow-hidden text-xs text-zinc-500">
             <span role="status" className="min-w-0 flex-1 truncate">
               {statusText}
             </span>
-            <button
+            <Button
               type="button"
               className={rewriteEnabled ? "inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-cyan-400/60 bg-cyan-400 px-3 text-xs font-medium text-zinc-950 shadow-sm transition-colors hover:bg-cyan-300 disabled:pointer-events-none disabled:opacity-45" : "inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-zinc-800 bg-zinc-950 px-3 text-xs font-medium text-zinc-400 transition-colors hover:border-zinc-700 hover:bg-zinc-900 hover:text-zinc-100 disabled:pointer-events-none disabled:opacity-45"}
               aria-label={rewriteEnabled ? t[RSC.SESSION_COMPOSER_REWRITE_OFF_BUTTON] : t[RSC.SESSION_COMPOSER_REWRITE_ON_BUTTON]}
@@ -245,14 +246,14 @@ export function ChatComposer({
             >
               <WandSparkles aria-hidden="true" className="h-3.5 w-3.5" />
               <span>Rewrite</span>
-            </button>
+            </Button>
             <label
               className={cotSolveSteps ? "inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-cyan-400/50 bg-cyan-400/10 px-1.5 text-xs font-medium text-cyan-100 transition-colors focus-within:border-cyan-300" : "inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-zinc-800 bg-zinc-950 px-1.5 text-xs font-medium text-zinc-400 transition-colors focus-within:border-zinc-600 focus-within:text-zinc-100"}
               htmlFor={cotSolveInputId}
               title={cotSolveSteps ? `$cot-solve ${cotSolveSteps}` : "$cot-solve"}
             >
               <span>COT</span>
-              <input
+              <Input
                 id={cotSolveInputId}
                 name="cotSolveSteps"
                 className="h-6 w-7 rounded-full border border-transparent bg-transparent p-0 text-center text-xs text-inherit outline-none [appearance:textfield] placeholder:text-zinc-600 disabled:pointer-events-none disabled:opacity-45 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
@@ -271,7 +272,7 @@ export function ChatComposer({
                 }}
               />
             </label>
-            <input
+            <Input
               id={attachmentInputId}
               className="sr-only"
               type="file"
@@ -296,13 +297,13 @@ export function ChatComposer({
             >
               <Paperclip aria-hidden="true" className="h-4 w-4" />
             </label>
-            <button type="button" className="inline-flex h-7 min-w-24 items-center justify-center gap-1 rounded-md px-2 text-zinc-300 hover:bg-zinc-900 disabled:pointer-events-none disabled:opacity-50" aria-label={t[RSC.SESSION_COMPOSER_MODEL_CHOOSE_BUTTON]} aria-haspopup="dialog" disabled={requestPending || compactRunning} onClick={onModelClick}>
+            <Button type="button" className="inline-flex h-7 min-w-24 items-center justify-center gap-1 rounded-md px-2 text-zinc-300 hover:bg-zinc-900 disabled:pointer-events-none disabled:opacity-50" aria-label={t[RSC.SESSION_COMPOSER_MODEL_CHOOSE_BUTTON]} aria-haspopup="dialog" disabled={requestPending || compactRunning} onClick={onModelClick}>
               <span className="min-w-0 truncate">{modelLabel}</span>
               <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" />
-            </button>
+            </Button>
             <ContextUsageRing usage={contextUsage} label={t[RSC.SESSION_CONTEXT_USAGE_LABEL]} title={t[RSC.SESSION_CONTEXT_USAGE_POPOVER_TITLE_TEXT]} t={t} />
             <div className="grid shrink-0 gap-1">
-              <button
+              <Button
                 type="submit"
                 className={agentRunning ? "inline-flex h-8 w-8 items-center justify-center rounded-full bg-red-500 p-0 text-sm font-medium text-white transition-colors hover:bg-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" : "inline-flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 p-0 text-sm font-medium text-zinc-950 transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50"}
                 aria-label={agentRunning ? t[RSC.SESSION_COMPOSER_INTERRUPT_BUTTON] : t[RSC.SESSION_COMPOSER_SEND_BUTTON]}
@@ -311,9 +312,9 @@ export function ChatComposer({
                 title={agentRunning ? t[RSC.SESSION_COMPOSER_INTERRUPT_BUTTON] : t[RSC.SESSION_COMPOSER_SEND_BUTTON]}
               >
                 {agentRunning ? <Square aria-hidden="true" className="h-3.5 w-3.5 fill-current" /> : <Send aria-hidden="true" className="h-4 w-4" />}
-              </button>
+              </Button>
               {queueAddVisible ? (
-                <button
+                <Button
                   type="button"
                   className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-cyan-400/60 bg-cyan-400/10 p-0 text-cyan-100 transition-colors hover:bg-cyan-400/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950"
                   aria-label="요청 큐에 추가"
@@ -321,7 +322,7 @@ export function ChatComposer({
                   onClick={() => onQueueAdd(cotSolveSteps)}
                 >
                   <ListPlus aria-hidden="true" className="h-4 w-4" />
-                </button>
+                </Button>
               ) : null}
             </div>
           </div>
@@ -332,9 +333,9 @@ export function ChatComposer({
           <section role="dialog" aria-modal="true" aria-labelledby="attachment-preview-title" className="grid max-h-full w-full max-w-5xl gap-3 rounded-lg border border-zinc-800 bg-zinc-950 p-3 shadow-2xl" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-center justify-between gap-3">
               <h2 id="attachment-preview-title" className="min-w-0 truncate text-sm font-medium text-zinc-100">{previewAttachment.name}</h2>
-              <button type="button" className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100" aria-label="이미지 미리보기 닫기" onClick={() => setPreviewAttachmentId(undefined)}>
+              <Button type="button" className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100" aria-label="이미지 미리보기 닫기" onClick={() => setPreviewAttachmentId(undefined)}>
                 <X aria-hidden="true" className="h-4 w-4" />
-              </button>
+              </Button>
             </div>
             <div className="min-h-0 overflow-auto rounded-md bg-zinc-900">
               <img src={previewAttachment.previewUrl} alt={previewAttachment.name} className="mx-auto max-h-[75vh] max-w-full object-contain" />

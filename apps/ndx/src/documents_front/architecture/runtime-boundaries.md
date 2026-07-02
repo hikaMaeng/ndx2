@@ -35,7 +35,7 @@ NDX에서 가장 중요한 아키텍처 규칙은 에이전트 실행 권한을 
 
 ## Settings 경계
 
-Settings surface는 운영과 계정/설정을 편집하지만 agent turn을 대신 실행하지 않는다. 설정 변경이 agent behavior에 영향을 주더라도 실행 권한은 `packages/ndx/src/agent`가 가진다. Settings domain logic은 `packages/ndx/src/webclient/server/settings`에 두고, `apps/ndx/src/server/web/webclient/settings`는 HTTP orchestration만 맡는다.
+Settings surface는 운영 설정을 편집하지만 agent turn을 대신 실행하지 않는다. 설정 변경이 agent behavior에 영향을 주더라도 실행 권한은 `packages/ndx/src/agent`가 가진다. Settings domain logic은 `packages/ndx/src/webclient/server/settings`에 두고, `apps/ndx/src/server/web/webclient/settings`는 HTTP orchestration만 맡는다.
 
 ## Socket server 경계
 

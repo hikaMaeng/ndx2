@@ -8,7 +8,7 @@ The target architecture is a TypeScript-first web-service monorepo:
 * `packages/ndx` contains shared common, agent, and webclient domain contracts.
 * The agent server is the only component allowed to execute agent loops, call tools, manage model inference, reconstruct context, or persist session events.
 * Browser, CLI, VS Code, and native clients are session clients. They connect to the agent server session socket and render downstream events, but do not own agent runtime state.
-* PostgreSQL is the authoritative store for accounts, session metadata, context events, task-turn progress, tool logs, and resumable execution state.
+* PostgreSQL is the authoritative store for session metadata, context events, task-turn progress, tool logs, browser presentation state, and resumable execution state.
 * Application containers share one runtime volume mounted at `/ndx`; see `runtime-volume.md` for affected paths.
 
 Logical server surfaces:
@@ -18,7 +18,7 @@ Logical server surfaces:
 | Agent server session socket | Agent turn execution, client interaction, downstream event streaming |
 | Settings HTTP/UI | Settings orchestration and browser editing surface |
 | Session web client | Browser UI connected to the session WebSocket server |
-| Account server | Account creation, deletion, login state, default-account behavior |
+| Settings/document surfaces | Browser settings, runtime documentation, and operational metadata |
 
 `apps/ndx` owns `src/server`, `src/webclient_front`, and `src/documents_front`.
 The single Express server under `src/server` serves backend API routes, built

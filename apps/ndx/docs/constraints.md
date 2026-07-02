@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | `src/server/index.ts` (process boot) | Docker entrypoint, `npm run deploy` | One Express server owns both HTTP and the WebSocket upgrade; agent init runs before routes attach. |
 | `src/server/web/webclient` routes | browser webclient via `ndx/webclient/front` | HTTP contract matches `ndx/webclient/common/protocol`; routes never execute agent turns. |
-| `src/server/agent/socketServer.ts` | browser session socket client | `clientid` upgrade handshake order (account → project → ready) is fixed; durable turn events persist before delivery. |
+| `src/server/agent/socketServer.ts` | browser session socket client | `clientid` upgrade then project negotiation then `session.ready` order is fixed; durable turn events persist before delivery. |
 | `src/webclient_front` React shell | end users | Presentation only; screen is a pure projection of model-render stores; no agent execution in the browser. |
 | `src/documents_front` | `/docs` site, `docs:audit` | Every backticked source path resolves; new `src/*` dirs land in `reference/source-inventory.md` and a coverage surface. |
 | `docker/baseImage` | `scripts/deploy.sh`, local Docker builds | Must publish/load both `linux/amd64` and `linux/arm64` archive variants; app Dockerfile may depend only on the loaded local tag. |

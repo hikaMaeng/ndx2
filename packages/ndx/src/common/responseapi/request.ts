@@ -2,6 +2,7 @@ import { parseResponsesPayload, readResponsesStream, responseToolCallId, type Mo
 import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { Agent } from "undici";
+import { toServerReadableFilePath } from "../server-path/index.js";
 
 const MAX_TRANSIENT_ATTEMPTS = 2;
 export const DEFAULT_MODEL_REQUEST_TIMEOUT_MS = 60 * 60 * 1000;
@@ -405,7 +406,8 @@ async function resolveInputContentPart(part: Record<string, unknown>): Promise<R
   if (typeof part.file_path !== "string") {
     return part;
   }
-  const fileData = await fs.readFile(part.file_path);
+  const filePath = toServerReadableFilePath(part.file_path);
+  const fileData = await fs.readFile(filePath);
   const mimeType = typeof part.mime_type === "string" && part.mime_type.trim() ? part.mime_type : "application/octet-stream";
   const dataUrl = `data:${mimeType};base64,${fileData.toString("base64")}`;
   if (part.type === "input_image") {

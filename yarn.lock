@@ -2958,9 +2958,9 @@ __metadata:
     postcss: "npm:8.5.14"
     react: "npm:19.2.6"
     react-dom: "npm:19.2.6"
-    react-markdown: "npm:^10.1.0"
+    react-markdown: "npm:10.1.0"
     react-mentions-ts: "npm:6.0.0"
-    remark-gfm: "npm:^4.0.1"
+    remark-gfm: "npm:4.0.1"
     supertest: "npm:7.2.2"
     tailwind-merge: "npm:3.5.0"
     tailwindcss: "npm:4.3.0"
@@ -3299,7 +3299,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-markdown@npm:^10.1.0":
+"react-markdown@npm:10.1.0":
   version: 10.1.0
   resolution: "react-markdown@npm:10.1.0"
   dependencies:
@@ -3341,7 +3341,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"remark-gfm@npm:^4.0.1":
+"remark-gfm@npm:4.0.1":
   version: 4.0.1
   resolution: "remark-gfm@npm:4.0.1"
   dependencies:

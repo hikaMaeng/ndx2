@@ -1,6 +1,7 @@
 import { ImagePlus, Send, X } from "lucide-react";
 import { RSC } from "./resource";
 import type { AskUserQuestionDraft, AskUserQuestionRequest } from "./types";
+import { Button, Input, Textarea } from "../../components/ui";
 
 export function AskUserQuestionDialog({
   draft,
@@ -31,9 +32,9 @@ export function AskUserQuestionDialog({
       <section role="dialog" aria-modal="true" className="grid max-h-[88dvh] w-full max-w-2xl grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 shadow-xl" aria-labelledby="ask-user-question-dialog-title">
         <div className="flex items-center justify-between gap-3 border-b border-zinc-800 px-4 py-3">
           <h2 id="ask-user-question-dialog-title" className="min-w-0 truncate text-sm font-semibold text-zinc-100">{title}</h2>
-          <button type="button" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950" aria-label={text(t, RSC.SESSION_ASK_USER_QUESTION_CLOSE_BUTTON)} onClick={onCancel}>
+          <Button type="button" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950" aria-label={text(t, RSC.SESSION_ASK_USER_QUESTION_CLOSE_BUTTON)} onClick={onCancel}>
             <X aria-hidden="true" className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
         <form className="grid min-h-0 grid-rows-[minmax(0,1fr)_auto]" onSubmit={(event) => { event.preventDefault(); onSubmit(); }} onPaste={(event) => {
           const activeQuestionId = (event.target as HTMLElement | null)?.closest("[data-question-id]")?.getAttribute("data-question-id");
@@ -56,7 +57,7 @@ export function AskUserQuestionDialog({
                       {question.options.map((option) => (
                         <label key={option.label} className="grid min-w-0 cursor-pointer gap-1 rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-sm text-zinc-200 hover:border-zinc-600">
                           <span className="flex min-w-0 items-start gap-2">
-                            <input type="radio" className="mt-1 shrink-0" name={question.id} checked={draft.selected[question.id] === option.label} onChange={() => onSelectedChange(question.id, option.label)} />
+                            <Input type="radio" className="mt-1 shrink-0" name={question.id} checked={draft.selected[question.id] === option.label} onChange={() => onSelectedChange(question.id, option.label)} />
                             <span className="grid min-w-0 gap-1">
                               <span className="ndx-wrap-anywhere whitespace-pre-wrap font-medium leading-5">{option.label}</span>
                               <span className="ndx-wrap-anywhere whitespace-pre-wrap text-xs leading-5 text-zinc-500">{option.description}</span>
@@ -72,7 +73,7 @@ export function AskUserQuestionDialog({
                     question.isSecret ? (
                       <label className="grid gap-1 text-sm text-zinc-300">
                         {text(t, RSC.SESSION_ASK_USER_QUESTION_ANSWER_INPUT_LABEL)}
-                        <input type="password" className="h-10 min-w-0 rounded-md border border-zinc-800 bg-zinc-950 px-3 text-zinc-100 outline-none focus:border-zinc-500" value={draft.text[question.id] ?? ""} onChange={(event) => onTextChange(question.id, event.currentTarget.value)} />
+                        <Input type="password" className="h-10 min-w-0 rounded-md border border-zinc-800 bg-zinc-950 px-3 text-zinc-100 outline-none focus:border-zinc-500" value={draft.text[question.id] ?? ""} onChange={(event) => onTextChange(question.id, event.currentTarget.value)} />
                       </label>
                     ) : (
                       <QuestionTextAndAttachments draft={draft} label={text(t, RSC.SESSION_ASK_USER_QUESTION_ANSWER_INPUT_LABEL)} questionId={question.id} t={t} onAddAttachments={onAddAttachments} onRemoveAttachment={onRemoveAttachment} onTextChange={onTextChange} />
@@ -83,11 +84,11 @@ export function AskUserQuestionDialog({
             })}
           </div>
           <div className="flex justify-end gap-2 border-t border-zinc-800 px-4 py-3">
-            <button type="button" className="inline-flex h-9 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 px-3 text-sm font-medium text-zinc-300 hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950" onClick={onCancel}>{text(t, RSC.SESSION_ASK_USER_QUESTION_CANCEL_BUTTON)}</button>
-            <button type="submit" className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-emerald-600 px-3 text-sm font-medium text-white hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950">
+            <Button type="button" className="inline-flex h-9 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 px-3 text-sm font-medium text-zinc-300 hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950" onClick={onCancel}>{text(t, RSC.SESSION_ASK_USER_QUESTION_CANCEL_BUTTON)}</Button>
+            <Button type="submit" className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-emerald-600 px-3 text-sm font-medium text-white hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950">
               <Send aria-hidden="true" className="h-4 w-4" />
               {text(t, RSC.SESSION_ASK_USER_QUESTION_SUBMIT_BUTTON)}
-            </button>
+            </Button>
           </div>
         </form>
       </section>
@@ -118,22 +119,22 @@ function QuestionTextAndAttachments({
     <div className="grid gap-2">
       <label className="grid gap-1 text-sm text-zinc-300">
         {label}
-        <textarea className="min-h-24 resize-y rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:border-zinc-500" value={draft.text[questionId] ?? ""} onChange={(event) => onTextChange(questionId, event.currentTarget.value)} />
+        <Textarea className="min-h-24 resize-y rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:border-zinc-500" value={draft.text[questionId] ?? ""} onChange={(event) => onTextChange(questionId, event.currentTarget.value)} />
       </label>
       {attachments.length > 0 ? (
         <ul className="flex flex-wrap gap-2" aria-label={text(t, RSC.SESSION_ASK_USER_QUESTION_ATTACHMENT_LIST_LABEL)}>
           {attachments.map((attachment) => (
             <li key={attachment.id} className="relative h-20 w-20 overflow-hidden rounded-md border border-zinc-700 bg-zinc-900">
               <img src={attachment.previewUrl} alt={attachment.name} className="h-full w-full object-cover" />
-              <button type="button" className="absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-zinc-950/90 text-zinc-200 shadow hover:bg-zinc-800" aria-label={`${attachment.name} ${text(t, RSC.SESSION_ASK_USER_QUESTION_REMOVE_ATTACHMENT_BUTTON)}`} onClick={() => onRemoveAttachment(questionId, attachment.id)}>
+              <Button type="button" className="absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-zinc-950/90 text-zinc-200 shadow hover:bg-zinc-800" aria-label={`${attachment.name} ${text(t, RSC.SESSION_ASK_USER_QUESTION_REMOVE_ATTACHMENT_BUTTON)}`} onClick={() => onRemoveAttachment(questionId, attachment.id)}>
                 <X aria-hidden="true" className="h-3.5 w-3.5" />
-              </button>
+              </Button>
             </li>
           ))}
         </ul>
       ) : null}
       <div>
-        <input id={inputId} className="sr-only" type="file" accept="image/*" multiple onChange={(event) => {
+        <Input id={inputId} className="sr-only" type="file" accept="image/*" multiple onChange={(event) => {
           onAddAttachments(questionId, Array.from(event.currentTarget.files ?? []));
           event.currentTarget.value = "";
         }} />

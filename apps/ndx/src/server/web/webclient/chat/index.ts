@@ -19,6 +19,8 @@ import type { NDXDatabase } from "ndx/agent/init";
 import type { NDXModelConfig } from "ndx/agent/session";
 import { NDX_AGENT_RESOURCE, type NDXAgentResourceResolver } from "ndx/common";
 import { NDX_TURN_EVENT } from "ndx/common/protocol";
+import { NDX_CONTAINER_USER_HOME } from "ndx/common/server-path";
+import { findSettingsModel, readNDXSettingsDocument, resolveSettingsModelConfig } from "ndx/common/settings";
 import type { NDXLogger } from "ndx/common";
 import type {
   NDXAgentWebChatFolder,
@@ -117,9 +119,14 @@ export function attachAgentWebChatRoutes(app: express.Express, database?: NDXDat
         response.status(400).json({ error: "model is required." });
         return;
       }
+      const submittedModel = body.model as NDXModelConfig;
+      const model = (await resolveCurrentChatModel(submittedModel).catch((error) => {
+        logger?.warn("web.chat.model.resolve_current.failed", { error: error instanceof Error ? error.message : String(error) });
+        return submittedModel;
+      })) ?? submittedModel;
       response.status(201).json(toWebChatSession(await createChatSession(database, {
         folderid: request.params.folderid,
-        model: body.model as NDXModelConfig,
+        model,
         title: typeof body.title === "string" ? body.title : ""
       })));
     } catch (error) {
@@ -186,7 +193,11 @@ export function attachAgentWebChatRoutes(app: express.Express, database?: NDXDat
         response.status(400).json({ error: "text is required." });
         return;
       }
-      const model = request.body?.model && typeof request.body.model === "object" ? request.body.model as NDXModelConfig : undefined;
+      const submittedModel = request.body?.model && typeof request.body.model === "object" ? request.body.model as NDXModelConfig : undefined;
+      const model = await resolveCurrentChatModel(submittedModel).catch((error) => {
+        logger?.warn("web.chat.model.resolve_current.failed", { error: error instanceof Error ? error.message : String(error) });
+        return submittedModel;
+      });
       if (request.accepts(["text/event-stream", "json"]) === "text/event-stream") {
         response.status(200);
         response.setHeader("Content-Type", "text/event-stream; charset=utf-8");
@@ -257,6 +268,22 @@ export function attachAgentWebChatRoutes(app: express.Express, database?: NDXDat
       next(error);
     }
   });
+}
+
+async function resolveCurrentChatModel(model: NDXModelConfig | undefined): Promise<NDXModelConfig | undefined> {
+  if (!model?.model.trim()) return model;
+  const settings = await readNDXSettingsDocument(NDX_CONTAINER_USER_HOME);
+  const providerModel = model.provider ? findSettingsModel(settings, model.provider, model.model) : undefined;
+  const resolved = resolveSettingsModelConfig(settings, providerModel?.key ?? model.model, model.contextsize);
+  if (!resolved) return model;
+  return {
+    ...resolved.model,
+    reasoningEffort: model.reasoningEffort ?? resolved.model.reasoningEffort,
+    ...(typeof model.temperature === "number" ? { temperature: model.temperature } : {}),
+    ...(typeof model.topP === "number" ? { topP: model.topP } : {}),
+    ...(typeof model.topK === "number" ? { topK: model.topK } : {}),
+    ...(typeof model.minP === "number" ? { minP: model.minP } : {})
+  };
 }
 
 function toWebChatFolder(row: NDXChatFolderRow): NDXAgentWebChatFolder {

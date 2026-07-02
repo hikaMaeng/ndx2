@@ -1,4 +1,5 @@
 import { visibleUserRequestText, type TurnFlowState } from "ndx/webclient/front";
+import { Button } from "../../components/ui";
 
 export function TurnNavigation({
   turns,
@@ -19,7 +20,7 @@ export function TurnNavigation({
           const title = visibleUserRequestText(turn.title).replace(/\s+/gu, " ").trim() || `Turn ${index + 1}`;
           return (
             <li key={turn.id} className="min-w-0">
-              <button
+              <Button
                 type="button"
                 aria-current={active ? "location" : undefined}
                 aria-label={`${index + 1}번째 턴으로 이동: ${title}`}
@@ -37,7 +38,7 @@ export function TurnNavigation({
                     turn.status === "running" ? "animate-pulse" : ""
                   ].filter(Boolean).join(" ")}
                 />
-              </button>
+              </Button>
             </li>
           );
         })}

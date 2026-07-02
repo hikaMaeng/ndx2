@@ -3,6 +3,7 @@ import { CircleAlert, Pencil, Plus, RefreshCw, Trash2, X } from "lucide-react";
 import type { NDXAgentWebModel, NDXAgentWebProvider, NDXReasoningEffort } from "ndx/webclient/common";
 import { normalizeModalities, normalizeReasoningEffort, optionalNullableNumber, optionalNumber, optionalNumberText, toggleModality, type SelectedModelConfig } from "ndx/webclient/front";
 import { RSC } from "../resource";
+import { Button, Input } from "../../components/ui";
 
 type ProviderBundle = {
   provider: NDXAgentWebProvider;
@@ -217,13 +218,13 @@ export function ModelDialog(props: ModelDialogProps) {
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <h2 id="model-dialog-title" className="text-sm font-semibold text-zinc-100">{props.t[RSC.SESSION_MODEL_DIALOG_TITLE_TEXT]}</h2>
-            <button type="button" className="inline-flex h-8 items-center justify-center gap-2 rounded-md bg-emerald-600 px-3 text-sm font-medium text-white transition-colors hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-expanded={providerFormOpen} disabled={dialogLocked} onClick={() => setProviderFormOpen((open) => !open)}>
+            <Button type="button" className="inline-flex h-8 items-center justify-center gap-2 rounded-md bg-emerald-600 px-3 text-sm font-medium text-white transition-colors hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-expanded={providerFormOpen} disabled={dialogLocked} onClick={() => setProviderFormOpen((open) => !open)}>
               <Plus className="h-4 w-4" />{props.t[RSC.SESSION_MODEL_DIALOG_PROVIDER_ADD_BUTTON]}
-            </button>
+            </Button>
           </div>
-          <button type="button" className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900 p-0 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-label={props.t[RSC.SESSION_MODEL_DIALOG_CLOSE_BUTTON]} disabled={dialogLocked} onClick={props.onClose}>
+          <Button type="button" className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900 p-0 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-label={props.t[RSC.SESSION_MODEL_DIALOG_CLOSE_BUTTON]} disabled={dialogLocked} onClick={props.onClose}>
             <X aria-hidden="true" className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
         {!providerFormOpen && providerError ? <p role="alert" className="text-xs text-red-300">{providerError}</p> : null}
         {dialogLocked ? <p role="status" className="text-xs text-zinc-500">{props.t[RSC.SESSION_MODEL_DIALOG_BUSY_STATUS]}</p> : null}
@@ -231,13 +232,13 @@ export function ModelDialog(props: ModelDialogProps) {
         {providerFormOpen ? (
           <form className="grid gap-2 rounded-lg border border-zinc-800 bg-zinc-900/60 p-3" onSubmit={submitProvider}>
             <div className="grid gap-2 md:grid-cols-3">
-              <input aria-label={props.t[RSC.SESSION_MODEL_DIALOG_PROVIDER_TITLE_INPUT_PLACEHOLDER]} disabled={dialogLocked} className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm disabled:opacity-50" placeholder={props.t[RSC.SESSION_MODEL_DIALOG_PROVIDER_TITLE_INPUT_PLACEHOLDER]} value={providerTitle} onChange={(event) => setProviderTitle(event.target.value)} />
-              <input aria-label={props.t[RSC.SESSION_MODEL_DIALOG_PROVIDER_URL_INPUT_PLACEHOLDER]} disabled={dialogLocked} className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm disabled:opacity-50 md:col-span-2" placeholder={props.t[RSC.SESSION_MODEL_DIALOG_PROVIDER_URL_INPUT_PLACEHOLDER]} value={providerUrl} onChange={(event) => setProviderUrl(event.target.value)} />
-              <input aria-label={props.t[RSC.SESSION_MODEL_DIALOG_PROVIDER_TOKEN_INPUT_PLACEHOLDER]} disabled={dialogLocked} className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm disabled:opacity-50 md:col-span-3" placeholder={props.t[RSC.SESSION_MODEL_DIALOG_PROVIDER_TOKEN_INPUT_PLACEHOLDER]} value={providerToken} onChange={(event) => setProviderToken(event.target.value)} />
+              <Input aria-label={props.t[RSC.SESSION_MODEL_DIALOG_PROVIDER_TITLE_INPUT_PLACEHOLDER]} disabled={dialogLocked} className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm disabled:opacity-50" placeholder={props.t[RSC.SESSION_MODEL_DIALOG_PROVIDER_TITLE_INPUT_PLACEHOLDER]} value={providerTitle} onChange={(event) => setProviderTitle(event.target.value)} />
+              <Input aria-label={props.t[RSC.SESSION_MODEL_DIALOG_PROVIDER_URL_INPUT_PLACEHOLDER]} disabled={dialogLocked} className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm disabled:opacity-50 md:col-span-2" placeholder={props.t[RSC.SESSION_MODEL_DIALOG_PROVIDER_URL_INPUT_PLACEHOLDER]} value={providerUrl} onChange={(event) => setProviderUrl(event.target.value)} />
+              <Input aria-label={props.t[RSC.SESSION_MODEL_DIALOG_PROVIDER_TOKEN_INPUT_PLACEHOLDER]} disabled={dialogLocked} className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm disabled:opacity-50 md:col-span-3" placeholder={props.t[RSC.SESSION_MODEL_DIALOG_PROVIDER_TOKEN_INPUT_PLACEHOLDER]} value={providerToken} onChange={(event) => setProviderToken(event.target.value)} />
             </div>
             <div className="flex items-center justify-between gap-3">
               <p className="text-xs text-red-300" role={providerError ? "alert" : "status"}>{providerError || (dialogLocked ? props.t[RSC.SESSION_MODEL_DIALOG_BUSY_STATUS] : "")}</p>
-              <button type="submit" disabled={dialogLocked} className="inline-flex h-8 items-center justify-center gap-2 rounded-md bg-emerald-600 px-3 text-sm font-medium text-white transition-colors hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50"><Plus className="h-4 w-4" />{props.t[RSC.SESSION_MODEL_DIALOG_MODEL_ADD_BUTTON]}</button>
+              <Button type="submit" disabled={dialogLocked} className="inline-flex h-8 items-center justify-center gap-2 rounded-md bg-emerald-600 px-3 text-sm font-medium text-white transition-colors hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50"><Plus className="h-4 w-4" />{props.t[RSC.SESSION_MODEL_DIALOG_MODEL_ADD_BUTTON]}</Button>
             </div>
           </form>
         ) : null}
@@ -251,31 +252,31 @@ export function ModelDialog(props: ModelDialogProps) {
                 <div className="flex items-center justify-between gap-2">
                   <h3 id={`provider-${provider.title}`} className="text-sm font-semibold text-zinc-100">{provider.title}</h3>
                   <div className="flex items-center gap-1">
-                    <button type="button" className="relative inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 p-0 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-label={props.t[RSC.SESSION_MODEL_DIALOG_MODEL_REFRESH_BUTTON]} aria-busy={syncing} disabled={syncing || dialogLocked} onClick={() => syncProvider(provider.title)}>
+                    <Button type="button" className="relative inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 p-0 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-label={props.t[RSC.SESSION_MODEL_DIALOG_MODEL_REFRESH_BUTTON]} aria-busy={syncing} disabled={syncing || dialogLocked} onClick={() => syncProvider(provider.title)}>
                       <RefreshCw className={syncing ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
                       {syncError ? (
                         <span className="absolute -bottom-1 -right-1 grid h-4 w-4 animate-[sync-error-pop_180ms_ease-out] place-items-center rounded-full bg-red-500 text-white ring-2 ring-zinc-950" aria-label={props.t[RSC.SESSION_MODEL_DIALOG_MODEL_SYNC_FAILED_ALERT]}>
                           <CircleAlert className="h-3 w-3" />
                         </span>
                       ) : null}
-                    </button>
-                    <button type="button" className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 p-0 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-label={props.t[RSC.SESSION_MODEL_DIALOG_MODEL_ADD_BUTTON]} disabled={dialogLocked} onClick={() => { setModelError(""); setModelProvider(modelProvider === provider.title ? undefined : provider.title); }}>
+                    </Button>
+                    <Button type="button" className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 p-0 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-label={props.t[RSC.SESSION_MODEL_DIALOG_MODEL_ADD_BUTTON]} disabled={dialogLocked} onClick={() => { setModelError(""); setModelProvider(modelProvider === provider.title ? undefined : provider.title); }}>
                       <Plus className="h-4 w-4" />
-                    </button>
-                    <button type="button" className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 p-0 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-label={props.t[RSC.SESSION_MODEL_DIALOG_PROVIDER_DELETE_BUTTON]} disabled={dialogLocked} onClick={() => deleteProvider(provider.title)}>
+                    </Button>
+                    <Button type="button" className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 p-0 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-label={props.t[RSC.SESSION_MODEL_DIALOG_PROVIDER_DELETE_BUTTON]} disabled={dialogLocked} onClick={() => deleteProvider(provider.title)}>
                       <Trash2 className="h-4 w-4" />
-                    </button>
+                    </Button>
                   </div>
                 </div>
                 {modelProvider === provider.title ? (
                   <form className="grid gap-2 rounded-md border border-zinc-800 bg-zinc-950/60 p-2" onSubmit={submitModel}>
                     <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_7rem_auto_auto]">
-                      <input aria-label={props.t[RSC.SESSION_MODEL_DIALOG_MODEL_NAME_INPUT_PLACEHOLDER]} disabled={dialogLocked} className="min-w-0 rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm disabled:opacity-50" placeholder={props.t[RSC.SESSION_MODEL_DIALOG_MODEL_NAME_INPUT_PLACEHOLDER]} value={modelName} onChange={(event) => setModelName(event.target.value)} />
-                      <input aria-label={props.t[RSC.SESSION_MODEL_DIALOG_MODEL_CONTEXT_SIZE_INPUT_PLACEHOLDER]} disabled={dialogLocked} className="min-w-0 rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm disabled:opacity-50" placeholder={props.t[RSC.SESSION_MODEL_DIALOG_MODEL_CONTEXT_SIZE_INPUT_PLACEHOLDER]} inputMode="numeric" value={contextsize} onChange={(event) => setContextsize(event.target.value)} />
-                      <button type="submit" disabled={dialogLocked} className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-emerald-600 px-3 text-sm font-medium text-white transition-colors hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50"><Plus className="h-4 w-4" />{props.t[RSC.SESSION_MODEL_DIALOG_MODEL_ADD_BUTTON]}</button>
-                      <button type="button" className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 p-0 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-label={props.t[RSC.SESSION_MODEL_DIALOG_CLOSE_BUTTON]} disabled={dialogLocked} onClick={() => setModelProvider(undefined)}>
+                      <Input aria-label={props.t[RSC.SESSION_MODEL_DIALOG_MODEL_NAME_INPUT_PLACEHOLDER]} disabled={dialogLocked} className="min-w-0 rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm disabled:opacity-50" placeholder={props.t[RSC.SESSION_MODEL_DIALOG_MODEL_NAME_INPUT_PLACEHOLDER]} value={modelName} onChange={(event) => setModelName(event.target.value)} />
+                      <Input aria-label={props.t[RSC.SESSION_MODEL_DIALOG_MODEL_CONTEXT_SIZE_INPUT_PLACEHOLDER]} disabled={dialogLocked} className="min-w-0 rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm disabled:opacity-50" placeholder={props.t[RSC.SESSION_MODEL_DIALOG_MODEL_CONTEXT_SIZE_INPUT_PLACEHOLDER]} inputMode="numeric" value={contextsize} onChange={(event) => setContextsize(event.target.value)} />
+                      <Button type="submit" disabled={dialogLocked} className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-emerald-600 px-3 text-sm font-medium text-white transition-colors hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50"><Plus className="h-4 w-4" />{props.t[RSC.SESSION_MODEL_DIALOG_MODEL_ADD_BUTTON]}</Button>
+                      <Button type="button" className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 p-0 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-label={props.t[RSC.SESSION_MODEL_DIALOG_CLOSE_BUTTON]} disabled={dialogLocked} onClick={() => setModelProvider(undefined)}>
                         <X className="h-4 w-4" />
-                      </button>
+                      </Button>
                     </div>
                     <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-4">
                       <InferenceInput label="temperature" value={modelTemperature} disabled={dialogLocked} onChange={setModelTemperature} />
@@ -303,13 +304,13 @@ export function ModelDialog(props: ModelDialogProps) {
                         aria-labelledby={`${editPanelId}-title`}
                       >
                         <div className="flex min-w-0 items-center justify-between gap-2">
-                          <button type="button" id={`${editPanelId}-title`} className="min-w-0 flex-1 truncate text-left disabled:pointer-events-none disabled:opacity-50" disabled={dialogLocked} onClick={() => props.onSelect(provider.title, model)}>{model.model}</button>
+                          <Button type="button" id={`${editPanelId}-title`} className="min-w-0 flex-1 truncate text-left disabled:pointer-events-none disabled:opacity-50" disabled={dialogLocked} onClick={() => props.onSelect(provider.title, model)}>{model.model}</Button>
                           <span className="flex min-w-fit shrink-0 flex-wrap items-center justify-end gap-1.5 text-xs text-zinc-500" aria-label="모델 요약">
                             <span className="inline-flex h-6 items-center rounded-full border border-zinc-700 bg-zinc-900 px-2.5 text-zinc-300" aria-label={`context ${Math.floor(model.contextsize / 1000)}k`}>{Math.floor(model.contextsize / 1000)}k</span>
                             {modelModalities.map((modality) => (
                               <span key={modality} className={modality === "text" ? "inline-flex h-6 items-center rounded-full border border-emerald-700 bg-emerald-950/60 px-2.5 text-emerald-200" : "inline-flex h-6 items-center rounded-full border border-zinc-700 bg-zinc-900 px-2.5 text-zinc-300"}>{modality}</span>
                             ))}
-                            <button type="button" className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900 p-0 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-label={props.t[RSC.SESSION_MODEL_DIALOG_MODEL_EDIT_BUTTON]} aria-expanded={isEditing} aria-controls={editPanelId} disabled={dialogLocked} onClick={() => { setModelError(""); setEditTarget(isEditing ? null : {
+                            <Button type="button" className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900 p-0 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-label={props.t[RSC.SESSION_MODEL_DIALOG_MODEL_EDIT_BUTTON]} aria-expanded={isEditing} aria-controls={editPanelId} disabled={dialogLocked} onClick={() => { setModelError(""); setEditTarget(isEditing ? null : {
                               provider: provider.title,
                               model: model.model,
                               contextsize: String(model.contextsize),
@@ -320,17 +321,17 @@ export function ModelDialog(props: ModelDialogProps) {
                               minP: optionalNumberText(model.minP)
                             }); }}>
                               <Pencil className="h-3.5 w-3.5" />
-                            </button>
+                            </Button>
                           </span>
                         </div>
                         {isEditing && editTarget ? (
                           <form id={editPanelId} className="grid min-w-0 gap-3 border-t border-zinc-800 pt-3" aria-labelledby={`${editPanelId}-title`} onSubmit={(event) => { event.preventDefault(); updateEditTarget(); }}>
                             <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_8rem_auto]">
-                              <input aria-label={props.t[RSC.SESSION_MODEL_DIALOG_MODEL_NAME_INPUT_PLACEHOLDER]} className="min-w-0 rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm" value={editTarget.model} readOnly />
-                              <input aria-label={props.t[RSC.SESSION_MODEL_DIALOG_MODEL_CONTEXT_SIZE_INPUT_PLACEHOLDER]} disabled={dialogLocked} className="min-w-0 rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm disabled:opacity-50" inputMode="numeric" value={editTarget.contextsize} onChange={(event) => setEditTarget({ ...editTarget, contextsize: event.target.value })} />
-                              <button type="button" className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 p-0 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-label={props.t[RSC.SESSION_MODEL_DIALOG_CLOSE_BUTTON]} disabled={dialogLocked} onClick={() => setEditTarget(null)}>
+                              <Input aria-label={props.t[RSC.SESSION_MODEL_DIALOG_MODEL_NAME_INPUT_PLACEHOLDER]} className="min-w-0 rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm" value={editTarget.model} readOnly />
+                              <Input aria-label={props.t[RSC.SESSION_MODEL_DIALOG_MODEL_CONTEXT_SIZE_INPUT_PLACEHOLDER]} disabled={dialogLocked} className="min-w-0 rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm disabled:opacity-50" inputMode="numeric" value={editTarget.contextsize} onChange={(event) => setEditTarget({ ...editTarget, contextsize: event.target.value })} />
+                              <Button type="button" className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-zinc-800 bg-zinc-950 p-0 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" aria-label={props.t[RSC.SESSION_MODEL_DIALOG_CLOSE_BUTTON]} disabled={dialogLocked} onClick={() => setEditTarget(null)}>
                                 <X className="h-4 w-4" />
-                              </button>
+                              </Button>
                             </div>
                             <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-4">
                               <InferenceInput label="temperature" value={editTarget.temperature} disabled={dialogLocked} onChange={(value) => setEditTarget({ ...editTarget, temperature: value })} />
@@ -341,10 +342,10 @@ export function ModelDialog(props: ModelDialogProps) {
                             <ModalityPills value={editTarget.modalities} disabled={dialogLocked} onChange={(modalities) => setEditTarget({ ...editTarget, modalities })} />
                             {modelError ? <p className="text-xs text-red-300" role="alert">{modelError}</p> : null}
                             <div className="flex flex-wrap items-center gap-2">
-                              <button type="submit" disabled={dialogLocked} className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-slate-950 px-3 text-sm font-medium text-white transition-colors hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50">{props.t[RSC.SESSION_MODEL_DIALOG_MODEL_SAVE_BUTTON]}</button>
-                              <button type="button" disabled={dialogLocked} className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-zinc-800 bg-zinc-950 px-3 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" onClick={deleteEditTarget}>
+                              <Button type="submit" disabled={dialogLocked} className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-slate-950 px-3 text-sm font-medium text-white transition-colors hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50">{props.t[RSC.SESSION_MODEL_DIALOG_MODEL_SAVE_BUTTON]}</Button>
+                              <Button type="button" disabled={dialogLocked} className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-zinc-800 bg-zinc-950 px-3 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50" onClick={deleteEditTarget}>
                                 <Trash2 className="h-4 w-4" />{props.t[RSC.SESSION_MODEL_DIALOG_MODEL_DELETE_BUTTON]}
-                              </button>
+                              </Button>
                             </div>
                           </form>
                         ) : null}
@@ -418,7 +419,7 @@ function ReasoningEffortCard(props: { value: NDXReasoningEffort; disabled: boole
         <span className="pointer-events-none absolute top-1 h-5 w-5 -translate-x-1/2 rounded-full border-2 border-emerald-400 bg-emerald-500 shadow-sm" style={{ left: `calc(1.25rem + (100% - 2.5rem) * ${selectedIndex / maxIndex})` }} />
         <div className="absolute left-5 right-5 top-0">
           {REASONING_EFFORT_OPTIONS.map((option, index) => (
-            <button
+            <Button
               key={option.value}
               type="button"
               disabled={props.disabled}
@@ -429,7 +430,7 @@ function ReasoningEffortCard(props: { value: NDXReasoningEffort; disabled: boole
             >
               <span className={index === selectedIndex ? "h-3 w-3 rounded-full bg-transparent" : "h-3 w-3 rounded-full border border-zinc-500 bg-zinc-900"} />
               <span>{props.t[option.key]}</span>
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -445,7 +446,7 @@ function ModalityPills(props: { value: Array<"text" | "image" | "file">; disable
       {(["image", "file"] as const).map((modality) => {
         const selected = value.includes(modality);
         return (
-          <button
+          <Button
             key={modality}
             type="button"
             className={selected
@@ -456,7 +457,7 @@ function ModalityPills(props: { value: Array<"text" | "image" | "file">; disable
             onClick={() => props.onChange(toggleModality(value, modality, !selected))}
           >
             {modality}
-          </button>
+          </Button>
         );
       })}
     </fieldset>
@@ -468,7 +469,7 @@ function InferenceInput(props: { label: string; value: string; disabled: boolean
   return (
     <label className="grid min-w-0 gap-1 text-xs text-zinc-500">
       <span>{props.label}</span>
-      <input
+      <Input
         aria-label={props.label}
         disabled={props.disabled}
         inputMode="decimal"
