@@ -255,6 +255,12 @@ before the user request is persisted. A selected skill may use a compact
 runtime must append the fresh full `<skill>` block so the model cannot continue
 following stale skill instructions from an earlier turn.
 
+If an explicitly selected skill cannot be loaded, the request-received hook must
+stop the turn before the model is called. The runtime must not let the model
+infer a fallback workflow from the visible `$skill` text, because that can route
+to stale project conventions such as root-level compatibility scripts instead
+of the selected skill's current instructions.
+
 ## Interactive Client Requests
 
 The session server may issue `session.client.request` messages while a function

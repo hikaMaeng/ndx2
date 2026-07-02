@@ -54,12 +54,23 @@ export const skillMarkerHook: NDXHookCodeExecutor = {
         turnContext: turnContextFromMessages(context.messages ?? [])
       });
       if (!result?.success) {
-        diagnostics.push(result?.output || result?.error || `Skill is not available: ${name}`);
-        continue;
+        const message = result?.output || result?.error || `Skill is not available: ${name}`;
+        return {
+          type: "stopturn",
+          replaceRequestText: parsed.replaceRequestText,
+          finalAssistantText: `Selected skill could not be loaded: ${name}.\n\n${message}`,
+          diagnostics: [message]
+        };
       }
       const loaded = parseLoadedSkillOutput(result.output) ?? parseAlreadyLoadedSkillOutput(result.output);
       if (!loaded) {
-        continue;
+        const message = `Selected skill did not return readable instructions: ${name}`;
+        return {
+          type: "stopturn",
+          replaceRequestText: parsed.replaceRequestText,
+          finalAssistantText: message,
+          diagnostics: [message]
+        };
       }
       const loadedKey = `${loaded.name}\0${loaded.path}`;
       if (preloadedSkillKeys.has(loadedKey)) {

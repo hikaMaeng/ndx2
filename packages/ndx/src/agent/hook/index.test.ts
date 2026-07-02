@@ -599,6 +599,51 @@ test("request received system hook treats queued visible skill commands like sel
   assert.match(text, /selected skill argument is `pinball`/);
 });
 
+test("request received system hook stops when selected skill preload fails", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "ndx-hook-missing-skill-"));
+  const userHome = path.join(root, "user");
+  const projectHome = path.join(root, "project");
+  const rows: Array<{ dataid: string; sessionid: string; type: string; contents: unknown; createdat: Date }> = [];
+
+  const database: NDXDatabase = {
+    async query(text, values) {
+      if (/SELECT dataid, sessionid, type, contents, createdat\s+FROM sessiondata/i.test(text)) {
+        return { rows, rowCount: rows.length, command: "", oid: 0, fields: [] } as never;
+      }
+      if (/INSERT INTO sessiondata/i.test(text)) {
+        const row = {
+          dataid: String(rows.length + 1),
+          sessionid: String(values?.[0]),
+          type: String(values?.[1]),
+          contents: JSON.parse(String(values?.[2])),
+          createdat: new Date(0)
+        };
+        rows.push(row);
+        return { rows: [row], rowCount: 1, command: "", oid: 0, fields: [] } as never;
+      }
+      return { rows: [], rowCount: 0, command: "", oid: 0, fields: [] } as never;
+    },
+    async close() {}
+  };
+
+  const result = await runNDXHooks(createNDXHookRuntime({ [NDX_TURN_EVENT.RequestReceived]: turnRequestReceivedHooks }, {}), NDX_TURN_EVENT.RequestReceived, {
+    ...baseContext,
+    database,
+    userHome,
+    projectHome,
+    messages: [
+      { role: "system", content: "## Skills\n### Available skills" },
+      { role: "user", content: "hello" }
+    ],
+    requestText: "$missing-skill apps/demo"
+  });
+
+  assert.equal(result.effect.stopTurn, true);
+  assert.equal(result.effect.replaceRequestText, "$missing-skill apps/demo");
+  assert.match(result.effect.finalAssistantText ?? "", /Selected skill could not be loaded: missing-skill/);
+  assert.equal(rows.length, 0);
+});
+
 test("request received system hook strips thinking marker from the current user request", async () => {
   const result = await runNDXHooks(createNDXHookRuntime({ [NDX_TURN_EVENT.RequestReceived]: turnRequestReceivedHooks }, {}), NDX_TURN_EVENT.RequestReceived, {
     ...baseContext,
